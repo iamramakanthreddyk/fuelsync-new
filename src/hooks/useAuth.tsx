@@ -22,6 +22,11 @@ export interface User {
     brand: string;
     address: string | null;
   }>;
+  plan?: {
+    name: string;
+    maxStations: number;
+    maxPumpsPerStation: number;
+  };
 }
 
 interface AuthContextType {

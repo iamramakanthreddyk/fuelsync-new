@@ -40,19 +40,15 @@ const OwnerDashboard = () => {
     try {
       setLoading(true);
       
-      const response = await apiClient.post<ApiResponse<any>>('/users', {
+      const response = await apiClient.post<any>('/users', {
         name: newEmployee.name,
         email: newEmployee.email,
         phone: newEmployee.phone,
         password: newEmployee.password,
         role: 'employee',
-        is_active: true,
-        station_id: currentStation.id
+        isActive: true,
+        stationId: currentStation.id
       });
-
-      if (!response.success) {
-        throw new Error('Failed to create employee');
-      }
 
       toast({
         title: 'Success',
@@ -78,16 +74,11 @@ const OwnerDashboard = () => {
     try {
       setLoading(true);
       
-      const response = await apiClient.post<ApiResponse<any>>('/pumps', {
-        station_id: currentStation.id,
-        pump_sno: newPump.pumpSno,
+      const response = await apiClient.post<any>(`/stations/${currentStation.id}/pumps`, {
+        number: newPump.pumpSno,
         name: newPump.name,
-        is_active: true
+        status: 'active'
       });
-
-      if (!response.success) {
-        throw new Error('Failed to create pump');
-      }
 
       toast({
         title: 'Success',

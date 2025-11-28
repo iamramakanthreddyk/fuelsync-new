@@ -9,9 +9,16 @@
     "db:sync": "node -e \"require('./src/models').syncDatabase({ alter: true }).then(() => process.exit(0))\"",
     "db:reset": "node -e \"require('./src/models').syncDatabase({ force: true }).then(() => process.exit(0))\"",
     "db:seed": "node -e \"const m = require('./src/models'); m.syncDatabase().then(() => m.seedDefaultData()).then(() => process.exit(0))\"",
+    "seed:sample": "node scripts/seedSampleData.js",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:verbose": "jest --verbose"
+    "test:verbose": "jest --verbose",
+    "test:integration": "jest tests/integration --detectOpenHandles",
+    "test:integration:admin": "jest tests/integration/admin-journey.test.js --verbose --detectOpenHandles",
+    "test:integration:owner": "jest tests/integration/owner-journey.test.js --verbose --detectOpenHandles",
+    "test:integration:manager": "jest tests/integration/manager-journey.test.js --verbose --detectOpenHandles",
+    "test:integration:employee": "jest tests/integration/employee-journey.test.js --verbose --detectOpenHandles",
+    "test:all-journeys": "node tests/integration/run-all-tests.js"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",

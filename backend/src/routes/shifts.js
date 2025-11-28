@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const shiftController = require('../controllers/shiftController');
 const { authenticate, requireMinRole } = require('../middleware/auth');
-const { validate, shiftValidators, validateId } = require('../validators');
+const { validate, shiftValidators, validateIntId } = require('../validators');
 
 // All routes require authentication
 router.use(authenticate);
@@ -26,11 +26,11 @@ router.post('/start',
 router.get('/active', shiftController.getActiveShift);
 
 // Get single shift
-router.get('/:id', validateId(), shiftController.getShift);
+router.get('/:id', validateIntId(), shiftController.getShift);
 
 // End a shift
 router.post('/:id/end',
-  validateId(),
+  validateIntId(),
   validate(shiftValidators.end),
   shiftController.endShift
 );
@@ -38,7 +38,7 @@ router.post('/:id/end',
 // Cancel a shift (manager+)
 router.post('/:id/cancel',
   requireMinRole('manager'),
-  validateId(),
+  validateIntId(),
   shiftController.cancelShift
 );
 

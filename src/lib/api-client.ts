@@ -116,8 +116,12 @@ async function handleResponse<T>(response: Response): Promise<T> {
   }
 
   if (isJson) {
-    const data = await response.json();
-    return data as T;
+    const jsonData = await response.json();
+    // If response has the {success, data} structure, unwrap it
+    if (jsonData && typeof jsonData === 'object' && 'data' in jsonData) {
+      return jsonData.data as T;
+    }
+    return jsonData as T;
   }
 
   return {} as T;

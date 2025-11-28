@@ -64,22 +64,16 @@ export default function MyStations() {
   const { data: stations, isLoading, error } = useQuery({
     queryKey: ['my-stations'],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: Station[] }>('/stations');
-      if (!response.success) {
-        throw new Error('Failed to fetch stations');
-      }
-      return response.data || [];
+      const response = await apiClient.get<Station[]>('/stations');
+      return response;
     },
   });
 
   // Create station mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiClient.post<{ success: boolean; data: Station }>('/stations', data);
-      if (!response.success) {
-        throw new Error('Failed to create station');
-      }
-      return response.data;
+      const response = await apiClient.post<Station>('/stations', data);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['my-stations'] });

@@ -29,6 +29,14 @@ import Reports from '@/pages/Reports';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
 
+// Owner pages
+import OwnerDashboard from '@/pages/owner/OwnerDashboard';
+import StationsManagement from '@/pages/owner/StationsManagement';
+import StationDetail from '@/pages/owner/StationDetail';
+import EmployeesManagement from '@/pages/owner/EmployeesManagement';
+import OwnerReports from '@/pages/owner/Reports';
+import OwnerAnalytics from '@/pages/owner/Analytics';
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
@@ -74,6 +82,11 @@ function RoleBasedRedirect() {
   
   if (user?.role === 'super_admin') {
     return <Navigate to="/superadmin/users" replace />;
+  }
+  
+  // Redirect owners to new owner dashboard
+  if (user?.role === 'owner') {
+    return <Navigate to="/owner/dashboard" replace />;
   }
   
   return <Navigate to="/dashboard" replace />;
@@ -154,7 +167,20 @@ export function AppWithQueries() {
               <ProtectedRoute>
                 <AppLayout>
                   <Routes>
+                    {/* Default dashboard for managers/employees */}
                     <Route path="/dashboard" element={<Dashboard />} />
+                    
+                    {/* Owner Routes - New comprehensive UI */}
+                    <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+                    <Route path="/owner/stations" element={<StationsManagement />} />
+                    <Route path="/owner/stations/:id" element={<StationDetail />} />
+                    <Route path="/owner/employees" element={<EmployeesManagement />} />
+                    <Route path="/owner/reports" element={<OwnerReports />} />
+                    <Route path="/owner/analytics" element={<OwnerAnalytics />} />
+                    
+                    {/* Legacy routes - keep for backward compatibility */}
+                    <Route path="/stations" element={<MyStations />} />
+                    
                     {/* CHANGED: Use /data-entry route instead of /upload */}
                     <Route path="/data-entry" element={<DataEntry />} />
                     <Route path="/sales" element={<Sales />} />
@@ -164,11 +190,11 @@ export function AppWithQueries() {
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/admin/users" element={<AdminUsers />} />
                     <Route path="/admin/stations" element={<AdminStations />} />
-                    <Route path="/stations" element={<MyStations />} />
                     <Route path="/staff" element={<Staff />} />
                     <Route path="/settings" element={<Settings />} />
                     {/* Optionally: for backward compatibility, can also keep /upload as DataEntry */}
                     <Route path="/upload" element={<DataEntry />} />
+                    
                     <Route path="/" element={<RoleBasedRedirect />} />
                   </Routes>
                 </AppLayout>
