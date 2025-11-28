@@ -1,0 +1,138 @@
+import { useEffect, useState } from 'react';
+import { useAuth } from "@/hooks/useAuth";
+import { apiClient } from "@/lib/api-client";
+
+interface DashboardData {
+  todaySales: number;
+  todayTender: number;
+  totalReadings: number;
+  lastReading: string | null;
+  pendingClosures: number;
+  trendsData: Array<{
+    date: string;
+    sales: number;
+    tender: number;
+  }>;
+  fuelPrices: {
+    petrol?: number;
+    diesel?: number;
+    cng?: number;
+  };
+  alerts: Array<{
+    id: string;
+    type: 'warning' | 'info' | 'error';
+    message: string;
+    severity: 'low' | 'medium' | 'high';
+    tags: string[];
+  }>;
+}
+
+export const useDashboardData = () => {
+  const { user } = useAuth();
+  const [data, setData] = useState<DashboardData>({
+    todaySales: 0,
+    todayTender: 0,
+    totalReadings: 0,
+    lastReading: null,
+    pendingClosures: 0,
+    trendsData: [],
+    fuelPrices: {},
+    alerts: []
+  });
+  const [isLoading, setIsLoading] = useState(true);
+
+  const currentStation = user?.stations?.[0];
+
+  useEffect(() => {
+    // If user has no stations, stop loading and show empty state
+    if (user && (!user.stations || user.stations.length === 0)) {
+      setIsLoading(false);
+      setData(prev => ({
+        ...prev,
+        alerts: [{
+          id: 'no_stations',
+          type: 'info',
+          message: 'No stations found. Create a station to start tracking sales.',
+          severity: 'medium',
+          tags: ['setup']
+        }]
+      }));
+      return;
+    }
+    
+    if (currentStation) {
+      loadDashboardData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user, currentStation]);
+
+  const loadDashboardData = async () => {
+    if (!currentStation) {
+      console.warn("No currentStation selected in useDashboardData");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      const today = new Date().toISOString().split('T')[0];
+
+      // Fetch dashboard summary from backend
+      const response = await apiClient.get<{ 
+        success: boolean; 
+        data: {
+          totalSales: number;
+          totalReadings: number;
+          fuelSales: Record<string, { litres: number; amount: number }>;
+          recentReadings: any[];
+        } 
+      }>(`/dashboard/summary?stationId=${currentStation.id}&startDate=${today}&endDate=${today}`);
+
+      if (response.success && response.data) {
+        const summary = response.data;
+        
+        // Extract fuel prices from current prices endpoint
+        let fuelPrices: DashboardData['fuelPrices'] = {};
+        try {
+          const pricesResponse = await apiClient.get<{ success: boolean; data: { current: any[] } }>(`/stations/${currentStation.id}/prices`);
+          if (pricesResponse.success && pricesResponse.data?.current) {
+            pricesResponse.data.current.forEach((p: any) => {
+              fuelPrices[p.fuelType as keyof typeof fuelPrices] = p.price;
+            });
+          }
+        } catch (e) {
+          console.warn('Could not load fuel prices:', e);
+        }
+
+        setData({
+          todaySales: summary.totalSales || 0,
+          todayTender: 0, // Not implemented yet
+          totalReadings: summary.totalReadings || 0,
+          lastReading: summary.recentReadings?.[0]?.createdAt || null,
+          pendingClosures: 0, // Not implemented yet
+          trendsData: [],
+          fuelPrices,
+          alerts: []
+        });
+      }
+    } catch (error: any) {
+      console.error('Error loading dashboard data:', error);
+      setData(prev => ({
+        ...prev,
+        alerts: [
+          {
+            id: 'load_error',
+            type: 'error',
+            message: error?.message || 'Failed to load dashboard data',
+            severity: 'high',
+            tags: ['system']
+          }
+        ]
+      }));
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return { data, isLoading, refetch: loadDashboardData };
+};

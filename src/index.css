@@ -1,0 +1,159 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 213 94% 48%; /* Bolder blue for improved button and UI visibility */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 222.2 84% 4.9%;
+
+    --radius: 0.75rem;
+
+    /* FuelSync Custom Colors */
+    --fuel-blue: 213 94% 28%;
+    --fuel-blue-light: 213 94% 68%;
+    --fuel-orange: 18 100% 60%;
+    --fuel-orange-light: 18 100% 75%;
+    --fuel-gray: 215 25% 27%;
+    --fuel-success: 142 76% 36%;
+    --fuel-warning: 45 93% 58%;
+    --fuel-error: 0 84% 60%;
+
+    --sidebar-background: 213 94% 28%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 18 100% 60%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 213 94% 35%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 213 94% 35%;
+    --sidebar-ring: 213 94% 68%;
+  }
+
+  .dark {
+    --background: 213 94% 6%;
+    --foreground: 210 40% 98%;
+
+    --card: 213 94% 8%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 213 94% 8%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 213 94% 68%;
+    --primary-foreground: 213 94% 6%;
+
+    --secondary: 213 94% 12%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 213 94% 12%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 213 94% 12%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 213 94% 12%;
+    --input: 213 94% 12%;
+    --ring: 213 94% 68%;
+
+    --sidebar-background: 213 94% 4%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 18 100% 60%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 213 94% 8%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 213 94% 8%;
+    --sidebar-ring: 213 94% 68%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-semibold tracking-tight;
+  }
+}
+
+@layer utilities {
+  .fuel-gradient {
+    background: linear-gradient(135deg, hsl(var(--fuel-blue)) 0%, hsl(var(--fuel-blue-light)) 100%);
+  }
+  
+  .fuel-gradient-orange {
+    background: linear-gradient(135deg, hsl(var(--fuel-orange)) 0%, hsl(var(--fuel-orange-light)) 100%);
+  }
+
+  .text-fuel-blue {
+    color: hsl(var(--fuel-blue));
+  }
+
+  .text-fuel-orange {
+    color: hsl(var(--fuel-orange));
+  }
+
+  .bg-fuel-blue {
+    background-color: hsl(var(--fuel-blue));
+  }
+
+  .bg-fuel-orange {
+    background-color: hsl(var(--fuel-orange));
+  }
+
+  .border-fuel-blue {
+    border-color: hsl(var(--fuel-blue));
+  }
+
+  .animate-float {
+    animation: float 3s ease-in-out infinite;
+  }
+
+  .animate-pulse-slow {
+    animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+}
+
+@keyframes float {
+  0%, 100% {
+    transform: translateY(0px);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
