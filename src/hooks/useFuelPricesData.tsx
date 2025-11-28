@@ -59,10 +59,12 @@ export function useFuelPricesData() {
       try {
         // Use the correct endpoint: /stations/:stationId/prices
         const url = `/stations/${stationId}/prices`;
-        const response = await apiClient.get<ApiResponse<BackendFuelPrice[]>>(url);
+        // apiClient.get already unwraps {success, data} structure
+        const data = await apiClient.get<{ current: BackendFuelPrice[], history: BackendFuelPrice[] }>(url);
 
-        if (response.success && response.data) {
-          return response.data.map(transformPrice);
+        // Backend returns {current: [], history: []} - we want current prices
+        if (data && data.current && Array.isArray(data.current)) {
+          return data.current.map(transformPrice);
         }
         return [];
       } catch (error) {

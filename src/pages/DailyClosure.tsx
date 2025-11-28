@@ -37,13 +37,7 @@ export default function DailyClosure() {
         notes: closureNotes || `Daily closure for ${selectedDate}. Sales: ₹${summary.sales_total.toFixed(2)}, Tender: ₹${summary.tender_total.toFixed(2)}, Difference: ₹${summary.difference.toFixed(2)}`
       };
 
-      const response = await apiClient.post<ApiResponse<any>>('/handovers/bank-deposit', depositData);
-
-      if (!response.success) {
-        throw new Error('Failed to close day');
-      }
-
-      return response.data;
+      return await apiClient.post<any>('/handovers/bank-deposit', depositData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['daily-summary'] });

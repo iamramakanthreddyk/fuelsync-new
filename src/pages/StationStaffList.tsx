@@ -32,15 +32,10 @@ export default function StationStaffList() {
       }
       
       try {
-        const response = await apiClient.get<ApiResponse<StaffUser[]>>(
+        const data = await apiClient.get<StaffUser[]>(
           `/stations/${currentStation.id}/staff`
         );
-
-        if (response.success && response.data) {
-          setStaff(response.data);
-        } else {
-          setStaff([]);
-        }
+        setStaff(data || []);
       } catch (error) {
         console.error('Failed to fetch staff:', error);
         setStaff([]);

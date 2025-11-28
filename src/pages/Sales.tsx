@@ -64,6 +64,12 @@ export default function Sales() {
   const { currentStation, canAccessAllStations, stations } = useRoleAccess();
   const { createManualEntry } = useSalesManagement();
 
+  // Debug logging
+  useEffect(() => {
+    console.log('💰 Sales data:', sales);
+    console.log('💰 Sales count:', sales?.length);
+  }, [sales]);
+
   useEffect(() => {
     if (!canAccessAllStations && currentStation?.id) {
       setManualEntry(prev => ({
@@ -95,49 +101,51 @@ export default function Sales() {
     return null;
   };
 
-  // Filter logic using actual Sale structure and lookup for nozzle/pump/fuel_type details
+  // Filter logic using actual Sale structure with fuel_type directly available
   const filteredSales = sales?.filter(sale => {
-    // Date filter
-    if (
-      dateRange.start &&
-      dateRange.end &&
-      sale.created_at &&
-      (new Date(sale.created_at) < dateRange.start ||
-        new Date(sale.created_at) > dateRange.end)
-    ) {
+    // Date filter - use reading_date (YYYY-MM-DD string) for comparison
+    if (dateRange.start && dateRange.end && sale.reading_date) {
+      const saleDate = new Date(sale.reading_date);
+      const startDate = new Date(dateRange.start);
+      const endDate = new Date(dateRange.end);
+      
+      // Normalize to compare only dates (not times)
+      saleDate.setHours(0, 0, 0, 0);
+      startDate.setHours(0, 0, 0, 0);
+      endDate.setHours(23, 59, 59, 999);
+      
+      if (saleDate < startDate || saleDate > endDate) {
+        return false;
+      }
+    }
+
+    // Product type (fuel) - fuel_type is directly on sale object
+    if (productType && sale.fuel_type?.toUpperCase() !== productType.toUpperCase()) {
       return false;
     }
 
-    // Product type (fuel)
-    if (productType) {
-      const nozzle = getNozzle(sale.nozzle_id ?? 0);
-      if (!nozzle || nozzle.fuel_type?.toUpperCase() !== productType.toUpperCase()) {
-        return false;
-      }
+    // Pump filter - pump_id is directly on sale object (string)
+    if (barPumpId && sale.pump_id !== barPumpId) {
+      return false;
     }
 
-    // Pump filter - find the pump object by id, check if this sale's nozzle is part
-    if (barPumpId) {
-      const pump = pumps?.find((p: any) => p.id?.toString() === barPumpId);
-      if (!pump || !pump.nozzles.some((n: any) => n.id === sale.nozzle_id)) {
-        return false;
-      }
+    // Nozzle filter - nozzle_id is directly on sale object (string)
+    if (barNozzleId && sale.nozzle_id !== barNozzleId) {
+      return false;
     }
 
-    // Nozzle filter
-    if (barNozzleId && sale.nozzle_id?.toString() !== barNozzleId) return false;
-
-    if (selectedStationId && sale.station_id !== selectedStationId) return false;
-
-    if (selectedPumpId) {
-      // Fallback for pump filter using the normal filter and available data
-      const pump = pumps?.find(p => p.id === selectedPumpId);
-      if (!pump?.nozzles.some(n => n.id === sale.nozzle_id)) return false;
+    // Station filter (if still using old number-based filter)
+    if (selectedStationId && sale.station_id !== selectedStationId.toString()) {
+      return false;
     }
 
-    if (selectedNozzleId && sale.nozzle_id !== selectedNozzleId) return false;
     return true;
   }) || [];
+
+  // Debug logging
+  console.log('💰 Sales page - raw sales:', sales?.length);
+  console.log('💰 Sales page - filtered sales:', filteredSales.length);
+  console.log('💰 Sales page - dateRange:', dateRange);
 
   // Pagination
   const pagedSales = filteredSales.slice((page - 1) * pageSize, page * pageSize);

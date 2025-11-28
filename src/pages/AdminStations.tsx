@@ -72,13 +72,8 @@ export default function AdminStations() {
   const { data: stations, isLoading } = useQuery({
     queryKey: ['admin-stations'],
     queryFn: async () => {
-      const response = await apiClient.get<ApiResponse<StationWithDetails[]>>('/admin/stations');
-
-      if (!response.success) {
-        throw new Error('Failed to fetch stations');
-      }
-
-      return response.data || [];
+      const data = await apiClient.get<StationWithDetails[]>('/admin/stations');
+      return data || [];
     },
   });
 
@@ -86,12 +81,8 @@ export default function AdminStations() {
   const { data: owners } = useQuery({
     queryKey: ['owners'],
     queryFn: async () => {
-      const response = await apiClient.get<ApiResponse<User[]>>('/users?role=owner');
-
-      if (response.success && response.data) {
-        return response.data;
-      }
-      return [];
+      const data = await apiClient.get<User[]>('/users?role=owner');
+      return data || [];
     },
   });
 
@@ -99,31 +90,21 @@ export default function AdminStations() {
   const { data: plans } = useQuery({
     queryKey: ['plans'],
     queryFn: async () => {
-      const response = await apiClient.get<ApiResponse<Plan[]>>('/plans');
-
-      if (response.success && response.data) {
-        return response.data;
-      }
-      return [];
+      const data = await apiClient.get<Plan[]>('/plans');
+      return data || [];
     },
   });
 
   // Add station mutation using REST API
   const addStationMutation = useMutation({
     mutationFn: async (stationData: typeof newStation) => {
-      const response = await apiClient.post<ApiResponse<StationWithDetails>>('/admin/stations', {
+      return await apiClient.post<StationWithDetails>('/admin/stations', {
         name: stationData.name,
         brand: stationData.brand,
         address: stationData.address,
         owner_id: stationData.owner_id,
         current_plan_id: stationData.current_plan_id
       });
-
-      if (!response.success) {
-        throw new Error('Failed to create station');
-      }
-
-      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-stations'] });

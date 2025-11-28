@@ -25,6 +25,7 @@ const handoverRoutes = require('./routes/handovers');
 const configRoutes = require('./routes/config');
 const planRoutes = require('./routes/plans');
 const activityLogRoutes = require('./routes/activityLogs');
+const salesRoutes = require('./routes/sales');
 
 // Import constants for API info
 const { FUEL_TYPES, PAYMENT_METHODS, EXPENSE_CATEGORIES, USER_ROLES } = require('./config/constants');
@@ -92,6 +93,7 @@ app.use('/api/v1', creditRoutes);   // Credits under /api/v1/stations/:id/credit
 app.use('/api/v1', expenseRoutes);  // Expenses under /api/v1/stations/:id/expenses - BEFORE stations
 app.use('/api/v1/stations', stationRoutes);
 app.use('/api/v1/readings', readingRoutes);
+app.use('/api/v1/sales', salesRoutes); // Sales data from readings
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/tanks', tankRoutes);   // Tanks management
 app.use('/api/v1/shifts', shiftRoutes); // Shift management

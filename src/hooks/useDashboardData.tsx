@@ -78,43 +78,39 @@ export const useDashboardData = () => {
       const today = new Date().toISOString().split('T')[0];
 
       // Fetch dashboard summary from backend
-      const response = await apiClient.get<{ 
-        success: boolean; 
-        data: {
-          totalSales: number;
-          totalReadings: number;
-          fuelSales: Record<string, { litres: number; amount: number }>;
-          recentReadings: any[];
-        } 
+      // apiClient unwraps {success, data} to just data
+      const summary = await apiClient.get<{
+        totalSales: number;
+        totalReadings: number;
+        fuelSales: Record<string, { litres: number; amount: number }>;
+        recentReadings: any[];
       }>(`/dashboard/summary?stationId=${currentStation.id}&startDate=${today}&endDate=${today}`);
 
-      if (response.success && response.data) {
-        const summary = response.data;
-        
-        // Extract fuel prices from current prices endpoint
-        let fuelPrices: DashboardData['fuelPrices'] = {};
-        try {
-          const pricesResponse = await apiClient.get<{ success: boolean; data: { current: any[] } }>(`/stations/${currentStation.id}/prices`);
-          if (pricesResponse.success && pricesResponse.data?.current) {
-            pricesResponse.data.current.forEach((p: any) => {
-              fuelPrices[p.fuelType as keyof typeof fuelPrices] = p.price;
-            });
-          }
-        } catch (e) {
-          console.warn('Could not load fuel prices:', e);
-        }
+      console.log('📊 Dashboard summary:', summary);
 
-        setData({
-          todaySales: summary.totalSales || 0,
-          todayTender: 0, // Not implemented yet
-          totalReadings: summary.totalReadings || 0,
-          lastReading: summary.recentReadings?.[0]?.createdAt || null,
-          pendingClosures: 0, // Not implemented yet
-          trendsData: [],
-          fuelPrices,
-          alerts: []
-        });
+      // Extract fuel prices from current prices endpoint
+      let fuelPrices: DashboardData['fuelPrices'] = {};
+      try {
+        const pricesData = await apiClient.get<{ current: any[] }>(`/stations/${currentStation.id}/prices`);
+        if (pricesData?.current) {
+          pricesData.current.forEach((p: any) => {
+            fuelPrices[p.fuelType as keyof typeof fuelPrices] = p.price;
+          });
+        }
+      } catch (e) {
+        console.warn('Could not load fuel prices:', e);
       }
+
+      setData({
+        todaySales: summary.today?.amount || 0,
+        todayTender: 0, // Not implemented yet
+        totalReadings: summary.today?.readings || 0,
+        lastReading: summary.recentReadings?.[0]?.createdAt || null,
+        pendingClosures: 0, // Not implemented yet
+        trendsData: [],
+        fuelPrices,
+        alerts: []
+      });
     } catch (error: any) {
       console.error('Error loading dashboard data:', error);
       setData(prev => ({

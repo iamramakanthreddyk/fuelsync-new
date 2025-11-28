@@ -4,7 +4,8 @@
  */
 
 const app = require('./app');
-const { syncDatabase, seedDefaultData } = require('./models');
+const { syncDatabase } = require('./models');
+const seedEssentials = require('../scripts/seedEssentials');
 
 const PORT = process.env.PORT || 3001;
 
@@ -14,11 +15,11 @@ const startServer = async () => {
     
     // Sync database (creates tables if they don't exist)
     console.log('📦 Syncing database...');
-    await syncDatabase({ alter: process.env.NODE_ENV === 'development' });
+    // Use force:false to avoid recreating tables, just sync schema
+    await syncDatabase({ force: false });
     
-    // Seed default data (plans, admin user)
-    console.log('🌱 Checking seed data...');
-    await seedDefaultData();
+    // Seed essential data (plans, admin user)
+    await seedEssentials();
     
     // Start server
     app.listen(PORT, () => {

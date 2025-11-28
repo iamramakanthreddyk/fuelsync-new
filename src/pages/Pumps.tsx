@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,12 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
-import { Plus, Settings, Fuel, Gauge } from "lucide-react";
+import { Plus, Settings, Fuel, Gauge, ClipboardEdit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { usePumpsData } from "@/hooks/usePumpsData";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 
 export default function Pumps() {
+  const navigate = useNavigate();
   const [isAddPumpOpen, setIsAddPumpOpen] = useState(false);
   const [isAddNozzleOpen, setIsAddNozzleOpen] = useState(false);
   const [selectedPumpId, setSelectedPumpId] = useState<string | null>(null);
@@ -37,16 +39,11 @@ export default function Pumps() {
     mutationFn: async (pumpData: typeof newPump) => {
       if (!currentStation?.id) throw new Error('No station selected');
 
-      const response = await apiClient.post<ApiResponse<any>>(`/stations/${currentStation.id}/pumps`, {
+      return await apiClient.post<any>(`/stations/${currentStation.id}/pumps`, {
         pumpNumber: parseInt(pumpData.pump_sno.replace(/\D/g, '') || '0') || 1,
         name: pumpData.name,
         status: pumpData.is_active ? 'active' : 'inactive'
       });
-
-      if (!response.success) {
-        throw new Error('Failed to add pump');
-      }
-      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pumps'] });
@@ -69,17 +66,12 @@ export default function Pumps() {
   // Add nozzle mutation - uses /stations/pumps/:pumpId/nozzles
   const addNozzleMutation = useMutation({
     mutationFn: async (nozzleData: { nozzle_number: number; fuel_type: 'PETROL' | 'DIESEL' | 'CNG' | 'EV'; pump_id: string }) => {
-      const response = await apiClient.post<ApiResponse<any>>(`/stations/pumps/${nozzleData.pump_id}/nozzles`, {
+      return await apiClient.post<any>(`/stations/pumps/${nozzleData.pump_id}/nozzles`, {
         nozzleNumber: nozzleData.nozzle_number,
         fuelType: nozzleData.fuel_type.toLowerCase() as 'petrol' | 'diesel',
         initialReading: 0, // Required by backend
         status: 'active'
       });
-
-      if (!response.success) {
-        throw new Error('Failed to add nozzle');
-      }
-      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pumps'] });
@@ -174,14 +166,20 @@ export default function Pumps() {
           </p>
         </div>
         
-        {(isOwner || isAdmin) && (
-          <Dialog open={isAddPumpOpen} onOpenChange={setIsAddPumpOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="w-4 h-4 mr-2" />
-                Add Pump
-              </Button>
-            </DialogTrigger>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => navigate('/data-entry')}>
+            <ClipboardEdit className="w-4 h-4 mr-2" />
+            Enter Readings
+          </Button>
+          
+          {(isOwner || isAdmin) && (
+            <Dialog open={isAddPumpOpen} onOpenChange={setIsAddPumpOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Pump
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add New Pump</DialogTitle>
@@ -215,6 +213,7 @@ export default function Pumps() {
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -295,17 +294,33 @@ export default function Pumps() {
                 
                 <div className="space-y-2">
                   {pump.nozzles?.map((nozzle) => (
-                    <div key={nozzle.id} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                      <div className="flex items-center gap-2">
-                        <Gauge className="w-4 h-4" />
-                        <span className="font-medium">#{nozzle.nozzle_number}</span>
-                        <Badge className={getFuelTypeColor(nozzle.fuel_type)}>
-                          {nozzle.fuel_type}
-                        </Badge>
+                    <div key={nozzle.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Gauge className="w-4 h-4" />
+                          <span className="font-medium">Nozzle #{nozzle.nozzle_number}</span>
+                          <Badge className={getFuelTypeColor(nozzle.fuel_type)}>
+                            {nozzle.fuel_type}
+                          </Badge>
+                          <Badge variant="outline" className={getStatusColor(nozzle.is_active)}>
+                            {nozzle.is_active ? 'Active' : 'Inactive'}
+                          </Badge>
+                        </div>
+                        {nozzle.lastReading && (
+                          <div className="text-xs text-muted-foreground ml-6">
+                            Last: {nozzle.lastReading.toLocaleString()} L
+                          </div>
+                        )}
                       </div>
-                      <Badge className={getStatusColor(nozzle.is_active)}>
-                        {nozzle.is_active ? 'Active' : 'Inactive'}
-                      </Badge>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        onClick={() => navigate('/data-entry')}
+                        className="ml-2"
+                      >
+                        <ClipboardEdit className="w-3 h-3 mr-1" />
+                        Enter
+                      </Button>
                     </div>
                   ))}
                 </div>

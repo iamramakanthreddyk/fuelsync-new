@@ -36,7 +36,7 @@ export default function CreateOwnerWizard() {
     mutationFn: async (data: OwnerFormData) => {
       console.log('Creating owner with data:', data);
       // Create owner first, then station
-      const ownerResponse = await apiClient.post<{ success: boolean; data: any }>('/users', {
+      const owner = await apiClient.post<any>('/users', {
         name: data.name,
         email: data.email,
         phone: data.phone,
@@ -44,19 +44,15 @@ export default function CreateOwnerWizard() {
         role: 'owner'
       });
       
-      if (!ownerResponse.success) {
-        throw new Error('Failed to create owner');
-      }
-      
       // Create station for the owner
-      const stationResponse = await apiClient.post<{ success: boolean; data: any }>('/stations', {
+      const station = await apiClient.post<any>('/stations', {
         name: data.stationName,
         brand: data.brand,
         address: data.address,
-        ownerId: ownerResponse.data.id
+        ownerId: owner.id
       });
       
-      return { owner: ownerResponse.data, station: stationResponse.data };
+      return { owner, station };
     },
     onSuccess: (data) => {
       console.log('Owner created successfully:', data);

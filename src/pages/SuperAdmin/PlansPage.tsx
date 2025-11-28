@@ -46,22 +46,15 @@ export default function PlansPage() {
   const { data: plans = [], isLoading, error } = useQuery({
     queryKey: ['plans'],
     queryFn: async () => {
-      const response = await apiClient.get<ApiResponse<Plan[]>>('/plans');
-      if (!response.success) {
-        throw new Error('Failed to fetch plans');
-      }
-      return response.data || [];
+      const data = await apiClient.get<Plan[]>('/plans');
+      return data || [];
     },
   });
 
   // Create plan mutation
   const createPlanMutation = useMutation({
     mutationFn: async (data: Omit<Plan, 'id' | 'createdAt'>) => {
-      const response = await apiClient.post<ApiResponse<Plan>>('/plans', data);
-      if (!response.success) {
-        throw new Error('Failed to create plan');
-      }
-      return response.data;
+      return await apiClient.post<Plan>('/plans', data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
@@ -83,11 +76,7 @@ export default function PlansPage() {
   // Update plan mutation
   const updatePlanMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Omit<Plan, 'id' | 'createdAt'> }) => {
-      const response = await apiClient.put<ApiResponse<Plan>>(`/plans/${id}`, data);
-      if (!response.success) {
-        throw new Error('Failed to update plan');
-      }
-      return response.data;
+      return await apiClient.put<Plan>(`/plans/${id}`, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
@@ -109,10 +98,7 @@ export default function PlansPage() {
   // Delete plan mutation
   const deletePlanMutation = useMutation({
     mutationFn: async (planId: string) => {
-      const response = await apiClient.delete<ApiResponse<void>>(`/plans/${planId}`);
-      if (!response.success) {
-        throw new Error('Failed to deactivate plan');
-      }
+      await apiClient.delete<void>(`/plans/${planId}`);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });

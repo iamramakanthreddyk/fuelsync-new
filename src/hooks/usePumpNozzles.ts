@@ -3,28 +3,33 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 
 interface Nozzle {
-  id: number;
-  nozzle_number: number;
-  fuel_type: string;
+  id: string;
+  nozzleNumber: number;
+  fuelType: string;
+  status: string;
 }
 
-export function usePumpNozzles(pumpId?: number) {
+export function usePumpNozzles(pumpId?: string) {
   return useQuery({
     queryKey: ["nozzles", pumpId],
     queryFn: async (): Promise<Nozzle[]> => {
       if (!pumpId) return [];
       
       try {
-        const response = await apiClient.get<ApiResponse<Nozzle[]>>(
-          `/pumps/${pumpId}/nozzles`
+        // apiClient.get already unwraps {success, data} structure
+        // Route is under /stations prefix: /api/v1/stations/pumps/:pumpId/nozzles
+        const nozzles = await apiClient.get<Nozzle[]>(
+          `/stations/pumps/${pumpId}/nozzles`
         );
 
-        if (response.success && response.data) {
-          return response.data;
+        console.log('✅ Nozzles fetched for pump:', pumpId, nozzles);
+
+        if (Array.isArray(nozzles)) {
+          return nozzles;
         }
         return [];
       } catch (error) {
-        console.error('Failed to fetch nozzles:', error);
+        console.error('❌ Failed to fetch nozzles:', error);
         return [];
       }
     },

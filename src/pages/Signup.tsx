@@ -41,29 +41,21 @@ export default function Signup() {
     setIsLoading(true);
 
     try {
-      const response = await apiClient.post<ApiResponse<any>>('/auth/register', {
+      await apiClient.post<any>('/auth/register', {
         email,
         password,
         name: name || email.split('@')[0],
         role: 'employee'
       });
 
-      if (!response.success) {
-        toast({
-          title: "Sign Up Failed",
-          description: response.message || "Failed to create account",
-          variant: "destructive"
-        });
-      } else {
-        toast({
-          title: "Account Created!",
-          description: "Your account has been created. You can now log in.",
-        });
-        setEmail('');
-        setPassword('');
-        setName('');
-        navigate('/login');
-      }
+      toast({
+        title: "Account Created!",
+        description: "Your account has been created. You can now log in.",
+      });
+      setEmail('');
+      setPassword('');
+      setName('');
+      navigate('/login');
     } catch (err: any) {
       toast({
         title: "Sign Up Error",

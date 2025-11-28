@@ -13,19 +13,30 @@ export interface User {
   email: string;
   phone: string | null;
   role: UserRole;
-  is_active: boolean;
-  created_at: string | null;
-  updated_at: string | null;
+  isActive: boolean;
+  createdAt: string | null;
+  updatedAt: string | null;
+  stationId?: string | null;
+  planId?: string | null;
   stations: Array<{
     id: string;
     name: string;
     brand: string;
     address: string | null;
+    code?: string;
+    city?: string;
   }>;
+  station?: {
+    id: string;
+    name: string;
+    code?: string;
+    address?: string;
+  };
   plan?: {
     name: string;
     maxStations: number;
     maxPumpsPerStation: number;
+    canExport?: boolean;
   };
 }
 
@@ -99,15 +110,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Verify token with backend
   const verifyToken = useCallback(async () => {
     try {
-      const response = await apiClient.get<{ success: boolean; data: User }>('/auth/me');
-      if (response.success && response.data) {
-        const userData = {
-          ...response.data,
-          stations: response.data.stations || [],
-        };
-        setUser(userData);
-        setStoredUser(userData);
-      }
+      const userData = await apiClient.get<User>('/auth/me');
+      const userWithStations = {
+        ...userData,
+        stations: userData.stations || [],
+      };
+      setUser(userWithStations);
+      setStoredUser(userWithStations);
     } catch (error) {
       if (error instanceof ApiError && error.statusCode === 401) {
         removeToken();
@@ -119,16 +128,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true);
     try {
-      const response = await apiClient.post<{ 
-        success: boolean; 
-        data: { token: string; user: User } 
-      }>('/auth/login', { email, password });
+      const response = await apiClient.post<{ token: string; user: User }>('/auth/login', { email, password });
       
-      if (!response.success || !response.data) {
-        throw new Error('Login failed');
-      }
-
-      const { token: authToken, user: authUser } = response.data;
+      const { token: authToken, user: authUser } = response;
       
       // Store credentials
       setToken(authToken);

@@ -3,24 +3,31 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 
 interface Pump {
-  id: number;
-  pump_sno: string;
+  id: string;
+  stationId: string;
   name: string;
+  pumpNumber: number;
+  status: string;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  nozzles?: any[];
 }
 
-export function useStationPumps(stationId?: number) {
+export function useStationPumps(stationId?: string) {
   return useQuery({
     queryKey: ["pumps", stationId],
     queryFn: async (): Promise<Pump[]> => {
       if (!stationId) return [];
       
       try {
-        const response = await apiClient.get<ApiResponse<Pump[]>>(
+        // apiClient.get already unwraps {success, data} structure
+        const pumps = await apiClient.get<Pump[]>(
           `/stations/${stationId}/pumps`
         );
 
-        if (response.success && response.data) {
-          return response.data;
+        if (Array.isArray(pumps)) {
+          return pumps;
         }
         return [];
       } catch (error) {

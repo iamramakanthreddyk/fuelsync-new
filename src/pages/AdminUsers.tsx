@@ -63,12 +63,8 @@ export default function AdminUsers() {
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const response = await apiClient.get<ApiResponse<UserWithStations[]>>('/users');
-
-      if (response.success && response.data) {
-        return response.data;
-      }
-      return [];
+      const data = await apiClient.get<UserWithStations[]>('/users');
+      return data || [];
     },
   });
 
@@ -76,19 +72,15 @@ export default function AdminUsers() {
   const { data: stations } = useQuery({
     queryKey: ['stations'],
     queryFn: async () => {
-      const response = await apiClient.get<ApiResponse<Station[]>>('/stations');
-
-      if (response.success && response.data) {
-        return response.data;
-      }
-      return [];
+      const data = await apiClient.get<Station[]>('/stations');
+      return data || [];
     },
   });
 
   // Add User Mutation via REST API
   const inviteUserMutation = useMutation({
     mutationFn: async (userData: typeof newUser) => {
-      const response = await apiClient.post<ApiResponse<any>>('/users', {
+      return await apiClient.post<any>('/users', {
         name: userData.name,
         email: userData.email,
         phone: userData.phone,
@@ -96,11 +88,6 @@ export default function AdminUsers() {
         stationId: userData.stationId || undefined,
         password: 'changeme123' // Temporary password, user should change
       });
-
-      if (!response.success) {
-        throw new Error(response.error || 'Failed to create user');
-      }
-      return response.data;
     },
     onSuccess: () => {
       setIsAddUserOpen(false);
@@ -120,14 +107,9 @@ export default function AdminUsers() {
   // Toggle user status mutation
   const toggleUserStatusMutation = useMutation({
     mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-      const response = await apiClient.put<ApiResponse<any>>(`/users/${userId}`, {
+      return await apiClient.put<any>(`/users/${userId}`, {
         isActive: isActive
       });
-
-      if (!response.success) {
-        throw new Error('Failed to update user status');
-      }
-      return response.data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });

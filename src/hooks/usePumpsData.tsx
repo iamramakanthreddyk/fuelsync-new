@@ -91,19 +91,30 @@ export function usePumpsData() {
       try {
         // Use the correct endpoint: /stations/:stationId/pumps
         const url = `/stations/${stationId}/pumps`;
-        const response = await apiClient.get<ApiResponse<BackendPump[]>>(url);
+        console.log('🔍 Fetching pumps from:', url);
+        
+        // apiClient.get already unwraps {success, data} structure
+        const pumps = await apiClient.get<BackendPump[]>(url);
+        
+        console.log('✅ Pumps fetched:', pumps);
+        console.log('Is array?', Array.isArray(pumps));
+        console.log('Count:', pumps?.length);
 
-        if (response.success && response.data) {
+        if (Array.isArray(pumps)) {
           // Transform each pump to frontend format
-          return response.data.map(transformPump);
+          const transformed = pumps.map(transformPump);
+          console.log('✅ Transformed pumps:', transformed);
+          return transformed;
         }
+        
+        console.warn('⚠️ Pumps is not an array:', pumps);
         return [];
       } catch (error) {
-        console.error('Failed to fetch pumps:', error);
+        console.error('❌ Error fetching pumps:', error);
         return [];
       }
     },
     enabled: !!stationId || isAdmin,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 30000,
   });
 }

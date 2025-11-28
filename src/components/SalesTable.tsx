@@ -63,17 +63,17 @@ export function SalesTable({
                   <TableCell>{sale.station_name || sale.station_id}</TableCell>
                   <TableCell>{sale.pump_name || sale.pump_id}</TableCell>
                   <TableCell>
-                    #{sale.nozzle_id} {/* Optionally: nozzle_number */}
+                    #{sale.nozzle_number || sale.nozzle_id}
                   </TableCell>
                   <TableCell className="font-semibold text-right">₹{sale.total_amount?.toFixed(2) ?? "NA"}</TableCell>
                   <TableCell>
-                    <Badge className={sale.fuel_type === "Petrol" ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700"}>
+                    <Badge className={sale.fuel_type?.toLowerCase() === "petrol" ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700"}>
                       {sale.fuel_type}
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge className={sourceColor(sale.source)}>
-                      {sale.source}
+                    <Badge className={sourceColor(sale.source || "Manual")}>
+                      {sale.source || "Manual"}
                     </Badge>
                   </TableCell>
                   <TableCell>

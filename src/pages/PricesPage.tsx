@@ -84,13 +84,12 @@ export default function PricesPage() {
     }
 
     // Use the correct endpoint: /stations/:stationId/prices
-    apiClient.post<ApiResponse<any>>(`/stations/${currentStation?.id}/prices`, {
+    apiClient.post<any>(`/stations/${currentStation?.id}/prices`, {
       fuelType: input.fuel_type.toLowerCase(), // Backend expects lowercase
       price: price,
       effectiveFrom: new Date().toISOString(),
     })
-      .then((response) => {
-        if (!response.success) throw new Error(response.error || 'Failed to update fuel price');
+      .then(() => {
         toast({
           title: "Success",
           description: `Fuel price ${dialogMode === "add" ? "added" : "updated"} successfully`,

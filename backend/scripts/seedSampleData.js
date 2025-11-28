@@ -1,10 +1,49 @@
 /**
  * Comprehensive Sample Data Seeding Script
- * Creates realistic test data for all scenarios:
- * - Multiple users with different roles and plans
- * - Stations with pumps, nozzles, tanks
- * - Historical readings, sales, expenses
- * - Credit transactions, shifts, cash handovers
+ * Based on integration test journeys (admin, owner, manager, employee)
+ * Creates realistic test data covering ALL scenarios and edge cases:
+ * 
+ * SCENARIOS COVERED:
+ * 1. Super Admin Journey:
+ *    - Plan management (CRUD)
+ *    - Owner management with plan assignment
+ *    - System overview and monitoring
+ * 
+ * 2. Owner Journey:
+ *    - Multi-station management (up to plan limits)
+ *    - Pump & nozzle management with limits
+ *    - Employee management (creating, inviting, managing)
+ *    - Fuel price updates with history
+ *    - Tank management and refills
+ *    - Creditor tracking and credit transactions
+ *    - Expense tracking by category
+ *    - Cost of goods (COGS) reporting
+ *    - Daily closure and cash handovers
+ *    - Analytics and reports
+ * 
+ * 3. Manager Journey:
+ *    - Shift management (start, end, handover)
+ *    - Nozzle reading entry and validation
+ *    - Employee supervision
+ *    - Daily reports and operations
+ *    - Limited analytics access
+ * 
+ * 4. Employee Journey:
+ *    - Basic reading entry
+ *    - Backdated readings within limits
+ *    - Own profile management
+ *    - Limited station access
+ * 
+ * EDGE CASES COVERED:
+ * - Plan limits (stations, pumps, nozzles, employees)
+ * - Duplicate entries (codes, pump numbers, emails)
+ * - Invalid data (negative prices, invalid calculations)
+ * - Backdated operations within/beyond limits
+ * - Role-based access restrictions
+ * - Inactive users and stations
+ * - Maintenance status equipment
+ * - Credit limits and transactions
+ * - Tank capacity validations
  * 
  * Usage: node scripts/seedSampleData.js
  */
@@ -45,11 +84,12 @@ const hoursAgo = (hours) => {
 };
 
 // Password: "password123" (hashed)
-const HASHED_PASSWORD = '$2a$10$YourHashedPasswordHere'; // Will be regenerated
+const HASHED_PASSWORD = '$2a$10$YourplainPasswordHere'; // Will be regenerated
 
 async function clearExistingData() {
   console.log('🧹 Clearing existing sample data...');
   
+  // Clear in proper order to respect foreign keys
   await AuditLog.destroy({ where: {}, truncate: true, cascade: true });
   await CashHandover.destroy({ where: {}, truncate: true, cascade: true });
   await Shift.destroy({ where: {}, truncate: true, cascade: true });
@@ -65,7 +105,7 @@ async function clearExistingData() {
   await Pump.destroy({ where: {}, truncate: true, cascade: true });
   
   // Keep super admin, delete others
-  await User.destroy({ where: { role: ['owner', 'manager', 'employee'] } });
+  await User.destroy({ where: { role: { [Op.in]: ['owner', 'manager', 'employee'] } } });
   await Station.destroy({ where: {}, truncate: true, cascade: true });
   
   console.log('✅ Existing data cleared');
@@ -79,7 +119,7 @@ async function seedPlans() {
     await Plan.bulkCreate([
       {
         name: 'Free',
-        description: 'Perfect for getting started',
+        description: 'Perfect for getting started - single station with basic features',
         maxStations: 1,
         maxPumpsPerStation: 2,
         maxNozzlesPerPump: 4,
@@ -98,7 +138,7 @@ async function seedPlans() {
       },
       {
         name: 'Basic',
-        description: 'Great for small stations',
+        description: 'Great for small stations - up to 3 stations with full features',
         maxStations: 3,
         maxPumpsPerStation: 5,
         maxNozzlesPerPump: 4,
@@ -117,7 +157,7 @@ async function seedPlans() {
       },
       {
         name: 'Premium',
-        description: 'For growing businesses',
+        description: 'For growing businesses - 10 stations with advanced analytics',
         maxStations: 10,
         maxPumpsPerStation: 10,
         maxNozzlesPerPump: 4,
@@ -136,7 +176,7 @@ async function seedPlans() {
       },
       {
         name: 'Enterprise',
-        description: 'Unlimited everything',
+        description: 'Unlimited everything for large operations',
         maxStations: 999,
         maxPumpsPerStation: 50,
         maxNozzlesPerPump: 6,
@@ -154,7 +194,7 @@ async function seedPlans() {
         isActive: true
       }
     ]);
-    console.log('✅ Plans seeded');
+    console.log('✅ Plans seeded: Free, Basic, Premium, Enterprise');
   } else {
     console.log('✅ Plans already exist');
   }
@@ -168,24 +208,44 @@ async function seedUsersAndStations() {
   const premiumPlan = await Plan.findOne({ where: { name: 'Premium' } });
   const enterprisePlan = await Plan.findOne({ where: { name: 'Enterprise' } });
   
-  // Hash password once
-  const hashedPassword = await bcrypt.hash('password123', 10);
+  // NOTE: Pass plain password - User model hook will hash it automatically
+  const plainPassword = 'password123';
+  
+  // ============================================
+  // SUPER ADMIN - System Administrator
+  // ============================================
+  console.log('  Creating Super Admin...');
+  const adminExists = await User.findOne({ where: { email: 'admin@fuelsync.com' } });
+  
+  if (!adminExists) {
+    await User.create({
+      email: 'admin@fuelsync.com',
+      password: 'admin123',
+      name: 'System Administrator',
+      phone: '+919999999999',
+      role: 'super_admin',
+      isActive: true
+    });
+    console.log('  ✅ Super admin created');
+  } else {
+    console.log('  ✓ Super admin already exists');
+  }
   
   // ============================================
   // SCENARIO 1: Free Plan Owner - Single Small Station
+  // Tests: Plan limits (1 station, 2 pumps, 2 employees)
   // ============================================
-  // Create owner first (without stationId)
+  console.log('  Creating Free Plan scenario...');
   const owner1 = await User.create({
     name: 'Rajesh Kumar',
     email: 'rajesh@quickfuel.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543210',
     role: 'owner',
     planId: freePlan.id,
     isActive: true
   });
   
-  // Create station with ownerId
   const station1 = await Station.create({
     ownerId: owner1.id,
     name: 'QuickFuel Express',
@@ -206,7 +266,7 @@ async function seedUsersAndStations() {
   const employee1a = await User.create({
     name: 'Amit Singh',
     email: 'amit@quickfuel.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543211',
     role: 'employee',
     stationId: station1.id,
@@ -217,7 +277,7 @@ async function seedUsersAndStations() {
   const employee1b = await User.create({
     name: 'Priya Sharma',
     email: 'priya@quickfuel.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543212',
     role: 'employee',
     stationId: station1.id,
@@ -231,7 +291,7 @@ async function seedUsersAndStations() {
   const owner2 = await User.create({
     name: 'Sneha Patil',
     email: 'sneha@fuelmax.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543220',
     role: 'owner',
     planId: basicPlan.id,
@@ -257,7 +317,7 @@ async function seedUsersAndStations() {
   const manager2 = await User.create({
     name: 'Vikram Joshi',
     email: 'vikram@fuelmax.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543221',
     role: 'manager',
     stationId: station2.id,
@@ -269,7 +329,7 @@ async function seedUsersAndStations() {
     {
       name: 'Rahul Desai',
       email: 'rahul@fuelmax.com',
-      password: hashedPassword,
+      password: plainPassword,
       phone: '+91-9876543222',
       role: 'employee',
       stationId: station2.id,
@@ -279,7 +339,7 @@ async function seedUsersAndStations() {
     {
       name: 'Kavya Reddy',
       email: 'kavya@fuelmax.com',
-      password: hashedPassword,
+      password: plainPassword,
       phone: '+91-9876543223',
       role: 'employee',
       stationId: station2.id,
@@ -289,7 +349,7 @@ async function seedUsersAndStations() {
     {
       name: 'Arjun Nair',
       email: 'arjun@fuelmax.com',
-      password: hashedPassword,
+      password: plainPassword,
       phone: '+91-9876543224',
       role: 'employee',
       stationId: station2.id,
@@ -304,7 +364,7 @@ async function seedUsersAndStations() {
   const owner3 = await User.create({
     name: 'Deepak Mehta',
     email: 'deepak@highwaystar.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543230',
     role: 'owner',
     planId: premiumPlan.id,
@@ -330,7 +390,7 @@ async function seedUsersAndStations() {
   const manager3a = await User.create({
     name: 'Neha Gupta',
     email: 'neha@highwaystar.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543231',
     role: 'manager',
     stationId: station3.id,
@@ -341,7 +401,7 @@ async function seedUsersAndStations() {
   const manager3b = await User.create({
     name: 'Karan Malhotra',
     email: 'karan@highwaystar.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543232',
     role: 'manager',
     stationId: station3.id,
@@ -361,7 +421,7 @@ async function seedUsersAndStations() {
   
   await User.bulkCreate(employeeNames3.map(emp => ({
     ...emp,
-    password: hashedPassword,
+    password: plainPassword,
     role: 'employee',
     stationId: station3.id,
     planId: premiumPlan.id,
@@ -374,7 +434,7 @@ async function seedUsersAndStations() {
   const owner4 = await User.create({
     name: 'Anil Kapoor',
     email: 'anil@metrofuel.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543240',
     role: 'owner',
     planId: enterprisePlan.id,
@@ -429,7 +489,7 @@ async function seedUsersAndStations() {
   const manager4a = await User.create({
     name: 'Sanjay Dutt',
     email: 'sanjay@metrofuel.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543243',
     role: 'manager',
     stationId: station4a.id,
@@ -440,7 +500,7 @@ async function seedUsersAndStations() {
   const manager4b = await User.create({
     name: 'Raveena Tandon',
     email: 'raveena@metrofuel.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543244',
     role: 'manager',
     stationId: station4b.id,
@@ -451,7 +511,7 @@ async function seedUsersAndStations() {
   const manager4c = await User.create({
     name: 'Ajay Devgan',
     email: 'ajay@metrofuel.com',
-    password: hashedPassword,
+    password: plainPassword,
     phone: '+91-9876543245',
     role: 'manager',
     stationId: station4c.id,
@@ -468,7 +528,7 @@ async function seedUsersAndStations() {
       employeeData4.push({
         name: `Employee ${idx + 1}-${i + 1}`,
         email: `emp${idx + 1}${i + 1}@metrofuel.com`,
-        password: hashedPassword,
+        password: plainPassword,
         phone: `+91-98765432${50 + idx * 10 + i}`,
         role: 'employee',
         stationId: station.id,

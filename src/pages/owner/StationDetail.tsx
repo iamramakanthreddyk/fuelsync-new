@@ -3,7 +3,7 @@
  * Comprehensive view of a single station with pumps, nozzles, fuel prices
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -87,6 +87,8 @@ export default function StationDetail() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  console.log('🚀 StationDetail COMPONENT MOUNTED - ID:', id);
+  
   const [isPumpDialogOpen, setIsPumpDialogOpen] = useState(false);
   const [isNozzleDialogOpen, setIsNozzleDialogOpen] = useState(false);
   const [isPriceDialogOpen, setIsPriceDialogOpen] = useState(false);
@@ -115,6 +117,7 @@ export default function StationDetail() {
     queryKey: ['station', id],
     queryFn: async () => {
       const response = await apiClient.get<Station>(`/stations/${id}`);
+      console.log('Station API Response:', response);
       return response;
     },
     enabled: !!id
@@ -125,10 +128,34 @@ export default function StationDetail() {
     queryKey: ['station-pumps', id],
     queryFn: async () => {
       const response = await apiClient.get<Pump[]>(`/stations/${id}/pumps`);
+      console.log('=== PUMPS DEBUG ===');
+      console.log('Raw API Response:', response);
+      console.log('Is Array?', Array.isArray(response));
+      console.log('Type:', typeof response);
+      console.log('Length:', response?.length);
+      if (response && response.length > 0) {
+        console.log('First pump:', response[0]);
+      }
       return response;
     },
     enabled: !!id
   });
+
+  // Log pumps state changes
+  console.log('=== PUMPS STATE ===');
+  console.log('Pumps:', pumps);
+  console.log('Loading:', pumpsLoading);
+  console.log('Pumps is array?', Array.isArray(pumps));
+
+  // Debug effect to track pumps changes
+  useEffect(() => {
+    console.log('🔍 PUMPS CHANGED:', {
+      pumps,
+      isArray: Array.isArray(pumps),
+      length: pumps?.length,
+      loading: pumpsLoading
+    });
+  }, [pumps, pumpsLoading]);
 
   // Fetch fuel prices
   const { data: prices, isLoading: pricesLoading } = useQuery({
@@ -282,13 +309,23 @@ export default function StationDetail() {
         <TabsContent value="pumps" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Pumps & Nozzles</h2>
-            <Dialog open={isPumpDialogOpen} onOpenChange={setIsPumpDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Pump
-                </Button>
-              </DialogTrigger>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
+                  console.log('🔄 Manually refreshing pumps...');
+                }}
+              >
+                Refresh
+              </Button>
+              <Dialog open={isPumpDialogOpen} onOpenChange={setIsPumpDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add Pump
+                  </Button>
+                </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Pump</DialogTitle>
@@ -343,12 +380,30 @@ export default function StationDetail() {
                 </div>
               </DialogContent>
             </Dialog>
+            </div>
           </div>
 
           {pumpsLoading ? (
             <div className="text-center py-8">Loading pumps...</div>
-          ) : pumps && pumps.length > 0 ? (
+          ) : !pumps || !Array.isArray(pumps) || pumps.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Fuel className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-4">No pumps added yet</p>
+                <div className="text-xs text-red-500 mb-4">
+                  Debug: pumps={JSON.stringify(pumps)}, isArray={String(Array.isArray(pumps))}, length={pumps?.length}
+                </div>
+                <Button onClick={() => setIsPumpDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add First Pump
+                </Button>
+              </CardContent>
+            </Card>
+          ) : (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <div className="col-span-full text-sm text-green-600 mb-2">
+                ✅ Found {pumps.length} pumps
+              </div>
               {pumps.map((pump) => (
                 <Card key={pump.id}>
                   <CardHeader>
@@ -404,17 +459,6 @@ export default function StationDetail() {
                 </Card>
               ))}
             </div>
-          ) : (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <Fuel className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4">No pumps added yet</p>
-                <Button onClick={() => setIsPumpDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add First Pump
-                </Button>
-              </CardContent>
-            </Card>
           )}
         </TabsContent>
 

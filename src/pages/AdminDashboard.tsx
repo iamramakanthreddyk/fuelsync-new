@@ -33,12 +33,10 @@ export default function AdminDashboard() {
       setLoading(true);
 
       // Load all users from REST API
-      const usersResponse = await apiClient.get<{ success: boolean; data: User[] }>('/users');
-      const usersData = usersResponse.success ? usersResponse.data : [];
+      const usersData = await apiClient.get<User[]>('/users');
 
       // Load all stations from REST API
-      const stationsResponse = await apiClient.get<{ success: boolean; data: Station[] }>('/stations');
-      const stationsData = stationsResponse.success ? stationsResponse.data : [];
+      const stationsData = await apiClient.get<Station[]>('/stations');
 
       // Calculate stats as before...
       const totalUsers = usersData?.length || 0;
