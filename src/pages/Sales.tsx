@@ -38,6 +38,7 @@ import { SalesFilterBar } from "@/components/SalesFilterBar";
 import { SalesTable } from "@/components/SalesTable";
 import { Skeleton } from "@/components/ui/skeleton";
 import { SalesSummaryCards } from "@/components/SalesSummaryCards";
+import { getFuelColors } from '@/lib/fuelColors';
 
 export default function Sales() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -348,11 +349,17 @@ export default function Sales() {
                   <SelectContent>
                     {availableNozzles
                       .filter(nozzle => nozzle.id != null && nozzle.id !== undefined)
-                      .map(nozzle => (
-                        <SelectItem key={nozzle.id} value={String(nozzle.id)}>
-                          #{nozzle.nozzle_number} - {nozzle.fuel_type}
-                        </SelectItem>
-                      ))}
+                      .map(nozzle => {
+                        const colors = getFuelColors(nozzle.fuel_type);
+                        return (
+                          <SelectItem key={nozzle.id} value={String(nozzle.id)}>
+                            <div className="flex items-center gap-2">
+                              <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                              <span>#{nozzle.nozzle_number} - {nozzle.fuel_type}</span>
+                            </div>
+                          </SelectItem>
+                        );
+                      })}
                   </SelectContent>
                 </Select>
               </div>

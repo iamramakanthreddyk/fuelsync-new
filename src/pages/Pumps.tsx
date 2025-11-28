@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import { Plus, Settings, Fuel, Gauge, ClipboardEdit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -122,16 +123,6 @@ export default function Pumps() {
 
   const getStatusColor = (status: boolean) => {
     return status ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
-  };
-
-  const getFuelTypeColor = (fuelType: string) => {
-    switch (fuelType) {
-      case 'PETROL': return 'bg-blue-100 text-blue-800';
-      case 'DIESEL': return 'bg-orange-100 text-orange-800';
-      case 'CNG': return 'bg-green-100 text-green-800';
-      case 'EV': return 'bg-purple-100 text-purple-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
   };
 
   if (!currentStation && !isAdmin) {
@@ -299,7 +290,7 @@ export default function Pumps() {
                         <div className="flex items-center gap-2 mb-1">
                           <Gauge className="w-4 h-4" />
                           <span className="font-medium">Nozzle #{nozzle.nozzle_number}</span>
-                          <Badge className={getFuelTypeColor(nozzle.fuel_type)}>
+                          <Badge className={getFuelBadgeClasses(nozzle.fuel_type)}>
                             {nozzle.fuel_type}
                           </Badge>
                           <Badge variant="outline" className={getStatusColor(nozzle.is_active)}>

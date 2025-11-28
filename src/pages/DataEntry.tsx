@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { CurrencyInput } from '@/components/inputs/CurrencyInput';
 import { IndianRupee, Fuel, Gauge } from 'lucide-react';
+import { getFuelColors } from '@/lib/fuelColors';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
 import { usePumpNozzles } from "@/hooks/usePumpNozzles";
@@ -387,9 +388,13 @@ export default function DataEntry() {
                       <SelectContent>
                         {manualNozzles.map(nz => {
                           console.log('🔍 Nozzle option:', nz.id, nz.nozzleNumber);
+                          const colors = getFuelColors(nz.fuelType);
                           return (
                             <SelectItem key={nz.id} value={nz.id}>
-                              Nozzle {nz.nozzleNumber} ({nz.fuelType})
+                              <div className="flex items-center gap-2">
+                                <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                                <span>Nozzle {nz.nozzleNumber} - {nz.fuelType}</span>
+                              </div>
                             </SelectItem>
                           );
                         })}

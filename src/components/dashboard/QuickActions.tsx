@@ -7,44 +7,66 @@ import { Fuel } from "lucide-react";
 export function QuickActions() {
   const { isOwner, isAdmin } = useRoleAccess();
 
+  const actions = [
+    {
+      title: "Add Reading",
+      description: "Upload or manual entry",
+      href: "/upload",
+      icon: null,
+      color: "hover:bg-blue-50 hover:border-blue-200"
+    },
+    {
+      title: "Daily Closure",
+      description: "End of day summary",
+      href: "/daily-closure",
+      icon: null,
+      color: "hover:bg-green-50 hover:border-green-200"
+    },
+    {
+      title: "View Reports",
+      description: "Sales & analytics",
+      href: "/reports",
+      icon: null,
+      color: "hover:bg-purple-50 hover:border-purple-200"
+    },
+  ];
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Quick Actions</CardTitle>
-        <CardDescription>Common daily tasks</CardDescription>
+    <Card className="card-mobile">
+      <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
+        <CardTitle className="text-sm sm:text-base">Quick Actions</CardTitle>
+        <CardDescription className="text-xs sm:text-sm">Common daily tasks</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-1 gap-3">
-          <button 
-            onClick={() => window.location.href = '/upload'}
-            className="p-3 text-left border rounded-lg hover:bg-gray-50 hover:shadow-md transition-all duration-200 group"
-          >
-            <div className="font-medium group-hover:text-primary">Add Reading</div>
-            <div className="text-sm text-muted-foreground">Upload or manual entry</div>
-          </button>
-          <button 
-            onClick={() => window.location.href = '/daily-closure'}
-            className="p-3 text-left border rounded-lg hover:bg-gray-50 hover:shadow-md transition-all duration-200 group"
-          >
-            <div className="font-medium group-hover:text-primary">Daily Closure</div>
-            <div className="text-sm text-muted-foreground">End of day summary</div>
-          </button>
-          <button 
-            onClick={() => window.location.href = '/reports'}
-            className="p-3 text-left border rounded-lg hover:bg-gray-50 hover:shadow-md transition-all duration-200 group"
-          >
-            <div className="font-medium group-hover:text-primary">View Reports</div>
-            <div className="text-sm text-muted-foreground">Sales & analytics</div>
-          </button>
+      <CardContent className="px-4 pb-4 sm:px-6 space-y-2 sm:space-y-3">
+        <div className="grid grid-cols-1 gap-2 sm:gap-3">
+          {actions.map((action, index) => (
+            <button
+              key={index}
+              onClick={() => window.location.href = action.href}
+              className={`touch-target p-3 sm:p-4 text-left border-2 rounded-lg transition-all duration-200 group active:scale-95 ${action.color}`}
+            >
+              <div className="font-medium text-sm sm:text-base group-hover:text-primary transition-colors">
+                {action.title}
+              </div>
+              <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                {action.description}
+              </div>
+            </button>
+          ))}
+          
           {(isOwner || isAdmin) && (
             <button
               onClick={() => window.location.href = '/prices'}
-              className="p-3 text-left border rounded-lg hover:bg-blue-50 hover:shadow-md transition-all duration-200 group flex items-center gap-2"
+              className="touch-target p-3 sm:p-4 text-left border-2 rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-all duration-200 group flex items-start gap-3 active:scale-95"
             >
-              <Fuel className="w-4 h-4 text-blue-600 mr-2" />
-              <div>
-                <div className="font-medium group-hover:text-blue-700">Update Fuel Prices</div>
-                <div className="text-sm text-muted-foreground">Manage & update per litre rates</div>
+              <Fuel className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="flex-1">
+                <div className="font-medium text-sm sm:text-base group-hover:text-amber-700 transition-colors">
+                  Update Fuel Prices
+                </div>
+                <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  Manage & update per litre rates
+                </div>
               </div>
             </button>
           )}

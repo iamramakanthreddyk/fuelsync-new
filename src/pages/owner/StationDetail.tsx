@@ -29,6 +29,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
+import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import {
   ArrowLeft,
   Plus,
@@ -440,10 +441,11 @@ export default function StationDetail() {
                               key={nozzle.id}
                               className="flex items-center justify-between text-sm p-2 border rounded"
                             >
-                              <div>
+                              <div className="flex items-center gap-2">
                                 <span className="font-medium">N{nozzle.nozzleNumber}</span>
-                                <span className="mx-2">•</span>
-                                <span className="capitalize">{nozzle.fuelType}</span>
+                                <Badge className={getFuelBadgeClasses(nozzle.fuelType)}>
+                                  {nozzle.fuelType}
+                                </Badge>
                               </div>
                               <Badge variant="outline" className="text-xs">
                                 {nozzle.status}

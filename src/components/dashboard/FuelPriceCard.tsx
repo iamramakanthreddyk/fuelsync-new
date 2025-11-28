@@ -2,6 +2,7 @@ import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Fuel, IndianRupee } from "lucide-react";
+import { getFuelColors } from '@/lib/fuelColors';
 
 interface FuelPriceCardProps {
   prices: {
@@ -16,53 +17,60 @@ interface FuelPriceCardProps {
 export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({ prices, isLoading }) => {
   if (isLoading) {
     return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Fuel className="h-5 w-5" />
-            Today's Fuel Prices
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="text-muted-foreground">Loading prices...</div>
-        </CardContent>
-      </Card>
+      <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-lg border animate-pulse">
+        <Fuel className="h-4 w-4 text-primary flex-shrink-0" />
+        <span className="text-xs sm:text-sm text-muted-foreground">Loading prices...</span>
+      </div>
     );
   }
 
   const fuelTypes = [
-    { key: 'PETROL', label: 'Petrol', color: 'bg-green-100 text-green-800' },
-    { key: 'DIESEL', label: 'Diesel', color: 'bg-blue-100 text-blue-800' },
-    { key: 'CNG', label: 'CNG', color: 'bg-purple-100 text-purple-800' },
-    { key: 'EV', label: 'EV', color: 'bg-yellow-100 text-yellow-800' },
+    { key: 'PETROL', label: 'Petrol' },
+    { key: 'DIESEL', label: 'Diesel' },
+    { key: 'CNG', label: 'CNG' },
+    { key: 'EV', label: 'EV' },
   ];
 
+  // Filter to only show fuels that have prices set
+  const setPrices = fuelTypes.filter(
+    ({ key }) => prices[key as keyof typeof prices] !== undefined && 
+                 prices[key as keyof typeof prices] !== null
+  );
+
+  // If no prices are set, show a compact message
+  if (setPrices.length === 0) {
+    return (
+      <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-200">
+        <Fuel className="h-4 w-4 text-amber-600 flex-shrink-0" />
+        <span className="text-xs sm:text-sm font-medium text-amber-700">No fuel prices set</span>
+      </div>
+    );
+  }
+
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Fuel className="h-5 w-5" />
-          Today's Fuel Prices
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <div className="grid grid-cols-2 gap-4">
-          {fuelTypes.map(({ key, label, color }) => (
-            <div key={key} className="space-y-2">
-              <Badge variant="outline" className={color}>
-                {label}
-              </Badge>
-              <div className="text-lg font-semibold flex items-center gap-1">
-                <IndianRupee className="w-4 h-4 inline" />
-                {prices[key as keyof typeof prices] !== undefined && prices[key as keyof typeof prices] !== null
-                  ? `${prices[key as keyof typeof prices]?.toFixed(2)}/L`
-                  : 'Not set'
-                }
-              </div>
+    <div className="flex items-center gap-2 sm:gap-3 px-3 py-2 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20 flex-wrap">
+      <div className="flex items-center gap-1.5 flex-shrink-0">
+        <Fuel className="h-4 w-4 text-primary" />
+        <span className="text-xs sm:text-sm font-semibold text-foreground hidden sm:inline">Prices:</span>
+      </div>
+      <div className="flex flex-wrap gap-1.5 sm:gap-2">
+        {setPrices.map(({ key, label }) => {
+          const colors = getFuelColors(label);
+          return (
+            <div 
+              key={key} 
+              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background border shadow-sm hover:shadow transition-all ${colors.ring} ring-1`}
+            >
+              <div className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+              <span className="text-xs font-medium text-muted-foreground">{label}</span>
+              <span className="text-xs font-bold flex items-center text-foreground">
+                <IndianRupee className="w-2.5 h-2.5" />
+                {prices[key as keyof typeof prices]?.toFixed(2)}
+              </span>
             </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
+          );
+        })}
+      </div>
+    </div>
   );
 };

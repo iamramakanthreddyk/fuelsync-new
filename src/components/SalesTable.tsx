@@ -3,6 +3,7 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getFuelBadgeClasses } from '@/lib/fuelColors';
 
 function sourceColor(source: string) {
   if (source === "OCR") return "bg-blue-100 text-blue-700";
@@ -67,7 +68,7 @@ export function SalesTable({
                   </TableCell>
                   <TableCell className="font-semibold text-right">₹{sale.total_amount?.toFixed(2) ?? "NA"}</TableCell>
                   <TableCell>
-                    <Badge className={sale.fuel_type?.toLowerCase() === "petrol" ? "bg-yellow-50 text-yellow-700" : "bg-gray-100 text-gray-700"}>
+                    <Badge className={getFuelBadgeClasses(sale.fuel_type)}>
                       {sale.fuel_type}
                     </Badge>
                   </TableCell>

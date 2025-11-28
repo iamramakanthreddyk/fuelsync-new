@@ -49,25 +49,25 @@ const MetricCard: React.FC<MetricCardProps> = ({
   };
 
   return (
-    <Card className={`relative overflow-hidden transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${className}`}>
+    <Card className={`relative overflow-hidden card-mobile hover:scale-[1.02] active:scale-[0.98] ${className}`}>
       {gradient && (
         <div className="absolute inset-0 fuel-gradient opacity-5" />
       )}
       
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-        <CardTitle className="text-sm font-medium text-muted-foreground">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 relative z-10">
+        <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">
           {title}
         </CardTitle>
         {icon && (
-          <div className="text-2xl">
+          <div className="text-xl sm:text-2xl">
             {icon}
           </div>
         )}
       </CardHeader>
       
-      <CardContent className="relative z-10">
+      <CardContent className="relative z-10 px-4 pb-4 sm:px-6">
         <div className="space-y-2">
-          <div className="text-2xl font-bold text-foreground">
+          <div className="text-xl sm:text-2xl font-bold text-foreground break-words">
             {value}
           </div>
           
@@ -78,7 +78,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
           )}
           
           {trend && (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <Badge 
                 variant="outline" 
                 className={`text-xs px-2 py-1 ${getTrendColor(trend.direction)}`}

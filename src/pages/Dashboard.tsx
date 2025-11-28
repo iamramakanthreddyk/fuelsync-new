@@ -67,44 +67,46 @@ export default function Dashboard() {
   // New: Render only free cards for key metrics and compact premium card/sections
   function KeyMetricsFreeCards() {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 mb-2">
+      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total Sales Today */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sales Today</CardTitle>
-            <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        <Card className="card-mobile border-l-4 border-l-green-500 hover:scale-[1.01] transition-transform">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Sales Today</CardTitle>
+            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-green-600">₹{data.todaySales.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="px-4 pb-4">
+            <div className="text-xl sm:text-2xl font-bold text-green-600">₹{data.todaySales.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
               From fuel dispensing
             </p>
           </CardContent>
         </Card>
+        
         {/* Total Tender */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Tender</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+        <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Tender</CardTitle>
+            <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-blue-600">₹{data.todayTender.toFixed(2)}</div>
-            <p className="text-xs text-muted-foreground">
+          <CardContent className="px-4 pb-4">
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{data.todayTender.toFixed(2)}</div>
+            <p className="text-xs text-muted-foreground mt-1">
               Cash, card, UPI & credit
             </p>
           </CardContent>
         </Card>
+        
         {/* Pending Closures */}
-        <Card className="hover:shadow-md transition-shadow">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Closures</CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+        <Card className="card-mobile border-l-4 border-l-amber-500 hover:scale-[1.01] transition-transform sm:col-span-2 lg:col-span-1">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Pending Closures</CardTitle>
+            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
           </CardHeader>
-          <CardContent>
-            <div className={`text-2xl font-bold ${data.pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
+          <CardContent className="px-4 pb-4">
+            <div className={`text-xl sm:text-2xl font-bold ${data.pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
               {data.pendingClosures}
             </div>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-muted-foreground mt-1">
               {data.pendingClosures > 0 ? 'Need attention' : 'All closed'}
             </p>
           </CardContent>
@@ -115,45 +117,51 @@ export default function Dashboard() {
 
   function KeyMetricPremiumPromo() {
     return (
-      <div className="w-full flex">
-        <Card className="flex items-center justify-between w-full bg-muted border-dashed border-2 border-yellow-400">
-          <CardContent className="flex gap-2 items-center py-4 w-full">
-            <Lock className="h-6 w-6 text-yellow-500 mr-3" />
-            <div className="flex-1">
-              <div className="font-semibold text-yellow-700">Unlock Daily Variance Analytics</div>
-              <div className="text-xs text-muted-foreground">Upgrade to Premium to monitor sales vs collection discrepancies each day.</div>
+      <Card className="flex items-center justify-between w-full bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-dashed border-yellow-400 card-mobile">
+        <CardContent className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center py-4 px-4 w-full">
+          <Lock className="h-6 w-6 sm:h-7 sm:w-7 text-yellow-600 flex-shrink-0" />
+          <div className="flex-1 space-y-1">
+            <div className="font-semibold text-sm sm:text-base text-yellow-800">Unlock Daily Variance Analytics</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">
+              Upgrade to Premium to monitor sales vs collection discrepancies each day.
             </div>
-            <Button variant="default" className="bg-yellow-500 hover:bg-yellow-600 text-white px-4 ml-4"
-              onClick={onLockUpgradeClick}
-            >
-              Upgrade
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+          <Button 
+            variant="default" 
+            size="sm"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white touch-target w-full sm:w-auto"
+            onClick={onLockUpgradeClick}
+          >
+            Upgrade Now
+          </Button>
+        </CardContent>
+      </Card>
     );
   }
 
   function TrendsChartPremiumPromo() {
     return (
-      <Card className="h-full min-h-[136px] flex flex-col items-center justify-center bg-muted border-dashed border-2 border-yellow-400">
-        <CardHeader className="items-center">
-          <Lock className="h-7 w-7 text-yellow-500 mb-2" />
-          <CardTitle>
+      <Card className="h-full min-h-[200px] sm:min-h-[240px] flex flex-col items-center justify-center bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-dashed border-yellow-400 card-mobile">
+        <CardHeader className="items-center text-center px-4">
+          <div className="rounded-full bg-yellow-100 p-3 mb-3">
+            <Lock className="h-6 w-6 sm:h-7 sm:w-7 text-yellow-600" />
+          </div>
+          <CardTitle className="text-base sm:text-lg">
             Unlock 7-Day Sales Trends
           </CardTitle>
         </CardHeader>
-        <CardContent className="pb-4 flex flex-col items-center">
-          <div className="text-muted-foreground pb-2 text-center text-sm">
-            Visualize sales patterns and trends for business insight.<br />
+        <CardContent className="pb-5 flex flex-col items-center px-4">
+          <p className="text-muted-foreground text-center text-xs sm:text-sm mb-4 max-w-md">
+            Visualize sales patterns and trends for business insight.
             Upgrade to Premium to get charts and analytics.
-          </div>
+          </p>
           <Button 
             variant="default" 
-            className="bg-yellow-500 hover:bg-yellow-600 text-white px-4"
+            size="sm"
+            className="bg-yellow-500 hover:bg-yellow-600 text-white touch-target"
             onClick={onLockUpgradeClick}
           >
-            Upgrade
+            Upgrade to Premium
           </Button>
         </CardContent>
       </Card>
@@ -161,74 +169,94 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <SetupChecklist checklist={checklist} />
-      <div className="space-y-2">
-        <h1 className="text-2xl md:text-3xl font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground">
-          Welcome back, {user?.name}! Here's what's happening today.
-        </p>
+    <div className="container-mobile space-y-mobile animate-fade-in pb-6">
+      {/* Setup Checklist - Mobile optimized */}
+      <div className="animate-slide-up">
+        <SetupChecklist checklist={checklist} />
       </div>
+      
+      {/* Header Section with Fuel Prices - Compact unified header */}
+      <div className="space-y-2">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <div>
+            <h1 className="text-responsive-lg font-bold text-foreground">Dashboard</h1>
+            <p className="text-responsive-sm text-muted-foreground">
+              Welcome back, <span className="font-medium text-foreground">{user?.name}</span>
+            </p>
+          </div>
+          {/* Fuel Prices in header on desktop, below on mobile */}
+          <div className="sm:ml-auto">
+            <FuelPriceCard prices={fuelPricesObj || {}} isLoading={isPricesLoading} />
+          </div>
+        </div>
+      </div>
+
+      {/* Alerts - Full width mobile */}
       <AlertBadges alerts={data.alerts} />
 
-      {/* ---- Compact metrics and premium promo ---- */}
+      {/* Key Metrics - Responsive grid */}
       {premiumRequired ? (
-        <>
+        <div className="space-y-3 sm:space-y-4">
           <KeyMetricsFreeCards />
           <KeyMetricPremiumPromo />
-        </>
+        </div>
       ) : (
-        // show all metrics if premium unlocked
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Sales Today</CardTitle>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          {/* Total Sales Today */}
+          <Card className="card-mobile border-l-4 border-l-green-500 hover:scale-[1.01] transition-transform">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Sales Today</CardTitle>
+              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-green-600">₹{data.todaySales.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">
+            <CardContent className="px-4 pb-4">
+              <div className="text-xl sm:text-2xl font-bold text-green-600">₹{data.todaySales.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground mt-1">
                 From fuel dispensing
               </p>
             </CardContent>
           </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Tender</CardTitle>
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
+
+          {/* Total Tender */}
+          <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Tender</CardTitle>
+              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold text-blue-600">₹{data.todayTender.toFixed(2)}</div>
-              <p className="text-xs text-muted-foreground">
+            <CardContent className="px-4 pb-4">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{data.todayTender.toFixed(2)}</div>
+              <p className="text-xs text-muted-foreground mt-1">
                 Cash, card, UPI & credit
               </p>
             </CardContent>
           </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Pending Closures</CardTitle>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+
+          {/* Pending Closures */}
+          <Card className="card-mobile border-l-4 border-l-amber-500 hover:scale-[1.01] transition-transform">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Pending Closures</CardTitle>
+              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
             </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${data.pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
+            <CardContent className="px-4 pb-4">
+              <div className={`text-xl sm:text-2xl font-bold ${data.pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
                 {data.pendingClosures}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-1">
                 {data.pendingClosures > 0 ? 'Need attention' : 'All closed'}
               </p>
             </CardContent>
           </Card>
-          {/* Daily Variance if premium */}
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Daily Variance</CardTitle>
-              <AlertTriangle className="h-4 w-4 text-muted-foreground" />
+
+          {/* Daily Variance */}
+          <Card className="card-mobile border-l-4 border-l-purple-500 hover:scale-[1.01] transition-transform">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Daily Variance</CardTitle>
+              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
             </CardHeader>
-            <CardContent>
-              <div className={`text-2xl font-bold ${Math.abs(variance) < 1 ? 'text-green-600' : variance > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+            <CardContent className="px-4 pb-4">
+              <div className={`text-xl sm:text-2xl font-bold ${Math.abs(variance) < 1 ? 'text-green-600' : variance > 0 ? 'text-blue-600' : 'text-red-600'}`}>
                 {Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${Math.abs(variance).toFixed(2)}`}
               </div>
-              <p className="text-xs text-muted-foreground">
+              <p className="text-xs text-muted-foreground mt-1">
                 {Math.abs(variance) < 1 ? 'Sales match collections' : variance > 0 ? 'Collection excess' : 'Collection shortage'}
               </p>
             </CardContent>
@@ -236,22 +264,27 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Trends Chart (Premium ONLY) */}
-        <div className="lg:col-span-2 relative">
+      {/* Charts and Actions - Stack on mobile, side by side on desktop */}
+      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+        {/* Trends Chart - Full width on mobile, 2 cols on desktop */}
+        <div className="lg:col-span-2 relative animate-slide-up">
           {premiumRequired ? (
             <TrendsChartPremiumPromo />
           ) : (
             <TrendsChart data={data.trendsData} isLoading={isLoading} />
           )}
         </div>
-        {/* Fuel Prices and Quick Actions */}
-        <div className="space-y-6">
-          <FuelPriceCard prices={fuelPricesObj || {}} isLoading={isPricesLoading} />
+        
+        {/* Sidebar content - Quick Actions only */}
+        <div className="space-y-4 sm:space-y-6">
           <QuickActions />
         </div>
       </div>
+
+      {/* Reading Summary - Full width */}
       <ReadingSummary totalReadings={data.totalReadings} lastReading={data.lastReading} />
+      
+      {/* Upgrade Modal */}
       <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />
     </div>
   );
