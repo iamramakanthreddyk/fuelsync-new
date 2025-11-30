@@ -6,6 +6,8 @@
 console.log('🚀 [SERVER] Node process starting...');
 
 const app = require('./app');
+const { syncDatabase } = require('./models');
+const seedEssentials = require('../scripts/seedEssentials');
 
 const PORT = process.env.PORT || 3001;
 
@@ -26,6 +28,22 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 📋 Server is ready to accept requests!
   `);
 });
+
+// Initialize database in background (non-blocking)
+(async () => {
+  try {
+    const syncSuccess = await syncDatabase({ force: false, alter: true });
+    
+    // Always try to seed - tables might exist even if sync "failed"
+    try {
+      await seedEssentials();
+    } catch (seedError) {
+      console.warn('⚠️  [SEED] Seeding failed:', seedError.message.substring(0, 100));
+    }
+  } catch (error) {
+    console.error('❌ [BACKGROUND] Error:', error.message);
+  }
+})();
 
 server.on('error', (error) => {
   console.error('❌ [SERVER] Server error:', error.message);
