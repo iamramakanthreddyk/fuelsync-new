@@ -5,7 +5,7 @@
   },
   "deploy": {
     "numReplicas": 1,
-    "startCommand": "cd backend && npm start",
+    "startCommand": "cd backend && node src/server-simple.js",
     "restartPolicyType": "on_failure",
     "restartPolicyMaxRetries": 3,
     "sleepApplication": false
