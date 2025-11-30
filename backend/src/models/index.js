@@ -187,7 +187,12 @@ Shift.hasMany(NozzleReading, { foreignKey: 'shiftId', as: 'readings' });
  */
 const syncDatabase = async (options = {}) => {
   try {
-    await sequelize.authenticate();
+    // Add connection timeout
+    const connectionTimeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Database connection timeout')), 10000)
+    );
+    
+    await Promise.race([sequelize.authenticate(), connectionTimeout]);
     console.log('✅ Database connection established');
     
     // Sync all models
@@ -196,8 +201,9 @@ const syncDatabase = async (options = {}) => {
     
     return true;
   } catch (error) {
-    console.error('❌ Database sync failed:', error);
-    throw error;
+    console.error('❌ Database sync failed:', error.message);
+    // Don't throw - let server continue
+    return false;
   }
 };
 

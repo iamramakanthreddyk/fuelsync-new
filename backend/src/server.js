@@ -15,23 +15,10 @@ const startServer = async () => {
     
     // Sync database (creates tables if they don't exist)
     console.log('📦 Syncing database...');
-    let dbReady = false;
-    try {
-      // Try to sync with alter:true (safe, preserves data)
-      await syncDatabase({ force: false, alter: true });
-      dbReady = true;
-      console.log('✅ Database synced successfully');
-    } catch (error) {
-      // If sync fails, log and continue
-      // Tables might already exist and work fine
-      console.warn('⚠️  Database sync error:');
-      console.warn(error.message.substring(0, 200));
-      console.log('💡 Attempting to continue with existing tables...');
-      dbReady = true;  // Still mark as ready - tables might exist
-    }
+    const syncSuccess = await syncDatabase({ force: false, alter: true });
     
-    // Only seed if we're reasonably confident DB is ready
-    if (dbReady) {
+    // Seed if sync was successful
+    if (syncSuccess) {
       try {
         await seedEssentials();
       } catch (seedError) {
@@ -39,9 +26,11 @@ const startServer = async () => {
         console.warn(seedError.message.substring(0, 200));
         // Continue anyway - seeding is not critical
       }
+    } else {
+      console.warn('⚠️  Database sync failed, skipping seed');
     }
     
-    // Start server
+    // Start server regardless of database status
     app.listen(PORT, () => {
       console.log(`
 ╔════════════════════════════════════════════════════════════╗
@@ -62,25 +51,23 @@ const startServer = async () => {
     });
     
   } catch (error) {
-    console.error('❌ Server startup error:', error.message);
-    console.error('Continuing anyway...');
-    // Don't exit - try to keep the app running
-    // Start server even if there were errors
+    console.error('❌ Startup error:', error.message);
+    // Still start the server
     app.listen(PORT, () => {
-      console.log(`⚠️  Server started on port ${PORT} (with errors)`);
+      console.log(`⚠️  Server started on port ${PORT} (errors occurred)`);
     });
   }
 };
 
-// Handle uncaught exceptions
+// Handle uncaught exceptions - log but don't exit
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error);
-  process.exit(1);
+  // Don't exit - keep the container alive so Railway can restart it
 });
 
 process.on('unhandledRejection', (error) => {
   console.error('Unhandled Rejection:', error);
-  process.exit(1);
+  // Don't exit - keep the container alive so Railway can restart it
 });
 
 // Start the server
