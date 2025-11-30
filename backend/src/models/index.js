@@ -7,10 +7,20 @@
  * Set DB_DIALECT=postgres in .env to use PostgreSQL
  */
 
+console.log('📝 [MODELS] Loading models...');
+
 const { Sequelize } = require('sequelize');
 const path = require('path');
 const fs = require('fs');
-require('dotenv').config({ path: path.join(__dirname, '../../.env') });
+
+// Load .env only if it exists locally (development)
+const envPath = path.join(__dirname, '../../.env');
+if (fs.existsSync(envPath)) {
+  require('dotenv').config({ path: envPath });
+  console.log('📝 [MODELS] Loaded .env file');
+} else {
+  console.log('📝 [MODELS] No .env file (using environment variables)');
+}
 
 const { DEFAULT_PLAN_LIMITS } = require('../config/constants');
 
@@ -20,6 +30,10 @@ const { DEFAULT_PLAN_LIMITS } = require('../config/constants');
 const isProduction = process.env.NODE_ENV === 'production';
 const hasPostgresUrl = process.env.DATABASE_URL && isProduction;
 const dialect = hasPostgresUrl ? 'postgres' : (process.env.DB_DIALECT || 'sqlite');
+
+console.log('📝 [MODELS] Dialect:', dialect);
+console.log('📝 [MODELS] Production:', isProduction);
+console.log('📝 [MODELS] Has DATABASE_URL:', !!process.env.DATABASE_URL);
 
 // Create Sequelize instance based on dialect
 let sequelize;
@@ -46,21 +60,21 @@ if (dialect === 'sqlite') {
   // PostgreSQL configuration
   // If DATABASE_URL is provided, use it directly (Railway style)
   if (process.env.DATABASE_URL) {
+    console.log('📝 [MODELS] Connecting to PostgreSQL via DATABASE_URL');
     sequelize = new Sequelize(process.env.DATABASE_URL, {
       dialect: 'postgres',
-      logging: process.env.NODE_ENV === 'development' ? console.log : false,
+      logging: false,
       pool: {
-        max: 10,
+        max: 5,
         min: 0,
-        acquire: 30000,
-        idle: 10000
+        acquire: 5000,  // 5 second timeout
+        idle: 5000
       },
       define: {
         underscored: true,
         timestamps: true
       }
     });
-    console.log(`🐘 Using PostgreSQL: ${process.env.DATABASE_URL.replace(/:[^:@]+@/, ':***@')}`);
   } else {
     // Fallback to component-based configuration
     const config = {
@@ -79,12 +93,12 @@ if (dialect === 'sqlite') {
         host: config.host,
         port: config.port,
         dialect: 'postgres',
-        logging: process.env.NODE_ENV === 'development' ? console.log : false,
+        logging: false,
         pool: {
-          max: 10,
+          max: 5,
           min: 0,
-          acquire: 30000,
-          idle: 10000
+          acquire: 5000,  // 5 second timeout
+          idle: 5000
         },
         define: {
           underscored: true,
@@ -186,22 +200,26 @@ Shift.hasMany(NozzleReading, { foreignKey: 'shiftId', as: 'readings' });
  * @param {boolean} options.alter - Alter tables to match models
  */
 const syncDatabase = async (options = {}) => {
+  console.log('📝 [SYNC] Starting database sync...');
   try {
-    // Add connection timeout
+    // Add connection timeout - very short, fail fast
     const connectionTimeout = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Database connection timeout')), 10000)
+      setTimeout(() => reject(new Error('Connection timeout')), 5000)
     );
     
+    console.log('📝 [SYNC] Authenticating connection...');
     await Promise.race([sequelize.authenticate(), connectionTimeout]);
-    console.log('✅ Database connection established');
+    console.log('✅ [SYNC] Database connection established');
     
-    // Sync all models
+    // Sync all models with minimal wait
+    console.log('📝 [SYNC] Syncing tables...');
     await sequelize.sync(options);
-    console.log('✅ Database tables synced');
+    console.log('✅ [SYNC] Database tables synced');
     
     return true;
   } catch (error) {
-    console.error('❌ Database sync failed:', error.message);
+    console.error('❌ [SYNC] Database sync failed:', error.message);
+    console.error('📝 [SYNC] Will continue with in-memory data');
     // Don't throw - let server continue
     return false;
   }

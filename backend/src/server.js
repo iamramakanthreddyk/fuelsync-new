@@ -3,72 +3,51 @@
  * Starts the server and syncs database
  */
 
+console.log('🚀 [SERVER] Node process starting...');
+
 const app = require('./app');
-const { syncDatabase } = require('./models');
-const seedEssentials = require('../scripts/seedEssentials');
 
 const PORT = process.env.PORT || 3001;
 
-const startServer = async () => {
-  try {
-    console.log('🚀 Starting FuelSync server...');
-    
-    // Sync database (creates tables if they don't exist)
-    console.log('📦 Syncing database...');
-    const syncSuccess = await syncDatabase({ force: false, alter: true });
-    
-    // Seed if sync was successful
-    if (syncSuccess) {
-      try {
-        await seedEssentials();
-      } catch (seedError) {
-        console.warn('⚠️  Seeding error (non-critical):');
-        console.warn(seedError.message.substring(0, 200));
-        // Continue anyway - seeding is not critical
-      }
-    } else {
-      console.warn('⚠️  Database sync failed, skipping seed');
-    }
-    
-    // Start server regardless of database status
-    app.listen(PORT, () => {
-      console.log(`
+console.log('🚀 [SERVER] Creating HTTP server on port', PORT);
+
+// Start server immediately - don't wait for database
+const server = app.listen(PORT, '0.0.0.0', () => {
+  console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
-║   🔥 FuelSync API Server                                   ║
+║   🔥 FuelSync API Server READY                             ║
 ║                                                            ║
 ║   URL: http://localhost:${PORT}                              ║
-║   API: http://localhost:${PORT}/api/v1                       ║
-║                                                            ║
-║   Environment: ${process.env.NODE_ENV || 'development'}                             ║
+║   Port: ${PORT}                                                  ║
 ║                                                            ║
 ╚════════════════════════════════════════════════════════════╝
 
 📋 Server is ready to accept requests!
+  `);
+});
 
-🔑 Default Admin: admin@fuelsync.com / admin123
-      `);
-    });
-    
-  } catch (error) {
-    console.error('❌ Startup error:', error.message);
-    // Still start the server
-    app.listen(PORT, () => {
-      console.log(`⚠️  Server started on port ${PORT} (errors occurred)`);
-    });
-  }
-};
+server.on('error', (error) => {
+  console.error('❌ [SERVER] Server error:', error.message);
+  console.error(error.stack);
+});
 
-// Handle uncaught exceptions - log but don't exit
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('⏹️  [SERVER] SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('✅ [SERVER] Server closed');
+    process.exit(0);
+  });
+});
+
+// Handle errors without exiting
+process.on('unhandledRejection', (reason) => {
+  console.error('❌ [SERVER] Unhandled Rejection:', reason);
+  // Don't exit - keep server running
+});
+
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-  // Don't exit - keep the container alive so Railway can restart it
+  console.error('❌ [SERVER] Uncaught Exception:', error);
+  // Don't exit - keep server running
 });
-
-process.on('unhandledRejection', (error) => {
-  console.error('Unhandled Rejection:', error);
-  // Don't exit - keep the container alive so Railway can restart it
-});
-
-// Start the server
-startServer();

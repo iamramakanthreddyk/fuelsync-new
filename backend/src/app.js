@@ -4,11 +4,14 @@
  * Features: Sales tracking, Credit management, Expense tracking, Analytics
  */
 
+console.log('📝 [APP] Initializing Express application...');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+require('dotenv').config();
 require('dotenv').config();
 
 // Import routes
