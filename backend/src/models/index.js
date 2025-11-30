@@ -15,8 +15,11 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const { DEFAULT_PLAN_LIMITS } = require('../config/constants');
 
 // Determine dialect from environment
-// If DATABASE_URL exists, always use PostgreSQL
-const dialect = process.env.DATABASE_URL ? 'postgres' : (process.env.DB_DIALECT || 'sqlite');
+// LOCAL DEVELOPMENT: Use SQLite (no setup needed, data in ./data/fuelsync.db)
+// PRODUCTION: Use PostgreSQL via DATABASE_URL from Railway
+const isProduction = process.env.NODE_ENV === 'production';
+const hasPostgresUrl = process.env.DATABASE_URL && isProduction;
+const dialect = hasPostgresUrl ? 'postgres' : (process.env.DB_DIALECT || 'sqlite');
 
 // Create Sequelize instance based on dialect
 let sequelize;
