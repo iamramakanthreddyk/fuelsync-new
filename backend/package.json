@@ -2,9 +2,9 @@
   "name": "fuelsync-backend",
   "version": "2.0.0",
   "description": "FuelSync Backend API - Clean Architecture",
-  "main": "src/server.js",
+  "main": "src/server-simple.js",
   "scripts": {
-    "start": "node src/server.js",
+    "start": "node src/server-simple.js",
     "dev": "nodemon src/server.js",
     "db:sync": "node -e \"require('./src/models').syncDatabase({ alter: true }).then(() => process.exit(0))\"",
     "db:reset": "node -e \"require('./src/models').syncDatabase({ force: true }).then(() => process.exit(0))\"",
