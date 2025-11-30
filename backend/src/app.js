@@ -40,18 +40,28 @@ const app = express();
 
 // CORS - Must be before helmet to handle preflight requests
 const isDevelopment = process.env.NODE_ENV !== 'production';
-const corsOrigins = isDevelopment ? true : (process.env.CORS_ORIGINS || '')
-  .split(',')
-  .map(origin => origin.trim())
-  .filter(origin => origin.length > 0);
 
-console.log('🔓 CORS Origins:', corsOrigins);
+// Build CORS origins list
+let corsOrigins = true; // Default to allow all in development
+
+if (!isDevelopment) {
+  // In production, only allow specific origins
+  const envOrigins = (process.env.CORS_ORIGINS || 'https://fuelsync-new.vercel.app')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(origin => origin.length > 0);
+  
+  corsOrigins = envOrigins.length > 0 ? envOrigins : ['https://fuelsync-new.vercel.app'];
+}
+
+console.log('🔓 CORS Enabled for:', isDevelopment ? 'ALL (development)' : corsOrigins);
 
 app.use(cors({
   origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id']
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
+  maxAge: 86400 // 24 hours
 }));
 
 // Security headers - configure for development
