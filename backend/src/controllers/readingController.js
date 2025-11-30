@@ -436,90 +436,85 @@ exports.getReadingById = async (req, res, next) => {
  * Update a reading (same day only, manager+ role)
  * PUT /api/v1/readings/:id
  */
+
 exports.updateReading = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { cashAmount, onlineAmount, notes } = req.body;
+    const { readingValue, cashAmount, onlineAmount, notes } = req.body;
 
     const reading = await NozzleReading.findByPk(id);
-
     if (!reading) {
-      return res.status(404).json({
-        success: false,
-        error: 'Reading not found'
-      });
+      return res.status(404).json({ success: false, error: 'Reading not found' });
     }
 
     // Authorization check
     const user = await User.findByPk(req.userId);
     if (!(await canAccessStation(user, reading.stationId))) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this reading'
-      });
+      return res.status(403).json({ success: false, error: 'Not authorized to update this reading' });
     }
-
-    // Only manager+ can edit
     if (!['super_admin', 'owner', 'manager'].includes(user.role)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Only managers and above can edit readings'
-      });
+      return res.status(403).json({ success: false, error: 'Only managers and above can edit readings' });
     }
 
-    // Same day check (allow edit only on same day)
-    const today = new Date().toISOString().split('T')[0];
-    const readingDay = new Date(reading.createdAt).toISOString().split('T')[0];
-    
-    if (today !== readingDay && user.role !== 'super_admin') {
-      return res.status(403).json({
-        success: false,
-        error: 'Can only edit readings from the same day'
-      });
-    }
-
-    // Update payment if provided
+    // Allow editing readingValue, cashAmount, onlineAmount, notes
     const updates = {};
-    
+    if (readingValue !== undefined) {
+      updates.readingValue = parseFloat(readingValue);
+    }
     if (notes !== undefined) {
       updates.notes = notes;
     }
-
-    if (!reading.isInitialReading) {
-      const totalAmount = parseFloat(reading.totalAmount);
-      
-      if (cashAmount !== undefined && onlineAmount !== undefined) {
-        const cash = parseFloat(cashAmount) || 0;
-        const online = parseFloat(onlineAmount) || 0;
-        
-        if (Math.abs((cash + online) - totalAmount) > 0.01) {
-          return res.status(400).json({
-            success: false,
-            error: `Cash + Online must equal Total (${totalAmount})`
-          });
-        }
-        
-        updates.cashAmount = cash;
-        updates.onlineAmount = online;
-      } else if (cashAmount !== undefined) {
-        const cash = parseFloat(cashAmount) || 0;
-        updates.cashAmount = cash;
-        updates.onlineAmount = totalAmount - cash;
-      } else if (onlineAmount !== undefined) {
-        const online = parseFloat(onlineAmount) || 0;
-        updates.onlineAmount = online;
-        updates.cashAmount = totalAmount - online;
-      }
+    if (cashAmount !== undefined) {
+      updates.cashAmount = parseFloat(cashAmount) || 0;
+    }
+    if (onlineAmount !== undefined) {
+      updates.onlineAmount = parseFloat(onlineAmount) || 0;
     }
 
+    // Save old value for audit
+    const oldReadingValue = parseFloat(reading.readingValue);
+    const newReadingValue = updates.readingValue !== undefined ? updates.readingValue : oldReadingValue;
+
+    // Update this reading
     await reading.update(updates);
+
+    // Recalculate this and all subsequent readings for this nozzle
+    const allReadings = await NozzleReading.findAll({
+      where: {
+        nozzleId: reading.nozzleId,
+        readingDate: { [Op.gte]: reading.readingDate }
+      },
+      order: [['readingDate', 'ASC'], ['createdAt', 'ASC']]
+    });
+
+    let prevValue = null;
+    // Get previous reading before this one
+    const prevReading = await NozzleReading.getPreviousReading(reading.nozzleId, reading.readingDate);
+    prevValue = prevReading ? parseFloat(prevReading.readingValue) : 0;
+
+    for (const r of allReadings) {
+      const currentValue = parseFloat(r.readingValue);
+      const litresSold = prevValue !== null ? (currentValue - prevValue) : 0;
+      // Get price per litre for this date
+      const pricePerLitre = await FuelPrice.getPriceForDate(r.stationId, r.fuelType, r.readingDate) || 0;
+      const totalAmount = litresSold * pricePerLitre;
+      await r.update({
+        previousReading: prevValue,
+        litresSold,
+        pricePerLitre,
+        totalAmount
+      });
+      prevValue = currentValue;
+    }
+
+    // Audit log (simple console, replace with DB log if needed)
+    console.log(`[AUDIT] User ${user.id} (${user.role}) updated reading ${id}: from ${oldReadingValue} to ${newReadingValue}`);
 
     res.json({
       success: true,
-      data: reading,
-      message: 'Reading updated successfully'
+      data: await NozzleReading.findByPk(id),
+      message: 'Reading updated and calculations refreshed'
     });
-
   } catch (error) {
     console.error('Update reading error:', error);
     next(error);

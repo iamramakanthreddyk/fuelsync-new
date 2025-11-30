@@ -12,6 +12,7 @@ const shiftController = require('../controllers/shiftController');
 const cashHandoverController = require('../controllers/cashHandoverController');
 const { authenticate, requireRole, requireMinRole } = require('../middleware/auth');
 const { validate, stationValidators, tankValidators } = require('../validators');
+const { enforcePlanLimit } = require('../middleware/planLimits');
 
 // All routes require authentication
 router.use(authenticate);
@@ -21,7 +22,8 @@ router.use(authenticate);
 // ============================================
 router.get('/', stationController.getStations);
 router.post('/', 
-  requireRole(['owner', 'super_admin']), 
+  requireRole(['owner', 'super_admin']),
+  enforcePlanLimit('station'), // Check plan limits before creation
   validate(stationValidators.create),
   stationController.createStation
 );
@@ -50,14 +52,22 @@ router.get('/:stationId/staff', userController.getStationStaff);
 // PUMPS (nested under stations)
 // ============================================
 router.get('/:stationId/pumps', stationController.getPumps);
-router.post('/:stationId/pumps', requireRole(['owner', 'super_admin']), stationController.createPump);
+router.post('/:stationId/pumps', 
+  requireRole(['owner', 'super_admin']),
+  enforcePlanLimit('pump'), // Check plan limits before creation
+  stationController.createPump
+);
 router.put('/pumps/:id', requireRole(['owner', 'super_admin']), stationController.updatePump);
 
 // ============================================
 // NOZZLES (nested under pumps)
 // ============================================
 router.get('/pumps/:pumpId/nozzles', stationController.getNozzles);
-router.post('/pumps/:pumpId/nozzles', requireRole(['owner', 'super_admin']), stationController.createNozzle);
+router.post('/pumps/:pumpId/nozzles', 
+  requireRole(['owner', 'super_admin']),
+  enforcePlanLimit('nozzle'), // Check plan limits before creation
+  stationController.createNozzle
+);
 router.put('/nozzles/:id', requireRole(['owner', 'super_admin']), stationController.updateNozzle);
 
 // ============================================

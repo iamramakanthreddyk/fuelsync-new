@@ -26,8 +26,9 @@ export function UserConfirmationManager() {
   const fetchUnconfirmedUsers = async () => {
     setIsLoading(true);
     try {
-      const result = await apiClient.get<{ success: boolean; data: UnconfirmedUsersData }>('/users/unconfirmed');
-      setData(result.data);
+      const result = await apiClient.get<UnconfirmedUsersData>('/users/unconfirmed');
+      console.log('📋 Unconfirmed users response:', result);
+      setData(result);
     } catch (error: any) {
       console.error('Error fetching unconfirmed users:', error);
       toast({
@@ -43,11 +44,13 @@ export function UserConfirmationManager() {
   const confirmAllUsers = async () => {
     setIsConfirming(true);
     try {
-      const result = await apiClient.post<{ success: boolean; data: { confirmedCount: number; totalUsers: number } }>('/users/confirm-all', {});
+      const result = await apiClient.post<{ confirmedCount: number; totalUsers: number }>('/users/confirm-all', {});
+
+      console.log('Confirm all users response:', result);
 
       toast({
         title: "Users Confirmed",
-        description: `Successfully confirmed ${result.data.confirmedCount} users out of ${result.data.totalUsers} total users`,
+        description: `Successfully confirmed ${result.confirmedCount} users out of ${result.totalUsers} total users`,
       });
 
       // Refresh the data

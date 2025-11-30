@@ -38,7 +38,8 @@ import {
   Fuel,
   Settings,
   DollarSign,
-  Users
+  Users,
+  CreditCard
 } from 'lucide-react';
 
 interface Pump {
@@ -82,6 +83,17 @@ interface Station {
   isActive: boolean;
 }
 
+interface Creditor {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  creditLimit: number;
+  currentBalance: number;
+  status: 'active' | 'blocked';
+  vehicleNumber?: string;
+}
+
 export default function StationDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -93,12 +105,27 @@ export default function StationDetail() {
   const [isPumpDialogOpen, setIsPumpDialogOpen] = useState(false);
   const [isNozzleDialogOpen, setIsNozzleDialogOpen] = useState(false);
   const [isPriceDialogOpen, setIsPriceDialogOpen] = useState(false);
+  const [isCreditorDialogOpen, setIsCreditorDialogOpen] = useState(false);
+  const [isEditPumpDialogOpen, setIsEditPumpDialogOpen] = useState(false);
+  const [isEditNozzleDialogOpen, setIsEditNozzleDialogOpen] = useState(false);
+  const [isReadingDialogOpen, setIsReadingDialogOpen] = useState(false);
   const [selectedPump, setSelectedPump] = useState<Pump | null>(null);
+  const [selectedNozzle, setSelectedNozzle] = useState<Nozzle | null>(null);
 
   const [pumpForm, setPumpForm] = useState({
     pumpNumber: '',
     name: '',
     status: 'active' as const
+  });
+
+  const [editPumpForm, setEditPumpForm] = useState<{
+    name: string;
+    status: 'active' | 'inactive' | 'maintenance';
+    notes: string;
+  }>({
+    name: '',
+    status: 'active',
+    notes: ''
   });
 
   const [nozzleForm, setNozzleForm] = useState({
@@ -107,10 +134,33 @@ export default function StationDetail() {
     initialReading: ''
   });
 
+  const [editNozzleForm, setEditNozzleForm] = useState<{
+    status: 'active' | 'inactive' | 'maintenance';
+    notes: string;
+  }>({
+    status: 'active',
+    notes: ''
+  });
+
+  const [readingForm, setReadingForm] = useState({
+    nozzleId: '',
+    readingValue: '',
+    readingDate: new Date().toISOString().split('T')[0],
+    paymentType: 'cash' as const
+  });
+
   const [priceForm, setPriceForm] = useState({
     fuelType: 'petrol',
     price: '',
     effectiveFrom: new Date().toISOString().split('T')[0]
+  });
+
+  const [creditorForm, setCreditorForm] = useState({
+    name: '',
+    phone: '',
+    email: '',
+    creditLimit: '',
+    vehicleNumber: ''
   });
 
   // Fetch station details
@@ -163,6 +213,16 @@ export default function StationDetail() {
     queryKey: ['station-prices', id],
     queryFn: async () => {
       const response = await apiClient.get<FuelPrice[]>(`/stations/${id}/prices`);
+      return response;
+    },
+    enabled: !!id
+  });
+
+  // Fetch creditors
+  const { data: creditors, isLoading: creditorsLoading } = useQuery({
+    queryKey: ['station-creditors', id],
+    queryFn: async () => {
+      const response = await apiClient.get<Creditor[]>(`/credits/stations/${id}/creditors`);
       return response;
     },
     enabled: !!id
@@ -232,6 +292,91 @@ export default function StationDetail() {
     }
   });
 
+  // Create creditor mutation
+  const createCreditorMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiClient.post(`/credits/stations/${id}/creditors`, data);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['station-creditors', id] });
+      toast({ title: 'Success', description: 'Creditor created successfully' });
+      setIsCreditorDialogOpen(false);
+      setCreditorForm({ name: '', phone: '', email: '', creditLimit: '', vehicleNumber: '' });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to create creditor',
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Update pump mutation
+  const updatePumpMutation = useMutation({
+    mutationFn: async ({ pumpId, data }: { pumpId: string; data: any }) => {
+      const response = await apiClient.put(`/stations/pumps/${pumpId}`, data);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
+      toast({ title: 'Success', description: 'Pump updated successfully' });
+      setIsEditPumpDialogOpen(false);
+      setSelectedPump(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to update pump',
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Update nozzle mutation
+  const updateNozzleMutation = useMutation({
+    mutationFn: async ({ nozzleId, data }: { nozzleId: string; data: any }) => {
+      const response = await apiClient.put(`/stations/nozzles/${nozzleId}`, data);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
+      toast({ title: 'Success', description: 'Nozzle updated successfully' });
+      setIsEditNozzleDialogOpen(false);
+      setSelectedNozzle(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to update nozzle',
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // Add reading mutation
+  const addReadingMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await apiClient.post(`/readings`, data);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
+      toast({ title: 'Success', description: 'Reading added successfully' });
+      setIsReadingDialogOpen(false);
+      setReadingForm({ nozzleId: '', readingValue: '', readingDate: new Date().toISOString().split('T')[0], paymentType: 'cash' });
+      setSelectedNozzle(null);
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Error',
+        description: error.response?.data?.error || 'Failed to add reading',
+        variant: 'destructive'
+      });
+    }
+  });
+
   const handleCreatePump = () => {
     createPumpMutation.mutate({
       pumpNumber: parseInt(pumpForm.pumpNumber),
@@ -257,6 +402,73 @@ export default function StationDetail() {
       fuelType: priceForm.fuelType,
       price: parseFloat(priceForm.price),
       effectiveFrom: priceForm.effectiveFrom
+    });
+  };
+
+  const handleCreateCreditor = () => {
+    createCreditorMutation.mutate({
+      name: creditorForm.name,
+      phone: creditorForm.phone,
+      email: creditorForm.email || undefined,
+      creditLimit: parseFloat(creditorForm.creditLimit),
+      vehicleNumber: creditorForm.vehicleNumber || undefined
+    });
+  };
+
+  const handleEditPump = (pump: Pump) => {
+    setSelectedPump(pump);
+    setEditPumpForm({
+      name: pump.name,
+      status: pump.status,
+      notes: pump.notes || ''
+    });
+    setIsEditPumpDialogOpen(true);
+  };
+
+  const handleUpdatePump = () => {
+    if (!selectedPump) return;
+    updatePumpMutation.mutate({
+      pumpId: selectedPump.id,
+      data: editPumpForm
+    });
+  };
+
+  const handleEditNozzle = (nozzle: Nozzle) => {
+    setSelectedNozzle(nozzle);
+    setEditNozzleForm({
+      status: nozzle.status,
+      notes: ''
+    });
+    setIsEditNozzleDialogOpen(true);
+  };
+
+  const handleUpdateNozzle = () => {
+    if (!selectedNozzle) return;
+    updateNozzleMutation.mutate({
+      nozzleId: selectedNozzle.id,
+      data: editNozzleForm
+    });
+  };
+
+  const handleAddReading = (nozzle: Nozzle) => {
+    setSelectedNozzle(nozzle);
+    setReadingForm({
+      nozzleId: nozzle.id,
+      readingValue: '',
+      readingDate: new Date().toISOString().split('T')[0],
+      paymentType: 'cash'
+    });
+    setIsReadingDialogOpen(true);
+  };
+
+  const handleSubmitReading = () => {
+    if (!selectedNozzle) return;
+    addReadingMutation.mutate({
+      nozzleId: readingForm.nozzleId,
+      stationId: id,
+      readingValue: parseFloat(readingForm.readingValue),
+      readingDate: readingForm.readingDate,
+      paymentType: readingForm.paymentType
     });
   };
 
@@ -302,6 +514,7 @@ export default function StationDetail() {
         <TabsList>
           <TabsTrigger value="pumps">Pumps & Nozzles</TabsTrigger>
           <TabsTrigger value="prices">Fuel Prices</TabsTrigger>
+          <TabsTrigger value="creditors">Creditors</TabsTrigger>
           <TabsTrigger value="employees">Employees</TabsTrigger>
           <TabsTrigger value="settings">Settings</TabsTrigger>
         </TabsList>
@@ -412,9 +625,18 @@ export default function StationDetail() {
                       <CardTitle className="text-lg">
                         Pump {pump.pumpNumber} - {pump.name}
                       </CardTitle>
-                      <Badge variant={pump.status === 'active' ? 'default' : 'secondary'}>
-                        {pump.status}
-                      </Badge>
+                      <div className="flex items-center gap-2">
+                        <Badge variant={pump.status === 'active' ? 'default' : 'secondary'}>
+                          {pump.status}
+                        </Badge>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleEditPump(pump)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
@@ -446,10 +668,31 @@ export default function StationDetail() {
                                 <Badge className={getFuelBadgeClasses(nozzle.fuelType)}>
                                   {nozzle.fuelType}
                                 </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  Last: {nozzle.lastReading != null ? nozzle.lastReading.toFixed(2) : nozzle.initialReading?.toFixed(2) || '0.00'}
+                                </span>
                               </div>
-                              <Badge variant="outline" className="text-xs">
-                                {nozzle.status}
-                              </Badge>
+                              <div className="flex items-center gap-1">
+                                <Badge variant="outline" className="text-xs">
+                                  {nozzle.status}
+                                </Badge>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleAddReading(nozzle)}
+                                  className="h-6 px-2"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  onClick={() => handleEditNozzle(nozzle)}
+                                  className="h-6 px-2"
+                                >
+                                  <Edit className="w-3 h-3" />
+                                </Button>
+                              </div>
                             </div>
                           ))}
                         </div>
@@ -568,6 +811,151 @@ export default function StationDetail() {
           )}
         </TabsContent>
 
+        {/* Creditors Tab */}
+        <TabsContent value="creditors" className="space-y-4">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-semibold">Credit Customers</h2>
+            <Dialog open={isCreditorDialogOpen} onOpenChange={setIsCreditorDialogOpen}>
+              <DialogTrigger asChild>
+                <Button>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add Creditor
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Add New Creditor</DialogTitle>
+                  <DialogDescription>Create a new credit customer for this station</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div>
+                    <Label htmlFor="creditorName">Name *</Label>
+                    <Input
+                      id="creditorName"
+                      value={creditorForm.name}
+                      onChange={(e) => setCreditorForm({ ...creditorForm, name: e.target.value })}
+                      placeholder="Customer name"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="creditorPhone">Phone *</Label>
+                    <Input
+                      id="creditorPhone"
+                      value={creditorForm.phone}
+                      onChange={(e) => setCreditorForm({ ...creditorForm, phone: e.target.value })}
+                      placeholder="+91-9876543210"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="creditorEmail">Email</Label>
+                    <Input
+                      id="creditorEmail"
+                      type="email"
+                      value={creditorForm.email}
+                      onChange={(e) => setCreditorForm({ ...creditorForm, email: e.target.value })}
+                      placeholder="customer@example.com"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="creditLimit">Credit Limit *</Label>
+                    <Input
+                      id="creditLimit"
+                      type="number"
+                      step="0.01"
+                      value={creditorForm.creditLimit}
+                      onChange={(e) => setCreditorForm({ ...creditorForm, creditLimit: e.target.value })}
+                      placeholder="10000.00"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="vehicleNumber">Vehicle Number</Label>
+                    <Input
+                      id="vehicleNumber"
+                      value={creditorForm.vehicleNumber}
+                      onChange={(e) => setCreditorForm({ ...creditorForm, vehicleNumber: e.target.value })}
+                      placeholder="MH-12-AB-1234"
+                    />
+                  </div>
+                </div>
+                <div className="flex justify-end gap-2">
+                  <Button variant="outline" onClick={() => setIsCreditorDialogOpen(false)}>
+                    Cancel
+                  </Button>
+                  <Button 
+                    onClick={handleCreateCreditor}
+                    disabled={!creditorForm.name || !creditorForm.phone || !creditorForm.creditLimit || createCreditorMutation.isPending}
+                  >
+                    {createCreditorMutation.isPending ? 'Creating...' : 'Create Creditor'}
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
+
+          {creditorsLoading ? (
+            <div className="text-center py-8">Loading creditors...</div>
+          ) : creditors && creditors.length > 0 ? (
+            <div className="grid gap-4">
+              {creditors.map((creditor) => (
+                <Card key={creditor.id}>
+                  <CardHeader>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <CardTitle className="flex items-center gap-2">
+                          {creditor.name}
+                          <Badge variant={creditor.status === 'active' ? 'default' : 'destructive'}>
+                            {creditor.status}
+                          </Badge>
+                        </CardTitle>
+                        <CardDescription>
+                          {creditor.phone} {creditor.vehicleNumber && `• ${creditor.vehicleNumber}`}
+                        </CardDescription>
+                      </div>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Credit Limit</p>
+                        <p className="text-lg font-semibold">₹{creditor.creditLimit.toFixed(2)}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Current Balance</p>
+                        <p className={`text-lg font-semibold ${creditor.currentBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          ₹{creditor.currentBalance.toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Available Credit</p>
+                        <p className="text-lg font-semibold">
+                          ₹{(creditor.creditLimit - creditor.currentBalance).toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-muted-foreground">Utilization</p>
+                        <p className="text-lg font-semibold">
+                          {((creditor.currentBalance / creditor.creditLimit) * 100).toFixed(1)}%
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <CreditCard className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <p className="text-muted-foreground mb-4">No creditors added yet</p>
+                <Button onClick={() => setIsCreditorDialogOpen(true)}>
+                  <Plus className="w-4 h-4 mr-2" />
+                  Add First Creditor
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
         {/* Employees Tab */}
         <TabsContent value="employees" className="space-y-4">
           <div className="flex justify-between items-center">
@@ -658,6 +1046,180 @@ export default function StationDetail() {
               disabled={!nozzleForm.nozzleNumber || !nozzleForm.initialReading || createNozzleMutation.isPending}
             >
               {createNozzleMutation.isPending ? 'Creating...' : 'Create Nozzle'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Pump Dialog */}
+      <Dialog open={isEditPumpDialogOpen} onOpenChange={setIsEditPumpDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Pump</DialogTitle>
+            <DialogDescription>
+              Update pump details for {selectedPump?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="editPumpName">Pump Name *</Label>
+              <Input
+                id="editPumpName"
+                value={editPumpForm.name}
+                onChange={(e) => setEditPumpForm({ ...editPumpForm, name: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="editPumpStatus">Status</Label>
+              <Select
+                value={editPumpForm.status}
+                onValueChange={(value: any) => setEditPumpForm({ ...editPumpForm, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="editPumpNotes">Notes</Label>
+              <Input
+                id="editPumpNotes"
+                value={editPumpForm.notes}
+                onChange={(e) => setEditPumpForm({ ...editPumpForm, notes: e.target.value })}
+                placeholder="Optional notes"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsEditPumpDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdatePump}
+              disabled={!editPumpForm.name || updatePumpMutation.isPending}
+            >
+              {updatePumpMutation.isPending ? 'Updating...' : 'Update Pump'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Nozzle Dialog */}
+      <Dialog open={isEditNozzleDialogOpen} onOpenChange={setIsEditNozzleDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Nozzle</DialogTitle>
+            <DialogDescription>
+              Update nozzle status for Nozzle {selectedNozzle?.nozzleNumber}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="editNozzleStatus">Status</Label>
+              <Select
+                value={editNozzleForm.status}
+                onValueChange={(value: any) => setEditNozzleForm({ ...editNozzleForm, status: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active</SelectItem>
+                  <SelectItem value="inactive">Inactive</SelectItem>
+                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="editNozzleNotes">Notes</Label>
+              <Input
+                id="editNozzleNotes"
+                value={editNozzleForm.notes}
+                onChange={(e) => setEditNozzleForm({ ...editNozzleForm, notes: e.target.value })}
+                placeholder="Optional notes"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsEditNozzleDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleUpdateNozzle}
+              disabled={updateNozzleMutation.isPending}
+            >
+              {updateNozzleMutation.isPending ? 'Updating...' : 'Update Nozzle'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Reading Dialog */}
+      <Dialog open={isReadingDialogOpen} onOpenChange={setIsReadingDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add Nozzle Reading</DialogTitle>
+            <DialogDescription>
+              Record a new reading for Nozzle {selectedNozzle?.nozzleNumber} ({selectedNozzle?.fuelType})
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="readingValue">Reading Value *</Label>
+              <Input
+                id="readingValue"
+                type="number"
+                step="0.01"
+                value={readingForm.readingValue}
+                onChange={(e) => setReadingForm({ ...readingForm, readingValue: e.target.value })}
+                placeholder="Enter current meter reading"
+              />
+              {selectedNozzle && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Last reading: {selectedNozzle.lastReading?.toFixed(2) || selectedNozzle.initialReading.toFixed(2)}
+                </p>
+              )}
+            </div>
+            <div>
+              <Label htmlFor="readingDate">Date *</Label>
+              <Input
+                id="readingDate"
+                type="date"
+                value={readingForm.readingDate}
+                onChange={(e) => setReadingForm({ ...readingForm, readingDate: e.target.value })}
+              />
+            </div>
+            <div>
+              <Label htmlFor="paymentType">Payment Type *</Label>
+              <Select
+                value={readingForm.paymentType}
+                onValueChange={(value: any) => setReadingForm({ ...readingForm, paymentType: value })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Cash</SelectItem>
+                  <SelectItem value="digital">Digital</SelectItem>
+                  <SelectItem value="credit">Credit</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setIsReadingDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSubmitReading}
+              disabled={!readingForm.readingValue || addReadingMutation.isPending}
+            >
+              {addReadingMutation.isPending ? 'Adding...' : 'Add Reading'}
             </Button>
           </div>
         </DialogContent>

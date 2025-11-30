@@ -36,4 +36,10 @@ router.get('/alerts/pending-handovers', dashboardController.getPendingHandoversA
 // Shift status
 router.get('/shift-status', dashboardController.getShiftStatus);
 
+// Owner dashboard stats
+router.get('/owner/stats', requireRole('owner'), dashboardController.getOwnerStats);
+
+// Owner analytics
+router.get('/owner/analytics', requireRole('owner'), dashboardController.getOwnerAnalytics);
+
 module.exports = router;

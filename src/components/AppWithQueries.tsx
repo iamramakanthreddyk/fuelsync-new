@@ -36,6 +36,7 @@ import StationDetail from '@/pages/owner/StationDetail';
 import EmployeesManagement from '@/pages/owner/EmployeesManagement';
 import OwnerReports from '@/pages/owner/Reports';
 import OwnerAnalytics from '@/pages/owner/Analytics';
+import QuickDataEntry from '@/pages/owner/QuickDataEntry';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -96,9 +97,9 @@ function useStationsForSuperAdmin() {
   return useQuery({
     queryKey: ["all-stations"],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: Array<{ id: string; name: string; brand: string }> }>('/stations');
-      if (!response.success) throw new Error('Failed to fetch stations');
-      return response.data || [];
+      const response = await apiClient.get<Array<{ id: string; name: string; brand: string }>>('/stations');
+      console.log('🏢 All stations response:', response);
+      return response || [];
     }
   });
 }
@@ -172,6 +173,7 @@ export function AppWithQueries() {
                     
                     {/* Owner Routes - New comprehensive UI */}
                     <Route path="/owner/dashboard" element={<OwnerDashboard />} />
+                    <Route path="/owner/quick-entry" element={<QuickDataEntry />} />
                     <Route path="/owner/stations" element={<StationsManagement />} />
                     <Route path="/owner/stations/:id" element={<StationDetail />} />
                     <Route path="/owner/employees" element={<EmployeesManagement />} />

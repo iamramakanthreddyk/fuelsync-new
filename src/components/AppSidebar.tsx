@@ -24,7 +24,9 @@ import {
   Users, 
   Building2, 
   Settings,
-  LogOut
+  LogOut,
+  BarChart3,
+  Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import FuelSyncLogo from './FuelSyncLogo';
@@ -41,7 +43,47 @@ export function AppSidebar() {
     return null;
   }
 
-  const menuItems = [
+  // Owner-specific menu items
+  const ownerMenuItems = [
+    {
+      title: "Dashboard",
+      url: "/owner/dashboard",
+      icon: Home,
+    },
+    {
+      title: "Quick Entry",
+      url: "/owner/quick-entry",
+      icon: Zap,
+    },
+    {
+      title: "Stations",
+      url: "/owner/stations",
+      icon: Building2,
+    },
+    {
+      title: "Employees",
+      url: "/owner/employees",
+      icon: Users,
+    },
+    {
+      title: "Reports",
+      url: "/owner/reports",
+      icon: FileText,
+    },
+    {
+      title: "Analytics",
+      url: "/owner/analytics",
+      icon: BarChart3,
+    },
+    {
+      title: "Settings",
+      url: "/settings",
+      icon: Settings,
+    },
+  ];
+
+  // Manager/Employee menu items
+  const staffMenuItems = [
     {
       title: "Dashboard",
       url: "/dashboard",
@@ -72,29 +114,14 @@ export function AppSidebar() {
       url: "/reports",
       icon: FileText,
     },
+    {
+      title: "Settings",
+      url: "/settings",
+      icon: Settings,
+    },
   ];
 
-  // Add admin items for owners only
-  if (user?.role === 'owner') {
-    menuItems.push(
-      {
-        title: "Manage Users",
-        url: "/staff",
-        icon: Users,
-      },
-      {
-        title: "My Stations",
-        url: "/stations", 
-        icon: Building2,
-      }
-    );
-  }
-
-  menuItems.push({
-    title: "Settings",
-    url: "/settings",
-    icon: Settings,
-  });
+  const menuItems = user?.role === 'owner' ? ownerMenuItems : staffMenuItems;
 
   const handleLogout = async () => {
     try {
@@ -109,10 +136,13 @@ export function AppSidebar() {
     if (isMobile) setOpenMobile(false);
   };
 
+  // Determine dashboard URL based on user role
+  const dashboardUrl = user?.role === 'owner' ? '/owner/dashboard' : '/dashboard';
+
   return (
     <Sidebar className="w-64">
       <SidebarHeader>
-        <Link to="/dashboard">
+        <Link to={dashboardUrl}>
           <FuelSyncLogo className="h-8" />
         </Link>
       </SidebarHeader>

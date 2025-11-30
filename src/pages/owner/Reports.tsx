@@ -86,6 +86,18 @@ interface PumpPerformance {
   }[];
 }
 
+interface NozzleBreakdown {
+  nozzleId: string;
+  nozzleNumber: number;
+  fuelType: string;
+  pumpName: string;
+  stationName: string;
+  totalSales: number;
+  totalQuantity: number;
+  transactions: number;
+  avgTransactionValue: number;
+}
+
 export default function Reports() {
   const today = new Date().toISOString().split('T')[0];
   const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -151,6 +163,22 @@ export default function Reports() {
         params.append('stationId', selectedStation);
       }
       const response = await apiClient.get<PumpPerformance[]>(`/reports/pumps?${params.toString()}`);
+      return response;
+    }
+  });
+
+  // Fetch nozzle-wise breakdown
+  const { data: nozzleBreakdown, isLoading: nozzlesLoading } = useQuery({
+    queryKey: ['nozzle-breakdown', dateRange, selectedStation],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      });
+      if (selectedStation !== 'all') {
+        params.append('stationId', selectedStation);
+      }
+      const response = await apiClient.get<NozzleBreakdown[]>(`/dashboard/nozzle-breakdown?${params.toString()}`);
       return response;
     }
   });
@@ -284,6 +312,10 @@ export default function Reports() {
             <BarChart3 className="w-4 h-4 mr-2" />
             Sales Reports
           </TabsTrigger>
+          <TabsTrigger value="nozzles">
+            <Droplet className="w-4 h-4 mr-2" />
+            Nozzle-wise Sales
+          </TabsTrigger>
           <TabsTrigger value="shifts">
             <Clock className="w-4 h-4 mr-2" />
             Shift Reports
@@ -365,6 +397,79 @@ export default function Reports() {
                   <h3 className="text-lg font-semibold mb-2">No Sales Data</h3>
                   <p className="text-muted-foreground">
                     No sales found for the selected date range and filters
+                  </p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Nozzle-wise Sales Tab */}
+        <TabsContent value="nozzles" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle>Nozzle-wise Sales Breakdown</CardTitle>
+                  <CardDescription>Detailed sales performance by individual nozzles</CardDescription>
+                </div>
+                <Button variant="outline" size="sm" onClick={() => handleExport('nozzles')}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
+                </Button>
+              </div>
+            </CardHeader>
+            <CardContent>
+              {nozzlesLoading ? (
+                <div className="text-center py-8 text-muted-foreground">Loading nozzle data...</div>
+              ) : nozzleBreakdown && nozzleBreakdown.length > 0 ? (
+                <div className="space-y-4">
+                  <div className="grid gap-4 md:grid-cols-2">
+                    {nozzleBreakdown.map((nozzle) => (
+                      <Card key={nozzle.nozzleId}>
+                        <CardHeader className="pb-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <CardTitle className="text-base">
+                                Nozzle {nozzle.nozzleNumber} - {nozzle.pumpName}
+                              </CardTitle>
+                              <CardDescription className="text-xs">
+                                {nozzle.stationName}
+                              </CardDescription>
+                            </div>
+                            <Badge variant="outline">{nozzle.fuelType.toUpperCase()}</Badge>
+                          </div>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <p className="text-xs text-muted-foreground">Total Sales</p>
+                              <p className="text-lg font-bold">₹{nozzle.totalSales.toLocaleString('en-IN')}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Volume</p>
+                              <p className="text-lg font-bold">{nozzle.totalQuantity.toFixed(2)} L</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Transactions</p>
+                              <p className="text-lg font-bold">{nozzle.transactions}</p>
+                            </div>
+                            <div>
+                              <p className="text-xs text-muted-foreground">Avg. Value</p>
+                              <p className="text-lg font-bold">₹{nozzle.avgTransactionValue.toFixed(2)}</p>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-12">
+                  <Droplet className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">No Nozzle Data</h3>
+                  <p className="text-muted-foreground">
+                    No nozzle sales data found for the selected period
                   </p>
                 </div>
               )}

@@ -123,14 +123,18 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
     try {
       setLoading(true);
       const [usersRes, stationsRes, plansRes] = await Promise.all([
-        apiClient.get<{ success: boolean; data: User[] }>('/users'),
-        apiClient.get<{ success: boolean; data: Station[] }>('/stations'),
-        apiClient.get<{ success: boolean; data: Plan[] }>('/plans')
+        apiClient.get<User[]>('/users'),
+        apiClient.get<Station[]>('/stations'),
+        apiClient.get<Plan[]>('/plans')
       ]);
       
-      setUsers(usersRes.data || []);
-      setStations(stationsRes.data || []);
-      setPlans(plansRes.data || []);
+      console.log('👥 Users response:', usersRes);
+      console.log('🏢 Stations response:', stationsRes);
+      console.log('📋 Plans response:', plansRes);
+      
+      setUsers(usersRes || []);
+      setStations(stationsRes || []);
+      setPlans(plansRes || []);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast({

@@ -164,7 +164,7 @@ export const useReadingManagement = () => {
         user_id: user.id
       };
 
-      const response = await apiClient.post<ApiResponse<any>>('/readings/manual', payload);
+      const response = await apiClient.post<any>('/readings/manual', payload);
 
       if (!response.success) {
         throw new Error('Failed to save reading');

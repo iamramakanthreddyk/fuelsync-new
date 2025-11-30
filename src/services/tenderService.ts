@@ -100,12 +100,8 @@ export const shiftService = {
         url += `?employeeId=${employeeId}`;
       }
 
-      const response = await apiClient.get<ApiResponse<Shift | null>>(url);
-
-      if (response.success) {
-        return response.data || null;
-      }
-      return null;
+      const response = await apiClient.get<Shift | null>(url);
+      return response || null;
     } catch (error) {
       console.error('Failed to get active shift:', error);
       return null;

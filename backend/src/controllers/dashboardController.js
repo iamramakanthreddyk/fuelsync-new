@@ -618,3 +618,438 @@ exports.getShiftStatus = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Get owner dashboard statistics
+ * GET /api/v1/dashboard/owner/stats
+ */
+exports.getOwnerStats = async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.userId);
+    
+    // Only owners can access this
+    if (user.role !== 'owner') {
+      return res.status(403).json({
+        success: false,
+        error: 'Access denied. Owner role required.'
+      });
+    }
+
+    // Get all stations owned by this user
+    const stations = await Station.findAll({
+      where: { ownerId: user.id },
+      include: [
+        {
+          model: Pump,
+          as: 'pumps',
+          attributes: ['id', 'status']
+        }
+      ]
+    });
+
+    const stationIds = stations.map(s => s.id);
+    const totalStations = stations.length;
+    const activeStations = stations.filter(s => s.isActive).length;
+
+    // Count employees across all owned stations
+    const totalEmployees = await User.count({
+      where: {
+        stationId: { [Op.in]: stationIds },
+        role: { [Op.in]: ['manager', 'employee'] }
+      }
+    });
+
+    // Today's sales across all stations
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const todaySalesData = await NozzleReading.findAll({
+      attributes: [
+        [fn('SUM', col('NozzleReading.total_amount')), 'totalAmount']
+      ],
+      include: [{
+        model: Nozzle,
+        as: 'nozzle',
+        attributes: [],
+        include: [{
+          model: Pump,
+          as: 'pump',
+          attributes: [],
+          where: { stationId: { [Op.in]: stationIds } }
+        }]
+      }],
+      where: {
+        readingDate: {
+          [Op.gte]: today
+        }
+      },
+      raw: true
+    });
+
+    const todaySales = parseFloat(todaySalesData[0]?.totalAmount || 0);
+
+    // Month's sales across all stations
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+    
+    const monthSalesData = await NozzleReading.findAll({
+      attributes: [
+        [fn('SUM', col('NozzleReading.total_amount')), 'totalAmount']
+      ],
+      include: [{
+        model: Nozzle,
+        as: 'nozzle',
+        attributes: [],
+        include: [{
+          model: Pump,
+          as: 'pump',
+          attributes: [],
+          where: { stationId: { [Op.in]: stationIds } }
+        }]
+      }],
+      where: {
+        readingDate: {
+          [Op.gte]: monthStart
+        }
+      },
+      raw: true
+    });
+
+    const monthSales = parseFloat(monthSalesData[0]?.totalAmount || 0);
+
+    // Count pending actions (pending handovers)
+    const pendingActions = await CashHandover.count({
+      where: {
+        stationId: { [Op.in]: stationIds },
+        status: 'pending'
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalStations,
+        activeStations,
+        totalEmployees,
+        todaySales,
+        monthSales,
+        pendingActions
+      }
+    });
+
+  } catch (error) {
+    console.error('Owner stats error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Get owner analytics with trends and insights
+ * GET /api/v1/dashboard/owner/analytics
+ */
+exports.getOwnerAnalytics = async (req, res, next) => {
+  try {
+    const { startDate, endDate, stationId } = req.query;
+    const user = await User.findByPk(req.userId);
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'Start date and end date are required'
+      });
+    }
+
+    // Get owner's stations
+    const stationFilter = { ownerId: user.id };
+    if (stationId && stationId !== 'all') {
+      stationFilter.id = stationId;
+    }
+
+    const stations = await Station.findAll({
+      where: stationFilter,
+      attributes: ['id', 'name', 'code']
+    });
+
+    if (stations.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          overview: {
+            totalSales: 0,
+            totalQuantity: 0,
+            totalTransactions: 0,
+            averageTransaction: 0,
+            salesGrowth: 0,
+            quantityGrowth: 0
+          },
+          salesByStation: [],
+          salesByFuelType: [],
+          dailyTrend: [],
+          topPerformingStations: [],
+          employeePerformance: []
+        }
+      });
+    }
+
+    const stationIds = stations.map(s => s.id);
+
+    // Calculate previous period for growth comparison
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    const periodDays = Math.ceil((end - start) / (1000 * 60 * 60 * 24));
+    const prevStart = new Date(start);
+    prevStart.setDate(start.getDate() - periodDays);
+    const prevEnd = new Date(start);
+    prevEnd.setDate(start.getDate() - 1);
+
+    // Overview - current period
+    const currentPeriod = await NozzleReading.findOne({
+      attributes: [
+        [fn('SUM', col('NozzleReading.total_amount')), 'totalSales'],
+        [fn('SUM', col('NozzleReading.litres_sold')), 'totalQuantity'],
+        [fn('COUNT', col('NozzleReading.id')), 'totalTransactions']
+      ],
+      include: [{
+        model: Pump,
+        as: 'pump',
+        attributes: [],
+        where: { stationId: { [Op.in]: stationIds } }
+      }],
+      where: {
+        readingDate: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      raw: true
+    });
+
+    // Overview - previous period for growth calculation
+    const previousPeriod = await NozzleReading.findOne({
+      attributes: [
+        [fn('SUM', col('NozzleReading.total_amount')), 'totalSales'],
+        [fn('SUM', col('NozzleReading.litres_sold')), 'totalQuantity']
+      ],
+      include: [{
+        model: Pump,
+        as: 'pump',
+        attributes: [],
+        where: { stationId: { [Op.in]: stationIds } }
+      }],
+      where: {
+        readingDate: {
+          [Op.between]: [prevStart.toISOString().split('T')[0], prevEnd.toISOString().split('T')[0]]
+        }
+      },
+      raw: true
+    });
+
+    const totalSales = parseFloat(currentPeriod?.totalSales || 0);
+    const totalQuantity = parseFloat(currentPeriod?.totalQuantity || 0);
+    const totalTransactions = parseInt(currentPeriod?.totalTransactions || 0);
+    const prevSales = parseFloat(previousPeriod?.totalSales || 0);
+    const prevQuantity = parseFloat(previousPeriod?.totalQuantity || 0);
+
+    const salesGrowth = prevSales > 0 ? ((totalSales - prevSales) / prevSales) * 100 : 0;
+    const quantityGrowth = prevQuantity > 0 ? ((totalQuantity - prevQuantity) / prevQuantity) * 100 : 0;
+    const averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
+
+    // Sales by station
+    const salesByStation = await NozzleReading.findAll({
+      attributes: [
+        [col('pump.station_id'), 'stationId'],
+        [fn('SUM', col('NozzleReading.total_amount')), 'sales']
+      ],
+      include: [{
+        model: Pump,
+        as: 'pump',
+        attributes: [],
+        where: { stationId: { [Op.in]: stationIds } }
+      }],
+      where: {
+        readingDate: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      group: ['stationId'],
+      raw: true
+    });
+
+    const stationMap = new Map(stations.map(s => [s.id, s]));
+    const salesByStationData = salesByStation.map(s => {
+      const station = stationMap.get(s.stationId);
+      const sales = parseFloat(s.sales || 0);
+      return {
+        stationId: s.stationId,
+        stationName: station?.name || 'Unknown',
+        sales,
+        percentage: totalSales > 0 ? (sales / totalSales) * 100 : 0
+      };
+    });
+
+    // Sales by fuel type
+    const salesByFuelType = await NozzleReading.findAll({
+      attributes: [
+        [col('nozzle.fuel_type'), 'fuelType'],
+        [fn('SUM', col('NozzleReading.total_amount')), 'sales'],
+        [fn('SUM', col('NozzleReading.litres_sold')), 'quantity']
+      ],
+      include: [{
+        model: Pump,
+        as: 'pump',
+        attributes: [],
+        where: { stationId: { [Op.in]: stationIds } }
+      }, {
+        model: Nozzle,
+        as: 'nozzle',
+        attributes: []
+      }],
+      where: {
+        readingDate: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      group: ['fuelType'],
+      raw: true
+    });
+
+    const salesByFuelTypeData = salesByFuelType.map(f => {
+      const sales = parseFloat(f.sales || 0);
+      return {
+        fuelType: f.fuelType,
+        sales,
+        quantity: parseFloat(f.quantity || 0),
+        percentage: totalSales > 0 ? (sales / totalSales) * 100 : 0
+      };
+    });
+
+    // Daily trend
+    const dailyTrend = await NozzleReading.findAll({
+      attributes: [
+        [fn('DATE', col('reading_date')), 'date'],
+        [fn('SUM', col('NozzleReading.total_amount')), 'sales'],
+        [fn('SUM', col('NozzleReading.litres_sold')), 'quantity'],
+        [fn('COUNT', col('NozzleReading.id')), 'transactions']
+      ],
+      include: [{
+        model: Pump,
+        as: 'pump',
+        attributes: [],
+        where: { stationId: { [Op.in]: stationIds } }
+      }],
+      where: {
+        readingDate: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      group: ['date'],
+      order: [[fn('DATE', col('reading_date')), 'ASC']],
+      raw: true
+    });
+
+    const dailyTrendData = dailyTrend.map(d => ({
+      date: d.date,
+      sales: parseFloat(d.sales || 0),
+      quantity: parseFloat(d.quantity || 0),
+      transactions: parseInt(d.transactions || 0)
+    }));
+
+    // Top performing stations (with growth)
+    const topStations = await Promise.all(
+      salesByStation.map(async (s) => {
+        const prevStationSales = await NozzleReading.findOne({
+          attributes: [
+            [fn('SUM', col('NozzleReading.total_amount')), 'sales']
+          ],
+          include: [{
+            model: Pump,
+            as: 'pump',
+            attributes: [],
+            where: { stationId: s.stationId }
+          }],
+          where: {
+            readingDate: {
+              [Op.between]: [prevStart.toISOString().split('T')[0], prevEnd.toISOString().split('T')[0]]
+            }
+          },
+          raw: true
+        });
+
+        const currentSales = parseFloat(s.sales || 0);
+        const prevSales = parseFloat(prevStationSales?.sales || 0);
+        const growth = prevSales > 0 ? ((currentSales - prevSales) / prevSales) * 100 : 0;
+        const station = stationMap.get(s.stationId);
+
+        return {
+          stationId: s.stationId,
+          stationName: station?.name || 'Unknown',
+          sales: currentSales,
+          growth
+        };
+      })
+    );
+
+    const topPerformingStations = topStations.sort((a, b) => b.sales - a.sales).slice(0, 5);
+
+    // Employee performance
+    const employeePerformance = await Shift.findAll({
+      attributes: [
+        [col('employee.id'), 'employeeId'],
+        [col('employee.name'), 'employeeName'],
+        [fn('COUNT', col('Shift.id')), 'shifts'],
+        [fn('SUM', col('Shift.total_sales_amount')), 'totalSales']
+      ],
+      include: [{
+        model: User,
+        as: 'employee',
+        attributes: []
+      }],
+      where: {
+        stationId: { [Op.in]: stationIds },
+        startTime: {
+          [Op.between]: [
+            new Date(startDate + 'T00:00:00'),
+            new Date(endDate + 'T23:59:59')
+          ]
+        },
+        status: 'ended'
+      },
+      group: ['employeeId'],
+      raw: true
+    });
+
+    const employeePerformanceData = employeePerformance.map(e => {
+      const shifts = parseInt(e.shifts || 0);
+      const totalSales = parseFloat(e.totalSales || 0);
+      return {
+        employeeId: e.employeeId,
+        employeeName: e.employeeName,
+        shifts,
+        totalSales,
+        averageSales: shifts > 0 ? totalSales / shifts : 0
+      };
+    }).sort((a, b) => b.totalSales - a.totalSales).slice(0, 10);
+
+    res.json({
+      success: true,
+      data: {
+        overview: {
+          totalSales,
+          totalQuantity,
+          totalTransactions,
+          averageTransaction,
+          salesGrowth,
+          quantityGrowth
+        },
+        salesByStation: salesByStationData,
+        salesByFuelType: salesByFuelTypeData,
+        dailyTrend: dailyTrendData,
+        topPerformingStations,
+        employeePerformance: employeePerformanceData
+      }
+    });
+
+  } catch (error) {
+    console.error('Owner analytics error:', error);
+    next(error);
+  }
+};
+

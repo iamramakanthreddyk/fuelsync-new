@@ -94,18 +94,35 @@ async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     if (isJson) {
       const errorData = await response.json();
-      const error = errorData.error || {};
       
       // Handle auth expiry
       if (response.status === 401) {
         window.dispatchEvent(new CustomEvent('auth-expired'));
       }
 
+      // Handle different error response formats
+      let errorMessage = 'Request failed';
+      let errorCode;
+      let errorDetails;
+
+      if (typeof errorData.error === 'string') {
+        // Format: {success: false, error: "message"}
+        errorMessage = errorData.error;
+      } else if (typeof errorData.error === 'object' && errorData.error !== null) {
+        // Format: {success: false, error: {message: "...", code: "..."}}
+        errorMessage = errorData.error.message || 'Request failed';
+        errorCode = errorData.error.code;
+        errorDetails = errorData.error.details;
+      } else if (errorData.message) {
+        // Format: {success: false, message: "..."}
+        errorMessage = errorData.message;
+      }
+
       throw new ApiError(
-        error.message || 'Request failed',
+        errorMessage,
         response.status,
-        error.code,
-        error.details
+        errorCode,
+        errorDetails
       );
     }
 
@@ -153,7 +170,17 @@ async function request<T>(
   };
 
   if (data && method !== 'GET') {
-    config.body = JSON.stringify(data);
+    const bodyString = JSON.stringify(data);
+    config.body = bodyString;
+    
+    // Log the request for debugging
+    if (method === 'POST' && endpoint.includes('/stations')) {
+      console.log('🌐 API Client sending request:');
+      console.log('   URL:', url);
+      console.log('   Method:', method);
+      console.log('   Body string:', bodyString);
+      console.log('   Parsed body:', JSON.parse(bodyString));
+    }
   }
 
   try {

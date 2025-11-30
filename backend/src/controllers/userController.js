@@ -233,8 +233,18 @@ exports.createUser = async (req, res, next) => {
     // Get plan for new owner
     let planId = null;
     if (role === 'owner') {
-      const freePlan = await Plan.findOne({ where: { name: 'Free' } });
-      planId = freePlan?.id;
+      // Try to find Free plan first, then Basic plan as fallback
+      let plan = await Plan.findOne({ where: { name: 'Free' } });
+      if (!plan) {
+        plan = await Plan.findOne({ where: { name: 'Basic' } });
+      }
+      if (!plan) {
+        return res.status(500).json({ 
+          success: false, 
+          error: 'No default plan available. Please create a Free or Basic plan first.' 
+        });
+      }
+      planId = plan.id;
     }
 
     // Create user

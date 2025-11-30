@@ -64,7 +64,6 @@ export default function StationsPage() {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [formData, setFormData] = useState({
     name: '',
-    code: '',
     address: '',
     city: '',
     state: '',
@@ -74,6 +73,7 @@ export default function StationsPage() {
     gstNumber: '',
     ownerId: ''
   });
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
   useEffect(() => {
@@ -84,13 +84,16 @@ export default function StationsPage() {
     try {
       setLoading(true);
       const [stationsRes, usersRes] = await Promise.all([
-        apiClient.get<{ success: boolean; data: Station[] }>('/stations'),
-        apiClient.get<{ success: boolean; data: Owner[] }>('/users')
+        apiClient.get<Station[]>('/stations'),
+        apiClient.get<Owner[]>('/users')
       ]);
       
-      setStations(stationsRes.data || []);
+      console.log('🏢 Stations response:', stationsRes);
+      console.log('👥 Users response:', usersRes);
+      
+      setStations(stationsRes || []);
       // Filter only owners (plans are on owners, not stations)
-      setOwners((usersRes.data || []).filter((user: Owner) => user.role === 'owner'));
+      setOwners((usersRes || []).filter((user: Owner) => user.role === 'owner'));
     } catch (error: any) {
       console.error('Error fetching data:', error);
       toast({
@@ -106,7 +109,6 @@ export default function StationsPage() {
   const resetForm = () => {
     setFormData({
       name: '',
-      code: '',
       address: '',
       city: '',
       state: '',
@@ -116,31 +118,77 @@ export default function StationsPage() {
       gstNumber: '',
       ownerId: ''
     });
+    setFormErrors({});
+  };
+
+  // Auto-generate station code when owner is selected
+  const generateStationCode = (ownerId: string) => {
+    const owner = owners.find(o => o.id === ownerId);
+    if (!owner) return '';
+    
+    // Get owner's existing stations count
+    const ownerStationsCount = stations.filter(s => s.ownerId === ownerId).length;
+    
+    // Generate code: First 3 letters of name + count + 1
+    const namePrefix = owner.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
+    const code = `${namePrefix}${String(ownerStationsCount + 1).padStart(3, '0')}`;
+    
+    return code;
   };
 
   const handleCreateStation = async () => {
-    if (!formData.name || !formData.ownerId) {
-      toast({
-        title: "Validation Error",
-        description: "Station name and owner are required",
-        variant: "destructive",
-      });
+    // Clear previous errors
+    const errors: Record<string, string> = {};
+
+    // Validate required fields
+    if (!formData.name?.trim()) {
+      errors.name = "Station name is required";
+    }
+
+    if (!formData.ownerId?.trim()) {
+      errors.ownerId = "Please select an owner";
+    }
+
+    if (!formData.phone?.trim()) {
+      errors.phone = "Phone number is required";
+    }
+
+    // If there are errors, show them inline
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       return;
     }
 
+    setFormErrors({});
+
     try {
-      await apiClient.post('/stations', {
-        name: formData.name,
-        code: formData.code || undefined,
-        address: formData.address || undefined,
-        city: formData.city || undefined,
-        state: formData.state || undefined,
-        pincode: formData.pincode || undefined,
-        phone: formData.phone || undefined,
-        email: formData.email || undefined,
-        gstNumber: formData.gstNumber || undefined,
-        ownerId: formData.ownerId
-      });
+      console.log('📋 Creating station with ownerId:', formData.ownerId);
+      console.log('📋 OwnerId type:', typeof formData.ownerId);
+      console.log('📋 OwnerId length:', formData.ownerId?.length);
+
+      // Build payload - backend will auto-generate code
+      const payload: any = {
+        name: formData.name.trim(),
+        ownerId: formData.ownerId.trim(),
+        phone: formData.phone.trim()
+      };
+
+      // Add optional fields only if they have values
+      if (formData.address?.trim()) payload.address = formData.address.trim();
+      if (formData.city?.trim()) payload.city = formData.city.trim();
+      if (formData.state?.trim()) payload.state = formData.state.trim();
+      if (formData.pincode?.trim()) payload.pincode = formData.pincode.trim();
+      if (formData.phone?.trim()) payload.phone = formData.phone.trim();
+      if (formData.email?.trim()) payload.email = formData.email.trim();
+      if (formData.gstNumber?.trim()) payload.gstNumber = formData.gstNumber.trim();
+      
+      console.log('🚀 About to send API request');
+      console.log('📦 Final payload:', JSON.stringify(payload, null, 2));
+      console.log('🔑 ownerId in payload:', payload.ownerId);
+      console.log('📏 ownerId length:', payload.ownerId?.length);
+      console.log('🔤 ownerId type:', typeof payload.ownerId);
+      
+      await apiClient.post('/stations', payload);
 
       toast({
         title: "Station Created",
@@ -163,18 +211,33 @@ export default function StationsPage() {
   const handleEditStation = async () => {
     if (!selectedStation) return;
 
-    try {
-      await apiClient.put(`/stations/${selectedStation.id}`, {
-        name: formData.name,
-        code: formData.code || undefined,
-        address: formData.address || undefined,
-        city: formData.city || undefined,
-        state: formData.state || undefined,
-        pincode: formData.pincode || undefined,
-        phone: formData.phone || undefined,
-        email: formData.email || undefined,
-        gstNumber: formData.gstNumber || undefined
+    // Validate required fields
+    if (!formData.name?.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Station name is required",
+        variant: "destructive",
       });
+      return;
+    }
+
+    try {
+      // Build payload - only include non-empty fields
+      const payload: any = {
+        name: formData.name.trim()
+      };
+
+      // Add optional fields only if they have values
+      if (formData.code?.trim()) payload.code = formData.code.trim();
+      if (formData.address?.trim()) payload.address = formData.address.trim();
+      if (formData.city?.trim()) payload.city = formData.city.trim();
+      if (formData.state?.trim()) payload.state = formData.state.trim();
+      if (formData.pincode?.trim()) payload.pincode = formData.pincode.trim();
+      if (formData.phone?.trim()) payload.phone = formData.phone.trim();
+      if (formData.email?.trim()) payload.email = formData.email.trim();
+      if (formData.gstNumber?.trim()) payload.gstNumber = formData.gstNumber.trim();
+
+      await apiClient.put(`/stations/${selectedStation.id}`, payload);
 
       toast({
         title: "Station Updated",
@@ -219,7 +282,6 @@ export default function StationsPage() {
     setSelectedStation(station);
     setFormData({
       name: station.name,
-      code: station.code || '',
       address: station.address || '',
       city: station.city || '',
       state: station.state || '',
@@ -260,34 +322,38 @@ export default function StationsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="name">Station Name *</Label>
-                  <Input
-                    id="name"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    placeholder="Enter station name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="code">Station Code</Label>
-                  <Input
-                    id="code"
-                    value={formData.code}
-                    onChange={(e) => setFormData({ ...formData, code: e.target.value })}
-                    placeholder="e.g., STN001"
-                  />
-                </div>
+              <div>
+                <Label htmlFor="name">Station Name *</Label>
+                <Input
+                  id="name"
+                  value={formData.name}
+                  onChange={(e) => {
+                    setFormData({ ...formData, name: e.target.value });
+                    if (formErrors.name) setFormErrors({ ...formErrors, name: '' });
+                  }}
+                  placeholder="Enter station name"
+                  className={formErrors.name ? 'border-red-500' : ''}
+                />
+                {formErrors.name && <p className="text-sm text-red-500 mt-1">{formErrors.name}</p>}
               </div>
               
               <div>
                 <Label htmlFor="owner">Owner *</Label>
-                <Select value={formData.ownerId} onValueChange={(value) => setFormData({ ...formData, ownerId: value })}>
-                  <SelectTrigger>
+                <Select 
+                  value={formData.ownerId} 
+                  onValueChange={(value) => {
+                    console.log('🎯 Owner selected:', value);
+                    setFormData({ ...formData, ownerId: value });
+                    if (formErrors.ownerId) setFormErrors({ ...formErrors, ownerId: '' });
+                  }}
+                >
+                  <SelectTrigger className={formErrors.ownerId ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select owner" />
                   </SelectTrigger>
                   <SelectContent>
+                    {owners.length === 0 && (
+                      <div className="p-2 text-sm text-muted-foreground">No owners found</div>
+                    )}
                     {owners.map((owner) => (
                       <SelectItem key={owner.id} value={owner.id}>
                         <div className="flex flex-col">
@@ -302,6 +368,7 @@ export default function StationsPage() {
                     ))}
                   </SelectContent>
                 </Select>
+                {formErrors.ownerId && <p className="text-sm text-red-500 mt-1">{formErrors.ownerId}</p>}
               </div>
 
               <div>
@@ -346,13 +413,18 @@ export default function StationsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="phone">Phone</Label>
+                  <Label htmlFor="phone">Phone *</Label>
                   <Input
                     id="phone"
                     value={formData.phone}
-                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    onChange={(e) => {
+                      setFormData({ ...formData, phone: e.target.value });
+                      if (formErrors.phone) setFormErrors({ ...formErrors, phone: '' });
+                    }}
                     placeholder="Phone number"
+                    className={formErrors.phone ? 'border-red-500' : ''}
                   />
+                  {formErrors.phone && <p className="text-sm text-red-500 mt-1">{formErrors.phone}</p>}
                 </div>
                 <div>
                   <Label htmlFor="email">Email</Label>

@@ -68,7 +68,12 @@ exports.getStations = async (req, res, next) => {
         {
           model: User,
           as: 'owner',
-          attributes: ['id', 'name', 'email']
+          attributes: ['id', 'name', 'email'],
+          include: [{
+            model: Plan,
+            as: 'plan',
+            attributes: ['id', 'name', 'maxStations', 'maxPumpsPerStation', 'priceMonthly']
+          }]
         }
       ],
       order: [['name', 'ASC']]
@@ -93,8 +98,22 @@ exports.getStations = async (req, res, next) => {
  */
 exports.createStation = async (req, res, next) => {
   try {
-    const { name, code, address, city, state, pincode, phone, email, gstNumber, ownerId } = req.body;
+    console.log('🔍 RAW REQUEST BODY:', req.body);
+    console.log('🔍 Request body keys:', Object.keys(req.body));
+    console.log('🔍 Request body entries:', Object.entries(req.body));
+    
+    const { name, address, city, state, pincode, phone, email, gstNumber, ownerId } = req.body;
     const user = await User.findByPk(req.userId, { include: [{ model: Plan, as: 'plan' }] });
+
+    console.log('🔍 Station creation request:');
+    console.log('  - User role:', user.role);
+    console.log('  - name received:', name);
+    console.log('  - phone received:', phone);
+    console.log('  - ownerId received:', ownerId);
+    console.log('  - ownerId type:', typeof ownerId);
+    console.log('  - ownerId === undefined?', ownerId === undefined);
+    console.log('  - ownerId === null?', ownerId === null);
+    console.log('  - Full body:', JSON.stringify(req.body, null, 2));
 
     if (!name) {
       return res.status(400).json({ success: false, error: 'Station name is required' });
@@ -102,36 +121,54 @@ exports.createStation = async (req, res, next) => {
 
     // Determine the owner
     let stationOwnerId;
-    if (user.role === 'super_admin' && ownerId) {
-      // Super admin can assign station to any owner
+    if (user.role === 'super_admin') {
+      // Super admin must provide ownerId
+      if (!ownerId || typeof ownerId !== 'string' || ownerId.trim() === '') {
+        console.error('❌ Station creation failed: Invalid ownerId');
+        console.error('   ownerId value:', ownerId);
+        console.error('   Request body:', req.body);
+        return res.status(400).json({ success: false, error: 'Owner ID is required when creating a station as super admin' });
+      }
       const owner = await User.findByPk(ownerId);
-      if (!owner || owner.role !== 'owner') {
-        return res.status(400).json({ success: false, error: 'Invalid owner ID' });
+      if (!owner) {
+        return res.status(404).json({ success: false, error: 'Owner not found with the provided ID' });
+      }
+      if (owner.role !== 'owner') {
+        return res.status(400).json({ success: false, error: 'The selected user is not an owner' });
       }
       stationOwnerId = ownerId;
     } else if (user.role === 'owner') {
       stationOwnerId = user.id;
     } else {
-      return res.status(403).json({ success: false, error: 'Only owners can create stations' });
+      return res.status(403).json({ success: false, error: 'Only owners and super admins can create stations' });
     }
 
-    // Check plan limits for the owner
-    const owner = await User.findByPk(stationOwnerId, { include: [{ model: Plan, as: 'plan' }] });
-    if (owner.plan) {
-      const stationCount = await Station.count({ where: { ownerId: stationOwnerId } });
-      
-      if (stationCount >= owner.plan.maxStations) {
-        return res.status(403).json({
-          success: false,
-          error: `Plan limit reached. Max ${owner.plan.maxStations} station(s) allowed.`
-        });
-      }
+    // Get owner for code generation
+    const owner = await User.findByPk(stationOwnerId);
+    if (!owner) {
+      return res.status(404).json({ success: false, error: 'Owner not found' });
     }
+
+    // Auto-generate unique station code
+    const ownerStationsCount = await Station.count({ where: { ownerId: stationOwnerId } });
+    const namePrefix = owner.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
+    let stationCode = `${namePrefix}${String(ownerStationsCount + 1).padStart(3, '0')}`;
+    
+    // Ensure uniqueness - if code exists, increment
+    let codeExists = await Station.findOne({ where: { code: stationCode } });
+    let counter = ownerStationsCount + 2;
+    while (codeExists) {
+      stationCode = `${namePrefix}${String(counter).padStart(3, '0')}`;
+      codeExists = await Station.findOne({ where: { code: stationCode } });
+      counter++;
+    }
+
+    console.log('✅ Generated unique station code:', stationCode);
 
     const station = await Station.create({
       ownerId: stationOwnerId,
       name, 
-      code,
+      code: stationCode,
       address, 
       city, 
       state, 
@@ -383,16 +420,7 @@ exports.createPump = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    // Check plan limits
-    if (user.plan) {
-      const pumpCount = await Pump.count({ where: { stationId } });
-      if (pumpCount >= user.plan.maxPumpsPerStation) {
-        return res.status(403).json({
-          success: false,
-          error: `Plan limit reached. Max ${user.plan.maxPumpsPerStation} pumps allowed.`
-        });
-      }
-    }
+    // Plan limits are checked by enforcePlanLimit middleware
 
     const pump = await Pump.create({
       stationId,
@@ -485,22 +513,13 @@ exports.createNozzle = async (req, res, next) => {
       return res.status(404).json({ success: false, error: 'Pump not found' });
     }
 
-    const user = await User.findByPk(req.userId, { include: [{ model: Plan, as: 'plan' }] });
+    const user = await User.findByPk(req.userId);
     // Check station access
     if (!(await canAccessStation(user, pump.stationId))) {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    // Check plan limits
-    if (user.plan) {
-      const nozzleCount = await Nozzle.count({ where: { pumpId } });
-      if (nozzleCount >= user.plan.maxNozzlesPerPump) {
-        return res.status(403).json({
-          success: false,
-          error: `Plan limit reached. Max ${user.plan.maxNozzlesPerPump} nozzles per pump.`
-        });
-      }
-    }
+    // Plan limits are checked by enforcePlanLimit middleware
 
     const nozzle = await Nozzle.create({
       pumpId,

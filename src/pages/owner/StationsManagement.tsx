@@ -40,7 +40,10 @@ import {
   Phone,
   Mail,
   ArrowRight,
-  Settings
+  Settings,
+  Fuel,
+  TrendingUp,
+  Clock
 } from 'lucide-react';
 
 interface Station {
@@ -57,6 +60,8 @@ interface Station {
   isActive: boolean;
   pumpCount: number;
   activePumps: number;
+  todaySales?: number;
+  lastReading?: string;
   createdAt: string;
 }
 
@@ -208,6 +213,15 @@ export default function StationsManagement() {
     }
   };
 
+  // Loading state
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading stations...</div>
+      </div>
+    );
+  }
+
   const StationForm = () => (
     <div className="grid gap-4">
       <div className="grid grid-cols-2 gap-4">
@@ -355,83 +369,132 @@ export default function StationsManagement() {
       ) : stations && stations.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {stations.map((station) => (
-            <Card key={station.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
+            <Card 
+              key={station.id} 
+              className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer"
+              onClick={() => navigate(`/owner/stations/${station.id}`)}
+            >
+              <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5 text-primary" />
-                    <CardTitle className="text-lg">{station.name}</CardTitle>
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                      <Building2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <CardTitle className="text-base truncate">{station.name}</CardTitle>
+                      {station.code && (
+                        <CardDescription className="text-xs">Code: {station.code}</CardDescription>
+                      )}
+                    </div>
                   </div>
-                  <Badge variant={station.isActive ? 'default' : 'secondary'}>
+                  <Badge 
+                    variant={station.isActive ? 'default' : 'secondary'}
+                    className="flex-shrink-0 ml-2"
+                  >
                     {station.isActive ? 'Active' : 'Inactive'}
                   </Badge>
                 </div>
-                {station.code && (
-                  <CardDescription>Code: {station.code}</CardDescription>
-                )}
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="space-y-3" onClick={(e) => e.stopPropagation()}>
+                {/* Today's Sales - Prominent */}
+                {station.todaySales !== undefined && station.todaySales !== null && (
+                  <div className="bg-gradient-to-r from-green-50 to-transparent p-3 rounded-lg border border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="w-4 h-4 text-green-600" />
+                        <span className="text-xs text-muted-foreground">Today's Sales</span>
+                      </div>
+                      <span className="text-lg font-bold text-green-700">
+                        ₹{station.todaySales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Stats Grid */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-muted/50 p-2 rounded-lg">
+                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                      <Fuel className="w-3 h-3" />
+                      <span>Pumps</span>
+                    </div>
+                    <div className="font-semibold">
+                      {station.activePumps}/{station.pumpCount}
+                      <span className="text-xs text-muted-foreground ml-1">active</span>
+                    </div>
+                  </div>
+
+                  {station.lastReading && (
+                    <div className="bg-muted/50 p-2 rounded-lg">
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
+                        <Clock className="w-3 h-3" />
+                        <span>Last Entry</span>
+                      </div>
+                      <div className="text-xs font-medium">
+                        {new Date(station.lastReading).toLocaleDateString('en-IN', { 
+                          month: 'short', 
+                          day: 'numeric',
+                          hour: '2-digit',
+                          minute: '2-digit'
+                        })}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {/* Location */}
-                {(station.address || station.city) && (
-                  <div className="flex items-start gap-2 text-sm">
-                    <MapPin className="w-4 h-4 mt-0.5 text-muted-foreground" />
-                    <div>
-                      {station.address && <div>{station.address}</div>}
-                      {station.city && (
-                        <div>{station.city}{station.state && `, ${station.state}`} {station.pincode}</div>
-                      )}
+                {(station.city || station.address) && (
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
+                    <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <div className="line-clamp-2 min-w-0">
+                      {station.city && <span>{station.city}{station.state && `, ${station.state}`}</span>}
                     </div>
                   </div>
                 )}
 
                 {/* Contact */}
-                <div className="space-y-1 text-sm">
+                <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   {station.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
+                    <div className="flex items-center gap-1.5">
+                      <Phone className="w-3 h-3" />
                       <span>{station.phone}</span>
                     </div>
                   )}
-                  {station.email && (
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-muted-foreground" />
-                      <span className="truncate">{station.email}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Stats */}
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Pumps:</span>
-                  <span className="font-semibold">
-                    {station.activePumps}/{station.pumpCount}
-                  </span>
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-2 pt-2 border-t">
                   <Button
-                    variant="outline"
+                    variant="default"
                     size="sm"
                     className="flex-1"
-                    onClick={() => navigate(`/owner/stations/${station.id}`)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/owner/stations/${station.id}`);
+                    }}
                   >
-                    View Details
-                    <ArrowRight className="w-4 h-4 ml-2" />
+                    <ArrowRight className="w-3 h-3 mr-1.5" />
+                    Manage
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => handleEdit(station)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(station);
+                    }}
                   >
-                    <Edit className="w-4 h-4" />
+                    <Edit className="w-3 h-3" />
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setDeleteStationId(station.id)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteStationId(station.id);
+                    }}
                   >
-                    <Trash2 className="w-4 h-4" />
+                    <Trash2 className="w-3 h-3" />
                   </Button>
                 </div>
               </CardContent>

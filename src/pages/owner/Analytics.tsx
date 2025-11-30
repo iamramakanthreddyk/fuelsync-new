@@ -8,6 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -16,7 +17,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { FuelBadge } from '@/components/FuelBadge';
 import { apiClient } from '@/lib/api-client';
+import { getFuelColors } from '@/lib/fuelColors';
 import {
   TrendingUp,
   TrendingDown,
@@ -24,9 +27,27 @@ import {
   Activity,
   Droplet,
   Users,
-  PieChart,
-  BarChart3
+  Calendar,
+  BarChart3,
+  Award
 } from 'lucide-react';
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer
+} from 'recharts';
 
 interface Station {
   id: string;
@@ -76,9 +97,26 @@ interface AnalyticsData {
   }[];
 }
 
+const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#ef4444'];
+
+// Get chart colors from fuel color system
+const getFuelChartColor = (fuelType: string): string => {
+  const colors = getFuelColors(fuelType);
+  const colorMap: Record<string, string> = {
+    'petrol': '#22c55e',  // green-500
+    'diesel': '#3b82f6',  // blue-500
+    'cng': '#a855f7',     // purple-500
+    'ev': '#eab308'       // yellow-500
+  };
+  return colorMap[fuelType.toLowerCase()] || '#6b7280';
+};
+
 export default function Analytics() {
   const today = new Date().toISOString().split('T')[0];
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    .toISOString()
+    .split('T')[0];
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split('T')[0];
 
@@ -87,6 +125,15 @@ export default function Analytics() {
     endDate: today
   });
   const [selectedStation, setSelectedStation] = useState<string>('all');
+
+  // Quick date presets
+  const setQuickRange = (days: number) => {
+    const end = new Date().toISOString().split('T')[0];
+    const start = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split('T')[0];
+    setDateRange({ startDate: start, endDate: end });
+  };
 
   // Fetch stations
   const { data: stations } = useQuery({
@@ -113,48 +160,99 @@ export default function Analytics() {
     }
   });
 
-  const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN')}`;
+  const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
   const formatPercentage = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
+  const formatLitres = (litres: number) => `${litres.toFixed(0)} L`;
+
+  // Custom tooltip for charts
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-background border rounded-lg shadow-lg p-3">
+          <p className="font-medium mb-2">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {entry.name}: {typeof entry.value === 'number' && entry.name.includes('Sales') 
+                ? formatCurrency(entry.value) 
+                : entry.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Analytics Dashboard</h1>
-        <p className="text-muted-foreground">
+      <div className="space-y-2">
+        <h1 className="text-2xl sm:text-3xl font-bold">Analytics Dashboard</h1>
+        <p className="text-sm sm:text-base text-muted-foreground">
           Insights and trends across all your stations
         </p>
       </div>
 
-      {/* Filters */}
+      {/* Filters - Mobile Optimized */}
       <Card>
-        <CardHeader>
-          <CardTitle>Date Range & Filters</CardTitle>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-lg sm:text-xl">Filters</CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-3">
+        <CardContent className="space-y-4">
+          {/* Quick Date Presets */}
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickRange(7)}
+              className="text-xs"
+            >
+              Last 7 Days
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickRange(30)}
+              className="text-xs"
+            >
+              Last 30 Days
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setQuickRange(90)}
+              className="text-xs"
+            >
+              Last 90 Days
+            </Button>
+          </div>
+
+          {/* Date and Station Filters */}
+          <div className="grid gap-3 sm:grid-cols-3">
             <div>
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate" className="text-xs sm:text-sm">Start Date</Label>
               <Input
                 id="startDate"
                 type="date"
                 value={dateRange.startDate}
                 onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+                className="text-sm"
               />
             </div>
             <div>
-              <Label htmlFor="endDate">End Date</Label>
+              <Label htmlFor="endDate" className="text-xs sm:text-sm">End Date</Label>
               <Input
                 id="endDate"
                 type="date"
                 value={dateRange.endDate}
                 onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+                className="text-sm"
               />
             </div>
             <div>
-              <Label htmlFor="station">Station</Label>
+              <Label htmlFor="station" className="text-xs sm:text-sm">Station</Label>
               <Select value={selectedStation} onValueChange={setSelectedStation}>
-                <SelectTrigger>
+                <SelectTrigger className="text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -174,23 +272,26 @@ export default function Analytics() {
       {isLoading ? (
         <Card>
           <CardContent className="py-12">
-            <div className="text-center text-muted-foreground">Loading analytics...</div>
+            <div className="flex flex-col items-center justify-center space-y-3">
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+              <p className="text-sm text-muted-foreground">Loading analytics...</p>
+            </div>
           </CardContent>
         </Card>
       ) : analytics ? (
         <>
-          {/* Overview Cards */}
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
+          {/* Overview Cards - Mobile Optimized */}
+          <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
+                <CardTitle className="text-xs sm:text-sm font-medium">Total Sales</CardTitle>
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
+              <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+                <div className="text-lg sm:text-2xl font-bold truncate">
                   {formatCurrency(analytics.overview.totalSales)}
                 </div>
-                <div className="flex items-center gap-1 text-xs">
+                <div className="flex items-center gap-1 text-xs mt-1">
                   {analytics.overview.salesGrowth >= 0 ? (
                     <TrendingUp className="w-3 h-3 text-green-500" />
                   ) : (
@@ -199,21 +300,20 @@ export default function Analytics() {
                   <span className={analytics.overview.salesGrowth >= 0 ? 'text-green-500' : 'text-red-500'}>
                     {formatPercentage(analytics.overview.salesGrowth)}
                   </span>
-                  <span className="text-muted-foreground">vs last period</span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Total Quantity</CardTitle>
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
+                <CardTitle className="text-xs sm:text-sm font-medium">Quantity</CardTitle>
                 <Droplet className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
-                  {analytics.overview.totalQuantity.toFixed(2)} L
+              <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+                <div className="text-lg sm:text-2xl font-bold truncate">
+                  {formatLitres(analytics.overview.totalQuantity)}
                 </div>
-                <div className="flex items-center gap-1 text-xs">
+                <div className="flex items-center gap-1 text-xs mt-1">
                   {analytics.overview.quantityGrowth >= 0 ? (
                     <TrendingUp className="w-3 h-3 text-green-500" />
                   ) : (
@@ -222,33 +322,32 @@ export default function Analytics() {
                   <span className={analytics.overview.quantityGrowth >= 0 ? 'text-green-500' : 'text-red-500'}>
                     {formatPercentage(analytics.overview.quantityGrowth)}
                   </span>
-                  <span className="text-muted-foreground">vs last period</span>
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Transactions</CardTitle>
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
+                <CardTitle className="text-xs sm:text-sm font-medium">Transactions</CardTitle>
                 <Activity className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
+              <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+                <div className="text-lg sm:text-2xl font-bold">
                   {analytics.overview.totalTransactions.toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Avg: {formatCurrency(analytics.overview.averageTransaction)}
+                  Total count
                 </p>
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium">Avg Transaction</CardTitle>
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
+                <CardTitle className="text-xs sm:text-sm font-medium">Avg/Txn</CardTitle>
                 <BarChart3 className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
-              <CardContent>
-                <div className="text-2xl font-bold">
+              <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
+                <div className="text-lg sm:text-2xl font-bold truncate">
                   {formatCurrency(analytics.overview.averageTransaction)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -258,107 +357,201 @@ export default function Analytics() {
             </Card>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            {/* Sales by Station */}
-            <Card>
-              <CardHeader>
+          {/* Daily Trend Chart - Full Width */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-2">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <PieChart className="w-5 h-5" />
-                  <CardTitle>Sales by Station</CardTitle>
+                  <Activity className="w-5 h-5 text-blue-500" />
+                  <CardTitle className="text-base sm:text-lg">Sales Trend</CardTitle>
                 </div>
-                <CardDescription>Revenue distribution across stations</CardDescription>
+                <Badge variant="outline" className="text-xs">
+                  {analytics.dailyTrend.length} days
+                </Badge>
+              </div>
+              <CardDescription className="text-xs sm:text-sm">Daily performance over time</CardDescription>
+            </CardHeader>
+            <CardContent className="px-2 sm:px-6 pb-4">
+              <ResponsiveContainer width="100%" height={350}>
+                <AreaChart data={analytics.dailyTrend}>
+                  <defs>
+                    <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05}/>
+                    </linearGradient>
+                    <linearGradient id="colorQuantity" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.05}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                  <XAxis 
+                    dataKey="date" 
+                    tick={{ fontSize: 11 }}
+                    angle={-45}
+                    textAnchor="end"
+                    height={60}
+                  />
+                  <YAxis 
+                    yAxisId="left"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                  />
+                  <YAxis 
+                    yAxisId="right"
+                    orientation="right"
+                    tick={{ fontSize: 11 }}
+                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}K L`}
+                  />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Legend 
+                    wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
+                    iconType="circle"
+                  />
+                  <Area 
+                    yAxisId="left"
+                    type="monotone" 
+                    dataKey="sales" 
+                    stroke="#3b82f6" 
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorSales)"
+                    name="Sales (₹)"
+                  />
+                  <Area 
+                    yAxisId="right"
+                    type="monotone" 
+                    dataKey="quantity" 
+                    stroke="#10b981" 
+                    strokeWidth={2}
+                    fillOpacity={1}
+                    fill="url(#colorQuantity)"
+                    name="Quantity (L)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            {/* Sales by Station - Pie Chart */}
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base sm:text-lg">Sales by Station</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">Revenue distribution</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-3">
-                {analytics.salesByStation.map((station, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium">{station.stationName}</span>
-                      <span className="text-muted-foreground">
-                        {formatCurrency(station.sales)} ({station.percentage.toFixed(1)}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className="bg-primary h-2 rounded-full transition-all"
-                        style={{ width: `${station.percentage}%` }}
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <PieChart>
+                    <Pie
+                      data={analytics.salesByStation}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      label={({ stationName, percentage }) => 
+                        percentage > 5 ? `${stationName} (${percentage.toFixed(0)}%)` : ''
+                      }
+                      outerRadius={window.innerWidth < 640 ? 80 : 100}
+                      fill="#8884d8"
+                      dataKey="sales"
+                    >
+                      {analytics.salesByStation.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                  {analytics.salesByStation.map((station, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <div 
+                        className="w-3 h-3 rounded-full flex-shrink-0" 
+                        style={{ backgroundColor: COLORS[idx % COLORS.length] }}
                       />
+                      <span className="truncate">{station.stationName}</span>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </CardContent>
             </Card>
 
-            {/* Sales by Fuel Type */}
-            <Card>
-              <CardHeader>
+            {/* Sales by Fuel Type - Bar Chart */}
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-2">
                 <div className="flex items-center gap-2">
-                  <Droplet className="w-5 h-5" />
-                  <CardTitle>Sales by Fuel Type</CardTitle>
+                  <Droplet className="w-5 h-5 text-purple-500" />
+                  <CardTitle className="text-base sm:text-lg">Sales by Fuel Type</CardTitle>
                 </div>
-                <CardDescription>Revenue distribution by fuel category</CardDescription>
+                <CardDescription className="text-xs sm:text-sm">Revenue by category</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-4">
-                {analytics.salesByFuelType.map((fuel, idx) => (
-                  <div key={idx} className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <Badge>{fuel.fuelType.toUpperCase()}</Badge>
-                        <span className="text-sm text-muted-foreground">
-                          {fuel.quantity.toFixed(2)} L
-                        </span>
-                      </div>
-                      <span className="text-sm font-medium">
-                        {formatCurrency(fuel.sales)} ({fuel.percentage.toFixed(1)}%)
-                      </span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div
-                        className="bg-blue-500 h-2 rounded-full transition-all"
-                        style={{ width: `${fuel.percentage}%` }}
-                      />
-                    </div>
-                  </div>
-                ))}
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={analytics.salesByFuelType}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis dataKey="fuelType" tick={{ fontSize: 11 }} />
+                    <YAxis 
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="sales" fill="#3b82f6" radius={[8, 8, 0, 0]} name="Sales">
+                      {analytics.salesByFuelType.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={getFuelChartColor(entry.fuelType)} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  {analytics.salesByFuelType.map((fuel, idx) => (
+                    <FuelBadge key={idx} fuelType={fuel.fuelType} showDot />
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
 
-          {/* Top Performing Stations */}
-          <Card>
-            <CardHeader>
+          {/* Top Performing Stations - Mobile Optimized */}
+          <Card className="hover:shadow-lg transition-shadow">
+            <CardHeader className="pb-3">
               <div className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5" />
-                <CardTitle>Top Performing Stations</CardTitle>
+                <Award className="w-5 h-5 text-yellow-500" />
+                <CardTitle className="text-base sm:text-lg">Top Performing Stations</CardTitle>
               </div>
-              <CardDescription>Highest revenue generating stations</CardDescription>
+              <CardDescription className="text-xs sm:text-sm">Highest revenue generators</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {analytics.topPerformingStations.map((station, idx) => (
                   <div
                     key={idx}
-                    className="flex items-center justify-between p-4 bg-muted rounded-lg"
+                    className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-muted to-background rounded-lg border hover:shadow-md transition-shadow"
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary text-primary-foreground font-bold">
+                    <div className="flex items-center gap-3 min-w-0 flex-1">
+                      <div className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm shadow-md ${
+                        idx === 0 ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 text-white' :
+                        idx === 1 ? 'bg-gradient-to-br from-gray-300 to-gray-500 text-white' :
+                        idx === 2 ? 'bg-gradient-to-br from-orange-400 to-orange-600 text-white' :
+                        'bg-primary text-primary-foreground'
+                      }`}>
                         {idx + 1}
                       </div>
-                      <div>
-                        <div className="font-medium">{station.stationName}</div>
-                        <div className="text-sm text-muted-foreground">
+                      <div className="min-w-0 flex-1">
+                        <div className="font-medium text-sm truncate">{station.stationName}</div>
+                        <div className="text-xs sm:text-sm text-muted-foreground">
                           {formatCurrency(station.sales)}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 flex-shrink-0">
                       {station.growth >= 0 ? (
                         <TrendingUp className="w-4 h-4 text-green-500" />
                       ) : (
                         <TrendingDown className="w-4 h-4 text-red-500" />
                       )}
-                      <span className={`font-medium ${station.growth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                      <Badge variant={station.growth >= 0 ? "default" : "destructive"} className="text-xs">
                         {formatPercentage(station.growth)}
-                      </span>
+                      </Badge>
                     </div>
                   </div>
                 ))}
@@ -366,73 +559,53 @@ export default function Analytics() {
             </CardContent>
           </Card>
 
-          {/* Employee Performance */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                <CardTitle>Employee Performance</CardTitle>
-              </div>
-              <CardDescription>Top performing employees by sales</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {analytics.employeePerformance.map((employee, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center justify-between p-4 bg-muted rounded-lg"
-                  >
-                    <div>
-                      <div className="font-medium">{employee.employeeName}</div>
-                      <div className="text-sm text-muted-foreground">
-                        {employee.shifts} shifts • Avg: {formatCurrency(employee.averageSales)}/shift
+          {/* Employee Performance - Mobile Optimized */}
+          {analytics.employeePerformance.length > 0 && (
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-2">
+                  <Users className="w-5 h-5 text-blue-500" />
+                  <CardTitle className="text-base sm:text-lg">Employee Performance</CardTitle>
+                </div>
+                <CardDescription className="text-xs sm:text-sm">Top performers by sales</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {analytics.employeePerformance.map((employee, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-transparent rounded-lg border hover:shadow-md transition-shadow"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <div className="font-medium text-sm truncate">{employee.employeeName}</div>
+                          {idx < 3 && (
+                            <Badge variant="secondary" className="text-xs">
+                              Top {idx + 1}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant="outline" className="text-xs">
+                            {employee.shifts} shifts
+                          </Badge>
+                          <span className="text-xs text-muted-foreground">
+                            Avg: {formatCurrency(employee.averageSales)}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="text-right flex-shrink-0 ml-2">
+                        <div className="font-bold text-sm sm:text-base text-blue-600">
+                          {formatCurrency(employee.totalSales)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Total</div>
                       </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-bold">{formatCurrency(employee.totalSales)}</div>
-                      <div className="text-sm text-muted-foreground">Total Sales</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Daily Trend Chart (Simple Text-based representation) */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Activity className="w-5 h-5" />
-                <CardTitle>Daily Sales Trend</CardTitle>
-              </div>
-              <CardDescription>Last {analytics.dailyTrend.length} days performance</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {analytics.dailyTrend.slice(-7).map((day, idx) => {
-                  const maxSales = Math.max(...analytics.dailyTrend.map(d => d.sales));
-                  const percentage = (day.sales / maxSales) * 100;
-                  return (
-                    <div key={idx} className="space-y-1">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">{day.date}</span>
-                        <span className="font-medium">{formatCurrency(day.sales)}</span>
-                      </div>
-                      <div className="w-full bg-muted rounded-full h-2">
-                        <div
-                          className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all"
-                          style={{ width: `${percentage}%` }}
-                        />
-                      </div>
-                      <div className="text-xs text-muted-foreground">
-                        {day.quantity.toFixed(2)} L • {day.transactions} txns
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </CardContent>
-          </Card>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       ) : (
         <Card>
@@ -440,7 +613,7 @@ export default function Analytics() {
             <div className="text-center">
               <BarChart3 className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
               <h3 className="text-lg font-semibold mb-2">No Analytics Data</h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm">
                 No data available for the selected date range
               </p>
             </div>

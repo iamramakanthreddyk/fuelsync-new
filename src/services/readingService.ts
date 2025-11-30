@@ -97,23 +97,23 @@ export const readingService = {
     const queryString = params.toString();
     const url = queryString ? `/readings?${queryString}` : '/readings';
 
-    const response = await apiClient.get<ApiResponse<NozzleReading[]> | PaginatedResponse<NozzleReading>>(url);
+    const response = await apiClient.get<NozzleReading[] | { data: NozzleReading[]; pagination: any }>(url);
 
-    if (response.success) {
-      if ('pagination' in response) {
-        return {
-          data: response.data || [],
-          pagination: {
-            page: response.pagination.page,
-            limit: response.pagination.limit,
-            total: response.pagination.total,
-            pages: response.pagination.totalPages
-          }
-        };
-      }
-      return { data: (response as ApiResponse<NozzleReading[]>).data || [] };
+    // If response has pagination, it's a paginated response
+    if (response && typeof response === 'object' && 'pagination' in response) {
+      return {
+        data: response.data || [],
+        pagination: {
+          page: response.pagination.page,
+          limit: response.pagination.limit,
+          total: response.pagination.total,
+          pages: response.pagination.totalPages || response.pagination.pages
+        }
+      };
     }
-    return { data: [] };
+    
+    // Otherwise it's just an array
+    return { data: Array.isArray(response) ? response : [] };
   },
 
   /**

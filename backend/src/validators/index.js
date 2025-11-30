@@ -58,12 +58,14 @@ const authValidators = {
 const stationValidators = {
   create: Joi.object({
     name: Joi.string().min(2).max(100).required(),
+    ownerId: optionalUuid, // Required for super_admin, ignored for owners (they use their own ID)
     code: Joi.string().max(20).optional(),
     address: Joi.string().max(255).optional(),
     city: Joi.string().max(100).optional(),
     state: Joi.string().max(100).optional(),
     pincode: Joi.string().pattern(/^\d{6}$/).optional().messages({ 'string.pattern.base': 'Pincode must be 6 digits' }),
     phone: phone.optional(),
+    email: email.optional(),
     gstNumber: Joi.string().pattern(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/).optional()
       .messages({ 'string.pattern.base': 'Invalid GST number format' }),
     dealerName: Joi.string().max(100).optional(),

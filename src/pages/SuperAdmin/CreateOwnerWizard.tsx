@@ -35,8 +35,9 @@ export default function CreateOwnerWizard() {
   const createOwnerMutation = useMutation({
     mutationFn: async (data: OwnerFormData) => {
       console.log('Creating owner with data:', data);
-      // Create owner first, then station
-      const owner = await apiClient.post<any>('/users', {
+      
+      // Step 1: Create owner - apiClient unwraps the response automatically
+      const ownerResponse = await apiClient.post<any>('/users', {
         name: data.name,
         email: data.email,
         phone: data.phone,
@@ -44,15 +45,31 @@ export default function CreateOwnerWizard() {
         role: 'owner'
       });
       
-      // Create station for the owner
-      const station = await apiClient.post<any>('/stations', {
+      console.log('Owner created, response:', ownerResponse);
+      
+      // ownerResponse is already the user object (unwrapped)
+      const owner = ownerResponse;
+      
+      if (!owner || !owner.id) {
+        throw new Error('Failed to create owner - invalid response');
+      }
+
+      // Verify owner has a plan
+      if (!owner.planId) {
+        console.warn('Owner created without a plan. This might cause issues.');
+      }
+      
+      // Step 2: Create station for the owner
+      // Note: Brand field is collected but not sent to backend (not in Station model)
+      const stationResponse = await apiClient.post<any>('/stations', {
         name: data.stationName,
-        brand: data.brand,
         address: data.address,
         ownerId: owner.id
       });
       
-      return { owner, station };
+      console.log('Station created, response:', stationResponse);
+      
+      return { owner, station: stationResponse };
     },
     onSuccess: (data) => {
       console.log('Owner created successfully:', data);
@@ -65,9 +82,15 @@ export default function CreateOwnerWizard() {
     },
     onError: (error: any) => {
       console.error('Create owner error:', error);
+      console.error('Error details:', {
+        message: error.message,
+        status: error.status,
+        code: error.code,
+        details: error.details
+      });
       toast({ 
         title: "Error", 
-        description: error.message || "Failed to create owner", 
+        description: error.message || "Failed to create owner and station", 
         variant: "destructive" 
       });
     },

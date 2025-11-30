@@ -59,10 +59,10 @@ export function useHourlySales(
   return useQuery({
     queryKey: ['hourly-sales', stationId, formatDate(dateFrom), formatDate(dateTo)],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: HourlySalesData[] }>(
+      const response = await apiClient.get<HourlySalesData[]>(
         `/analytics/hourly-sales?stationId=${stationId}&dateFrom=${formatDate(dateFrom)}&dateTo=${formatDate(dateTo)}`
       );
-      return response.data || [];
+      return response || [];
     },
     enabled: enabled && !!stationId,
     staleTime: 5 * 60 * 1000, // 5 minutes
@@ -76,10 +76,10 @@ export function usePeakHours(stationId: string, enabled: boolean = true) {
   return useQuery({
     queryKey: ['peak-hours', stationId],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: PeakHourData[] }>(
+      const response = await apiClient.get<PeakHourData[]>(
         `/analytics/peak-hours?stationId=${stationId}`
       );
-      return response.data || [];
+      return response || [];
     },
     enabled: enabled && !!stationId,
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -98,10 +98,10 @@ export function useFuelPerformance(
   return useQuery({
     queryKey: ['fuel-performance', stationId, formatDate(dateFrom), formatDate(dateTo)],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: FuelPerformanceData[] }>(
+      const response = await apiClient.get<FuelPerformanceData[]>(
         `/analytics/fuel-performance?stationId=${stationId}&dateFrom=${formatDate(dateFrom)}&dateTo=${formatDate(dateTo)}`
       );
-      return response.data || [];
+      return response || [];
     },
     enabled: enabled && !!stationId,
     staleTime: 5 * 60 * 1000,
@@ -115,10 +115,10 @@ export function useStationOverview(stationId: string, enabled: boolean = true) {
   return useQuery({
     queryKey: ['station-overview', stationId],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: StationOverviewData }>(
+      const response = await apiClient.get<StationOverviewData>(
         `/analytics/overview?stationId=${stationId}`
       );
-      return response.data;
+      return response;
     },
     enabled: enabled && !!stationId,
     staleTime: 2 * 60 * 1000, // 2 minutes - more frequent for overview
@@ -138,18 +138,15 @@ export function useDailySales(
   return useQuery({
     queryKey: ['daily-sales', stationId, formatDate(dateFrom), formatDate(dateTo)],
     queryFn: async () => {
-      const response = await apiClient.get<{
-        success: boolean;
-        data: Array<{
-          date: string;
-          volume: number;
-          revenue: number;
-          salesCount: number;
-        }>;
-      }>(
+      const response = await apiClient.get<Array<{
+        date: string;
+        volume: number;
+        revenue: number;
+        salesCount: number;
+      }>>(
         `/analytics/daily-sales?stationId=${stationId}&dateFrom=${formatDate(dateFrom)}&dateTo=${formatDate(dateTo)}`
       );
-      return response.data || [];
+      return response || [];
     },
     enabled: enabled && !!stationId,
     staleTime: 5 * 60 * 1000,
@@ -163,21 +160,18 @@ export function useTopNozzles(stationId: string, limit: number = 5, enabled: boo
   return useQuery({
     queryKey: ['top-nozzles', stationId, limit],
     queryFn: async () => {
-      const response = await apiClient.get<{
-        success: boolean;
-        data: Array<{
-          nozzleId: string;
-          nozzleNumber: number;
-          fuelType: string;
-          pumpNumber: number;
-          volume: number;
-          revenue: number;
-          salesCount: number;
-        }>;
-      }>(
+      const response = await apiClient.get<Array<{
+        nozzleId: string;
+        nozzleNumber: number;
+        fuelType: string;
+        pumpNumber: number;
+        volume: number;
+        revenue: number;
+        salesCount: number;
+      }>>(
         `/analytics/top-nozzles?stationId=${stationId}&limit=${limit}`
       );
-      return response.data || [];
+      return response || [];
     },
     enabled: enabled && !!stationId,
     staleTime: 10 * 60 * 1000,

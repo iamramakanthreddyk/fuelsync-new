@@ -26,6 +26,7 @@ const configRoutes = require('./routes/config');
 const planRoutes = require('./routes/plans');
 const activityLogRoutes = require('./routes/activityLogs');
 const salesRoutes = require('./routes/sales');
+const reportRoutes = require('./routes/reports');
 
 // Import constants for API info
 const { FUEL_TYPES, PAYMENT_METHODS, EXPENSE_CATEGORIES, USER_ROLES } = require('./config/constants');
@@ -94,6 +95,7 @@ app.use('/api/v1', expenseRoutes);  // Expenses under /api/v1/stations/:id/expen
 app.use('/api/v1/stations', stationRoutes);
 app.use('/api/v1/readings', readingRoutes);
 app.use('/api/v1/sales', salesRoutes); // Sales data from readings
+app.use('/api/v1/reports', reportRoutes); // Comprehensive reports
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/tanks', tankRoutes);   // Tanks management
 app.use('/api/v1/shifts', shiftRoutes); // Shift management
@@ -114,6 +116,7 @@ app.get('/api/v1', (req, res) => {
       stations: '/api/v1/stations',
       readings: '/api/v1/readings',
       dashboard: '/api/v1/dashboard',
+      reports: '/api/v1/reports',
       credits: '/api/v1/stations/:stationId/creditors',
       expenses: '/api/v1/stations/:stationId/expenses',
       tanks: '/api/v1/tanks',

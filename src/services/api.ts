@@ -2,11 +2,10 @@ import { apiClient } from '@/lib/api-client';
 
 export class ApiService {
   async getNozzleReadings(stationId: string) {
-    const response = await apiClient.get<{ success: boolean; data: any[] }>(`/readings?stationId=${stationId}`);
-    if (!response.success) throw new Error('Failed to fetch readings');
+    const response = await apiClient.get<any[]>(`/readings?stationId=${stationId}`);
 
     return {
-      data: response.data?.map(reading => ({
+      data: response?.map(reading => ({
         id: reading.id,
         nozzleId: reading.nozzleId,
         stationId: reading.stationId,
@@ -26,15 +25,14 @@ export class ApiService {
     currentReading: number;
     readingDate: string;
   }, stationId: string) {
-    const response = await apiClient.post<{ success: boolean; data: any }>('/readings', {
+    const response = await apiClient.post<any>('/readings', {
       nozzleId: data.nozzleId,
       stationId,
       currentReading: data.currentReading,
       readingDate: data.readingDate
     });
 
-    if (!response.success) throw new Error('Failed to create reading');
-    return response.data;
+    return response;
   }
 
   async updateNozzleReading(id: string, data: { currentReading: number }) {
@@ -104,19 +102,9 @@ export class ApiService {
 
   async getDailySummary(stationId: string) {
     const today = new Date().toISOString().split('T')[0];
-    const response = await apiClient.get<{ success: boolean; data: any }>(`/dashboard/summary?stationId=${stationId}&startDate=${today}&endDate=${today}`);
+    const response = await apiClient.get<any>(`/dashboard/summary?stationId=${stationId}&startDate=${today}&endDate=${today}`);
     
-    if (!response.success) {
-      return {
-        cash: 0,
-        card: 0,
-        upi: 0,
-        credit: 0,
-        total: 0
-      };
-    }
-
-    const summary = response.data || {};
+    const summary = response || {};
     return {
       cash: summary.cashSales || 0,
       card: summary.cardSales || 0,
@@ -127,9 +115,8 @@ export class ApiService {
   }
 
   async generateReport(stationId: string, startDate: string, endDate: string) {
-    const response = await apiClient.get<{ success: boolean; data: any[] }>(`/readings?stationId=${stationId}&startDate=${startDate}&endDate=${endDate}`);
-    if (!response.success) throw new Error('Failed to generate report');
-    return { data: response.data || [] };
+    const response = await apiClient.get<any[]>(`/readings?stationId=${stationId}&startDate=${startDate}&endDate=${endDate}`);
+    return { data: response || [] };
   }
 
   async getUploads(stationId: string) {
