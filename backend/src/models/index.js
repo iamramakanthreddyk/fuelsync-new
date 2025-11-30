@@ -15,7 +15,8 @@ require('dotenv').config({ path: path.join(__dirname, '../../.env') });
 const { DEFAULT_PLAN_LIMITS } = require('../config/constants');
 
 // Determine dialect from environment
-const dialect = process.env.DB_DIALECT || 'sqlite';
+// If DATABASE_URL exists, always use PostgreSQL
+const dialect = process.env.DATABASE_URL ? 'postgres' : (process.env.DB_DIALECT || 'sqlite');
 
 // Create Sequelize instance based on dialect
 let sequelize;
@@ -40,21 +41,9 @@ if (dialect === 'sqlite') {
   console.log(`📁 Using SQLite: ${storagePath}`);
 } else {
   // PostgreSQL configuration
-  const config = {
-    host: process.env.DB_HOST || 'localhost',
-    port: process.env.DB_PORT || 5432,
-    database: process.env.DB_NAME || 'fuelsync',
-    username: process.env.DB_USER || 'postgres',
-    password: process.env.DB_PASSWORD || '',
-  };
-
-  sequelize = new Sequelize(
-    config.database,
-    config.username,
-    config.password,
-    {
-      host: config.host,
-      port: config.port,
+  // If DATABASE_URL is provided, use it directly (Railway style)
+  if (process.env.DATABASE_URL) {
+    sequelize = new Sequelize(process.env.DATABASE_URL, {
       dialect: 'postgres',
       logging: process.env.NODE_ENV === 'development' ? console.log : false,
       pool: {
@@ -67,9 +56,41 @@ if (dialect === 'sqlite') {
         underscored: true,
         timestamps: true
       }
-    }
-  );
-  console.log(`🐘 Using PostgreSQL: ${config.host}:${config.port}/${config.database}`);
+    });
+    console.log(`🐘 Using PostgreSQL: ${process.env.DATABASE_URL.replace(/:[^:@]+@/, ':***@')}`);
+  } else {
+    // Fallback to component-based configuration
+    const config = {
+      host: process.env.DB_HOST || 'localhost',
+      port: process.env.DB_PORT || 5432,
+      database: process.env.DB_NAME || 'fuelsync',
+      username: process.env.DB_USER || 'postgres',
+      password: process.env.DB_PASSWORD || '',
+    };
+
+    sequelize = new Sequelize(
+      config.database,
+      config.username,
+      config.password,
+      {
+        host: config.host,
+        port: config.port,
+        dialect: 'postgres',
+        logging: process.env.NODE_ENV === 'development' ? console.log : false,
+        pool: {
+          max: 10,
+          min: 0,
+          acquire: 30000,
+          idle: 10000
+        },
+        define: {
+          underscored: true,
+          timestamps: true
+        }
+      }
+    );
+    console.log(`🐘 Using PostgreSQL: ${config.host}:${config.port}/${config.database}`);
+  }
 }
 
 // Import models - Order matters for foreign key dependencies
