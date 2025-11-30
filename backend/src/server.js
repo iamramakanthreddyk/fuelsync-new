@@ -31,24 +31,45 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 
 // Initialize database in background (non-blocking)
 (async () => {
+  console.log('📝 [BACKGROUND] Starting database initialization...');
+  
+  // Set a hard timeout to prevent hanging
+  const backgroundTimeout = setTimeout(() => {
+    console.warn('⚠️  [BACKGROUND] Timeout after 30 seconds');
+  }, 30000);
+  
   try {
+    console.log('📝 [BACKGROUND] Syncing database...');
     const syncSuccess = await syncDatabase({ force: false, alter: true });
+    console.log('📝 [BACKGROUND] Sync result:', syncSuccess);
     
     // Always try to seed - tables might exist even if sync "failed"
+    console.log('📝 [BACKGROUND] Seeding essential data...');
     try {
       await seedEssentials();
+      console.log('✅ [BACKGROUND] Seeding complete');
     } catch (seedError) {
       console.warn('⚠️  [SEED] Seeding failed:', seedError.message.substring(0, 100));
     }
   } catch (error) {
     console.error('❌ [BACKGROUND] Error:', error.message);
+  } finally {
+    clearTimeout(backgroundTimeout);
+    console.log('✅ [BACKGROUND] Initialization complete');
   }
-})();
+})().catch(error => {
+  console.error('❌ [BACKGROUND] Caught error:', error);
+});
 
 server.on('error', (error) => {
   console.error('❌ [SERVER] Server error:', error.message);
   console.error(error.stack);
 });
+
+// Keep-alive: periodically log to show process is alive
+setInterval(() => {
+  console.log('📍 [KEEPALIVE]', new Date().toISOString());
+}, 60000); // Every 60 seconds
 
 // Graceful shutdown
 process.on('SIGTERM', () => {
