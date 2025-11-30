@@ -15,9 +15,17 @@ const startServer = async () => {
     
     // Sync database (creates tables if they don't exist)
     console.log('📦 Syncing database...');
-    // Use alter:true to update schema without destroying data
-    // If schema is corrupted, run: npm run reset:db
-    await syncDatabase({ force: false, alter: true });
+    try {
+      // Try to sync with alter:true (safe, preserves data)
+      await syncDatabase({ force: false, alter: true });
+    } catch (error) {
+      // If sync fails due to schema issues, continue anyway
+      // The app will still work if tables already exist
+      console.warn('⚠️  Database sync encountered an issue (may be expected):');
+      console.warn(error.message);
+      console.log('💡 If tables exist, the app will still work');
+      console.log('💡 If you need to reset: npm run reset:db');
+    }
     
     // Seed essential data (plans, admin user)
     await seedEssentials();
