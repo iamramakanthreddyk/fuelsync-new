@@ -14,13 +14,13 @@ const { DataTypes, Op } = require('sequelize');
 module.exports = (sequelize) => {
   const Tank = sequelize.define('Tank', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       primaryKey: true,
-      autoIncrement: true
+      defaultValue: DataTypes.UUIDV4
     },
     
     stationId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: { model: 'stations', key: 'id' }
     },

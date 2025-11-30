@@ -8,19 +8,19 @@ const { DataTypes, Op } = require('sequelize');
 module.exports = (sequelize) => {
   const Shift = sequelize.define('Shift', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       primaryKey: true,
-      autoIncrement: true
+      defaultValue: DataTypes.UUIDV4
     },
     
     stationId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: { model: 'stations', key: 'id' }
     },
     
     employeeId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: { model: 'users', key: 'id' }
     },
@@ -98,7 +98,7 @@ module.exports = (sequelize) => {
     
     // Who ended the shift (could be manager)
     endedBy: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: true,
       references: { model: 'users', key: 'id' }
     },

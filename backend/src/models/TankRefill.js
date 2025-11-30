@@ -14,19 +14,19 @@ const { DataTypes, Op } = require('sequelize');
 module.exports = (sequelize) => {
   const TankRefill = sequelize.define('TankRefill', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       primaryKey: true,
-      autoIncrement: true
+      defaultValue: DataTypes.UUIDV4
     },
     
     tankId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: { model: 'tanks', key: 'id' }
     },
     
     stationId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: { model: 'stations', key: 'id' },
       comment: 'Denormalized for faster queries'
@@ -138,7 +138,7 @@ module.exports = (sequelize) => {
     },
     
     verifiedBy: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: true,
       references: { model: 'users', key: 'id' }
     },
@@ -150,7 +150,7 @@ module.exports = (sequelize) => {
     
     // Audit fields
     enteredBy: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: false,
       references: { model: 'users', key: 'id' }
     },

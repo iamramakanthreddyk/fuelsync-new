@@ -8,14 +8,14 @@ const { DataTypes, Op } = require('sequelize');
 module.exports = (sequelize) => {
   const AuditLog = sequelize.define('AuditLog', {
     id: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       primaryKey: true,
-      autoIncrement: true
+      defaultValue: DataTypes.UUIDV4
     },
     
     // Who did it
     userId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: true, // Null for system actions
       references: { model: 'users', key: 'id' }
     },
@@ -33,7 +33,7 @@ module.exports = (sequelize) => {
     
     // What station (multi-tenant context)
     stationId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: true,
       references: { model: 'stations', key: 'id' }
     },
