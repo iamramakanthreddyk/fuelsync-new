@@ -16,9 +16,16 @@ const startServer = async () => {
     // Sync database (creates tables if they don't exist)
     console.log('📦 Syncing database...');
     // IMPORTANT: Use alter:true to migrate schema without deleting data
-    // This preserves all production data while updating table structure
-    // force:false = never delete tables (safe for production)
-    await syncDatabase({ force: false, alter: true });
+    // BUT first time with new UUID types, use force to recreate schema
+    // After successful sync, change back to force:false
+    const isProduction = process.env.NODE_ENV === 'production';
+    const forceRecreate = isProduction && process.env.FORCE_DB_RECREATE === 'true';
+    
+    if (forceRecreate) {
+      console.log('⚠️  WARNING: Force recreating database schema (dropping tables)');
+    }
+    
+    await syncDatabase({ force: forceRecreate, alter: !forceRecreate });
     
     // Seed essential data (plans, admin user)
     await seedEssentials();
