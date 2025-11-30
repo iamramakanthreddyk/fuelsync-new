@@ -40,8 +40,15 @@ const app = express();
 
 // CORS - Must be before helmet to handle preflight requests
 const isDevelopment = process.env.NODE_ENV !== 'production';
+const corsOrigins = isDevelopment ? true : (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map(origin => origin.trim())
+  .filter(origin => origin.length > 0);
+
+console.log('🔓 CORS Origins:', corsOrigins);
+
 app.use(cors({
-  origin: isDevelopment ? true : (process.env.CORS_ORIGINS || '').split(','),
+  origin: corsOrigins,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id']
