@@ -34,8 +34,11 @@ const reportRoutes = require('./routes/reports');
 // Import constants for API info
 const { FUEL_TYPES, PAYMENT_METHODS, EXPENSE_CATEGORIES, USER_ROLES } = require('./config/constants');
 
+
 // Create Express app
 const app = express();
+// Trust Railway/Heroku proxy for correct client IP and rate limiting
+app.set('trust proxy', 1);
 
 // ============================================
 // MIDDLEWARE
