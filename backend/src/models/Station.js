@@ -38,7 +38,6 @@ module.exports = (sequelize) => {
     code: {
       type: DataTypes.STRING(20),
       allowNull: true,
-      unique: true,
       comment: 'Short unique code for station (e.g., STN001)'
     },
     address: {

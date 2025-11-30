@@ -15,11 +15,10 @@ const startServer = async () => {
     
     // Sync database (creates tables if they don't exist)
     console.log('📦 Syncing database...');
-    // Production: Force recreate on first sync to fix schema issues
-    // Development: Normal sync (SQLite, keeps data)
-    const isProduction = process.env.NODE_ENV === 'production';
-    const forceRecreate = isProduction && process.env.FORCE_DB_SYNC === 'true';
-    await syncDatabase({ force: forceRecreate, alter: false });
+    // IMPORTANT: Use alter:true to migrate schema without deleting data
+    // This preserves all production data while updating table structure
+    // force:false = never delete tables (safe for production)
+    await syncDatabase({ force: false, alter: true });
     
     // Seed essential data (plans, admin user)
     await seedEssentials();
