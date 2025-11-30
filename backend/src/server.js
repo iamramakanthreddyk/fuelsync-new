@@ -15,8 +15,10 @@ const startServer = async () => {
     
     // Sync database (creates tables if they don't exist)
     console.log('📦 Syncing database...');
-    // Use force:false to avoid recreating tables, just sync schema
-    await syncDatabase({ force: false });
+    // Use force:true to drop and recreate all tables fresh on first run with PostgreSQL
+    // This avoids ALTER TABLE issues when migrating from SQLite to PostgreSQL
+    const isProduction = process.env.NODE_ENV === 'production';
+    await syncDatabase({ force: !isProduction, alter: false });
     
     // Seed essential data (plans, admin user)
     await seedEssentials();
