@@ -1,6 +1,7 @@
 {
   "build": {
-    "builder": "nixpacks"
+    "builder": "nixpacks",
+    "buildCommand": "cd backend && npm install"
   },
   "deploy": {
     "numReplicas": 1,
