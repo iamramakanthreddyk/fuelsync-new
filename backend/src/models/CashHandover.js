@@ -88,7 +88,7 @@ module.exports = (sequelize) => {
     
     // Linked shift (for shift_collection type)
     shiftId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       allowNull: true,
       field: 'shift_id',
       references: { model: 'shifts', key: 'id' }

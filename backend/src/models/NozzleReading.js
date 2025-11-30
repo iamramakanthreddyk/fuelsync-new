@@ -138,7 +138,7 @@ module.exports = (sequelize) => {
     
     // Shift linkage (optional based on station settings)
     shiftId: {
-      type: DataTypes.INTEGER,
+      type: DataTypes.UUID,
       field: 'shift_id',
       allowNull: true,
       references: { model: 'shifts', key: 'id' },
