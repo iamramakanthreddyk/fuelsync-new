@@ -7,7 +7,12 @@ console.log('🚀 [STARTUP] Starting minimal FuelSync server...');
 console.log('🚀 [STARTUP] Node.js version:', process.version);
 console.log('🚀 [STARTUP] Environment:', process.env.NODE_ENV || 'development');
 
-const PORT = process.env.PORT || 3001;
+
+const PORT = process.env.PORT;
+if (!PORT) {
+  throw new Error('PORT environment variable is required!');
+}
+console.log('🚀 [STARTUP] PORT env:', process.env.PORT);
 
 // Create express app
 console.log('🚀 [STARTUP] Importing express...');
@@ -43,8 +48,8 @@ app.post('/api/v1/auth/login', (req, res) => {
   });
 });
 
-console.log('🚀 [STARTUP] Starting server on port', PORT);
 
+console.log('🚀 [STARTUP] Starting server on port', PORT);
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ MINIMAL SERVER READY on port ${PORT}`);
   console.log('✅ Access at: http://localhost:' + PORT + '/health');
