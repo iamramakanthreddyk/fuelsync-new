@@ -12,6 +12,7 @@ import { NozzleReading } from '@/types/api';
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getFuelBadgeClasses } from '@/lib/fuelColors';
 
 export default function NozzleReadings() {
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -305,7 +306,7 @@ export default function NozzleReadings() {
                         {new Date(reading.readingDate).toLocaleDateString()} at {reading.readingTime}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline">{reading.fuelType}</Badge>
+                        <Badge className={getFuelBadgeClasses(reading.fuelType)}>{reading.fuelType}</Badge>
                         {getStatusBadge(reading.isManualEntry)}
                       </div>
                     </div>

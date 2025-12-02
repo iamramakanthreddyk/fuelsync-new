@@ -12,6 +12,8 @@ import { useDailySummary } from "@/hooks/useDailySummary";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useAuth } from "@/hooks/useAuth";
 
+import { getDifferenceBadgeClasses } from '@/lib/badgeColors';
+
 export default function DailyClosure() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [closureNotes, setClosureNotes] = useState('');
@@ -68,12 +70,6 @@ export default function DailyClosure() {
     }
 
     closeDayMutation.mutate();
-  };
-
-  const getDifferenceColor = (difference: number) => {
-    if (Math.abs(difference) < 0.01) return 'bg-green-100 text-green-800';
-    if (Math.abs(difference) < 100) return 'bg-yellow-100 text-yellow-800';
-    return 'bg-red-100 text-red-800';
   };
 
   const getDifferenceIcon = (difference: number) => {
@@ -165,7 +161,7 @@ export default function DailyClosure() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">₹{summary.difference.toFixed(2)}</div>
-                <Badge className={getDifferenceColor(summary.difference)}>
+                <Badge className={getDifferenceBadgeClasses(summary.difference)}>
                   {Math.abs(summary.difference) < 0.01 ? 'Balanced' : 
                    summary.difference > 0 ? 'Over' : 'Short'}
                 </Badge>

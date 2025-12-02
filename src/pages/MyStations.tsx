@@ -10,6 +10,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Plus, Building2, MapPin, Fuel, Users, Phone, Mail, Edit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getStationBadgeClasses } from '@/lib/badgeColors';
 
 interface Station {
   id: string;

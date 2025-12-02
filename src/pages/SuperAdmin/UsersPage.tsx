@@ -62,12 +62,7 @@ const ROLE_ICONS = {
   employee: UserIcon
 };
 
-const ROLE_COLORS = {
-  super_admin: 'bg-purple-100 text-purple-800 border-purple-200',
-  owner: 'bg-blue-100 text-blue-800 border-blue-200',
-  manager: 'bg-green-100 text-green-800 border-green-200',
-  employee: 'bg-gray-100 text-gray-800 border-gray-200'
-};
+import { getRoleBadgeClasses, getStatusBadgeClasses, getPlanBadgeClasses, getStationBadgeClasses } from '@/lib/badgeColors';
 
 const UsersPage = ({ stations: propStations = [] }: Props) => {
   const [users, setUsers] = useState<User[]>([]);
@@ -331,14 +326,14 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <span className="font-medium">{user.name}</span>
-              <Badge variant={user.isActive ? 'default' : 'destructive'} className="text-xs">
+              <Badge variant="outline" className={getStatusBadgeClasses(user.isActive)}>
                 {user.isActive ? 'Active' : 'Inactive'}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-2">{user.email}</p>
             
             <div className="flex flex-wrap gap-2 mb-2">
-              <Badge variant="outline" className={ROLE_COLORS[user.role]}>
+              <Badge variant="outline" className={getRoleBadgeClasses(user.role)}>
                 {getRoleIcon(user.role)}
                 <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
               </Badge>
@@ -660,7 +655,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={ROLE_COLORS[user.role]}>
+                          <Badge variant="outline" className={getRoleBadgeClasses(user.role)}>
                             {getRoleIcon(user.role)}
                             <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
                           </Badge>
@@ -688,25 +683,26 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={user.isActive ? 'default' : 'destructive'}>
+                          <Badge variant="outline" className={getStatusBadgeClasses(user.isActive)}>
                             {user.isActive ? 'Active' : 'Inactive'}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button variant="outline" size="sm" onClick={() => openEditDialog(user)}>
-                              <Edit className="h-4 w-4" />
+                              <Edit className="h-4 w-4 mr-2" /> Edit
                             </Button>
                             <Button 
                               variant="outline" 
                               size="sm"
                               onClick={() => handleToggleStatus(user)}
                             >
-                              {user.isActive ? <UserX className="h-4 w-4" /> : <UserCheck className="h-4 w-4" />}
+                              {user.isActive ? <UserX className="h-4 w-4 mr-2" /> : <UserCheck className="h-4 w-4 mr-2" />}
+                              {user.isActive ? 'Deactivate' : 'Activate'}
                             </Button>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="outline" size="sm">
+                                <Button variant="destructive" size="sm">
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </AlertDialogTrigger>

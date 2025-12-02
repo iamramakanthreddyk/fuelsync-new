@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getFuelBadgeClasses } from "@/lib/fuelColors";
 
 export interface FuelPricesGridProps {
   fuelPrices:
@@ -21,16 +22,6 @@ export interface FuelPricesGridProps {
   isAdmin: boolean;
   onEdit: (fuelType: string, price: number, id: number) => void;
 }
-
-const getFuelTypeColor = (fuelType: string) => {
-  switch (fuelType) {
-    case 'PETROL': return 'bg-blue-100 text-blue-800';
-    case 'DIESEL': return 'bg-orange-100 text-orange-800';
-    case 'CNG': return 'bg-green-100 text-green-800';
-    case 'EV': return 'bg-purple-100 text-purple-800';
-    default: return 'bg-gray-100 text-gray-800';
-  }
-};
 
 export const FuelPricesGrid: React.FC<FuelPricesGridProps> = ({
   fuelPrices,
@@ -57,7 +48,7 @@ export const FuelPricesGrid: React.FC<FuelPricesGridProps> = ({
                   Current Price
                 </CardDescription>
               </div>
-              <Badge className={getFuelTypeColor(price.fuel_type)}>
+              <Badge className={getFuelBadgeClasses(price.fuel_type.toLowerCase())}>
                 {price.fuel_type}
               </Badge>
             </div>

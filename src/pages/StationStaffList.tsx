@@ -4,6 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient, ApiResponse } from "@/lib/api-client";
+import { getRoleBadgeClasses, getStatusBadgeClasses } from '@/lib/badgeColors';
 
 interface StaffUser {
   id: number;
@@ -77,17 +78,13 @@ export default function StationStaffList() {
                     <div className="text-xs text-muted-foreground">{staff.email}</div>
                   </div>
                   <div className="flex items-center gap-2">
-                    <Badge
-                      variant={staff.role === "owner"
-                        ? "secondary"
-                        : staff.role === "employee"
-                        ? "outline"
-                        : "default"}
-                    >
+                    <Badge className={getRoleBadgeClasses(staff.role)}>
                       {staff.role.charAt(0).toUpperCase() + staff.role.slice(1)}
                     </Badge>
                     {!staff.is_active && (
-                      <Badge variant="destructive">Inactive</Badge>
+                      <Badge variant="outline" className={getStatusBadgeClasses(staff.is_active)}>
+                        Inactive
+                      </Badge>
                     )}
                   </div>
                 </div>

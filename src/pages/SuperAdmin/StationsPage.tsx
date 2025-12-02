@@ -525,11 +525,11 @@ export default function StationsPage() {
                           size="sm"
                           onClick={() => openEditDialog(station)}
                         >
-                          <Edit className="h-4 w-4" />
+                          <Edit className="h-4 w-4 mr-2" /> Edit
                         </Button>
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <Button variant="outline" size="sm">
+                            <Button variant="destructive" size="sm">
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </AlertDialogTrigger>

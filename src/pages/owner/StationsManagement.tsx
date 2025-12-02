@@ -364,14 +364,14 @@ export default function StationsManagement() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Stations Management</h1>
-          <p className="text-muted-foreground">Manage your fuel stations</p>
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex-1 min-w-0">
+          <h1 className="text-2xl md:text-3xl font-bold">Stations Management</h1>
+          <p className="text-muted-foreground text-sm md:text-base">Manage your fuel stations</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto">
               <Plus className="w-4 h-4 mr-2" />
               Add Station
             </Button>
@@ -505,7 +505,7 @@ export default function StationsManagement() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-2 pt-2 border-t">
+                <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
                   <Button
                     variant="default"
                     size="sm"
@@ -518,26 +518,28 @@ export default function StationsManagement() {
                     <ArrowRight className="w-3 h-3 mr-1.5" />
                     Manage
                   </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(station);
-                    }}
-                  >
-                    <Edit className="w-3 h-3" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteStationId(station.id);
-                    }}
-                  >
-                    <Trash2 className="w-3 h-3" />
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(station);
+                      }}
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteStationId(station.id);
+                      }}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -545,15 +547,15 @@ export default function StationsManagement() {
         </div>
       ) : (
         <Card>
-          <CardContent className="py-12">
+          <CardContent className="py-8 md:py-12">
             <div className="text-center space-y-4">
-              <Building2 className="w-16 h-16 mx-auto text-muted-foreground" />
+              <Building2 className="w-12 h-12 md:w-16 md:h-16 mx-auto text-muted-foreground" />
               <div>
                 <h3 className="text-lg font-semibold mb-2">No Stations Yet</h3>
-                <p className="text-muted-foreground mb-4">
+                <p className="text-muted-foreground mb-4 text-sm md:text-base">
                   Get started by adding your first fuel station
                 </p>
-                <Button onClick={() => setIsAddDialogOpen(true)}>
+                <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Station
                 </Button>

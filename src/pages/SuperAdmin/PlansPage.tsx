@@ -585,7 +585,7 @@ export default function PlansPage() {
                   Edit
                 </Button>
                 <Button
-                  variant="outline"
+                  variant="destructive"
                   size="sm"
                   onClick={() => handleDeleteClick(plan.id)}
                   className="flex-1"

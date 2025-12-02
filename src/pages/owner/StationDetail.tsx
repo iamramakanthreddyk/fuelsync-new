@@ -656,33 +656,55 @@ export default function StationDetail() {
   return (
     <div className="container mx-auto p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/owner/stations')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/owner/stations')} className="flex-shrink-0">
             <ArrowLeft className="w-4 h-4" />
           </Button>
-          <div>
-            <h1 className="text-3xl font-bold">{station.name}</h1>
-            <p className="text-muted-foreground">
+          <div className="min-w-0 flex-1">
+            <h1 className="text-2xl md:text-3xl font-bold truncate">{station.name}</h1>
+            <p className="text-muted-foreground text-sm md:text-base">
               {station.code && `Code: ${station.code} • `}
               {station.city && `${station.city}, ${station.state}`}
             </p>
           </div>
         </div>
-        <Badge variant={station.isActive ? 'default' : 'secondary'}>
+        <Badge variant={station.isActive ? 'default' : 'secondary'} className="self-start sm:self-center flex-shrink-0">
           {station.isActive ? 'Active' : 'Inactive'}
         </Badge>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="pumps" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="pumps">Pumps & Nozzles</TabsTrigger>
-          <TabsTrigger value="prices">Fuel Prices</TabsTrigger>
-          <TabsTrigger value="creditors">Creditors</TabsTrigger>
-          <TabsTrigger value="employees">Employees</TabsTrigger>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-        </TabsList>
+        <div className="flex flex-col gap-4">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 bg-gray-100 p-1 rounded-xl h-auto">
+            <TabsTrigger value="pumps" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
+              <Fuel className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Pumps</span>
+              <span className="sm:hidden">Pumps</span>
+            </TabsTrigger>
+            <TabsTrigger value="prices" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
+              <DollarSign className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Prices</span>
+              <span className="sm:hidden">Prices</span>
+            </TabsTrigger>
+            <TabsTrigger value="creditors" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
+              <CreditCard className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Creditors</span>
+              <span className="sm:hidden">Creditors</span>
+            </TabsTrigger>
+            <TabsTrigger value="employees" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
+              <Users className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Employees</span>
+              <span className="sm:hidden">Employees</span>
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 col-span-2 md:col-span-1">
+              <Settings className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Settings</span>
+              <span className="sm:hidden">Settings</span>
+            </TabsTrigger>
+          </TabsList>
+        </div>
 
         {/* Pumps & Nozzles Tab */}
         <TabsContent value="pumps" className="space-y-4">

@@ -476,7 +476,7 @@ export default function EmployeesManagement() {
                     Edit
                   </Button>
                   <Button
-                    variant="outline"
+                    variant="destructive"
                     size="sm"
                     onClick={() => setDeleteEmployeeId(employee.id)}
                   >

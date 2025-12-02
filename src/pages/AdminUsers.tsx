@@ -11,6 +11,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Plus, Users, Settings, Shield } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { getRoleBadgeClasses, getStatusBadgeClasses } from '@/lib/badgeColors';
 
 interface UserWithStations {
   id: string;
@@ -164,16 +165,6 @@ export default function AdminUsers() {
     toggleUserStatusMutation.mutate({ userId, isActive: !currentStatus });
   };
 
-  const getRoleColor = (role: string) => {
-    switch (role) {
-      case 'super_admin': return 'bg-red-100 text-red-800';
-      case 'owner': return 'bg-blue-100 text-blue-800';
-      case 'manager': return 'bg-purple-100 text-purple-800';
-      case 'employee': return 'bg-green-100 text-green-800';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'super_admin': return <Shield className="w-4 h-4" />;
@@ -286,7 +277,9 @@ export default function AdminUsers() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {users?.map((userItem) => (
+        {users?.map((userItem) => {
+          console.log('User role:', userItem.role, 'Type:', typeof userItem.role);
+          return (
           <Card key={userItem.id} className="relative">
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -298,10 +291,10 @@ export default function AdminUsers() {
                   <CardDescription>{userItem.email}</CardDescription>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <Badge className={getRoleColor(userItem.role)}>
+                  <Badge className={getRoleBadgeClasses(userItem.role)}>
                     {userItem.role}
                   </Badge>
-                  <Badge variant={userItem.isActive ? "default" : "secondary"}>
+                  <Badge className={getStatusBadgeClasses(userItem.isActive ? 'active' : 'inactive')}>
                     {userItem.isActive ? "Active" : "Inactive"}
                   </Badge>
                 </div>
@@ -336,7 +329,7 @@ export default function AdminUsers() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        )})}
       </div>
 
       {(!users || users.length === 0) && (

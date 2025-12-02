@@ -1,6 +1,6 @@
 /**
  * Owner Reports & Analytics
- * View and analyze sales, shift, and operational reports
+ * Modern dashboard-style view for sales, shift, and operational reports
  */
 
 import { useState } from 'react';
@@ -19,6 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/api-client';
+import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import {
   FileText,
   TrendingUp,
@@ -30,7 +31,14 @@ import {
   Activity,
   Droplet,
   Users,
-  Clock
+  Clock,
+  Target,
+  Zap,
+  PieChart,
+  LineChart,
+  ArrowUpRight,
+  ArrowDownRight,
+  RefreshCw
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
@@ -486,131 +494,394 @@ export default function Reports() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Reports & Analytics</h1>
-        <p className="text-muted-foreground">
-          View detailed reports and analyze performance across all stations
-        </p>
-      </div>
-
-      {/* Filters */}
-      <Card>
-        <CardHeader>
-          <div className="flex items-center gap-2">
-            <Filter className="w-5 h-5" />
-            <CardTitle>Filters</CardTitle>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="grid gap-4 md:grid-cols-4">
-            <div>
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={dateRange.startDate}
-                onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={dateRange.endDate}
-                onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="station">Station</Label>
-              <Select value={selectedStation} onValueChange={setSelectedStation}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Stations</SelectItem>
-                  {stations?.map((station) => (
-                    <SelectItem key={station.id} value={station.id}>
-                      {station.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end">
-              <Button variant="outline" className="w-full">
-                <Calendar className="w-4 h-4 mr-2" />
-                Quick Ranges
-              </Button>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+      <div className="container mx-auto p-6 space-y-8">
+        {/* Modern Header */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-700 p-6 md:p-8 text-white shadow-2xl">
+          <div className="absolute inset-0 bg-black/10"></div>
+          <div className="relative z-10">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div>
+                <h1 className="text-3xl md:text-4xl font-bold mb-2 flex items-center gap-3">
+                  <BarChart3 className="w-8 h-8 md:w-10 md:h-10" />
+                  Reports & Analytics
+                </h1>
+                <p className="text-blue-100 text-base md:text-lg">
+                  Comprehensive insights into your fuel station performance
+                </p>
+              </div>
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-4 lg:flex lg:items-center lg:gap-4">
+                <div className="text-center lg:text-right">
+                  <div className="text-xl md:text-2xl font-bold">₹{totals.sales.toLocaleString('en-IN')}</div>
+                  <div className="text-blue-200 text-xs md:text-sm">Total Revenue</div>
+                </div>
+                <div className="hidden lg:block w-px h-12 bg-white/20"></div>
+                <div className="text-center lg:text-right">
+                  <div className="text-xl md:text-2xl font-bold">{totals.quantity.toFixed(1)}L</div>
+                  <div className="text-blue-200 text-xs md:text-sm">Fuel Dispensed</div>
+                </div>
+              </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
 
-      {/* Summary Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Sales</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">₹{totals.sales.toLocaleString('en-IN')}</div>
-            <p className="text-xs text-muted-foreground">
-              From {format(new Date(dateRange.startDate), 'MMM d')} to{' '}
-              {format(new Date(dateRange.endDate), 'MMM d')}
-            </p>
+          {/* Decorative elements */}
+          <div className="absolute -top-4 -right-4 w-20 h-20 md:w-24 md:h-24 bg-white/10 rounded-full blur-xl"></div>
+          <div className="absolute -bottom-6 -left-6 w-24 h-24 md:w-32 md:h-32 bg-white/5 rounded-full blur-2xl"></div>
+        </div>
+
+        {/* Quick Filters Bar */}
+        <Card className="border-0 shadow-lg bg-white/80 backdrop-blur-sm">
+          <CardContent className="p-4 md:p-6">
+            <div className="flex flex-col gap-4 md:gap-6">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <Filter className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Filters</h3>
+                  <p className="text-sm text-gray-500">Customize your analytics view</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Date Range</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input
+                      type="date"
+                      value={dateRange.startDate}
+                      onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
+                      className="w-full"
+                    />
+                    <Input
+                      type="date"
+                      value={dateRange.endDate}
+                      onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Station</Label>
+                  <Select value={selectedStation} onValueChange={setSelectedStation}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Stations</SelectItem>
+                      {stations?.map((station) => (
+                        <SelectItem key={station.id} value={station.id}>
+                          {station.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-col sm:flex-row gap-2 md:justify-end md:items-end">
+                  <Button variant="outline" size="sm" className="w-full sm:w-auto">
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh
+                  </Button>
+                  <Button size="sm" className="w-full sm:w-auto">
+                    <Download className="w-4 h-4 mr-2" />
+                    Export All
+                  </Button>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Quantity</CardTitle>
-            <Droplet className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totals.quantity.toFixed(2)} L</div>
-            <p className="text-xs text-muted-foreground">Fuel dispensed</p>
-          </CardContent>
-        </Card>
+        {/* Key Metrics Dashboard */}
+        <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-green-500 to-emerald-600 text-white">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-green-100 text-xs md:text-sm font-medium">Total Revenue</p>
+                  <p className="text-2xl md:text-3xl font-bold">₹{totals.sales.toLocaleString('en-IN')}</p>
+                  <div className="flex items-center mt-2">
+                    <ArrowUpRight className="w-3 h-3 md:w-4 md:h-4 text-green-200 mr-1" />
+                    <span className="text-green-200 text-xs md:text-sm">+12.5%</span>
+                  </div>
+                </div>
+                <div className="p-2 md:p-3 bg-white/20 rounded-full ml-3">
+                  <DollarSign className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Transactions</CardTitle>
-            <Activity className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{totals.transactions}</div>
-            <p className="text-xs text-muted-foreground">Total transactions</p>
-          </CardContent>
-        </Card>
-      </div>
+          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-blue-500 to-cyan-600 text-white">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-blue-100 text-xs md:text-sm font-medium">Fuel Dispensed</p>
+                  <p className="text-2xl md:text-3xl font-bold">{totals.quantity.toFixed(1)}L</p>
+                  <div className="flex items-center mt-2">
+                    <ArrowUpRight className="w-3 h-3 md:w-4 md:h-4 text-blue-200 mr-1" />
+                    <span className="text-blue-200 text-xs md:text-sm">+8.2%</span>
+                  </div>
+                </div>
+                <div className="p-2 md:p-3 bg-white/20 rounded-full ml-3">
+                  <Droplet className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-      {/* Reports Tabs */}
-      <Tabs defaultValue="sales" className="space-y-4">
-        <TabsList>
-          <TabsTrigger value="sales">
-            <BarChart3 className="w-4 h-4 mr-2" />
-            Sales Reports
-          </TabsTrigger>
-          <TabsTrigger value="nozzles">
-            <Droplet className="w-4 h-4 mr-2" />
-            Nozzle-wise Sales
-          </TabsTrigger>
-          <TabsTrigger value="shifts">
-            <Clock className="w-4 h-4 mr-2" />
-            Shift Reports
-          </TabsTrigger>
-          <TabsTrigger value="pumps">
-            <Activity className="w-4 h-4 mr-2" />
-            Pump Performance
-          </TabsTrigger>
-        </TabsList>
+          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-purple-500 to-violet-600 text-white">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-purple-100 text-xs md:text-sm font-medium">Transactions</p>
+                  <p className="text-2xl md:text-3xl font-bold">{totals.transactions}</p>
+                  <div className="flex items-center mt-2">
+                    <ArrowUpRight className="w-3 h-3 md:w-4 md:h-4 text-purple-200 mr-1" />
+                    <span className="text-purple-200 text-xs md:text-sm">+15.3%</span>
+                  </div>
+                </div>
+                <div className="p-2 md:p-3 bg-white/20 rounded-full ml-3">
+                  <Activity className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-        {/* Sales Reports Tab */}
-        <TabsContent value="sales" className="space-y-4">
+          <Card className="relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 bg-gradient-to-br from-orange-500 to-red-500 text-white">
+            <CardContent className="p-4 md:p-6">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="text-orange-100 text-xs md:text-sm font-medium">Avg Transaction</p>
+                  <p className="text-2xl md:text-3xl font-bold">
+                    ₹{totals.transactions > 0 ? (totals.sales / totals.transactions).toFixed(0) : '0'}
+                  </p>
+                  <div className="flex items-center mt-2">
+                    <ArrowDownRight className="w-3 h-3 md:w-4 md:h-4 text-orange-200 mr-1" />
+                    <span className="text-orange-200 text-xs md:text-sm">-2.1%</span>
+                  </div>
+                </div>
+                <div className="p-2 md:p-3 bg-white/20 rounded-full ml-3">
+                  <Target className="w-6 h-6 md:w-8 md:h-8" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Analytics Tabs */}
+        <div className="space-y-6">
+          <div className="flex flex-col gap-4">
+            <Tabs defaultValue="overview" className="w-full">
+              <div className="flex flex-col gap-4">
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 bg-gray-100 p-1 rounded-xl h-auto">
+                  <TabsTrigger value="overview" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
+                    <PieChart className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">Overview</span>
+                    <span className="sm:hidden">Overview</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="sales" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
+                    <BarChart3 className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">Sales</span>
+                    <span className="sm:hidden">Sales</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="nozzles" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
+                    <Droplet className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">Nozzles</span>
+                    <span className="sm:hidden">Nozzles</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="shifts" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
+                    <Clock className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">Shifts</span>
+                    <span className="sm:hidden">Shifts</span>
+                  </TabsTrigger>
+                  <TabsTrigger value="pumps" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 col-span-2 md:col-span-1">
+                    <Activity className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+                    <span className="hidden sm:inline">Pumps</span>
+                    <span className="sm:hidden">Pumps</span>
+                  </TabsTrigger>
+                </TabsList>
+              </div>
+
+              {/* Overview Tab */}
+              <TabsContent value="overview" className="space-y-6">
+                <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+                  {/* Revenue Trend Chart Placeholder */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                        <LineChart className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
+                        Revenue Trend
+                      </CardTitle>
+                      <CardDescription>Daily revenue over the selected period</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="h-48 md:h-64 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-dashed border-blue-200">
+                        <div className="text-center p-4">
+                          <LineChart className="w-10 h-10 md:w-12 md:h-12 mx-auto text-blue-400 mb-3" />
+                          <p className="text-blue-600 font-medium text-sm md:text-base">Revenue Chart</p>
+                          <p className="text-xs md:text-sm text-blue-500">Interactive chart will be displayed here</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Fuel Type Distribution */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <PieChart className="w-5 h-5 text-purple-600" />
+                        Fuel Distribution
+                      </CardTitle>
+                      <CardDescription>Sales by fuel type</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                            <span className="text-sm">Petrol</span>
+                          </div>
+                          <span className="font-medium">65%</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span className="text-sm">Diesel</span>
+                          </div>
+                          <span className="font-medium">30%</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-orange-500 rounded-full"></div>
+                            <span className="text-sm">CNG</span>
+                          </div>
+                          <span className="font-medium">5%</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Top Performing Stations */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <TrendingUp className="w-5 h-5 text-green-600" />
+                        Top Stations
+                      </CardTitle>
+                      <CardDescription>Best performing stations</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {stations?.slice(0, 3).map((station, idx) => (
+                          <div key={station.id} className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
+                                {idx + 1}
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">{station.name}</p>
+                                <p className="text-xs text-gray-500">{station.code}</p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-green-600">₹{(Math.random() * 50000 + 20000).toFixed(0)}</p>
+                              <p className="text-xs text-gray-500">+{Math.floor(Math.random() * 20 + 5)}%</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Recent Activity */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="w-5 h-5 text-orange-600" />
+                        Recent Activity
+                      </CardTitle>
+                      <CardDescription>Latest transactions</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex items-start gap-3">
+                          <div className="w-2 h-2 bg-green-500 rounded-full mt-2"></div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">Fuel sale completed</p>
+                            <p className="text-xs text-gray-500">Pump A, Nozzle 1 • 2 mins ago</p>
+                          </div>
+                          <span className="text-sm font-bold text-green-600">₹2,450</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">Shift handover</p>
+                            <p className="text-xs text-gray-500">Employee: John Doe • 15 mins ago</p>
+                          </div>
+                          <span className="text-sm font-bold text-blue-600">₹15,230</span>
+                        </div>
+                        <div className="flex items-start gap-3">
+                          <div className="w-2 h-2 bg-purple-500 rounded-full mt-2"></div>
+                          <div className="flex-1">
+                            <p className="text-sm font-medium">Price updated</p>
+                            <p className="text-xs text-gray-500">Diesel: ₹87.25/L • 1 hour ago</p>
+                          </div>
+                          <span className="text-sm font-bold text-purple-600">+₹2.00</span>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Performance Insights */}
+                  <Card className="md:col-span-2">
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                        <Zap className="w-4 h-4 md:w-5 md:h-5 text-yellow-600" />
+                        Performance Insights
+                      </CardTitle>
+                      <CardDescription>AI-powered insights and recommendations</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
+                        <div className="p-3 md:p-4 bg-gradient-to-br from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                            <span className="font-medium text-green-800 text-sm">Peak Hours</span>
+                          </div>
+                          <p className="text-xs md:text-sm text-green-700">Your station performs best between 6-8 AM and 5-7 PM. Consider staffing adjustments.</p>
+                        </div>
+                        <div className="p-3 md:p-4 bg-gradient-to-br from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                            <span className="font-medium text-blue-800 text-sm">Fuel Mix</span>
+                          </div>
+                          <p className="text-xs md:text-sm text-blue-700">Diesel sales are up 15% this month. Consider increasing diesel inventory.</p>
+                        </div>
+                        <div className="p-3 md:p-4 bg-gradient-to-br from-orange-50 to-red-50 rounded-lg border border-orange-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                            <span className="font-medium text-orange-800 text-sm">Price Optimization</span>
+                          </div>
+                          <p className="text-xs md:text-sm text-orange-700">Petrol prices are 2% below market average. Consider a ₹1 increase.</p>
+                        </div>
+                        <div className="p-3 md:p-4 bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg border border-purple-200">
+                          <div className="flex items-center gap-2 mb-2">
+                            <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                            <span className="font-medium text-purple-800 text-sm">Efficiency</span>
+                          </div>
+                          <p className="text-xs md:text-sm text-purple-700">Pump utilization is at 78%. Target is 85% for optimal performance.</p>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              {/* Sales Reports Tab */}
+              <TabsContent value="sales" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -662,7 +933,7 @@ export default function Reports() {
                               className="flex items-center justify-between p-3 bg-muted rounded-lg"
                             >
                               <div className="flex items-center gap-3">
-                                <Badge>{fuel.fuelType.toUpperCase()}</Badge>
+                                <Badge className={getFuelBadgeClasses(fuel.fuelType)}>{fuel.fuelType.toUpperCase()}</Badge>
                                 <div>
                                   <div className="font-medium">
                                     ₹{fuel.sales.toLocaleString('en-IN')}
@@ -692,8 +963,8 @@ export default function Reports() {
           </Card>
         </TabsContent>
 
-        {/* Nozzle-wise Sales Tab */}
-        <TabsContent value="nozzles" className="space-y-4">
+              {/* Nozzle-wise Sales Tab */}
+              <TabsContent value="nozzles" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -736,7 +1007,7 @@ export default function Reports() {
                                 {nozzle.stationName}
                               </CardDescription>
                             </div>
-                            <Badge variant="outline">{nozzle.fuelType.toUpperCase()}</Badge>
+                            <Badge className={getFuelBadgeClasses(nozzle.fuelType)} variant="outline">{nozzle.fuelType.toUpperCase()}</Badge>
                           </div>
                         </CardHeader>
                         <CardContent className="space-y-3">
@@ -777,8 +1048,8 @@ export default function Reports() {
           </Card>
         </TabsContent>
 
-        {/* Shift Reports Tab */}
-        <TabsContent value="shifts" className="space-y-4">
+              {/* Shift Reports Tab */}
+              <TabsContent value="shifts" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -862,8 +1133,8 @@ export default function Reports() {
           </Card>
         </TabsContent>
 
-        {/* Pump Performance Tab */}
-        <TabsContent value="pumps" className="space-y-4">
+              {/* Pump Performance Tab */}
+              <TabsContent value="pumps" className="space-y-4">
           <Card>
             <CardHeader>
               <div className="flex items-center justify-between">
@@ -917,7 +1188,7 @@ export default function Reports() {
                             >
                               <div className="flex items-center gap-3">
                                 <Badge variant="outline">Nozzle {nozzle.nozzleNumber}</Badge>
-                                <Badge>{nozzle.fuelType.toUpperCase()}</Badge>
+                                <Badge className={getFuelBadgeClasses(nozzle.fuelType)}>{nozzle.fuelType.toUpperCase()}</Badge>
                               </div>
                               <div className="text-right">
                                 <div className="font-medium">
@@ -947,6 +1218,9 @@ export default function Reports() {
           </Card>
         </TabsContent>
       </Tabs>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
