@@ -80,7 +80,7 @@ export default function AdminUsers() {
   // Add User Mutation via REST API
   const inviteUserMutation = useMutation({
     mutationFn: async (userData: typeof newUser) => {
-      return await apiClient.post<any>('/users', {
+      return await apiClient.post<UserWithStations>('/users', {
         name: userData.name,
         email: userData.email,
         phone: userData.phone,
@@ -98,7 +98,7 @@ export default function AdminUsers() {
     onError: (error: any) => {
       toast({
         title: "Error Creating User",
-        description: error.message || "Failed to create user",
+        description: error instanceof Error ? error.message : "Failed to create user",
         variant: "destructive",
       });
     },
@@ -107,7 +107,7 @@ export default function AdminUsers() {
   // Toggle user status mutation
   const toggleUserStatusMutation = useMutation({
     mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-      return await apiClient.put<any>(`/users/${userId}`, {
+      return await apiClient.put<UserWithStations>(`/users/${userId}`, {
         isActive: isActive
       });
     },
@@ -121,7 +121,7 @@ export default function AdminUsers() {
     onError: (error: any) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to update user status",
+        description: error instanceof Error ? error.message : "Failed to update user status",
         variant: "destructive",
       });
     },
@@ -227,7 +227,7 @@ export default function AdminUsers() {
               </div>
               <div>
                 <Label htmlFor="role">Role</Label>
-                <Select value={newUser.role} onValueChange={(value: any) => setNewUser(prev => ({ ...prev, role: value, stationId: '' }))}>
+                <Select value={newUser.role} onValueChange={(value: string) => setNewUser(prev => ({ ...prev, role: value as UserWithStations['role'], stationId: '' }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

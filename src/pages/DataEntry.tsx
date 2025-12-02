@@ -167,7 +167,7 @@ export default function DataEntry() {
 
       console.log('📤 Submitting manual reading:', payload);
 
-      const result = await apiClient.post<any>('/readings', payload);
+      const result = await apiClient.post<{ litresSold?: number; totalAmount?: number }>('/readings', payload);
       
       console.log('✅ Reading recorded:', result);
       
@@ -187,7 +187,7 @@ export default function DataEntry() {
       setPreviousReading(null);
     } catch (error: any) {
       console.error('❌ Manual reading error:', error);
-      toast.error(error.message || 'Error adding manual reading');
+      toast.error(error instanceof Error ? error.message : 'Error adding manual reading');
     } finally {
       setIsSubmitting(false);
     }
@@ -201,7 +201,7 @@ export default function DataEntry() {
       toast.info('Tender entry feature coming soon!');
       console.log('Tender data:', data);
     } catch (error: any) {
-      toast.error('Error adding tender entry');
+      toast.error(error instanceof Error ? error.message : 'Error adding tender entry');
     } finally {
       setIsSubmitting(false);
     }
@@ -215,7 +215,7 @@ export default function DataEntry() {
       toast.info('Tank refill feature coming soon!');
       console.log('Refill data:', data);
     } catch (error: any) {
-      toast.error('Error adding tank refill');
+      toast.error(error instanceof Error ? error.message : 'Error adding tank refill');
     } finally {
       setIsSubmitting(false);
     }
@@ -257,7 +257,7 @@ export default function DataEntry() {
     try {
       setLoadingPreviousReading(true);
       // apiClient unwraps {success, data} to just data
-      const response = await apiClient.get<any>(`/readings/previous/${nozzleId}`);
+      const response = await apiClient.get<{ previousReading?: string }>(`/readings/previous/${nozzleId}`);
       console.log('📊 Previous reading response:', response);
       
       if (response && response.previousReading !== undefined) {

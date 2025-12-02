@@ -230,7 +230,7 @@ export default function StationDetail() {
 
   // Create pump mutation
   const createPumpMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: { pumpNumber: number; name: string; status: string }) => {
       const response = await apiClient.post(`/stations/${id}/pumps`, data);
       return response;
     },
@@ -240,7 +240,7 @@ export default function StationDetail() {
       setIsPumpDialogOpen(false);
       setPumpForm({ pumpNumber: '', name: '', status: 'active' });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
         description: error.response?.data?.error || 'Failed to create pump',
@@ -251,7 +251,7 @@ export default function StationDetail() {
 
   // Create nozzle mutation
   const createNozzleMutation = useMutation({
-    mutationFn: async ({ pumpId, data }: { pumpId: string; data: any }) => {
+    mutationFn: async ({ pumpId, data }: { pumpId: string; data: { nozzleNumber: number; fuelType: string; initialReading: number } }) => {
       const response = await apiClient.post(`/stations/pumps/${pumpId}/nozzles`, data);
       return response;
     },
@@ -262,7 +262,7 @@ export default function StationDetail() {
       setNozzleForm({ nozzleNumber: '', fuelType: 'petrol', initialReading: '' });
       setSelectedPump(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
         description: error.response?.data?.error || 'Failed to create nozzle',
@@ -273,7 +273,7 @@ export default function StationDetail() {
 
   // Set price mutation
   const setPriceMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: { fuelType: string; price: string; effectiveFrom: string }) => {
       const response = await apiClient.post(`/stations/${id}/prices`, data);
       return response;
     },
@@ -283,7 +283,7 @@ export default function StationDetail() {
       setIsPriceDialogOpen(false);
       setPriceForm({ fuelType: 'petrol', price: '', effectiveFrom: new Date().toISOString().split('T')[0] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
         description: error.response?.data?.error || 'Failed to update price',
@@ -294,7 +294,7 @@ export default function StationDetail() {
 
   // Create creditor mutation
   const createCreditorMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: { name: string; phone: string; email: string; creditLimit: string; vehicleNumber: string }) => {
       const response = await apiClient.post(`/credits/stations/${id}/creditors`, data);
       return response;
     },
@@ -304,7 +304,7 @@ export default function StationDetail() {
       setIsCreditorDialogOpen(false);
       setCreditorForm({ name: '', phone: '', email: '', creditLimit: '', vehicleNumber: '' });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
         description: error.response?.data?.error || 'Failed to create creditor',
@@ -315,7 +315,7 @@ export default function StationDetail() {
 
   // Update pump mutation
   const updatePumpMutation = useMutation({
-    mutationFn: async ({ pumpId, data }: { pumpId: string; data: any }) => {
+    mutationFn: async ({ pumpId, data }: { pumpId: string; data: { name: string; status: string; notes?: string } }) => {
       const response = await apiClient.put(`/stations/pumps/${pumpId}`, data);
       return response;
     },
@@ -325,7 +325,7 @@ export default function StationDetail() {
       setIsEditPumpDialogOpen(false);
       setSelectedPump(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
         description: error.response?.data?.error || 'Failed to update pump',
@@ -336,7 +336,7 @@ export default function StationDetail() {
 
   // Update nozzle mutation
   const updateNozzleMutation = useMutation({
-    mutationFn: async ({ nozzleId, data }: { nozzleId: string; data: any }) => {
+    mutationFn: async ({ nozzleId, data }: { nozzleId: string; data: { status: string } }) => {
       const response = await apiClient.put(`/stations/nozzles/${nozzleId}`, data);
       return response;
     },
@@ -346,7 +346,7 @@ export default function StationDetail() {
       setIsEditNozzleDialogOpen(false);
       setSelectedNozzle(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
         description: error.response?.data?.error || 'Failed to update nozzle',
@@ -357,7 +357,7 @@ export default function StationDetail() {
 
   // Add reading mutation
   const addReadingMutation = useMutation({
-    mutationFn: async (data: any) => {
+    mutationFn: async (data: { nozzleId: string; readingValue: string; readingDate: string; paymentType: string }) => {
       const response = await apiClient.post(`/readings`, data);
       return response;
     },
@@ -368,7 +368,7 @@ export default function StationDetail() {
       setReadingForm({ nozzleId: '', readingValue: '', readingDate: new Date().toISOString().split('T')[0], paymentType: 'cash' });
       setSelectedNozzle(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: 'Error',
         description: error.response?.data?.error || 'Failed to add reading',
@@ -568,7 +568,7 @@ export default function StationDetail() {
                     <Label htmlFor="pumpStatus">Status</Label>
                     <Select
                       value={pumpForm.status}
-                      onValueChange={(value: any) => setPumpForm({ ...pumpForm, status: value })}
+                      onValueChange={(value: string) => setPumpForm({ ...pumpForm, status: value })}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -1073,7 +1073,7 @@ export default function StationDetail() {
               <Label htmlFor="editPumpStatus">Status</Label>
               <Select
                 value={editPumpForm.status}
-                onValueChange={(value: any) => setEditPumpForm({ ...editPumpForm, status: value })}
+                onValueChange={(value: string) => setEditPumpForm({ ...editPumpForm, status: value })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1123,7 +1123,7 @@ export default function StationDetail() {
               <Label htmlFor="editNozzleStatus">Status</Label>
               <Select
                 value={editNozzleForm.status}
-                onValueChange={(value: any) => setEditNozzleForm({ ...editNozzleForm, status: value })}
+                onValueChange={(value: string) => setEditNozzleForm({ ...editNozzleForm, status: value })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1198,7 +1198,7 @@ export default function StationDetail() {
               <Label htmlFor="paymentType">Payment Type *</Label>
               <Select
                 value={readingForm.paymentType}
-                onValueChange={(value: any) => setReadingForm({ ...readingForm, paymentType: value })}
+                onValueChange={(value: string) => setReadingForm({ ...readingForm, paymentType: value })}
               >
                 <SelectTrigger>
                   <SelectValue />

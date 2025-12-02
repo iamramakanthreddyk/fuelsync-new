@@ -48,7 +48,7 @@ export default function Dashboard() {
       }
     });
   } else if (fuelPricesList) {
-    fuelPricesList.forEach((cur: any) => {
+    fuelPricesList.forEach((cur) => {
       fuelPricesObj[cur.fuel_type?.toUpperCase()] = cur.price_per_litre;
     });
   }

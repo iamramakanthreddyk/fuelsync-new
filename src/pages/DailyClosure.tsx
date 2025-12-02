@@ -37,7 +37,7 @@ export default function DailyClosure() {
         notes: closureNotes || `Daily closure for ${selectedDate}. Sales: ₹${summary.sales_total.toFixed(2)}, Tender: ₹${summary.tender_total.toFixed(2)}, Difference: ₹${summary.difference.toFixed(2)}`
       };
 
-      return await apiClient.post<any>('/handovers/bank-deposit', depositData);
+      return await apiClient.post<ApiResponse<unknown>>('/handovers/bank-deposit', depositData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
@@ -48,10 +48,10 @@ export default function DailyClosure() {
       });
       setClosureNotes('');
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to close day",
+        description: error instanceof Error ? error.message : "Failed to close day",
         variant: "destructive",
       });
     },
