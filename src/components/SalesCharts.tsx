@@ -5,8 +5,20 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Fuel, BarChart3 } from 'lucide-react';
 
+interface Sale {
+  created_at: string;
+  total_amount?: string | number;
+  delta_volume_l?: string | number;
+  nozzles?: {
+    pumps?: {
+      pump_sno?: string;
+    };
+    fuel_type?: string;
+  };
+}
+
 interface SalesChartsProps {
-  salesData: any[];
+  salesData: Sale[];
   isLoading?: boolean;
 }
 
@@ -28,58 +40,66 @@ export function SalesCharts({ salesData, isLoading }: SalesChartsProps) {
   }
 
   // Process data for daily trend
-  const dailyTrend = salesData.reduce((acc, sale) => {
+
+  type DailyTrend = { date: string; amount: number; volume: number; transactions: number };
+  const dailyTrend = salesData.reduce<Record<string, DailyTrend>>((acc, sale) => {
     const date = new Date(sale.created_at).toISOString().split('T')[0];
     if (!acc[date]) {
       acc[date] = { date, amount: 0, volume: 0, transactions: 0 };
     }
-    acc[date].amount += parseFloat(sale.total_amount || 0);
-    acc[date].volume += parseFloat(sale.delta_volume_l || 0);
+    acc[date].amount += parseFloat(sale.total_amount as string || '0');
+    acc[date].volume += parseFloat(sale.delta_volume_l as string || '0');
     acc[date].transactions += 1;
     return acc;
-  }, {} as Record<string, any>);
+  }, {});
 
-  const dailyTrendData = Object.values(dailyTrend).sort((a: any, b: any) => a.date.localeCompare(b.date));
+  const dailyTrendData = Object.values(dailyTrend).sort((a, b) => a.date.localeCompare(b.date));
 
   // Process data for pump breakdown
-  const pumpBreakdown = salesData.reduce((acc, sale) => {
+
+  type PumpBreakdown = { pump: string; amount: number; volume: number; transactions: number };
+  const pumpBreakdown = salesData.reduce<Record<string, PumpBreakdown>>((acc, sale) => {
     const pumpId = sale.nozzles?.pumps?.pump_sno || 'Unknown';
     if (!acc[pumpId]) {
       acc[pumpId] = { pump: pumpId, amount: 0, volume: 0, transactions: 0 };
     }
-    acc[pumpId].amount += parseFloat(sale.total_amount || 0);
-    acc[pumpId].volume += parseFloat(sale.delta_volume_l || 0);
+    acc[pumpId].amount += parseFloat(sale.total_amount as string || '0');
+    acc[pumpId].volume += parseFloat(sale.delta_volume_l as string || '0');
     acc[pumpId].transactions += 1;
     return acc;
-  }, {} as Record<string, any>);
+  }, {});
 
   const pumpBreakdownData = Object.values(pumpBreakdown);
 
   // Process data for fuel type breakdown
-  const fuelTypeBreakdown = salesData.reduce((acc, sale) => {
+
+  type FuelTypeBreakdown = { name: string; value: number; amount: number };
+  const fuelTypeBreakdown = salesData.reduce<Record<string, FuelTypeBreakdown>>((acc, sale) => {
     const fuelType = sale.nozzles?.fuel_type || 'Unknown';
     if (!acc[fuelType]) {
       acc[fuelType] = { name: fuelType, value: 0, amount: 0 };
     }
-    acc[fuelType].value += parseFloat(sale.delta_volume_l || 0);
-    acc[fuelType].amount += parseFloat(sale.total_amount || 0);
+    acc[fuelType].value += parseFloat(sale.delta_volume_l as string || '0');
+    acc[fuelType].amount += parseFloat(sale.total_amount as string || '0');
     return acc;
-  }, {} as Record<string, any>);
+  }, {});
 
   const fuelTypeData = Object.values(fuelTypeBreakdown);
 
   // Hourly breakdown
-  const hourlyBreakdown = salesData.reduce((acc, sale) => {
+
+  type HourlyBreakdown = { hour: string; amount: number; transactions: number };
+  const hourlyBreakdown = salesData.reduce<Record<string, HourlyBreakdown>>((acc, sale) => {
     const hour = new Date(sale.created_at).getHours();
     if (!acc[hour]) {
       acc[hour] = { hour: `${hour}:00`, amount: 0, transactions: 0 };
     }
-    acc[hour].amount += parseFloat(sale.total_amount || 0);
+    acc[hour].amount += parseFloat(sale.total_amount as string || '0');
     acc[hour].transactions += 1;
     return acc;
-  }, {} as Record<string, any>);
+  }, {});
 
-  const hourlyData = Object.values(hourlyBreakdown).sort((a: any, b: any) => 
+  const hourlyData = Object.values(hourlyBreakdown).sort((a, b) => 
     parseInt(a.hour.split(':')[0]) - parseInt(b.hour.split(':')[0])
   );
 

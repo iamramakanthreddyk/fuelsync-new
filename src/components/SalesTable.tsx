@@ -13,8 +13,23 @@ function sourceColor(source: string) {
   return "bg-gray-100 text-gray-800";
 }
 
+
+export interface Sale {
+  id: string | number;
+  station_name?: string;
+  station_id?: string | number;
+  pump_name?: string;
+  pump_id?: string | number;
+  nozzle_number?: string | number;
+  nozzle_id?: string | number;
+  total_amount?: number;
+  fuel_type?: string;
+  source?: string;
+  created_at?: string;
+}
+
 export interface SaleTableProps {
-  sales: any[];
+  sales: Sale[];
   loading: boolean;
   page: number;
   pageSize: number;

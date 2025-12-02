@@ -15,6 +15,18 @@ import {
 } from "@/components/ui/select";
 import { SlidersHorizontal, Fuel, Filter, Droplet, Zap } from "lucide-react";
 
+interface Pump {
+  id: string | number;
+  name?: string;
+  pump_sno?: string | number;
+}
+
+interface Nozzle {
+  id: string | number;
+  nozzle_number?: string | number;
+  fuel_type?: string;
+}
+
 interface SalesFilterBarProps {
   dateRange: { start: Date | null; end: Date | null };
   onDateRangeChange: (range: { start: Date | null; end: Date | null }) => void;
@@ -24,8 +36,8 @@ interface SalesFilterBarProps {
   onPumpIdChange: (id: string) => void;
   nozzleId: string;
   onNozzleIdChange: (id: string) => void;
-  pumps: any[];
-  nozzles: any[];
+  pumps: Pump[];
+  nozzles: Nozzle[];
   isMobile?: boolean;
 }
 
@@ -78,7 +90,7 @@ export function SalesFilterBar({
                 from: dateRange.start ?? undefined,
                 to: dateRange.end ?? undefined,
               }}
-              onSelect={(range: any) => {
+              onSelect={(range: { from?: Date; to?: Date }) => {
                 onDateRangeChange({
                   start: range?.from ?? null,
                   end: range?.to ?? null,

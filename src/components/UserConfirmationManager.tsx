@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
+import { getUserMessage } from "@/lib/error-utils";
 import { CheckCircle, AlertCircle, Users, RefreshCw } from "lucide-react";
 
 interface UnconfirmedUsersData {
@@ -29,11 +30,11 @@ export function UserConfirmationManager() {
       const result = await apiClient.get<UnconfirmedUsersData>('/users/unconfirmed');
       console.log('📋 Unconfirmed users response:', result);
       setData(result);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching unconfirmed users:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to fetch user confirmation data",
+        description: getUserMessage(error) || "Failed to fetch user confirmation data",
         variant: "destructive",
       });
     } finally {
@@ -55,11 +56,11 @@ export function UserConfirmationManager() {
 
       // Refresh the data
       await fetchUnconfirmedUsers();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error confirming users:', error);
       toast({
         title: "Error",
-        description: error.message || "Failed to confirm users",
+        description: getUserMessage(error) || "Failed to confirm users",
         variant: "destructive",
       });
     } finally {

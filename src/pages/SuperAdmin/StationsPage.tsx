@@ -16,6 +16,8 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { apiClient } from "@/lib/api";
+import { handleApiCall } from "@/lib/handleApiCall";
+import { getUserMessage, getValidationErrors } from "@/lib/error-utils";
 import { Building2, Plus, Search, Edit, Trash2 } from "lucide-react";
 
 // Station interface matching backend model
@@ -87,29 +89,21 @@ export default function StationsPage() {
   }, []);
 
   const fetchData = async () => {
-    try {
-      setLoading(true);
-      const [stationsRes, usersRes] = await Promise.all([
-        apiClient.get<Station[]>('/stations'),
-        apiClient.get<Owner[]>('/users')
-      ]);
-      
-      console.log('🏢 Stations response:', stationsRes);
-      console.log('👥 Users response:', usersRes);
-      
-      setStations(stationsRes || []);
-      // Filter only owners (plans are on owners, not stations)
-      setOwners((usersRes || []).filter((user: Owner) => user.role === 'owner'));
-    } catch (error: any) {
-      console.error('Error fetching data:', error);
+    setLoading(true);
+    const [stationsRes, stationsErr] = await handleApiCall(() => apiClient.get<Station[]>("/stations"));
+    const [usersRes, usersErr] = await handleApiCall(() => apiClient.get<Owner[]>("/users"));
+    if (stationsErr || usersErr) {
       toast({
         title: "Error",
-        description: error.message || "Failed to fetch data",
+        description: getUserMessage(stationsErr || usersErr),
         variant: "destructive",
       });
-    } finally {
       setLoading(false);
+      return;
     }
+    setStations(stationsRes || []);
+    setOwners((usersRes || []).filter((user: Owner) => user.role === 'owner'));
+    setLoading(false);
   };
 
   const resetForm = () => {
@@ -166,35 +160,35 @@ export default function StationsPage() {
       return;
     }
     setFormErrors({});
-    try {
-      const payload: any = {
-        name: sanitized.name,
-        ownerId: sanitized.ownerId,
-        phone: sanitized.phone
-      };
-      if (sanitized.address) payload.address = sanitized.address;
-      if (sanitized.city) payload.city = sanitized.city;
-      if (sanitized.state) payload.state = sanitized.state;
-      if (sanitized.pincode) payload.pincode = sanitized.pincode;
-      if (sanitized.email) payload.email = sanitized.email;
-      if (sanitized.gstNumber) payload.gstNumber = sanitized.gstNumber;
-      if (sanitized.code) payload.code = sanitized.code;
-      await apiClient.post('/stations', payload);
-      toast({
-        title: "Station Created",
-        description: "Station has been created successfully",
-      });
-      setIsCreateOpen(false);
-      resetForm();
-      fetchData();
-    } catch (error: any) {
-      console.error('Error creating station:', error);
+    const payload: any = {
+      name: sanitized.name,
+      ownerId: sanitized.ownerId,
+      phone: sanitized.phone
+    };
+    if (sanitized.address) payload.address = sanitized.address;
+    if (sanitized.city) payload.city = sanitized.city;
+    if (sanitized.state) payload.state = sanitized.state;
+    if (sanitized.pincode) payload.pincode = sanitized.pincode;
+    if (sanitized.email) payload.email = sanitized.email;
+    if (sanitized.gstNumber) payload.gstNumber = sanitized.gstNumber;
+    if (sanitized.code) payload.code = sanitized.code;
+    const [, error] = await handleApiCall(() => apiClient.post('/stations', payload));
+    if (error) {
+      setFormErrors(getValidationErrors(error));
       toast({
         title: "Error",
-        description: error.message || "Failed to create station",
+        description: getUserMessage(error),
         variant: "destructive",
       });
+      return;
     }
+    toast({
+      title: "Station Created",
+      description: "Station has been created successfully",
+    });
+    setIsCreateOpen(false);
+    resetForm();
+    fetchData();
   };
 
   const handleEditStation = async () => {
@@ -210,53 +204,50 @@ export default function StationsPage() {
       return;
     }
     setFormErrors({});
-    try {
-      const payload: any = { name: sanitized.name };
-      if (sanitized.code) payload.code = sanitized.code;
-      if (sanitized.address) payload.address = sanitized.address;
-      if (sanitized.city) payload.city = sanitized.city;
-      if (sanitized.state) payload.state = sanitized.state;
-      if (sanitized.pincode) payload.pincode = sanitized.pincode;
-      if (sanitized.phone) payload.phone = sanitized.phone;
-      if (sanitized.email) payload.email = sanitized.email;
-      if (sanitized.gstNumber) payload.gstNumber = sanitized.gstNumber;
-      await apiClient.put(`/stations/${selectedStation.id}`, payload);
-      toast({
-        title: "Station Updated",
-        description: "Station has been updated successfully",
-      });
-      setIsEditOpen(false);
-      setSelectedStation(null);
-      resetForm();
-      fetchData();
-    } catch (error: any) {
-      console.error('Error updating station:', error);
+    const payload: any = { name: sanitized.name };
+    if (sanitized.code) payload.code = sanitized.code;
+    if (sanitized.address) payload.address = sanitized.address;
+    if (sanitized.city) payload.city = sanitized.city;
+    if (sanitized.state) payload.state = sanitized.state;
+    if (sanitized.pincode) payload.pincode = sanitized.pincode;
+    if (sanitized.phone) payload.phone = sanitized.phone;
+    if (sanitized.email) payload.email = sanitized.email;
+    if (sanitized.gstNumber) payload.gstNumber = sanitized.gstNumber;
+    const [, error] = await handleApiCall(() => apiClient.put(`/stations/${selectedStation.id}`, payload));
+    if (error) {
+      setFormErrors(getValidationErrors(error));
       toast({
         title: "Error",
-        description: error.message || "Failed to update station",
+        description: getUserMessage(error),
         variant: "destructive",
       });
+      return;
     }
+    toast({
+      title: "Station Updated",
+      description: "Station has been updated successfully",
+    });
+    setIsEditOpen(false);
+    setSelectedStation(null);
+    resetForm();
+    fetchData();
   };
 
   const handleDeleteStation = async (stationId: string) => {
-    try {
-      await apiClient.delete(`/stations/${stationId}`);
-
-      toast({
-        title: "Station Deleted",
-        description: "Station has been deleted successfully",
-      });
-
-      fetchData();
-    } catch (error: any) {
-      console.error('Error deleting station:', error);
+    const [, error] = await handleApiCall(() => apiClient.delete(`/stations/${stationId}`));
+    if (error) {
       toast({
         title: "Error",
-        description: error.message || "Failed to delete station",
+        description: getUserMessage(error),
         variant: "destructive",
       });
+      return;
     }
+    toast({
+      title: "Station Deleted",
+      description: "Station has been deleted successfully",
+    });
+    fetchData();
   };
 
   const openEditDialog = (station: Station) => {
