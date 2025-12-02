@@ -173,30 +173,22 @@ export default function StationDetail() {
   });
 
   // Debounced handlers for text fields
-  const debouncedSetCreditorName = React.useRef(
-    debounce((...args: unknown[]) => {
-      const value = args[0] as string;
-      setCreditorForm((prev) => ({ ...prev, name: value }));
-    }, 200)
-  ).current;
-  const debouncedSetCreditorPhone = React.useRef(
-    debounce((...args: unknown[]) => {
-      const value = args[0] as string;
-      setCreditorForm((prev) => ({ ...prev, phone: value }));
-    }, 200)
-  ).current;
-  const debouncedSetCreditorEmail = React.useRef(
-    debounce((...args: unknown[]) => {
-      const value = args[0] as string;
-      setCreditorForm((prev) => ({ ...prev, email: value }));
-    }, 200)
-  ).current;
-  const debouncedSetCreditorVehicle = React.useRef(
-    debounce((...args: unknown[]) => {
-      const value = args[0] as string;
-      setCreditorForm((prev) => ({ ...prev, vehicleNumber: value }));
-    }, 200)
-  ).current;
+  const debouncedSetCreditorName = debounce((...args: unknown[]) => {
+    const value = args[0] as string;
+    setCreditorForm((prev) => ({ ...prev, name: value }));
+  }, 200);
+  const debouncedSetCreditorPhone = debounce((...args: unknown[]) => {
+    const value = args[0] as string;
+    setCreditorForm((prev) => ({ ...prev, phone: value }));
+  }, 200);
+  const debouncedSetCreditorEmail = debounce((...args: unknown[]) => {
+    const value = args[0] as string;
+    setCreditorForm((prev) => ({ ...prev, email: value }));
+  }, 200);
+  const debouncedSetCreditorVehicle = debounce((...args: unknown[]) => {
+    const value = args[0] as string;
+    setCreditorForm((prev) => ({ ...prev, vehicleNumber: value }));
+  }, 200);
 
   // Fetch station details
   const { data: station, isLoading: stationLoading } = useQuery({
@@ -561,7 +553,14 @@ export default function StationDetail() {
 
   const handleSubmitReading = () => {
     if (!selectedNozzle) return;
-    addReadingMutation.mutate(mapReadingFormToPayload(readingForm));
+    // Convert readingForm to correct payload for mutation
+    const payload = mapReadingFormToPayload(readingForm);
+    addReadingMutation.mutate({
+      nozzleId: payload.nozzleId,
+      reading: payload.readingValue, // API expects 'reading'
+      readingDate: payload.readingDate,
+      paymentType: payload.paymentType
+    });
   };
 
   if (stationLoading) {
@@ -924,7 +923,7 @@ export default function StationDetail() {
                     <Input
                       id="creditorName"
                       value={creditorForm.name}
-                      onChange={e => debouncedSetCreditorName(e.target.value)}
+                      onChange={(e) => debouncedSetCreditorName(e.target.value)}
                       placeholder="Customer name"
                     />
                   </div>
