@@ -67,8 +67,8 @@ export function sanitizeString(input: string): string {
 /**
  * Validate positive number
  */
-export function isPositiveNumber(value: any): boolean {
-  const num = parseFloat(value);
+export function isPositiveNumber(value: unknown): boolean {
+  const num = typeof value === 'number' ? value : parseFloat(String(value));
   return !isNaN(num) && num > 0;
 }
 
@@ -94,7 +94,7 @@ export function isValidDateFormat(dateStr: string): boolean {
 /**
  * Validate required fields
  */
-export function validateRequired(fields: Record<string, any>): {
+export function validateRequired(fields: Record<string, unknown>): {
   isValid: boolean;
   errors: Record<string, string>;
 } {

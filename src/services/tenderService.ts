@@ -377,7 +377,7 @@ export const tenderService = {
     date?: string,
     page: number = 1,
     limit: number = 20
-  ): Promise<{ data: any[]; total: number }> {
+  ): Promise<{ data: unknown[]; total: number }> {
     console.warn('tenderService.getTenderEntries is deprecated. Use shiftService or dashboardAlertsService instead.');
     // Return empty data as tender entries endpoint doesn't exist
     // Frontend should migrate to using shift/handover endpoints
@@ -396,7 +396,7 @@ export const tenderService = {
       entry_date: string;
       user_id: string;
     }
-  ): Promise<any> {
+  ): Promise<unknown> {
     console.warn('tenderService.createTenderEntry is deprecated. Use cashHandoverService instead.');
     throw new Error('This endpoint is deprecated. Use cash handover workflow instead.');
   },

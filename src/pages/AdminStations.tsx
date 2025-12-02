@@ -121,10 +121,14 @@ export default function AdminStations() {
         description: "Station created successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to create station";
+      if (typeof error === "object" && error && "message" in error && typeof (error as any).message === "string") {
+        message = (error as any).message;
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to create station",
+        description: message,
         variant: "destructive",
       });
     },
@@ -194,7 +198,7 @@ export default function AdminStations() {
               </div>
               <div>
                 <Label htmlFor="brand">Brand</Label>
-                <Select value={newStation.brand} onValueChange={(value: any) => setNewStation(prev => ({ ...prev, brand: value }))}>
+                <Select value={newStation.brand} onValueChange={(value: string) => setNewStation(prev => ({ ...prev, brand: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>

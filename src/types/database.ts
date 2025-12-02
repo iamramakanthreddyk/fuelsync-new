@@ -67,7 +67,7 @@ export interface Plan {
   // Pricing
   priceMonthly: number;
   priceYearly?: number;
-  features?: Record<string, any>;
+  features?: Record<string, boolean>;
   sortOrder: number;
   isActive: boolean;
   createdAt?: string;
@@ -167,7 +167,7 @@ export interface EventLog {
   user_id: number | null;
   station_id: number | null;
   event_type: string;
-  payload: any;
+  payload: unknown;
   occurred_at: string;
 }
 

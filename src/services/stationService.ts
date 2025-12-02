@@ -284,15 +284,10 @@ export const stationService = {
    * Get staff for a station
    * GET /api/v1/stations/:stationId/staff
    */
-  async getStaff(stationId: string): Promise<Array<{
-    id: string;
-    name: string;
-    email: string;
-    phone?: string;
-    role: string;
-    isActive: boolean;
-  }>> {
-    const response = await apiClient.get<ApiResponse<any[]>>(`/stations/${stationId}/staff`);
+
+  // Use StationStaff type for staff (from core/models/station.model.ts)
+  async getStaff(stationId: string): Promise<import("@/core/models/station.model").StationStaff[]> {
+    const response = await apiClient.get<ApiResponse<import("@/core/models/station.model").StationStaff[]>>(`/stations/${stationId}/staff`);
 
     if (response.success && response.data) {
       return response.data;

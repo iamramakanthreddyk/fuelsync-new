@@ -2,7 +2,7 @@ import { apiClient } from '@/lib/api-client';
 
 export class ApiService {
   async getNozzleReadings(stationId: string) {
-    const response = await apiClient.get<any[]>(`/readings?stationId=${stationId}`);
+    const response = await apiClient.get<NozzleReading[]>(`/readings?stationId=${stationId}`);
 
     return {
       data: response?.map(reading => ({
@@ -25,7 +25,7 @@ export class ApiService {
     currentReading: number;
     readingDate: string;
   }, stationId: string) {
-    const response = await apiClient.post<any>('/readings', {
+    const response = await apiClient.post<NozzleReading>('/readings', {
       nozzleId: data.nozzleId,
       stationId,
       currentReading: data.currentReading,
@@ -36,7 +36,7 @@ export class ApiService {
   }
 
   async updateNozzleReading(id: string, data: { currentReading: number }) {
-    const response = await apiClient.put<{ success: boolean; data: any }>(`/readings/${id}`, data);
+    const response = await apiClient.put<{ success: boolean; data: NozzleReading }>(`/readings/${id}`, data);
     if (!response.success) throw new Error('Failed to update reading');
     return response.data;
   }
@@ -47,7 +47,7 @@ export class ApiService {
   }
 
   async getPumps(stationId: string) {
-    const response = await apiClient.get<{ success: boolean; data: any[] }>(`/stations/${stationId}/pumps`);
+    const response = await apiClient.get<{ success: boolean; data: Pump[] }>(`/stations/${stationId}/pumps`);
     if (!response.success) throw new Error('Failed to fetch pumps');
     
     return { 
@@ -56,12 +56,12 @@ export class ApiService {
         name: pump.name || `Pump ${pump.pumpNumber}`,
         pumpNumber: pump.pumpNumber,
         status: pump.isActive ? 'active' : 'inactive',
-        nozzles: (pump.nozzles || []).map((nozzle: any) => ({
+        nozzles: (pump.nozzles || []).map((nozzle: Nozzle) => ({
           id: nozzle.id,
           pumpId: pump.id,
           number: nozzle.nozzleNumber,
           fuelType: nozzle.fuelType,
-          status: nozzle.isActive ? 'active' : 'inactive'
+          status: nozzle.status
         })),
         createdAt: pump.createdAt,
         totalSalesToday: 0
@@ -70,24 +70,24 @@ export class ApiService {
   }
 
   async updatePumpStatus(id: string, isActive: boolean) {
-    const response = await apiClient.put<{ success: boolean; data: any }>(`/stations/pumps/${id}`, { isActive });
+    const response = await apiClient.put<{ success: boolean; data: Pump }>(`/stations/pumps/${id}`, { isActive });
     if (!response.success) throw new Error('Failed to update pump');
     return response.data;
   }
 
   async updateNozzleFuelType(id: string, fuelType: string) {
-    const response = await apiClient.put<{ success: boolean; data: any }>(`/stations/nozzles/${id}`, { fuelType });
+    const response = await apiClient.put<{ success: boolean; data: Nozzle }>(`/stations/nozzles/${id}`, { fuelType });
     if (!response.success) throw new Error('Failed to update nozzle');
     return response.data;
   }
 
   async getSales(stationId: string) {
-    const response = await apiClient.get<{ success: boolean; data: any[] }>(`/readings?stationId=${stationId}`);
+    const response = await apiClient.get<{ success: boolean; data: NozzleReading[] }>(`/readings?stationId=${stationId}`);
     if (!response.success) throw new Error('Failed to fetch sales');
 
     // Calculate sales from readings
     return {
-      data: response.data?.filter((r: any) => r.litresSold > 0).map((reading: any) => ({
+      data: response.data?.filter((r: NozzleReading) => r.litresSold > 0).map((reading: NozzleReading) => ({
         id: reading.id,
         nozzleId: reading.nozzleId,
         fuelType: reading.fuelType,
@@ -102,20 +102,18 @@ export class ApiService {
 
   async getDailySummary(stationId: string) {
     const today = new Date().toISOString().split('T')[0];
-    const response = await apiClient.get<any>(`/dashboard/summary?stationId=${stationId}&startDate=${today}&endDate=${today}`);
-    
-    const summary = response || {};
+    const response = await apiClient.get<DashboardSummary>(`/dashboard/summary?stationId=${stationId}&startDate=${today}&endDate=${today}`);
     return {
-      cash: summary.cashSales || 0,
-      card: summary.cardSales || 0,
-      upi: summary.upiSales || 0,
-      credit: summary.creditSales || 0,
-      total: summary.totalSales || 0
+      cash: response.cashCollection || 0,
+      card: 0, // Not available in DashboardSummary
+      upi: 0,  // Not available in DashboardSummary
+      credit: response.creditSales || 0,
+      total: response.totalSales || 0
     };
   }
 
   async generateReport(stationId: string, startDate: string, endDate: string) {
-    const response = await apiClient.get<any[]>(`/readings?stationId=${stationId}&startDate=${startDate}&endDate=${endDate}`);
+    const response = await apiClient.get<NozzleReading[]>(`/readings?stationId=${stationId}&startDate=${startDate}&endDate=${endDate}`);
     return { data: response || [] };
   }
 

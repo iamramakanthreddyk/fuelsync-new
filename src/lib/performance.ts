@@ -188,8 +188,10 @@ export function logWebVitals() {
       // First Input Delay
       const fidObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
-        entries.forEach((entry: any) => {
-          console.log('FID:', entry.processingStart - entry.startTime + 'ms');
+        entries.forEach((entry: PerformanceEntry) => {
+          // FID entries are of type PerformanceEventTiming
+          const eventEntry = entry as PerformanceEventTiming;
+          console.log('FID:', eventEntry.processingStart - eventEntry.startTime + 'ms');
         });
       });
       fidObserver.observe({ entryTypes: ['first-input'] });
@@ -198,8 +200,10 @@ export function logWebVitals() {
       let clsValue = 0;
       const clsObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
-          if (!(entry as any).hadRecentInput) {
-            clsValue += (entry as any).value;
+          // LayoutShift entries are of type LayoutShift
+          const layoutEntry = entry as LayoutShift;
+          if (!layoutEntry.hadRecentInput) {
+            clsValue += layoutEntry.value;
           }
         }
         console.log('CLS:', clsValue.toFixed(4));

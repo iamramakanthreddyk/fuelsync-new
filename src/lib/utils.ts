@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 /**
  * Debounce function
  */
-export function debounce<T extends (...args: any[]) => any>(
+export function debounce<T extends (...args: unknown[]) => unknown>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {
@@ -28,7 +28,7 @@ export function debounce<T extends (...args: any[]) => any>(
 /**
  * Throttle function
  */
-export function throttle<T extends (...args: any[]) => any>(
+export function throttle<T extends (...args: unknown[]) => unknown>(
   func: T,
   limit: number
 ): (...args: Parameters<T>) => void {
@@ -67,7 +67,12 @@ export function deepClone<T>(obj: T): T {
 /**
  * Check if object is empty
  */
-export function isEmpty(obj: any): boolean {
+export function isEmpty(obj: unknown): boolean {
+  if (obj === null || obj === undefined) return true;
+  if (typeof obj === 'string') return obj.trim().length === 0;
+  if (Array.isArray(obj)) return obj.length === 0;
+  if (typeof obj === 'object') return Object.keys(obj as object).length === 0;
+  return false;
   if (obj === null || obj === undefined) return true;
   if (typeof obj === 'string') return obj.trim().length === 0;
   if (Array.isArray(obj)) return obj.length === 0;
