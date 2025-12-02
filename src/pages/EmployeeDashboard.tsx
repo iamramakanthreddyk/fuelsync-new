@@ -8,6 +8,7 @@ import { shiftService, dashboardAlertsService, Shift } from '@/services/tenderSe
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Fuel, DollarSign, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
+import { TodayReadings } from '@/components/TodayReadings';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
@@ -236,6 +237,9 @@ const EmployeeDashboard = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Today's Readings */}
+      <TodayReadings />
 
       {/* Pump Summary */}
       {dailySummary && dailySummary.pumps.length > 0 && (

@@ -90,7 +90,7 @@ export default function OwnerDashboard() {
   const calculateProgress = (current: number, max: number) => Math.min((current / max) * 100, 100);
 
   return (
-    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl">
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl" style={{ minHeight: 'calc(100vh - 4rem)', overflow: 'auto' }}>
       {/* Header - Mobile Optimized */}
       <div className="space-y-3">
         <div className="flex items-start justify-between gap-3">
@@ -98,9 +98,6 @@ export default function OwnerDashboard() {
             <h1 className="text-2xl sm:text-3xl font-bold bg-gradient-to-r from-primary to-blue-600 bg-clip-text text-transparent">
               Owner Dashboard
             </h1>
-            <p className="text-sm sm:text-base text-muted-foreground mt-1">
-              Welcome back, <span className="font-semibold text-foreground">{user.name}</span> 👋
-            </p>
           </div>
           <Button 
             onClick={() => navigate('/owner/analytics')} 

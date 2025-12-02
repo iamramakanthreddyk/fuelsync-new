@@ -8,8 +8,8 @@
  * - Staff have User.stationId for their assigned station
  */
 
-const { Station, Pump, Nozzle, User, FuelPrice, Plan } = require('../models');
-const { Op } = require('sequelize');
+const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading } = require('../models');
+const { Op, fn, col } = require('sequelize');
 
 // ============================================
 // HELPER: Check if user can access station
@@ -79,12 +79,39 @@ exports.getStations = async (req, res, next) => {
       order: [['name', 'ASC']]
     });
 
+    // Calculate today's sales for each station
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    const stationIds = stations.map(s => s.id);
+    const todaySalesData = await NozzleReading.findAll({
+      attributes: [
+        'stationId',
+        [fn('SUM', col('total_amount')), 'todaySales']
+      ],
+      where: {
+        stationId: { [Op.in]: stationIds },
+        readingDate: {
+          [Op.gte]: today
+        }
+      },
+      group: ['stationId'],
+      raw: true
+    });
+
+    // Create a map of stationId to todaySales
+    const todaySalesMap = new Map();
+    todaySalesData.forEach(item => {
+      todaySalesMap.set(item.stationId, parseFloat(item.todaySales || 0));
+    });
+
     res.json({
       success: true,
       data: stations.map(s => ({
         ...s.toJSON(),
         pumpCount: s.pumps?.length || 0,
-        activePumps: s.pumps?.filter(p => p.status === 'active').length || 0
+        activePumps: s.pumps?.filter(p => p.status === 'active').length || 0,
+        todaySales: todaySalesMap.get(s.id) || 0
       }))
     });
 

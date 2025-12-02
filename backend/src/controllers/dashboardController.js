@@ -855,16 +855,11 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     // Sales by station
     const salesByStation = await NozzleReading.findAll({
       attributes: [
-        [col('pump.station_id'), 'stationId'],
+        'stationId',
         [fn('SUM', col('NozzleReading.total_amount')), 'sales']
       ],
-      include: [{
-        model: Pump,
-        as: 'pump',
-        attributes: [],
-        where: { stationId: { [Op.in]: stationIds } }
-      }],
       where: {
+        stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
         }
@@ -888,21 +883,12 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     // Sales by fuel type
     const salesByFuelType = await NozzleReading.findAll({
       attributes: [
-        [col('nozzle.fuel_type'), 'fuelType'],
+        'fuelType',
         [fn('SUM', col('NozzleReading.total_amount')), 'sales'],
         [fn('SUM', col('NozzleReading.litres_sold')), 'quantity']
       ],
-      include: [{
-        model: Pump,
-        as: 'pump',
-        attributes: [],
-        where: { stationId: { [Op.in]: stationIds } }
-      }, {
-        model: Nozzle,
-        as: 'nozzle',
-        attributes: []
-      }],
       where: {
+        stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
         }
@@ -929,13 +915,8 @@ exports.getOwnerAnalytics = async (req, res, next) => {
         [fn('SUM', col('NozzleReading.litres_sold')), 'quantity'],
         [fn('COUNT', col('NozzleReading.id')), 'transactions']
       ],
-      include: [{
-        model: Pump,
-        as: 'pump',
-        attributes: [],
-        where: { stationId: { [Op.in]: stationIds } }
-      }],
       where: {
+        stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
         }
@@ -959,13 +940,8 @@ exports.getOwnerAnalytics = async (req, res, next) => {
           attributes: [
             [fn('SUM', col('NozzleReading.total_amount')), 'sales']
           ],
-          include: [{
-            model: Pump,
-            as: 'pump',
-            attributes: [],
-            where: { stationId: s.stationId }
-          }],
           where: {
+            stationId: s.stationId,
             readingDate: {
               [Op.between]: [prevStart.toISOString().split('T')[0], prevEnd.toISOString().split('T')[0]]
             }

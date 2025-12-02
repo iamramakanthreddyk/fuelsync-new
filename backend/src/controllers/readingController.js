@@ -522,6 +522,65 @@ exports.updateReading = async (req, res, next) => {
   }
 };
 
+/**
+ * Get today's readings for current user
+ * GET /api/v1/readings/today
+ */
+exports.getTodayReadings = async (req, res, next) => {
+  try {
+    const user = await User.findByPk(req.userId);
+    const today = new Date().toISOString().split('T')[0];
+
+    // Build where clause based on user role
+    const where = { readingDate: today };
+
+    // Station filter (with role-based access)
+    if (user.role === 'super_admin') {
+      // No additional filter - can see all
+    } else if (user.role === 'owner') {
+      // Owner can see readings for stations they own
+      const ownerStations = await Station.findAll({ where: { ownerId: user.id } });
+      const ownerStationIds = ownerStations.map(s => s.id);
+      where.stationId = { [Op.in]: ownerStationIds };
+    } else {
+      // Manager/Employee can only access their assigned station
+      where.stationId = user.stationId;
+    }
+
+    const readings = await NozzleReading.findAll({
+      where,
+      include: [
+        {
+          model: Nozzle,
+          as: 'nozzle',
+          attributes: ['id', 'nozzleNumber', 'fuelType'],
+          include: [{
+            model: Pump,
+            as: 'pump',
+            attributes: ['id', 'name', 'pumpNumber']
+          }]
+        },
+        {
+          model: User,
+          as: 'enteredByUser',
+          attributes: ['id', 'name']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    res.json({
+      success: true,
+      data: readings,
+      count: readings.length
+    });
+
+  } catch (error) {
+    console.error('Get today readings error:', error);
+    next(error);
+  }
+};
+
 exports.getLatestReadingsForNozzles = async (req, res) => {
   const ids = req.query.ids ? req.query.ids.split(',') : [];
   if (!ids.length) {

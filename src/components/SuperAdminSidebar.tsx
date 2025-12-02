@@ -72,7 +72,7 @@ export function SuperAdminSidebar() {
   };
 
   return (
-    <Sidebar className="w-64">
+    <Sidebar className="w-48">
       <SidebarHeader>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -94,14 +94,14 @@ export function SuperAdminSidebar() {
                   <SidebarMenuButton 
                     asChild
                     isActive={location.pathname === item.url}
-                    className="flex flex-col items-start h-auto py-3"
+                    className="flex flex-col items-start h-auto py-2"
                   >
                     <Link to={item.url} onClick={handleItemClick}>
                       <div className="flex items-center gap-2 w-full">
-                        <item.icon className="w-4 h-4" />
-                        <span className="font-medium">{item.title}</span>
+                        <item.icon className="w-6 h-6 text-slate-600" />
+                        <span className="font-medium text-slate-800 truncate">{item.title}</span>
                       </div>
-                      <span className="text-xs text-muted-foreground mt-1">
+                      <span className="text-xs text-slate-500 mt-1 line-clamp-2">
                         {item.description}
                       </span>
                     </Link>

@@ -17,6 +17,9 @@ router.get('/previous/:nozzleId', readingController.getPreviousReading);
 // Get latest readings for multiple nozzle IDs (must come BEFORE /:id route)
 router.get('/latest', readingController.getLatestReadingsForNozzles);
 
+// Get today's readings for current user stations
+router.get('/today', readingController.getTodayReadings);
+
 // Create new reading (all authenticated users)
 router.post('/', readingController.createReading);
 

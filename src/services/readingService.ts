@@ -198,13 +198,8 @@ export const readingService = {
    * Convenience method
    */
   async getTodayReadings(stationId: string): Promise<NozzleReading[]> {
-    const today = new Date().toISOString().split('T')[0];
-    const result = await this.getReadings({
-      stationId,
-      startDate: today,
-      endDate: today
-    });
-    return result.data;
+    const response = await apiClient.get<ApiResponse<NozzleReading[]>>('/readings/today');
+    return response.data;
   },
 
   /**
