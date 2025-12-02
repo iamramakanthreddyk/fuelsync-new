@@ -108,7 +108,7 @@ exports.createReading = async (req, res, next) => {
     }
 
     // Calculate litres sold
-    const litresSold = isInitialReading ? 0 : currentValue - prevValue;
+    const litresSold = isInitialReading ? (currentValue > 0 ? currentValue : 0) : currentValue - prevValue;
 
     // Get fuel price for the reading date
     const fuelPrice = await FuelPrice.getPriceForDate(stationId, nozzle.fuelType, readingDate);

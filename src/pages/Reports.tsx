@@ -16,7 +16,7 @@ import {
   CartesianGrid,
   Tooltip
 } from 'recharts';
-import { useReports } from '@/hooks/useReports';
+import { useReports, ReportType, ReportRow } from '@/hooks/useReports';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -32,7 +32,7 @@ export default function Reports() {
   const currentStation = user?.stations?.[0];
 
   // Use central hook for reports
-  const { data: reportResponse, isLoading } = useReports(currentStation?.id, startDate, endDate, reportType as any, !!currentStation);
+  const { data: reportResponse, isLoading } = useReports(currentStation?.id, startDate, endDate, reportType as ReportType, !!currentStation);
   const reportData = reportResponse ?? { data: [] };
 
   const handleExport = () => {
@@ -45,7 +45,7 @@ export default function Reports() {
 
     try {
       toast({ title: 'Export Started', description: 'Preparing CSV download...' });
-      const csv = toCsv(rows as any[]);
+      const csv = toCsv(rows as ReportRow[]);
       const filename = `report_${reportType}_${startDate}_${endDate}.csv`;
       downloadCsv(filename, csv);
       toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
@@ -145,7 +145,7 @@ export default function Reports() {
           {/* If daily report, show a small trend chart */}
           {reportType === 'daily' && reportData && Array.isArray(reportData.data) && reportData.data.length > 0 && (
             (() => {
-              const mapped = (reportData.data as any[])
+              const mapped = (reportData.data as ReportRow[])
                 .map(r => ({
                   date: r.date || r.readingDate || r.day || r.label || '',
                   sales: r.sales ?? r.totalSales ?? r.amount ?? r.total_amount ?? r.revenue ?? 0
@@ -166,7 +166,7 @@ export default function Reports() {
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" tick={{ fontSize: 11 }} />
                       <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
-                      <Tooltip formatter={(v: any) => typeof v === 'number' ? `₹${v.toLocaleString('en-IN')}` : v} />
+                      <Tooltip formatter={(v: unknown) => typeof v === 'number' ? [`₹${v.toLocaleString('en-IN')}`, 'Sales'] : [String(v), 'Sales']} />
                       <Area type="monotone" dataKey="sales" stroke="#3b82f6" fill="url(#colorSales)" name="Sales" />
                     </AreaChart>
                   </ResponsiveContainer>
@@ -190,7 +190,7 @@ export default function Reports() {
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData.data.map((row: any, idx: number) => (
+                  {reportData.data.map((row: ReportRow, idx: number) => (
                     <tr key={idx} className="border-t">
                       {Object.values(row).map((val, i) => (
                         <td key={i} className="p-2">{typeof val === 'number' ? val.toLocaleString('en-IN') : String(val)}</td>

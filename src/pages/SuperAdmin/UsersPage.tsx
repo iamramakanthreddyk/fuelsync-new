@@ -128,7 +128,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       setUsers(usersRes || []);
       setStations(stationsRes || []);
       setPlans(plansRes || []);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error fetching data:', error);
       let message = 'Failed to fetch data';
       if (error instanceof Error) {

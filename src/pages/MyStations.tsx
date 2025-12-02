@@ -48,21 +48,6 @@ export default function MyStations() {
   const { user, isAuthenticated, loading } = useAuth();
   const queryClient = useQueryClient();
 
-  // Owners only
-  if (user?.role !== 'owner') {
-    return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              This page is only available to station owners.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // Fetch owner's stations only after authentication
   const {
     data: stations,
@@ -77,7 +62,6 @@ export default function MyStations() {
     enabled: isAuthenticated && !loading,
   });
 
-
   // Create station mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -91,7 +75,7 @@ export default function MyStations() {
         name: '', code: '', address: '', city: '', state: '',
         pincode: '', phone: '', email: '', gstNumber: ''
       });
-      toast({ title: "Success", description: "Station created successfully" });
+      toast({ title: "Success", description: "Station created successfully", variant: "success" });
     },
     onError: (error: unknown) => {
       let message = "Failed to create station";
@@ -120,7 +104,7 @@ export default function MyStations() {
         name: '', code: '', address: '', city: '', state: '',
         pincode: '', phone: '', email: '', gstNumber: ''
       });
-      toast({ title: "Success", description: "Station updated successfully" });
+      toast({ title: "Success", description: "Station updated successfully", variant: "success" });
     },
     onError: (error: unknown) => {
       let message = "Failed to update station";
@@ -134,6 +118,21 @@ export default function MyStations() {
       });
     },
   });
+
+  // Owners only
+  if (user?.role !== 'owner') {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              This page is only available to station owners.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
 
   const handleSubmit = () => {

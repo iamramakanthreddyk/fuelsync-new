@@ -180,7 +180,7 @@ export default function DataEntry() {
         queryClient.invalidateQueries({ queryKey: ['readings'] });
         queryClient.invalidateQueries({ queryKey: ['analytics'] });
         // Invalidate station-specific pump data so latest readings refresh
-        if (data && (data as any).nozzleId) {
+        if (data && typeof data === 'object' && data !== null && 'nozzleId' in data) {
           // station id may not be present on this payload; invalidate 'station-pumps' generally
           queryClient.invalidateQueries({ queryKey: ['station-pumps'] });
           queryClient.invalidateQueries({ queryKey: ['readings', 'latest'] });

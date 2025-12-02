@@ -292,7 +292,10 @@ const getProfitLoss = async (req, res) => {
       where: {
         stationId,
         readingDate: { [Op.between]: [startDate, endDate] },
-        isInitialReading: false
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
       }
     });
     

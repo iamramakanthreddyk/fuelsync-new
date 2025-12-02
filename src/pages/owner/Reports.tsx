@@ -242,9 +242,9 @@ export default function Reports() {
   const totals = calculateTotals(salesReports);
 
   const { toast } = useToast();
-  const currency = (v: any) => v == null ? '' : `₹${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
-  const numberFmt = (v: any) => v == null ? '' : Number(v).toLocaleString('en-IN');
-  const dateFmt = (v: any) => v ? format(new Date(v), 'yyyy-MM-dd') : '';
+  const currency = (v: unknown) => v == null ? '' : `₹${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  const numberFmt = (v: unknown) => v == null ? '' : Number(v).toLocaleString('en-IN');
+  const dateFmt = (v: unknown) => v ? format(new Date(v as string | number | Date), 'yyyy-MM-dd') : '';
 
   const handlePrintPdf = (reportType: string) => {
     // Professional printable HTML window — user can print to PDF
@@ -393,7 +393,7 @@ export default function Reports() {
           { key: 'date', label: 'Date', formatter: dateFmt },
           { key: 'fuelType', label: 'Fuel Type' },
           { key: 'totalSales', label: 'Total Sales', formatter: currency },
-          { key: 'totalQuantity', label: 'Quantity (L)', formatter: (v: any) => (v == null ? '' : Number(v).toFixed(2)) },
+          { key: 'totalQuantity', label: 'Quantity (L)', formatter: (v: unknown) => (v == null ? '' : Number(v).toFixed(2)) },
           { key: 'pricePerLiter', label: 'Price/Liter', formatter: currency },
           { key: 'totalTransactions', label: 'Transactions', formatter: numberFmt }
         ];
@@ -422,7 +422,7 @@ export default function Reports() {
           { key: 'pumpName', label: 'Pump' },
           { key: 'fuelType', label: 'Fuel' },
           { key: 'totalSales', label: 'Total Sales', formatter: currency },
-          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: any) => (v == null ? '' : Number(v).toFixed(2)) },
+          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: unknown) => (v == null ? '' : Number(v).toFixed(2)) },
           { key: 'pricePerLiter', label: 'Price/Liter', formatter: currency },
           { key: 'transactions', label: 'Transactions', formatter: numberFmt },
           { key: 'avgTransactionValue', label: 'Avg Transaction', formatter: currency }
@@ -476,7 +476,7 @@ export default function Reports() {
           { key: 'pumpName', label: 'Pump' },
           { key: 'stationName', label: 'Station' },
           { key: 'totalSales', label: 'Total Sales', formatter: currency },
-          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: any) => (v == null ? '' : Number(v).toFixed(2)) },
+          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: unknown) => (v == null ? '' : Number(v).toFixed(2)) },
           { key: 'transactions', label: 'Transactions', formatter: numberFmt }
         ];
         const csv = toCsv(rowsRaw, cols);

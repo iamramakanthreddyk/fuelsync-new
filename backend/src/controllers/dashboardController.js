@@ -47,9 +47,16 @@ exports.getSummary = async (req, res, next) => {
       });
     }
 
-    // Today's sales totals
+    // Today's sales totals (include initial readings that represent sales)
     const todayStats = await NozzleReading.findOne({
-      where: { ...stationFilter, readingDate: today, isInitialReading: false },
+      where: { 
+        ...stationFilter, 
+        readingDate: today,
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
+      },
       attributes: [
         [fn('SUM', col('litres_sold')), 'totalLitres'],
         [fn('SUM', col('total_amount')), 'totalAmount'],
@@ -68,9 +75,16 @@ exports.getSummary = async (req, res, next) => {
       raw: true
     });
 
-    // Per-pump breakdown
+    // Per-pump breakdown (include initial readings that represent sales)
     const pumpStats = await NozzleReading.findAll({
-      where: { ...stationFilter, readingDate: today, isInitialReading: false },
+      where: { 
+        ...stationFilter, 
+        readingDate: today,
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
+      },
       include: [{
         model: Nozzle, as: 'nozzle', attributes: ['fuelType'],
         include: [{ model: Pump, as: 'pump', attributes: ['id', 'name', 'pumpNumber', 'status'] }]
@@ -147,7 +161,10 @@ exports.getNozzleBreakdown = async (req, res, next) => {
     const whereClause = {
       ...stationFilter,
       readingDate: { [Op.between]: [start, end] },
-      isInitialReading: false
+      [Op.or]: [
+        { isInitialReading: false },
+        { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+      ]
     };
     if (pumpId) whereClause.pumpId = pumpId;
 
@@ -213,7 +230,14 @@ exports.getDailySummary = async (req, res, next) => {
     }
 
     const dailyStats = await NozzleReading.findAll({
-      where: { ...stationFilter, readingDate: { [Op.between]: [startDate, endDate] }, isInitialReading: false },
+      where: { 
+        ...stationFilter, 
+        readingDate: { [Op.between]: [startDate, endDate] },
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
+      },
       attributes: [
         'readingDate',
         [fn('SUM', col('litres_sold')), 'litres'],
@@ -266,7 +290,14 @@ exports.getFuelBreakdown = async (req, res, next) => {
 
     // Use denormalized fuelType field for faster query
     const breakdown = await NozzleReading.findAll({
-      where: { ...stationFilter, readingDate: { [Op.between]: [start, end] }, isInitialReading: false },
+      where: { 
+        ...stationFilter, 
+        readingDate: { [Op.between]: [start, end] },
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
+      },
       attributes: [
         'fuelType',
         [fn('SUM', col('litres_sold')), 'litres'],
@@ -320,7 +351,14 @@ exports.getPumpPerformance = async (req, res, next) => {
 
     // Use denormalized pumpId for faster query
     const pumpStats = await NozzleReading.findAll({
-      where: { ...stationFilter, readingDate: { [Op.between]: [start, end] }, isInitialReading: false },
+      where: { 
+        ...stationFilter, 
+        readingDate: { [Op.between]: [start, end] },
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
+      },
       include: [{ model: Pump, as: 'pump', attributes: ['id', 'name', 'pumpNumber', 'status'] }],
       attributes: [
         [fn('SUM', col('NozzleReading.litres_sold')), 'litres'],
@@ -376,7 +414,14 @@ exports.getFinancialOverview = async (req, res, next) => {
 
     // Sales
     const salesResult = await NozzleReading.findOne({
-      where: { ...stationFilter, readingDate: { [Op.between]: [startDate, endDate] }, isInitialReading: false },
+      where: { 
+        ...stationFilter, 
+        readingDate: { [Op.between]: [startDate, endDate] },
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
+      },
       attributes: [
         [fn('SUM', col('total_amount')), 'sales'],
         [fn('SUM', col('cash_amount')), 'cash'],

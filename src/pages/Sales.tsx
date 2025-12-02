@@ -217,7 +217,7 @@ export default function Sales() {
 
       setIsAddSaleOpen(false);
       setManualEntry({ station_id: '', pump_id: '', nozzle_id: '', cumulative_volume: '' });
-      toast({ title: "Success", description: "Manual entry recorded successfully" });
+      toast({ title: "Success", description: "Manual entry recorded successfully", variant: "success" });
     } catch (error: unknown) {
       let message = 'Failed to record manual entry';
       if (error instanceof Error) {

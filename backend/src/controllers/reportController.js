@@ -284,7 +284,10 @@ exports.getPumpPerformance = async (req, res, next) => {
         readingDate: {
           [Op.between]: [startDate, endDate]
         },
-        isInitialReading: false,
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ],
         litresSold: { [Op.gt]: 0 }
       },
       group: ['pumpId'],
@@ -315,7 +318,10 @@ exports.getPumpPerformance = async (req, res, next) => {
         readingDate: {
           [Op.between]: [startDate, endDate]
         },
-        isInitialReading: false,
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ],
         litresSold: { [Op.gt]: 0 }
       },
       group: ['pumpId', 'nozzleId'],

@@ -46,31 +46,6 @@ export default function AdminUsers() {
   const { user, isAuthenticated, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
-
-
-  // Only superadmin can access this page
-  if (authLoading || !isAuthenticated) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="text-lg">Loading...</div>
-      </div>
-    );
-  }
-
-  if (user?.role !== 'super_admin') {
-    return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              Access denied. This page is only available to super administrators.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // Fetch users via REST API (deferred until authenticated)
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
@@ -106,7 +81,7 @@ export default function AdminUsers() {
     onSuccess: () => {
       setIsAddUserOpen(false);
       setNewUser({ name: '', email: '', phone: '', role: 'employee', stationId: '' });
-      toast({ title: "User created", description: "User has been created successfully." });
+      toast({ title: "User created", description: "User has been created successfully.", variant: "success" });
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
     onError: (error: unknown) => {
@@ -148,6 +123,29 @@ export default function AdminUsers() {
       });
     },
   });
+
+  // Only superadmin can access this page
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (user?.role !== 'super_admin') {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              Access denied. This page is only available to super administrators.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleAddUser = () => {
     if (!newUser.name || !newUser.email) {

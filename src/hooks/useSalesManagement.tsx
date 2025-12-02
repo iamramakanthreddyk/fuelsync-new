@@ -42,7 +42,7 @@ export function useSalesManagement() {
     },
   });
 
-  const getSales = (filters: SalesFilters = {}) => {
+  const useSales = (filters: SalesFilters = {}) => {
     return useQuery({
       queryKey: ['sales', filters],
       queryFn: async () => {
@@ -65,7 +65,7 @@ export function useSalesManagement() {
     });
   };
 
-  const getSalesSummary = (filters: SalesFilters = {}) => {
+  const useSalesSummary = (filters: SalesFilters = {}) => {
     return useQuery({
       queryKey: ['sales-summary', filters],
       queryFn: async () => {
@@ -90,7 +90,7 @@ export function useSalesManagement() {
 
   return {
     createManualEntry,
-    getSales,
-    getSalesSummary,
+    useSales,
+    useSalesSummary,
   };
 }

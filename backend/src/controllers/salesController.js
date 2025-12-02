@@ -65,10 +65,8 @@ exports.getSales = async (req, res) => {
       };
     }
 
-    // Only get readings with actual sales
-    where.litresSold = {
-      [Op.gt]: 0
-    };
+    // Only get readings with actual sales (but include initial readings that represent sales)
+    where.litresSold = { [Op.gt]: 0 };
 
     // Fuel type filter via nozzle
     const nozzleWhere = {};
