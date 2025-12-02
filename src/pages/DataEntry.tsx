@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -57,6 +58,8 @@ export default function DataEntry() {
   const [loadingPreviousReading, setLoadingPreviousReading] = useState(false);
 
   useAuth();
+
+  const queryClient = useQueryClient();
 
   // Use role access to strictly scope stations to the user (owner/employee)
   const { stations: userStations } = useRoleAccess();
@@ -168,9 +171,25 @@ export default function DataEntry() {
       console.log('📤 Submitting manual reading:', payload);
 
       const result = await apiClient.post<{ litresSold?: number; totalAmount?: number }>('/readings', payload);
-      
+
       console.log('✅ Reading recorded:', result);
-      
+
+      // Invalidate relevant queries so UI reflects the new reading
+      try {
+        // Broadly invalidate readings and analytics queries
+        queryClient.invalidateQueries({ queryKey: ['readings'] });
+        queryClient.invalidateQueries({ queryKey: ['analytics'] });
+        // Invalidate station-specific pump data so latest readings refresh
+        if (data && (data as any).nozzleId) {
+          // station id may not be present on this payload; invalidate 'station-pumps' generally
+          queryClient.invalidateQueries({ queryKey: ['station-pumps'] });
+          queryClient.invalidateQueries({ queryKey: ['readings', 'latest'] });
+        }
+      } catch (err) {
+        // If react-query isn't available for some reason, continue gracefully
+        console.warn('QueryClient invalidation failed', err);
+      }
+
       // Show detailed success message
       if (result?.litresSold && result?.totalAmount) {
         toast.success(
@@ -180,7 +199,7 @@ export default function DataEntry() {
       } else {
         toast.success('Manual reading added successfully');
       }
-      
+
       resetManual();
       setManualPump(null);
       setManualNozzle(null);

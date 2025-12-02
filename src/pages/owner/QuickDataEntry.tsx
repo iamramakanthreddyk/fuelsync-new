@@ -156,6 +156,10 @@ export default function QuickDataEntry() {
       // Clear the form
       setReadings({});
       // Optional: refresh pump data in background
+      // Update shared cache for latest readings so other components reflect changes immediately
+      queryClient.setQueryData<Record<string, number> | undefined>(['readings', 'latest'], (prev) => ({ ...(prev || {}), ...updatedReadings }));
+      // Invalidate higher-level queries that depend on readings
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
       queryClient.invalidateQueries({ queryKey: ['station-pumps', selectedStation] });
     },
     onError: (error: unknown) => {

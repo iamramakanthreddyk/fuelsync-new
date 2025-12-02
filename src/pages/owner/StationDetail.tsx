@@ -507,6 +507,9 @@ export default function StationDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
+      // Ensure other components (latest readings, analytics) refresh
+      queryClient.invalidateQueries({ queryKey: ['readings', 'latest'] });
+      queryClient.invalidateQueries({ queryKey: ['analytics'] });
       toast({ title: 'Success', description: 'Reading added successfully' });
       setIsReadingDialogOpen(false);
       setReadingForm({ nozzleId: '', readingValue: '', readingDate: formatDateISO(new Date()), paymentType: 'cash' });
