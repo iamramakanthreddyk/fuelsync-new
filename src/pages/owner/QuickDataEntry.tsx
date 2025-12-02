@@ -55,7 +55,7 @@ interface Nozzle {
 
 interface ReadingEntry {
   nozzleId: string;
-  reading: string;
+  readingValue: string;
   date: string;
   paymentType: string;
 }
@@ -94,7 +94,7 @@ export default function QuickDataEntry() {
       const promises = data.map(entry =>
         apiClient.post('/readings', {
           nozzleId: entry.nozzleId,
-          reading: parseFloat(entry.reading),
+          readingValue: parseFloat(entry.readingValue),
           readingDate: entry.date,
           paymentType: entry.paymentType
         })
@@ -129,7 +129,7 @@ export default function QuickDataEntry() {
       ...prev,
       [nozzleId]: {
         nozzleId,
-        reading: value,
+        readingValue: value,
         date: readingDate,
         paymentType: 'cash'
       }
