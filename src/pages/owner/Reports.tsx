@@ -33,6 +33,8 @@ import {
   Clock
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { toCsv, downloadCsv } from '@/lib/csv';
+import { useToast } from '@/hooks/use-toast';
 
 interface Station {
   id: string;
@@ -231,9 +233,256 @@ export default function Reports() {
 
   const totals = calculateTotals(salesReports);
 
+  const { toast } = useToast();
+  const currency = (v: any) => v == null ? '' : `₹${Number(v).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+  const numberFmt = (v: any) => v == null ? '' : Number(v).toLocaleString('en-IN');
+  const dateFmt = (v: any) => v ? format(new Date(v), 'yyyy-MM-dd') : '';
+
+  const handlePrintPdf = (reportType: string) => {
+    // Professional printable HTML window — user can print to PDF
+    let html = `<html><head><title>Report - ${reportType}</title>
+    <style>
+      body{font-family:'Segoe UI',Arial,sans-serif;padding:30px;color:#333;}
+      h1{color:#1a365d;border-bottom:3px solid #3182ce;padding-bottom:10px;}
+      h2{color:#2d3748;margin-top:25px;}
+      h3{color:#4a5568;margin-top:20px;margin-bottom:10px;}
+      table{width:100%;border-collapse:collapse;margin-top:15px;margin-bottom:25px;}
+      th,td{border:1px solid #e2e8f0;padding:10px 12px;text-align:left;}
+      th{background:#edf2f7;font-weight:600;color:#2d3748;}
+      tr:nth-child(even){background:#f7fafc;}
+      .summary-box{background:#ebf8ff;border:1px solid #90cdf4;border-radius:8px;padding:15px;margin:15px 0;}
+      .summary-row{display:flex;justify-content:space-between;margin:8px 0;}
+      .fuel-breakdown{margin-left:20px;font-size:0.95em;}
+      .total-row{font-weight:bold;background:#e2e8f0 !important;}
+      .header-info{color:#718096;font-size:0.9em;margin-bottom:20px;}
+      @media print{body{padding:15px;}}
+    </style></head><body>`;
+    
+    html += `<h1>FuelSync Report</h1>`;
+    html += `<div class="header-info">Generated: ${format(new Date(), 'PPpp')}<br/>Period: ${dateRange.startDate} to ${dateRange.endDate}</div>`;
+    html += `<h2>${reportType.charAt(0).toUpperCase() + reportType.slice(1)} Report</h2>`;
+
+    if (reportType === 'sales') {
+      const rows = salesReports || [];
+      const grandTotal = rows.reduce((acc, r) => ({
+        sales: acc.sales + (r.totalSales || 0),
+        quantity: acc.quantity + (r.totalQuantity || 0),
+        transactions: acc.transactions + (r.totalTransactions || 0)
+      }), { sales: 0, quantity: 0, transactions: 0 });
+      const avgPricePerLiter = grandTotal.quantity > 0 ? grandTotal.sales / grandTotal.quantity : 0;
+
+      html += `<div class="summary-box">
+        <strong>Summary</strong>
+        <div class="summary-row"><span>Total Sales:</span><span>${currency(grandTotal.sales)}</span></div>
+        <div class="summary-row"><span>Total Volume:</span><span>${grandTotal.quantity.toFixed(2)} L</span></div>
+        <div class="summary-row"><span>Total Transactions:</span><span>${grandTotal.transactions}</span></div>
+        <div class="summary-row"><span>Avg Price/Liter:</span><span>${currency(avgPricePerLiter)}</span></div>
+      </div>`;
+
+      html += `<table><thead><tr><th>Station</th><th>Date</th><th>Total Sales</th><th>Quantity (L)</th><th>Price/L</th><th>Transactions</th></tr></thead><tbody>`;
+      rows.forEach(r => {
+        const pricePerLiter = r.totalQuantity > 0 ? r.totalSales / r.totalQuantity : 0;
+        html += `<tr>
+          <td>${r.stationName}</td>
+          <td>${dateFmt(r.date)}</td>
+          <td>${currency(r.totalSales)}</td>
+          <td>${(r.totalQuantity ?? 0).toFixed(2)}</td>
+          <td>${currency(pricePerLiter)}</td>
+          <td><strong>${r.totalTransactions ?? 0}</strong></td>
+        </tr>`;
+        // Fuel type breakdown
+        if (r.fuelTypeSales && r.fuelTypeSales.length > 0) {
+          html += `<tr><td colspan="6" class="fuel-breakdown"><strong>Fuel Breakdown:</strong><table style="margin:10px 0;width:95%;margin-left:auto;">
+            <thead><tr><th>Fuel Type</th><th>Sales</th><th>Quantity</th><th>Price/L</th><th>Txns</th></tr></thead><tbody>`;
+          r.fuelTypeSales.forEach(f => {
+            const fuelPricePerL = f.quantity > 0 ? f.sales / f.quantity : 0;
+            html += `<tr><td>${f.fuelType}</td><td>${currency(f.sales)}</td><td>${f.quantity.toFixed(2)} L</td><td>${currency(fuelPricePerL)}</td><td>${f.transactions}</td></tr>`;
+          });
+          html += `</tbody></table></td></tr>`;
+        }
+      });
+      html += `<tr class="total-row"><td>TOTAL</td><td></td><td>${currency(grandTotal.sales)}</td><td>${grandTotal.quantity.toFixed(2)}</td><td>${currency(avgPricePerLiter)}</td><td>${grandTotal.transactions}</td></tr>`;
+      html += `</tbody></table>`;
+    } else if (reportType === 'nozzles') {
+      const rows = nozzleBreakdown || [];
+      const grandTotal = rows.reduce((acc, n) => ({
+        sales: acc.sales + (n.totalSales || 0),
+        quantity: acc.quantity + (n.totalQuantity || 0),
+        transactions: acc.transactions + (n.transactions || 0)
+      }), { sales: 0, quantity: 0, transactions: 0 });
+      
+      html += `<div class="summary-box">
+        <strong>Nozzle Summary</strong>
+        <div class="summary-row"><span>Total Nozzles:</span><span>${rows.length}</span></div>
+        <div class="summary-row"><span>Total Sales:</span><span>${currency(grandTotal.sales)}</span></div>
+        <div class="summary-row"><span>Total Volume:</span><span>${grandTotal.quantity.toFixed(2)} L</span></div>
+        <div class="summary-row"><span>Total Transactions:</span><span>${grandTotal.transactions}</span></div>
+      </div>`;
+      
+      html += `<table><thead><tr><th>Nozzle</th><th>Pump</th><th>Fuel</th><th>Sales</th><th>Volume (L)</th><th>Price/L</th><th>Txns</th><th>Avg Txn</th></tr></thead><tbody>`;
+      rows.forEach(n => {
+        const pricePerL = n.totalQuantity > 0 ? n.totalSales / n.totalQuantity : 0;
+        html += `<tr><td>${n.nozzleNumber}</td><td>${n.pumpName}</td><td>${n.fuelType}</td><td>${currency(n.totalSales)}</td><td>${(n.totalQuantity ?? 0).toFixed(2)}</td><td>${currency(pricePerL)}</td><td><strong>${n.transactions}</strong></td><td>${currency(n.avgTransactionValue)}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    } else if (reportType === 'shifts') {
+      const rows = shiftReports || [];
+      html += `<table><thead><tr><th>Shift ID</th><th>Station</th><th>Employee</th><th>Start</th><th>End</th><th>Opening</th><th>Closing</th><th>Total Sales</th></tr></thead><tbody>`;
+      rows.forEach(s => {
+        html += `<tr><td>${s.id}</td><td>${s.stationName}</td><td>${s.employeeName}</td><td>${s.startTime}</td><td>${s.endTime || ''}</td><td>${currency(s.openingCash)}</td><td>${currency(s.closingCash)}</td><td>${currency(s.totalSales)}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    } else if (reportType === 'pumps') {
+      const rows = pumpPerformance || [];
+      html += `<table><thead><tr><th>Pump</th><th>Station</th><th>Sales</th><th>Volume</th><th>Txns</th></tr></thead><tbody>`;
+      rows.forEach(p => {
+        html += `<tr><td>${p.pumpName} (${p.pumpNumber})</td><td>${p.stationName}</td><td>${currency(p.totalSales)}</td><td>${(p.totalQuantity ?? 0).toFixed(2)}</td><td>${p.transactions}</td></tr>`;
+      });
+      html += `</tbody></table>`;
+    }
+
+    html += `</body></html>`;
+    const w = window.open('', '_blank');
+    if (!w) {
+      toast({ title: 'Popup blocked', description: 'Please allow popups to use Print/PDF export.' });
+      return;
+    }
+    w.document.write(html);
+    w.document.close();
+    // Delay to allow rendering
+    setTimeout(() => { w.print(); }, 500);
+  };
+
   const handleExport = (reportType: string) => {
-    // TODO: Implement CSV/PDF export functionality
-    console.log(`Exporting ${reportType} report`);
+    try {
+      if (reportType === 'sales') {
+        // Create detailed rows including price per liter and fuel breakdown
+        const rowsRaw = (salesReports || []).flatMap(r => {
+          const pricePerLiter = r.totalQuantity > 0 ? r.totalSales / r.totalQuantity : 0;
+          const mainRow = {
+            stationName: r.stationName,
+            date: r.date,
+            fuelType: 'ALL',
+            totalSales: r.totalSales,
+            totalQuantity: r.totalQuantity,
+            pricePerLiter: pricePerLiter,
+            totalTransactions: r.totalTransactions
+          };
+          // Add fuel type breakdown rows
+          const fuelRows = (r.fuelTypeSales || []).map(f => ({
+            stationName: r.stationName,
+            date: r.date,
+            fuelType: f.fuelType,
+            totalSales: f.sales,
+            totalQuantity: f.quantity,
+            pricePerLiter: f.quantity > 0 ? f.sales / f.quantity : 0,
+            totalTransactions: f.transactions
+          }));
+          return [mainRow, ...fuelRows];
+        });
+        const cols = [
+          { key: 'stationName', label: 'Station' },
+          { key: 'date', label: 'Date', formatter: dateFmt },
+          { key: 'fuelType', label: 'Fuel Type' },
+          { key: 'totalSales', label: 'Total Sales', formatter: currency },
+          { key: 'totalQuantity', label: 'Quantity (L)', formatter: (v: any) => (v == null ? '' : Number(v).toFixed(2)) },
+          { key: 'pricePerLiter', label: 'Price/Liter', formatter: currency },
+          { key: 'totalTransactions', label: 'Transactions', formatter: numberFmt }
+        ];
+        const csv = toCsv(rowsRaw, cols);
+        const filename = `sales_report_${dateRange.startDate}_${dateRange.endDate}.csv`;
+        downloadCsv(filename, csv);
+        toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
+        return;
+      } else if (reportType === 'nozzles') {
+        const rowsRaw = (nozzleBreakdown || []).map(n => {
+          const pricePerLiter = n.totalQuantity > 0 ? n.totalSales / n.totalQuantity : 0;
+          return {
+            nozzleId: n.nozzleId,
+            nozzleNumber: n.nozzleNumber,
+            fuelType: n.fuelType,
+            pumpName: n.pumpName,
+            totalSales: n.totalSales,
+            totalQuantity: n.totalQuantity,
+            pricePerLiter: pricePerLiter,
+            transactions: n.transactions,
+            avgTransactionValue: n.avgTransactionValue
+          };
+        });
+        const cols = [
+          { key: 'nozzleNumber', label: 'Nozzle' },
+          { key: 'pumpName', label: 'Pump' },
+          { key: 'fuelType', label: 'Fuel' },
+          { key: 'totalSales', label: 'Total Sales', formatter: currency },
+          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: any) => (v == null ? '' : Number(v).toFixed(2)) },
+          { key: 'pricePerLiter', label: 'Price/Liter', formatter: currency },
+          { key: 'transactions', label: 'Transactions', formatter: numberFmt },
+          { key: 'avgTransactionValue', label: 'Avg Transaction', formatter: currency }
+        ];
+        const csv = toCsv(rowsRaw, cols);
+        const filename = `nozzles_report_${dateRange.startDate}_${dateRange.endDate}.csv`;
+        downloadCsv(filename, csv);
+        toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
+        return;
+      } else if (reportType === 'shifts') {
+        const rowsRaw = (shiftReports || []).map(s => ({
+          id: s.id,
+          stationName: s.stationName,
+          employeeName: s.employeeName,
+          startTime: s.startTime,
+          endTime: s.endTime,
+          openingCash: s.openingCash,
+          closingCash: s.closingCash,
+          totalSales: s.totalSales,
+          cashSales: s.cashSales,
+          digitalSales: s.digitalSales,
+          status: s.status
+        }));
+        const cols = [
+          { key: 'id', label: 'Shift ID' },
+          { key: 'stationName', label: 'Station' },
+          { key: 'employeeName', label: 'Employee' },
+          { key: 'startTime', label: 'Start' },
+          { key: 'endTime', label: 'End' },
+          { key: 'openingCash', label: 'Opening Cash', formatter: currency },
+          { key: 'closingCash', label: 'Closing Cash', formatter: currency },
+          { key: 'totalSales', label: 'Total Sales', formatter: currency },
+          { key: 'status', label: 'Status' }
+        ];
+        const csv = toCsv(rowsRaw, cols);
+        const filename = `shifts_report_${dateRange.startDate}_${dateRange.endDate}.csv`;
+        downloadCsv(filename, csv);
+        toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
+        return;
+      } else if (reportType === 'pumps') {
+        const rowsRaw = (pumpPerformance || []).map(p => ({
+          pumpId: p.pumpId,
+          pumpName: p.pumpName,
+          pumpNumber: p.pumpNumber,
+          stationName: p.stationName,
+          totalSales: p.totalSales,
+          totalQuantity: p.totalQuantity,
+          transactions: p.transactions
+        }));
+        const cols = [
+          { key: 'pumpName', label: 'Pump' },
+          { key: 'stationName', label: 'Station' },
+          { key: 'totalSales', label: 'Total Sales', formatter: currency },
+          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: any) => (v == null ? '' : Number(v).toFixed(2)) },
+          { key: 'transactions', label: 'Transactions', formatter: numberFmt }
+        ];
+        const csv = toCsv(rowsRaw, cols);
+        const filename = `pumps_report_${dateRange.startDate}_${dateRange.endDate}.csv`;
+        downloadCsv(filename, csv);
+        toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
+        return;
+      }
+
+      toast({ title: 'Nothing to export', description: 'No rows available for selected report and filters.' });
+    } catch (err) {
+      console.error('Export error', err);
+      toast({ title: 'Export failed', description: 'Unable to export report' });
+    }
   };
 
   return (
@@ -369,10 +618,15 @@ export default function Reports() {
                   <CardTitle>Sales Reports</CardTitle>
                   <CardDescription>Detailed sales breakdown by station and fuel type</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => handleExport('sales')}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleExport('sales')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    CSV
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handlePrintPdf('sales')}>
+                    Print/PDF
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -447,10 +701,15 @@ export default function Reports() {
                   <CardTitle>Nozzle-wise Sales Breakdown</CardTitle>
                   <CardDescription>Detailed sales performance by individual nozzles</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => handleExport('nozzles')}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleExport('nozzles')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    CSV
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handlePrintPdf('nozzles')}>
+                    Print/PDF
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -527,10 +786,15 @@ export default function Reports() {
                   <CardTitle>Shift Reports</CardTitle>
                   <CardDescription>Employee shift details and performance</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => handleExport('shifts')}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleExport('shifts')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    CSV
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handlePrintPdf('shifts')}>
+                    Print/PDF
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>
@@ -607,10 +871,15 @@ export default function Reports() {
                   <CardTitle>Pump Performance</CardTitle>
                   <CardDescription>Performance metrics by pump and nozzle</CardDescription>
                 </div>
-                <Button variant="outline" size="sm" onClick={() => handleExport('pumps')}>
-                  <Download className="w-4 h-4 mr-2" />
-                  Export
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" size="sm" onClick={() => handleExport('pumps')}>
+                    <Download className="w-4 h-4 mr-2" />
+                    CSV
+                  </Button>
+                  <Button variant="ghost" size="sm" onClick={() => handlePrintPdf('pumps')}>
+                    Print/PDF
+                  </Button>
+                </div>
               </div>
             </CardHeader>
             <CardContent>

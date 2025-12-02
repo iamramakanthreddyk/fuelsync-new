@@ -5,8 +5,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { useQuery } from "@tanstack/react-query";
-import { apiService } from '@/services/api';
+import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip
+} from 'recharts';
+import { useReports } from '@/hooks/useReports';
+import { toCsv, downloadCsv } from '@/lib/csv';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 // charts are not used in this page yet
@@ -20,21 +31,28 @@ export default function Reports() {
 
   const currentStation = user?.stations?.[0];
 
-  // Query for report generation data and capture results for preview
-  const { data: reportData, isLoading } = useQuery({
-    queryKey: ['report', currentStation?.id, startDate, endDate, reportType],
-    queryFn: async () => {
-      if (!currentStation) return { data: [] };
-      return await apiService.generateReport(currentStation.id, startDate, endDate);
-    },
-    enabled: !!currentStation
-  });
+  // Use central hook for reports
+  const { data: reportResponse, isLoading } = useReports(currentStation?.id, startDate, endDate, reportType as any, !!currentStation);
+  const reportData = reportResponse ?? { data: [] };
 
   const handleExport = () => {
-    toast({
-      title: "Export Started",
-      description: "Your report is being generated...",
-    });
+    // Export current preview as CSV if available
+    const rows = reportData?.data || [];
+    if (!rows || rows.length === 0) {
+      toast({ title: 'Nothing to export', description: 'No report data available for the selected range.' });
+      return;
+    }
+
+    try {
+      toast({ title: 'Export Started', description: 'Preparing CSV download...' });
+      const csv = toCsv(rows as any[]);
+      const filename = `report_${reportType}_${startDate}_${endDate}.csv`;
+      downloadCsv(filename, csv);
+      toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
+    } catch (err) {
+      console.error('Export error', err);
+      toast({ title: 'Export failed', description: 'Unable to generate CSV' });
+    }
   };
 
   return (
@@ -87,11 +105,11 @@ export default function Reports() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="flex items-end">
-              <Button onClick={handleExport} className="w-full">
-                Export Report
-              </Button>
-            </div>
+                  <div className="flex items-end">
+                    <Button onClick={handleExport} className="w-full">
+                      Export Report
+                    </Button>
+                  </div>
           </div>
         </CardContent>
       </Card>
@@ -108,6 +126,55 @@ export default function Reports() {
           <CardDescription>Quick view of the generated report</CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="flex justify-between items-center mb-3">
+            <div />
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const csv = toCsv(reportData.data || []);
+                  downloadCsv(`report_${reportType}_${startDate}_${endDate}.csv`, csv);
+                }}
+              >
+                Export CSV
+              </Button>
+            </div>
+          </div>
+
+          {/* If daily report, show a small trend chart */}
+          {reportType === 'daily' && reportData && Array.isArray(reportData.data) && reportData.data.length > 0 && (
+            (() => {
+              const mapped = (reportData.data as any[])
+                .map(r => ({
+                  date: r.date || r.readingDate || r.day || r.label || '',
+                  sales: r.sales ?? r.totalSales ?? r.amount ?? r.total_amount ?? r.revenue ?? 0
+                }))
+                .filter(d => d.date)
+                .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
+
+              return (
+                <div style={{ width: '100%', height: 260 }} className="mb-4">
+                  <ResponsiveContainer>
+                    <AreaChart data={mapped} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
+                          <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                      <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
+                      <Tooltip formatter={(v: any) => typeof v === 'number' ? `₹${v.toLocaleString('en-IN')}` : v} />
+                      <Area type="monotone" dataKey="sales" stroke="#3b82f6" fill="url(#colorSales)" name="Sales" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })()
+          )}
+
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Loading report...</div>
           ) : !reportData || (Array.isArray(reportData.data) && reportData.data.length === 0) ? (
@@ -117,15 +184,15 @@ export default function Reports() {
               <table className="w-full text-sm table-auto">
                 <thead>
                   <tr className="text-left">
-                    {Object.keys(reportData.data[0] || {}).slice(0, 6).map((h) => (
+                    {Object.keys(reportData.data[0] || {}).map((h) => (
                       <th key={h} className="p-2 font-medium">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {reportData.data.slice(0, 10).map((row: any, idx: number) => (
+                  {reportData.data.map((row: any, idx: number) => (
                     <tr key={idx} className="border-t">
-                      {Object.values(row).slice(0, 6).map((val, i) => (
+                      {Object.values(row).map((val, i) => (
                         <td key={i} className="p-2">{typeof val === 'number' ? val.toLocaleString('en-IN') : String(val)}</td>
                       ))}
                     </tr>
