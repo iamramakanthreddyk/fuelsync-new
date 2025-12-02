@@ -65,7 +65,7 @@ export const FuelPricesGrid: React.FC<FuelPricesGridProps> = ({
           <CardContent>
             <div className="text-3xl font-bold text-primary flex items-center gap-1">
               <IndianRupee className="w-5 h-5" />
-              {price.price_per_litre.toFixed(2)}
+              {Number(price.price_per_litre).toFixed(2)}
             </div>
             <div className="text-sm text-muted-foreground mt-2">
               <div>Updated: {new Date(price.valid_from).toLocaleDateString()}</div>
