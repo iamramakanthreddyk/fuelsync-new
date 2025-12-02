@@ -221,8 +221,15 @@ export default function StationDetail() {
   const { data: creditors, isLoading: creditorsLoading } = useQuery({
     queryKey: ['station-creditors', id],
     queryFn: async () => {
-      const response = await apiClient.get<Creditor[]>(`/credits/stations/${id}/creditors`);
-      return response;
+      try {
+        const response = await apiClient.get<Creditor[]>(`/credits/stations/${id}/creditors`);
+        return response;
+      } catch (error: any) {
+        if (error?.response?.status === 404) {
+          return [];
+        }
+        throw error;
+      }
     },
     enabled: !!id
   });

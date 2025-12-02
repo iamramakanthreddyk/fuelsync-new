@@ -81,7 +81,7 @@ export function SalesTable({
                   <TableCell>
                     #{sale.nozzle_number || sale.nozzle_id}
                   </TableCell>
-                  <TableCell className="font-semibold text-right">₹{sale.total_amount?.toFixed(2) ?? "NA"}</TableCell>
+                  <TableCell className="font-semibold text-right">₹{sale.total_amount != null ? Number(sale.total_amount).toFixed(2) : "NA"}</TableCell>
                   <TableCell>
                     <Badge className={getFuelBadgeClasses(sale.fuel_type)}>
                       {sale.fuel_type}
