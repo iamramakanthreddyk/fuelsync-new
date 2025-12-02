@@ -13,7 +13,7 @@ import {
   SelectValue,
   SelectContent
 } from "@/components/ui/select";
-import { SlidersHorizontal, Fuel, Filter, Droplet, Zap } from "lucide-react";
+import { SlidersHorizontal, Fuel, Droplet, Zap } from "lucide-react";
 
 interface Pump {
   id: string | number;
