@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { toFixedNumber } from '@/lib/numberFormat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -28,6 +29,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { mapReadingFormToPayload } from '@/lib/apiPayloadHelpers';
 import { apiClient } from '@/lib/api-client';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import {
@@ -68,7 +70,6 @@ interface FuelPrice {
   effectiveFrom: string;
   updatedAt: string;
 }
-
 interface Station {
   id: string;
   name: string;
@@ -89,7 +90,6 @@ interface Creditor {
   email?: string;
   creditLimit: number;
   currentBalance: number;
-  status: 'active' | 'blocked';
   vehicleNumber?: string;
 }
 
@@ -411,7 +411,7 @@ export default function StationDetail() {
 
   // Add reading mutation
   const addReadingMutation = useMutation({
-    mutationFn: async (data: { nozzleId: string; readingValue: string; readingDate: string; paymentType: 'cash' | 'digital' | 'credit' }) => {
+    mutationFn: async (data: { nozzleId: string; reading: number; readingDate: string; paymentType: 'cash' | 'digital' | 'credit' }) => {
       const response = await apiClient.post(`/readings`, data);
       return response;
     },
@@ -525,12 +525,7 @@ export default function StationDetail() {
 
   const handleSubmitReading = () => {
     if (!selectedNozzle) return;
-    addReadingMutation.mutate({
-      nozzleId: readingForm.nozzleId,
-      readingValue: readingForm.readingValue,
-      readingDate: readingForm.readingDate,
-      paymentType: readingForm.paymentType as 'cash' | 'digital' | 'credit'
-    });
+    addReadingMutation.mutate(mapReadingFormToPayload(readingForm));
   };
 
   if (stationLoading) {
@@ -729,7 +724,7 @@ export default function StationDetail() {
                                   {nozzle.fuelType}
                                 </Badge>
                                 <span className="text-xs text-muted-foreground">
-                                  Last: {nozzle.lastReading != null ? nozzle.lastReading.toFixed(2) : nozzle.initialReading?.toFixed(2) || '0.00'}
+                                  Last: {nozzle.lastReading != null ? toFixedNumber(nozzle.lastReading, 2) : toFixedNumber(nozzle.initialReading, 2)}
                                 </span>
                               </div>
                               <div className="flex items-center gap-1">
@@ -849,7 +844,7 @@ export default function StationDetail() {
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold">₹{price.price.toFixed(2)}</div>
+                    <div className="text-3xl font-bold">₹{toFixedNumber(price.price, 2)}</div>
                     <p className="text-sm text-muted-foreground mt-2">
                       Updated {new Date(price.updatedAt).toLocaleString()}
                     </p>
@@ -963,9 +958,6 @@ export default function StationDetail() {
                       <div>
                         <CardTitle className="flex items-center gap-2">
                           {creditor.name}
-                          <Badge variant={creditor.status === 'active' ? 'default' : 'destructive'}>
-                            {creditor.status}
-                          </Badge>
                         </CardTitle>
                         <CardDescription>
                           {creditor.phone} {creditor.vehicleNumber && `• ${creditor.vehicleNumber}`}
@@ -977,24 +969,24 @@ export default function StationDetail() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <p className="text-sm text-muted-foreground">Credit Limit</p>
-                        <p className="text-lg font-semibold">₹{creditor.creditLimit.toFixed(2)}</p>
+                        <p className="text-lg font-semibold">₹{toFixedNumber(creditor.creditLimit, 2)}</p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Current Balance</p>
                         <p className={`text-lg font-semibold ${creditor.currentBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          ₹{creditor.currentBalance.toFixed(2)}
+                          ₹{toFixedNumber(creditor.currentBalance, 2)}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Available Credit</p>
                         <p className="text-lg font-semibold">
-                          ₹{(creditor.creditLimit - creditor.currentBalance).toFixed(2)}
+                          ₹{toFixedNumber(creditor.creditLimit - creditor.currentBalance, 2)}
                         </p>
                       </div>
                       <div>
                         <p className="text-sm text-muted-foreground">Utilization</p>
                         <p className="text-lg font-semibold">
-                          {((creditor.currentBalance / creditor.creditLimit) * 100).toFixed(1)}%
+                          {toFixedNumber((creditor.currentBalance / creditor.creditLimit) * 100, 1)}%
                         </p>
                       </div>
                     </div>
@@ -1241,7 +1233,7 @@ export default function StationDetail() {
               />
               {selectedNozzle && (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Last reading: {selectedNozzle.lastReading?.toFixed(2) || selectedNozzle.initialReading.toFixed(2)}
+                  Last reading: {selectedNozzle.lastReading != null ? toFixedNumber(selectedNozzle.lastReading, 2) : toFixedNumber(selectedNozzle.initialReading, 2)}
                 </p>
               )}
             </div>

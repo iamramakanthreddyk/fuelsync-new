@@ -140,35 +140,41 @@ export function AppSidebar() {
   const dashboardUrl = user?.role === 'owner' ? '/owner/dashboard' : '/dashboard';
 
   return (
-    <Sidebar className="w-64">
-      <SidebarHeader>
-        <Link to={dashboardUrl}>
+    <Sidebar className="w-64 min-h-screen flex flex-col bg-gradient-to-b from-white to-gray-50 border-r border-border shadow-sm">
+      <SidebarHeader className="flex items-center justify-center py-6">
+        <Link to={dashboardUrl} className="flex items-center gap-2">
           <FuelSyncLogo className="h-8" />
+          <span className="font-bold text-xl tracking-tight text-primary">FuelSync</span>
         </Link>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="flex-1 flex flex-col justify-center">
         <SidebarGroup>
-          <SidebarGroupLabel>FuelSync</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton 
-                    asChild
-                    isActive={location.pathname === item.url}
-                  >
-                    <Link to={item.url} onClick={handleItemClick}>
-                      <item.icon className="w-4 h-4" />
-                      <span>{item.title}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
+              {menuItems.map((item) => {
+                // Highlight if current path starts with item.url (for subpages)
+                const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
+                return (
+                  <SidebarMenuItem key={item.title}>
+                    <SidebarMenuButton 
+                      asChild
+                      isActive={isActive}
+                      className={isActive ? "bg-primary/10 text-primary font-semibold" : ""}
+                    >
+                      <Link to={item.url} onClick={handleItemClick} className="flex items-center gap-2 px-3 py-2 rounded transition-colors">
+                        <item.icon className="w-4 h-4" />
+                        <span>{item.title}</span>
+                      </Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                );
+              })}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="mt-auto">
         <div className="p-2">
           <Button 
             variant="ghost" 
@@ -180,7 +186,7 @@ export function AppSidebar() {
             Logout
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground px-2 pb-2">
+        <p className="text-xs text-muted-foreground px-2 pb-2 text-center">
           FuelSync &copy; {new Date().getFullYear()}
         </p>
       </SidebarFooter>
