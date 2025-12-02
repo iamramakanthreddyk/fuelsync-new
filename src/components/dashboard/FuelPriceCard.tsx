@@ -65,7 +65,9 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({ prices, isLoading 
               <span className="text-xs font-medium text-muted-foreground">{label}</span>
               <span className="text-xs font-bold flex items-center text-foreground">
                 <IndianRupee className="w-2.5 h-2.5" />
-                {prices[key as keyof typeof prices]?.toFixed(2)}
+                {typeof prices[key as keyof typeof prices] === 'number' 
+                  ? prices[key as keyof typeof prices]?.toFixed(2) 
+                  : 'N/A'}
               </span>
             </div>
           );

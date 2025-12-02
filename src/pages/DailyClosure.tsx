@@ -12,7 +12,7 @@ import { useDailySummary } from "@/hooks/useDailySummary";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useAuth } from "@/hooks/useAuth";
 
-import { getDifferenceBadgeClasses } from '@/lib/badgeColors';
+import { safeToFixed } from '@/lib/format-utils';
 
 export default function DailyClosure() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -36,7 +36,7 @@ export default function DailyClosure() {
         stationId: currentStation.id,
         date: selectedDate,
         amount: summary.breakdown.cash, // Cash to be deposited
-        notes: closureNotes || `Daily closure for ${selectedDate}. Sales: ₹${summary.sales_total.toFixed(2)}, Tender: ₹${summary.tender_total.toFixed(2)}, Difference: ₹${summary.difference.toFixed(2)}`
+        notes: closureNotes || `Daily closure for ${selectedDate}. Sales: ₹${safeToFixed(summary.sales_total)}, Tender: ₹${safeToFixed(summary.tender_total)}, Difference: ₹${safeToFixed(summary.difference)}`
       };
 
       return await apiClient.post<ApiResponse<unknown>>('/handovers/bank-deposit', depositData);
@@ -138,7 +138,7 @@ export default function DailyClosure() {
                 <TrendingUp className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₹{summary.sales_total.toFixed(2)}</div>
+                <div className="text-2xl font-bold">₹{safeToFixed(summary.sales_total)}</div>
                 <p className="text-xs text-muted-foreground">From fuel sales</p>
               </CardContent>
             </Card>
@@ -149,7 +149,7 @@ export default function DailyClosure() {
                 <DollarSign className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₹{summary.tender_total.toFixed(2)}</div>
+                <div className="text-2xl font-bold">₹{safeToFixed(summary.tender_total)}</div>
                 <p className="text-xs text-muted-foreground">Cash, Card, UPI</p>
               </CardContent>
             </Card>
@@ -160,7 +160,7 @@ export default function DailyClosure() {
                 {getDifferenceIcon(summary.difference)}
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">₹{summary.difference.toFixed(2)}</div>
+                <div className="text-2xl font-bold">₹{safeToFixed(summary.difference)}</div>
                 <Badge className={getDifferenceBadgeClasses(summary.difference)}>
                   {Math.abs(summary.difference) < 0.01 ? 'Balanced' : 
                    summary.difference > 0 ? 'Over' : 'Short'}
@@ -196,19 +196,19 @@ export default function DailyClosure() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Cash</p>
-                  <p className="text-xl font-bold">₹{summary.breakdown.cash.toFixed(2)}</p>
+                  <p className="text-xl font-bold">₹{safeToFixed(summary.breakdown.cash)}</p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Card</p>
-                  <p className="text-xl font-bold">₹{summary.breakdown.card.toFixed(2)}</p>
+                  <p className="text-xl font-bold">₹{safeToFixed(summary.breakdown.card)}</p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">UPI</p>
-                  <p className="text-xl font-bold">₹{summary.breakdown.upi.toFixed(2)}</p>
+                  <p className="text-xl font-bold">₹{safeToFixed(summary.breakdown.upi)}</p>
                 </div>
                 <div className="text-center p-4 border rounded-lg">
                   <p className="text-sm text-muted-foreground">Credit</p>
-                  <p className="text-xl font-bold">₹{summary.breakdown.credit.toFixed(2)}</p>
+                  <p className="text-xl font-bold">₹{safeToFixed(summary.breakdown.credit)}</p>
                 </div>
               </div>
             </CardContent>

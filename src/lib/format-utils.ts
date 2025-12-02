@@ -63,6 +63,18 @@ export function parseNumber(str: string): number | null {
 }
 
 /**
+ * Safe toFixed that handles both numbers and strings
+ */
+export function safeToFixed(value: unknown, decimals: number = 2): string {
+  if (value === null || value === undefined) return '0.00';
+  
+  const num = typeof value === 'string' ? parseFloat(value) : Number(value);
+  if (isNaN(num)) return '0.00';
+  
+  return num.toFixed(decimals);
+}
+
+/**
  * Calculate percentage change
  */
 export function calculatePercentageChange(current: number, previous: number): number {

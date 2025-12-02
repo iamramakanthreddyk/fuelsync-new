@@ -30,8 +30,11 @@ export function AppHeader() {
   const fuelPricesObj: Record<string, number> = {};
   if (fuelPrices) {
     fuelPrices.forEach((price) => {
-      if (price.price_per_litre !== undefined) {
-        fuelPricesObj[price.fuel_type] = price.price_per_litre;
+      if (price.price_per_litre !== undefined && price.price_per_litre !== null) {
+        const priceValue = parseFloat(String(price.price_per_litre));
+        if (!isNaN(priceValue)) {
+          fuelPricesObj[price.fuel_type] = priceValue;
+        }
       }
     });
   }

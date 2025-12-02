@@ -95,12 +95,15 @@ export default function QuickDataEntry() {
     if (pumps && pumps.length > 0) {
       pumps.forEach(pump => {
         pump.nozzles.forEach(nozzle => {
+          const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
+          const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+          
           const last =
-            typeof nozzle.lastReading === 'number' && !isNaN(nozzle.lastReading)
-              ? nozzle.lastReading
-              : typeof nozzle.initialReading === 'number' && !isNaN(nozzle.initialReading)
-                ? nozzle.initialReading
-                : Number(nozzle.lastReading) || Number(nozzle.initialReading) || 0;
+            lastReading !== null && !isNaN(lastReading)
+              ? lastReading
+              : (initialReading !== null && !isNaN(initialReading)
+                ? initialReading
+                : Number(nozzle.lastReading) || Number(nozzle.initialReading) || 0);
           console.log(`Pump ${pump.name || pump.pumpNumber}, Nozzle ${nozzle.nozzleNumber}: Last Reading =`, last);
         });
       });
@@ -284,11 +287,18 @@ export default function QuickDataEntry() {
                           <div className="bg-background p-2 rounded border">
                             <div className="text-xs text-muted-foreground mb-0.5">Meter Reading</div>
                             <div className="font-mono text-sm font-semibold">
-                              {typeof nozzle.lastReading === 'number' && !isNaN(nozzle.lastReading)
-                                ? nozzle.lastReading.toFixed(2)
-                                : (typeof nozzle.initialReading === 'number' && !isNaN(nozzle.initialReading)
-                                  ? nozzle.initialReading.toFixed(2)
-                                  : '0.00')}
+                              {(() => {
+                                const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
+                                const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+                                
+                                if (lastReading !== null && !isNaN(lastReading)) {
+                                  return lastReading.toFixed(2);
+                                } else if (initialReading !== null && !isNaN(initialReading)) {
+                                  return initialReading.toFixed(2);
+                                } else {
+                                  return '0.00';
+                                }
+                              })()}
                             </div>
                           </div>
 
@@ -305,11 +315,18 @@ export default function QuickDataEntry() {
                             />
                             {readings[nozzle.id]?.readingValue && (
                               <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                {parseFloat(readings[nozzle.id].readingValue) > (nozzle.lastReading || nozzle.initialReading || 0) ? (
-                                  <Check className="w-4 h-4 text-green-500" />
-                                ) : (
-                                  <X className="w-4 h-4 text-red-500" />
-                                )}
+                                {(() => {
+                                  const enteredValue = parseFloat(readings[nozzle.id].readingValue);
+                                  const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
+                                  const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+                                  const compareValue = lastReading !== null && !isNaN(lastReading) ? lastReading : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
+                                  
+                                  return enteredValue > compareValue ? (
+                                    <Check className="w-4 h-4 text-green-500" />
+                                  ) : (
+                                    <X className="w-4 h-4 text-red-500" />
+                                  );
+                                })()}
                               </div>
                             )}
                           </div>

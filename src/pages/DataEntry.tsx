@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/select";
 import { CurrencyInput } from '@/components/inputs/CurrencyInput';
 import { IndianRupee, Fuel, Gauge } from 'lucide-react';
-import { getFuelColors } from '@/lib/fuelColors';
+import { safeToFixed } from '@/lib/format-utils';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
 import { usePumpNozzles } from "@/hooks/usePumpNozzles";
@@ -193,7 +193,7 @@ export default function DataEntry() {
       // Show detailed success message
       if (result?.litresSold && result?.totalAmount) {
         toast.success(
-          `Reading recorded! ${result.litresSold.toFixed(2)}L sold = ₹${result.totalAmount.toFixed(2)}`,
+          `Reading recorded! ${safeToFixed(result.litresSold)}L sold = ₹${safeToFixed(result.totalAmount)}`,
           { duration: 5000 }
         );
       } else {
@@ -439,7 +439,7 @@ export default function DataEntry() {
                     <Label>Cumulative Volume (L)</Label>
                     {previousReading !== null && (
                       <p className="text-xs text-muted-foreground">
-                        Previous: <span className="font-semibold text-primary">{previousReading.toFixed(2)} L</span>
+                        Previous: <span className="font-semibold text-primary">{safeToFixed(previousReading)} L</span>
                         {loadingPreviousReading && ' (loading...)'}
                       </p>
                     )}
@@ -448,13 +448,13 @@ export default function DataEntry() {
                       type="number"
                       step="0.01"
                       min={previousReading || 0}
-                      placeholder={previousReading ? `Enter value > ${previousReading.toFixed(2)}` : 'Enter cumulative volume'}
+                      placeholder={previousReading ? `Enter value > ${safeToFixed(previousReading)}` : 'Enter cumulative volume'}
                       {...registerManual('cumulative_vol', { 
                         required: 'Volume is required', 
                         valueAsNumber: true,
                         min: {
                           value: previousReading || 0,
-                          message: `Must be greater than previous reading (${previousReading?.toFixed(2) || 0})`
+                          message: `Must be greater than previous reading (${safeToFixed(previousReading) || 0})`
                         }
                       })}
                     />
