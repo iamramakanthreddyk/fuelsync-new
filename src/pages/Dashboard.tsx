@@ -1,7 +1,7 @@
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
-import { DollarSign, Fuel, TrendingUp, Clock, AlertTriangle, ListChecks, Lock } from "lucide-react";
+import { DollarSign, TrendingUp, Clock, AlertTriangle, Lock } from "lucide-react";
 import { TrendsChart } from "@/components/dashboard/TrendsChart";
 import { FuelPriceCard } from "@/components/dashboard/FuelPriceCard";
 import { AlertBadges } from "@/components/dashboard/AlertBadges";
@@ -12,7 +12,7 @@ import { useActivityLogger } from "@/hooks/useActivityLogger";
 import { useFuelPricesData } from "@/hooks/useFuelPricesData";
 import { Button } from "@/components/ui/button";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
-import { useNavigate } from "react-router-dom";
+
 import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ReadingSummary } from "@/components/dashboard/ReadingSummary";
@@ -32,7 +32,7 @@ export default function Dashboard() {
   const { user } = useAuth();
   const { data, isLoading } = useDashboardData();
   const { data: fuelPricesList, isLoading: isPricesLoading } = useFuelPricesData();
-  const { currentStation } = useRoleAccess();
+  useRoleAccess();
   const [showUpgrade, setShowUpgrade] = useState(false);
   const checklist = useSetupChecklist();
 
