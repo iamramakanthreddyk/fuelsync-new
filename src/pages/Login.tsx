@@ -48,25 +48,31 @@ export default function Login() {
     }
   };
 
-  const demoAccounts = [
-    { role: 'Super Admin', email: 'admin@fuelsync.com', password: 'admin123' },
-    { role: 'Owner', email: 'rajesh@fuelsync.com', password: 'owner123' },
-    { role: 'Employee', email: 'ravi@fuelsync.com', password: 'emp123' }
-  ];
 
-  const fillDemo = (email: string, password: string) => {
-    setEmail(email);
-    setPassword(password);
-  };
+  // Removed demo accounts for production security
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      <div className="w-full max-w-md space-y-6">
+
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-100 to-blue-200 relative overflow-hidden p-4">
+      {/* Decorative SVG background */}
+      <svg className="absolute left-0 top-0 w-full h-full opacity-20 pointer-events-none" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <ellipse cx="400" cy="300" rx="340" ry="180" fill="#60A5FA" />
+        <ellipse cx="600" cy="100" rx="120" ry="60" fill="#6366F1" />
+        <ellipse cx="200" cy="500" rx="100" ry="40" fill="#818CF8" />
+      </svg>
+      <div className="w-full max-w-md space-y-6 relative z-10">
         <div className="text-center">
           <div className="flex justify-center mb-4">
-            <div className="p-3 bg-blue-600 text-white rounded-full">
-              <Fuel className="h-8 w-8" />
-            </div>
+            {/* Modern fuel station SVG illustration */}
+            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect x="10" y="24" width="28" height="28" rx="4" fill="#2563EB"/>
+              <rect x="18" y="32" width="12" height="12" rx="2" fill="#FBBF24"/>
+              <rect x="44" y="28" width="10" height="24" rx="3" fill="#F87171"/>
+              <rect x="48" y="20" width="4" height="8" rx="2" fill="#60A5FA"/>
+              <rect x="12" y="20" width="24" height="4" rx="2" fill="#6366F1"/>
+              <circle cx="24" cy="44" r="2" fill="#1E293B"/>
+              <circle cx="28" cy="44" r="2" fill="#1E293B"/>
+            </svg>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">FuelSync</h1>
           <p className="text-gray-600">Fuel Station Management System</p>
@@ -78,28 +84,7 @@ export default function Login() {
             <CardDescription>
               Sign in to your account to continue
             </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="w-full"
-                />
-              </div>
-              
-              <div>
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    value={password}
+          {/* Demo accounts removed for production */}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     className="w-full pr-10"
