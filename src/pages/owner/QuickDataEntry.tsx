@@ -3,7 +3,7 @@
  * Fast nozzle reading entry across all stations
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,6 +53,7 @@ interface Nozzle {
   lastReading?: number;
 }
 
+
 interface ReadingEntry {
   nozzleId: string;
   readingValue: string;
@@ -61,9 +62,11 @@ interface ReadingEntry {
 }
 
 export default function QuickDataEntry() {
+
   const [selectedStation, setSelectedStation] = useState<string>('');
   const [readings, setReadings] = useState<Record<string, ReadingEntry>>({});
   const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
+  const [latestNozzleReadings, setLatestNozzleReadings] = useState<Record<string, number>>({});
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -88,6 +91,41 @@ export default function QuickDataEntry() {
     enabled: !!selectedStation
   });
 
+  // Fetch latest readings for all nozzles after pumps are loaded
+  useEffect(() => {
+    const fetchLatestReadings = async () => {
+      if (!pumps || pumps.length === 0) return;
+      const nozzleIds = pumps.flatMap(pump => pump.nozzles.map(nozzle => nozzle.id));
+      if (nozzleIds.length === 0) return;
+      try {
+        // Batch fetch: assumes backend supports /nozzles/readings/latest?ids=...
+        const response = await apiClient.get<Record<string, number>>(`/readings/latest?ids=${nozzleIds.join(',')}`);
+        setLatestNozzleReadings(response || {});
+      } catch (err) {
+        setLatestNozzleReadings({});
+      }
+    };
+    fetchLatestReadings();
+  }, [pumps]);
+
+  // Log last reading for all nozzles when pumps data changes
+  useEffect(() => {
+    if (pumps && pumps.length > 0) {
+      pumps.forEach(pump => {
+        pump.nozzles.forEach(nozzle => {
+          const last =
+            typeof nozzle.lastReading === 'number' && !isNaN(nozzle.lastReading)
+              ? nozzle.lastReading
+              : typeof nozzle.initialReading === 'number' && !isNaN(nozzle.initialReading)
+                ? nozzle.initialReading
+                : Number(nozzle.lastReading) || Number(nozzle.initialReading) || 0;
+          console.log(`Pump ${pump.name || pump.pumpNumber}, Nozzle ${nozzle.nozzleNumber}: Last Reading =`, last);
+        });
+      });
+    }
+  }, [pumps]);
+  // ...existing code...
+
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
     mutationFn: async (data: ReadingEntry[]) => {
@@ -101,13 +139,24 @@ export default function QuickDataEntry() {
       );
       return Promise.all(promises);
     },
-    onSuccess: () => {
+    onSuccess: (responses: any[]) => {
+      // Update latest readings with the new values from responses
+      const updatedReadings: Record<string, number> = { ...latestNozzleReadings };
+      responses.forEach((response: any) => {
+        if (response?.data?.readingValue && response?.data?.nozzleId) {
+          updatedReadings[response.data.nozzleId] = response.data.readingValue;
+        }
+      });
+      setLatestNozzleReadings(updatedReadings);
+
       toast({
         title: 'Success',
         description: 'All readings saved successfully'
       });
-      queryClient.invalidateQueries({ queryKey: ['station-pumps', selectedStation] });
+      // Clear the form
       setReadings({});
+      // Optional: refresh pump data in background
+      queryClient.invalidateQueries({ queryKey: ['station-pumps', selectedStation] });
     },
     onError: (error: unknown) => {
       let message = 'Failed to save readings';
@@ -137,7 +186,7 @@ export default function QuickDataEntry() {
   };
 
   const handleSubmit = () => {
-    const entries = Object.values(readings).filter(r => r.reading && parseFloat(r.reading) > 0);
+    const entries = Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0);
     if (entries.length === 0) {
       toast({
         title: 'No readings entered',
@@ -259,25 +308,32 @@ export default function QuickDataEntry() {
 
                         <div className="flex-1 grid grid-cols-2 gap-2 sm:gap-3">
                           <div className="bg-background p-2 rounded border">
-                            <div className="text-xs text-muted-foreground mb-0.5">Last Reading</div>
+                            <div className="text-xs text-muted-foreground mb-0.5">Meter Reading</div>
                             <div className="font-mono text-sm font-semibold">
-                              {nozzle.lastReading?.toFixed(2) || nozzle.initialReading?.toFixed(2) || '0.00'}
+                              {typeof latestNozzleReadings[nozzle.id] === 'number' && !isNaN(latestNozzleReadings[nozzle.id])
+                                ? latestNozzleReadings[nozzle.id].toFixed(2)
+                                : (typeof nozzle.lastReading === 'number' && !isNaN(nozzle.lastReading)
+                                  ? nozzle.lastReading.toFixed(2)
+                                  : (typeof nozzle.initialReading === 'number' && !isNaN(nozzle.initialReading)
+                                    ? nozzle.initialReading.toFixed(2)
+                                    : '0.00'))}
                             </div>
                           </div>
 
                           <div className="relative">
                             <Input
                               type="number"
-                              step="0.01"
-                              placeholder="New reading"
-                              value={readings[nozzle.id]?.reading || ''}
+                              step="any"
+                              placeholder="Meter reading"
+                              title="Enter the current meter reading from the pump display"
+                              value={readings[nozzle.id]?.readingValue || ''}
                               onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
                               className="pr-8"
                               disabled={nozzle.status !== 'active'}
                             />
-                            {readings[nozzle.id]?.reading && (
+                            {readings[nozzle.id]?.readingValue && (
                               <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                {parseFloat(readings[nozzle.id].reading) > (nozzle.lastReading || nozzle.initialReading || 0) ? (
+                                {parseFloat(readings[nozzle.id].readingValue) > (latestNozzleReadings[nozzle.id] || nozzle.lastReading || nozzle.initialReading || 0) ? (
                                   <Check className="w-4 h-4 text-green-500" />
                                 ) : (
                                   <X className="w-4 h-4 text-red-500" />

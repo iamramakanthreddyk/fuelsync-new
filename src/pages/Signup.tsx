@@ -41,7 +41,7 @@ export default function Signup() {
     setIsLoading(true);
 
     try {
-      await apiClient.post<any>('/auth/register', {
+      await apiClient.post<{ success: boolean; data: unknown }>('/auth/register', {
         email,
         password,
         name: name || email.split('@')[0],
@@ -56,10 +56,16 @@ export default function Signup() {
       setPassword('');
       setName('');
       navigate('/login');
-    } catch (err: any) {
+    } catch (err: unknown) {
+      let errorMessage = "An error occurred during signup.";
+      if (err && typeof err === 'object' && 'message' in err) {
+        errorMessage = (err as { message?: string }).message || errorMessage;
+      } else if (typeof err === 'string') {
+        errorMessage = err;
+      }
       toast({
         title: "Sign Up Error",
-        description: err.message || "An error occurred during signup.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {

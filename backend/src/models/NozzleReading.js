@@ -170,10 +170,12 @@ module.exports = (sequelize) => {
    * Get the latest reading for a nozzle (for showing previous reading)
    */
   NozzleReading.getLatestReading = async function(nozzleId) {
-    return this.findOne({
+    const latest = await this.findOne({
       where: { nozzleId },
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
     });
+    console.log(`[DEBUG] getLatestReading for nozzleId=${nozzleId}:`, latest ? latest.readingValue : null);
+    return latest;
   };
 
   /**

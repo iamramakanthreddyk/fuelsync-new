@@ -19,6 +19,7 @@ const testRoutes = require('./routes/test');
 // New routes
 const stationRoutes = require('./routes/stations');
 const nozzleRoutes = require('./routes/nozzles');
+const nozzlesLatestRoutes = require('./routes/nozzles');
 const nozzleDirectRoutes = require('./routes/nozzlesDirect');
 const dashboardRoutes = require('./routes/dashboard');
 const inventoryRoutes = require('./routes/inventory');
@@ -67,6 +68,7 @@ app.use('/api/v1/test', testRoutes);
 // New routes
 app.use('/api/v1/stations', stationRoutes);
 app.use('/api/v1/pumps/:pumpId/nozzles', nozzleRoutes); // Nested under pumps
+app.use('/api/v1/nozzles', nozzlesLatestRoutes); // Direct nozzle access and latest readings
 app.use('/api/v1/nozzles', nozzleDirectRoutes); // Direct nozzle access
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/inventory', inventoryRoutes);

@@ -113,6 +113,20 @@ export default function StationDetail() {
   const [selectedPump, setSelectedPump] = useState<Pump | null>(null);
   const [selectedNozzle, setSelectedNozzle] = useState<Nozzle | null>(null);
 
+  // Log last reading value for selected nozzle
+  useEffect(() => {
+    if (selectedNozzle) {
+      console.log('Last Reading:', selectedNozzle.lastReading ?? selectedNozzle.initialReading);
+    }
+  }, [selectedNozzle]);
+
+  // Log last reading value for selected nozzle
+  useEffect(() => {
+    if (selectedNozzle) {
+      console.log('Last Reading:', selectedNozzle.lastReading ?? selectedNozzle.initialReading);
+    }
+  }, [selectedNozzle]);
+
   const [pumpForm, setPumpForm] = useState({
     pumpNumber: '',
     name: '',
@@ -1316,7 +1330,7 @@ export default function StationDetail() {
               <Input
                 id="readingValue"
                 type="number"
-                step="0.01"
+                step="any"
                 value={readingForm.readingValue}
                 onChange={(e) => setReadingForm({ ...readingForm, readingValue: e.target.value })}
                 placeholder="Enter current meter reading"

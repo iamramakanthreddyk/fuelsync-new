@@ -90,18 +90,19 @@ exports.createReading = async (req, res, next) => {
     }
 
     // Get previous reading
+    console.log(`[DEBUG] Calling getLatestReading for nozzleId=${nozzleId}`);
     const previousReadingRecord = await NozzleReading.getLatestReading(nozzleId);
     let previousReading = previousReadingRecord?.readingValue || nozzle.initialReading || 0;
     let isInitialReading = !previousReadingRecord;
 
-    // Validate reading value (must be >= previous)
+    // Validate reading value (must be > previous unless initial)
     const currentValue = parseFloat(readingValue);
     const prevValue = parseFloat(previousReading);
 
-    if (currentValue < prevValue) {
+    if (!isInitialReading && currentValue <= prevValue) {
       return res.status(400).json({
         success: false,
-        error: `Reading must be >= previous reading (${prevValue}). Meter readings only go forward.`,
+        error: `Reading must be greater than previous reading (${prevValue}). Meter readings only go forward.`,
         previousReading: prevValue
       });
     }
@@ -518,5 +519,25 @@ exports.updateReading = async (req, res, next) => {
   } catch (error) {
     console.error('Update reading error:', error);
     next(error);
+  }
+};
+
+exports.getLatestReadingsForNozzles = async (req, res) => {
+  const ids = req.query.ids ? req.query.ids.split(',') : [];
+  if (!ids.length) {
+    return res.status(400).json({ error: 'No nozzle IDs provided' });
+  }
+  try {
+    const results = {};
+    for (const id of ids) {
+      const latest = await NozzleReading.findOne({
+        where: { nozzleId: id },
+        order: [['readingDate', 'DESC']]
+      });
+      results[id] = latest ? latest.readingValue : null;
+    }
+    res.json(results);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch latest readings' });
   }
 };

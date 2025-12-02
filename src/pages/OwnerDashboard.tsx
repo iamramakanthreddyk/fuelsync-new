@@ -40,7 +40,7 @@ const OwnerDashboard = () => {
     try {
       setLoading(true);
       
-      const response = await apiClient.post<any>('/users', {
+      const response = await apiClient.post<{ success: boolean; data: unknown }>('/users', {
         name: newEmployee.name,
         email: newEmployee.email,
         phone: newEmployee.phone,
@@ -74,7 +74,7 @@ const OwnerDashboard = () => {
     try {
       setLoading(true);
       
-      const response = await apiClient.post<any>(`/stations/${currentStation.id}/pumps`, {
+      const response = await apiClient.post<{ success: boolean; data: unknown }>(`/stations/${currentStation.id}/pumps`, {
         number: newPump.pumpSno,
         name: newPump.name,
         status: 'active'

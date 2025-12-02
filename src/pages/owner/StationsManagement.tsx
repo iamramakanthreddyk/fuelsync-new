@@ -117,6 +117,7 @@ export default function StationsManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owner-stations'] });
+      queryClient.invalidateQueries({ queryKey: ['owner-stations-summary'] });
       toast({
         title: 'Success',
         description: 'Station created successfully'
@@ -154,6 +155,7 @@ export default function StationsManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owner-stations'] });
+      queryClient.invalidateQueries({ queryKey: ['owner-stations-summary'] });
       toast({
         title: 'Success',
         description: 'Station updated successfully'
@@ -192,6 +194,7 @@ export default function StationsManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owner-stations'] });
+      queryClient.invalidateQueries({ queryKey: ['owner-stations-summary'] });
       toast({
         title: 'Success',
         description: 'Station deleted successfully'

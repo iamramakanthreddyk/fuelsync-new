@@ -4,7 +4,7 @@
  * Works with the Express backend at localhost:3001
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://fuelsync-new-production.up.railway.app/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
 // Token storage keys
 const TOKEN_KEY = 'fuelsync_token';
@@ -70,18 +70,15 @@ export function setStoredUser<T>(user: T): void {
 /**
  * Build headers for API requests
  */
-function buildHeaders(customHeaders?: Record<string, string>, endpoint?: string): Headers {
+function buildHeaders(customHeaders?: Record<string, string>): Headers {
   const headers = new Headers({
     'Content-Type': 'application/json',
     ...customHeaders,
   });
 
-  // Do NOT send Authorization header for login or register endpoints
-  if (!endpoint || (!endpoint.startsWith('/auth/login') && !endpoint.startsWith('/auth/register'))) {
-    const token = getToken();
-    if (token) {
-      headers.set('Authorization', `Bearer ${token}`);
-    }
+  const token = getToken();
+  if (token) {
+    headers.set('Authorization', `Bearer ${token}`);
   }
 
   return headers;
@@ -168,7 +165,7 @@ async function request<T>(
   
   const config: RequestInit = {
     method,
-    headers: buildHeaders(options?.headers, endpoint),
+    headers: buildHeaders(options?.headers),
     signal: options?.signal,
   };
 

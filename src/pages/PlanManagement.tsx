@@ -43,7 +43,7 @@ function PlanManagement() {
     setEditData({});
   };
 
-  const handleChange = (field: keyof Plan, value: any) => {
+  const handleChange = (field: keyof Plan, value: string | number | boolean) => {
     setEditData(prev => ({ ...prev, [field]: value }));
   };
 

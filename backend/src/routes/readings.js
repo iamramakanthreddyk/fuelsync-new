@@ -14,6 +14,9 @@ router.use(authenticate);
 // Get previous reading for a nozzle (for UI)
 router.get('/previous/:nozzleId', readingController.getPreviousReading);
 
+// Get latest readings for multiple nozzle IDs (must come BEFORE /:id route)
+router.get('/latest', readingController.getLatestReadingsForNozzles);
+
 // Create new reading (all authenticated users)
 router.post('/', readingController.createReading);
 
