@@ -178,8 +178,42 @@ export default function Reports() {
       if (selectedStation !== 'all') {
         params.append('stationId', selectedStation);
       }
-      const response = await apiClient.get<NozzleBreakdown[]>(`/dashboard/nozzle-breakdown?${params.toString()}`);
-      return response;
+      // Backend returns { success: true, data: { startDate, endDate, nozzles: [...] } }
+      // Backend nozzle fields: nozzleId, nozzleNumber, fuelType, fuelLabel, pump:{id,name,number}, litres, amount, cash, online, credit, readings
+      const response = await apiClient.get<{
+        startDate: string;
+        endDate: string;
+        nozzles: Array<{
+          nozzleId: string;
+          nozzleNumber: number;
+          fuelType?: string;
+          fuelLabel?: string;
+          pump?: { id?: string; name?: string; number?: number };
+          litres?: number;
+          amount?: number;
+          cash?: number;
+          online?: number;
+          credit?: number;
+          readings?: number;
+        }>;
+      }>(`/dashboard/nozzle-breakdown?${params.toString()}`);
+
+      const backendNozzles = response?.nozzles || [];
+
+      // Map backend shape to UI shape expected by this component
+      const mapped = backendNozzles.map(n => ({
+        nozzleId: n.nozzleId,
+        nozzleNumber: n.nozzleNumber,
+        fuelType: n.fuelType || n.fuelLabel || 'unknown',
+        pumpName: n.pump?.name || '',
+        stationName: '',
+        totalSales: n.amount ?? 0,
+        totalQuantity: n.litres ?? 0,
+        transactions: n.readings ?? 0,
+        avgTransactionValue: (n.readings && n.readings > 0) ? ((n.amount ?? 0) / n.readings) : 0
+      }));
+
+      return mapped;
     }
   });
 
@@ -425,7 +459,13 @@ export default function Reports() {
               ) : nozzleBreakdown && nozzleBreakdown.length > 0 ? (
                 <div className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
-                    {nozzleBreakdown.map((nozzle) => (
+                    {nozzleBreakdown.map((nozzle) => {
+                      const totalSales = nozzle?.totalSales ?? 0;
+                      const totalQuantity = nozzle?.totalQuantity ?? 0;
+                      const transactions = nozzle?.transactions ?? 0;
+                      const avgTransactionValue = nozzle?.avgTransactionValue ?? (transactions > 0 ? totalSales / transactions : 0);
+
+                      return (
                       <Card key={nozzle.nozzleId}>
                         <CardHeader className="pb-3">
                           <div className="flex items-start justify-between">
@@ -444,24 +484,25 @@ export default function Reports() {
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <p className="text-xs text-muted-foreground">Total Sales</p>
-                              <p className="text-lg font-bold">₹{nozzle.totalSales.toLocaleString('en-IN')}</p>
+                              <p className="text-lg font-bold">₹{totalSales.toLocaleString('en-IN')}</p>
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Volume</p>
-                              <p className="text-lg font-bold">{nozzle.totalQuantity.toFixed(2)} L</p>
+                              <p className="text-lg font-bold">{totalQuantity.toFixed(2)} L</p>
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Transactions</p>
-                              <p className="text-lg font-bold">{nozzle.transactions}</p>
+                              <p className="text-lg font-bold">{transactions}</p>
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Avg. Value</p>
-                              <p className="text-lg font-bold">₹{nozzle.avgTransactionValue.toFixed(2)}</p>
+                              <p className="text-lg font-bold">₹{avgTransactionValue.toFixed(2)}</p>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               ) : (

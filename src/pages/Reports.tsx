@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiService } from '@/services/api';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
+// charts are not used in this page yet
 
 export default function Reports() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
@@ -20,6 +20,7 @@ export default function Reports() {
 
   const currentStation = user?.stations?.[0];
 
+  // Query for report generation data and capture results for preview
   const { data: reportData, isLoading } = useQuery({
     queryKey: ['report', currentStation?.id, startDate, endDate, reportType],
     queryFn: async () => {
@@ -97,9 +98,44 @@ export default function Reports() {
 
       <div className="text-center py-8">
         <span className="text-4xl">📊</span>
-        <p className="text-muted-foreground mt-2">Reports feature coming soon</p>
-        <p className="text-sm text-muted-foreground">Detailed analytics and reporting will be available here</p>
+        <p className="text-muted-foreground mt-2">Reports preview</p>
+        <p className="text-sm text-muted-foreground">Preview of generated report rows</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Preview</CardTitle>
+          <CardDescription>Quick view of the generated report</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="text-center py-8 text-muted-foreground">Loading report...</div>
+          ) : !reportData || (Array.isArray(reportData.data) && reportData.data.length === 0) ? (
+            <div className="text-center py-8 text-muted-foreground">No data for selected range</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm table-auto">
+                <thead>
+                  <tr className="text-left">
+                    {Object.keys(reportData.data[0] || {}).slice(0, 6).map((h) => (
+                      <th key={h} className="p-2 font-medium">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {reportData.data.slice(0, 10).map((row: any, idx: number) => (
+                    <tr key={idx} className="border-t">
+                      {Object.values(row).slice(0, 6).map((val, i) => (
+                        <td key={i} className="p-2">{typeof val === 'number' ? val.toLocaleString('en-IN') : String(val)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
