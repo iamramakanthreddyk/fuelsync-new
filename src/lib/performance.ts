@@ -201,9 +201,10 @@ export function logWebVitals() {
       const clsObserver = new PerformanceObserver((list) => {
         for (const entry of list.getEntries()) {
           // LayoutShift entries are of type LayoutShift
-          const layoutEntry = entry as LayoutShift;
+          // Use PerformanceLayoutShift if available, otherwise fallback to PerformanceEntry
+          const layoutEntry = entry as PerformanceEntry & { value?: number; hadRecentInput?: boolean };
           if (!layoutEntry.hadRecentInput) {
-            clsValue += layoutEntry.value;
+            clsValue += layoutEntry.value ?? 0;
           }
         }
         console.log('CLS:', clsValue.toFixed(4));

@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient, getToken } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
@@ -19,7 +19,7 @@ import { getFuelColors } from '@/lib/fuelColors';
 import { useStationPumps } from "@/hooks/useStationPumps";
 import { usePumpNozzles } from "@/hooks/usePumpNozzles";
 import { useRoleAccess } from '@/hooks/useRoleAccess';
-import { useIsPremiumStation } from '@/hooks/useIsPremiumStation';
+
 
 interface ManualEntryData {
   station_id: string;
@@ -48,7 +48,7 @@ export default function DataEntry() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
-  const [selectedPump, setSelectedPump] = useState<string | null>(null);
+  useState<string | null>(null);
 
   // Manual states
   const [manualPump, setManualPump] = useState<string | null>(null);
@@ -56,14 +56,14 @@ export default function DataEntry() {
   const [previousReading, setPreviousReading] = useState<number | null>(null);
   const [loadingPreviousReading, setLoadingPreviousReading] = useState(false);
 
-  const { session } = useAuth();
+  useAuth();
 
   // Use role access to strictly scope stations to the user (owner/employee)
-  const { role, stations: userStations, isOwner } = useRoleAccess();
+  const { stations: userStations } = useRoleAccess();
 
   // Derived dropdown options, use the userStations list from useRoleAccess
   const { data: pumps = [], isLoading: pumpsLoading, error: pumpsError } = useStationPumps(selectedStation || userStations[0]?.id);
-  const { data: manualNozzles = [], isLoading: nozzlesLoading, error: nozzlesError } = usePumpNozzles(manualPump);
+  const { data: manualNozzles = [], isLoading: nozzlesLoading, error: nozzlesError } = usePumpNozzles(manualPump ?? undefined);
 
   // Debug logging
   React.useEffect(() => {
@@ -90,7 +90,7 @@ export default function DataEntry() {
     formState: { errors: manualErrors },
     reset: resetManual,
     setValue: setManualValue,
-    watch: watchManual
+    // watch: watchManual
   } = useForm<ManualEntryData>({
     defaultValues: {
       station_id: userStations[0]?.id || '',
@@ -105,7 +105,7 @@ export default function DataEntry() {
     register: registerTender,
     handleSubmit: handleSubmitTender,
     formState: { errors: tenderErrors },
-    reset: resetTender,
+    // reset: resetTender,
     setValue: setTenderValue,
     watch: watchTender
   } = useForm<TenderEntryData>({
@@ -122,7 +122,7 @@ export default function DataEntry() {
     register: registerRefill,
     handleSubmit: handleSubmitRefill,
     formState: { errors: refillErrors },
-    reset: resetRefill,
+    // reset: resetRefill,
     setValue: setRefillValue,
     watch: watchRefill
   } = useForm<RefillData>({
@@ -243,7 +243,7 @@ export default function DataEntry() {
 
   // Reset pumps when station changes
   useEffect(() => {
-    setSelectedPump(null);
+    // setSelectedPump(null); // removed unused state
     setManualPump(null);
     setManualNozzle(null);
   }, [selectedStation]);

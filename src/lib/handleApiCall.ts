@@ -1,5 +1,5 @@
 import { AppError } from '@/lib/error-utils';
-import { logError, getUserMessage } from '@/lib/error-utils';
+import { logError } from '@/lib/error-utils';
 
 /**
  * Helper to handle API calls with global error handling.
@@ -13,6 +13,6 @@ export async function handleApiCall<T>(fn: () => Promise<T>): Promise<[T | null,
     const appError = logError(error);
     // Optionally, show a toast or notification here
     // toast.error(getUserMessage(error));
-    return [null, appError];
+    return [null, appError ?? null];
   }
 }

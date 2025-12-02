@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import { useRoleAccess } from "./useRoleAccess";
 
-interface Sale {
+export interface Sale {
   id: string;
   station_id: string;
   station_name: string;

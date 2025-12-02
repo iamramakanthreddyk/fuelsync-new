@@ -25,7 +25,7 @@ export function useSalesManagement() {
 
   const createManualEntry = useMutation({
     mutationFn: async (data: ManualEntryData) => {
-      const response = await apiClient.post<Sale>('/sales/manual-entry', {
+      const response = await apiClient.post<ApiResponse<Sale>>('/sales/manual-entry', {
         ...data,
         user_id: user?.id
       });
