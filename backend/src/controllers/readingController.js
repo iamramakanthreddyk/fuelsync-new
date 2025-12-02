@@ -121,7 +121,7 @@ exports.createReading = async (req, res, next) => {
     }
 
     // Calculate total amount
-    const pricePerLitre = fuelPrice || 0;
+    const pricePerLitre = fuelPrice || (isInitialReading ? 100 : 0); // Use default price of 100 for initial readings if no price set
     const totalAmount = litresSold * pricePerLitre;
 
     // Handle payment amounts
