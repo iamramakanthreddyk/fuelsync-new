@@ -67,10 +67,12 @@ interface Nozzle {
 
 interface FuelPrice {
   id: string;
+  stationId: string;
   fuelType: string;
   price: number;
   effectiveFrom: string;
-  updatedAt: string;
+  updatedBy: string;
+  createdAt: string;
 }
 interface Station {
   id: string;
@@ -253,8 +255,8 @@ export default function StationDetail() {
   const { data: prices, isLoading: pricesLoading } = useQuery({
     queryKey: ['station-prices', id],
     queryFn: async () => {
-      const response = await apiClient.get<FuelPrice[]>(`/stations/${id}/prices`);
-      return response;
+      const response = await apiClient.get<{current: FuelPrice[], history: FuelPrice[]}>(`/stations/${id}/prices`);
+      return response.current;
     },
     enabled: !!id
   });
@@ -264,7 +266,7 @@ export default function StationDetail() {
     queryKey: ['station-creditors', id],
     queryFn: async () => {
       try {
-        const response = await apiClient.get<Creditor[]>(`/credits/stations/${id}/creditors`);
+        const response = await apiClient.get<Creditor[]>(`/stations/${id}/creditors`);
         return response;
       } catch (error: unknown) {
         if (
@@ -394,7 +396,7 @@ export default function StationDetail() {
   // Create creditor mutation
   const createCreditorMutation = useMutation({
     mutationFn: async (data: { name: string; phone: string; email: string; creditLimit: string; vehicleNumber: string }) => {
-      const response = await apiClient.post(`/credits/stations/${id}/creditors`, data);
+      const response = await apiClient.post(`/stations/${id}/creditors`, data);
       return response;
     },
     onSuccess: () => {
@@ -990,7 +992,7 @@ export default function StationDetail() {
                   <CardContent>
                     <div className="text-3xl font-bold">₹{toFixedNumber(price.price, 2)}</div>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Updated {formatDateTimeLocal(price.updatedAt)}
+                      Updated {formatDateTimeLocal(price.createdAt)}
                     </p>
                   </CardContent>
                 </Card>
