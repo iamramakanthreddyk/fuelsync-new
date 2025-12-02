@@ -4,7 +4,7 @@
  * Works with the Express backend at localhost:3001
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://fuelsync-new-production.up.railway.app/api/v1';
 
 // Token storage keys
 const TOKEN_KEY = 'fuelsync_token';
