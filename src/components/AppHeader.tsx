@@ -17,7 +17,8 @@ export function AppHeader() {
   const { state, isMobile } = useSidebar();
   const { user } = useAuth();
 
-  const sidebarWidth = state === 'collapsed' ? '4rem' : '12rem';
+  // Match widths with sidebar (w-20 = 5rem collapsed, w-56 = 14rem expanded)
+  const sidebarWidth = state === 'collapsed' ? '5rem' : '14rem';
   const headerStyle: React.CSSProperties = isMobile
     ? { left: 0, width: '100%' }
     : { left: sidebarWidth, width: `calc(100% - ${sidebarWidth})` };
@@ -27,21 +28,25 @@ export function AppHeader() {
       {/* Mobile Header */}
       <div className="md:hidden flex items-center h-14 px-3 py-1.5 justify-between gap-2">
         <MobileMenuTrigger />
-        <div className="flex-1 flex flex-col items-center justify-center -ml-7">
+        <div className="flex-1 flex items-center justify-center -ml-7">
           {currentStation ? (
             <span className="text-base font-semibold text-foreground truncate text-center flex items-center gap-2">
-              <FuelSyncLogo size={20} variant="alt" />
+              <FuelSyncLogo size={24} variant="alt" />
               {currentStation.name}
             </span>
           ) : (
-            <span className="text-base font-bold text-foreground text-center tracking-wide flex items-center gap-2">{user?.name ? `Welcome back, ${user.name} 👋` : <><FuelSyncLogo size={20} variant="alt" />FuelSync</>}</span>
+            <div className="flex items-center gap-2">
+              <FuelSyncLogo size={28} variant="alt" />
+              <span className="text-base font-bold text-foreground tracking-wide">FuelSync</span>
+            </div>
           )}
         </div>
         <div className="w-8"></div>
       </div>
       {/* Desktop Header */}
       <div className="hidden md:flex items-center h-16 w-full px-6 justify-between">
-        <div>
+        <div className="flex items-center gap-3">
+          <FuelSyncLogo size={28} variant="alt" />
           {currentStation ? (
             <span className="text-lg font-semibold text-foreground">{currentStation.name}</span>
           ) : (

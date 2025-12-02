@@ -182,8 +182,8 @@ export default function Analytics() {
           <p className="font-medium mb-2">{label}</p>
           {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: {typeof entry.value === 'number' && entry.name.includes('Sales')
-                ? formatCurrency(entry.value)
+              {entry.name}: {typeof entry.value === 'number' && String(entry.name || '').includes('Sales')
+                ? formatCurrency(Number(entry.value))
                 : entry.value}
             </p>
           ))}

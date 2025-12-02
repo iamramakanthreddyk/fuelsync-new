@@ -16,10 +16,17 @@ const FuelSyncLogo: React.FC<FuelSyncLogoProps> = ({ size = 34, className = "", 
   >
     {variant === 'alt' ? (
       <svg width={size} height={size} viewBox="0 0 40 40" fill="none" className="block" role="img" xmlns="http://www.w3.org/2000/svg">
-        <rect width="40" height="40" rx="6" fill="#ffffff" />
-        <circle cx="20" cy="18" r="9" fill="url(#alt-drop)" />
-        <path d="M28 18c0 5-4 9-10 9" stroke="#ffb64d" strokeWidth="2" strokeLinecap="round" />
+        {/* Rounded colored background for contrast */}
+        <rect width="40" height="40" rx="8" fill="url(#alt-bg)" />
+        <g transform="translate(0,0)">
+          <circle cx="20" cy="18" r="8" fill="url(#alt-drop)" />
+          <path d="M28 18c0 5-4 9-10 9" stroke="#ffb64d" strokeWidth="2" strokeLinecap="round" />
+        </g>
         <defs>
+          <linearGradient id="alt-bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stopColor="#eef2ff" />
+            <stop offset="1" stopColor="#e0f2fe" />
+          </linearGradient>
           <linearGradient id="alt-drop" x1="8" y1="8" x2="28" y2="28" gradientUnits="userSpaceOnUse">
             <stop stopColor="#4f46e5" />
             <stop offset="1" stopColor="#0ea5e9" />

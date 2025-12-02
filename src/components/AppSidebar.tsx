@@ -30,7 +30,6 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import FuelSyncLogo from './FuelSyncLogo';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -174,7 +173,8 @@ export function AppSidebar() {
     >
       <SidebarHeader className="flex items-center justify-between py-2 px-2">
         <Link to={dashboardUrl} className="flex items-center gap-3">
-          <span className={state === 'collapsed' ? 'hidden' : 'font-semibold text-xl tracking-tight text-slate-800'}>FuelSync</span>
+          {/* Branding moved to header - keep a small spacer here for alignment */}
+          <span className={state === 'collapsed' ? 'hidden' : 'text-sm text-slate-500'} />
         </Link>
       </SidebarHeader>
       {/* Compact profile block to utilize header/space */}
@@ -276,9 +276,6 @@ export function AppSidebar() {
             <span className={state === 'collapsed' ? 'hidden' : 'text-sm'}>Logout</span>
           </Button>
         </div>
-        <p className={cn("text-[11px] text-muted-foreground px-3 pb-3 text-center", state === 'collapsed' ? 'hidden' : '')}>
-          FuelSync © {new Date().getFullYear()}
-        </p>
       </SidebarFooter>
     </Sidebar>
   );
