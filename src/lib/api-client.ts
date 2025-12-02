@@ -70,15 +70,18 @@ export function setStoredUser<T>(user: T): void {
 /**
  * Build headers for API requests
  */
-function buildHeaders(customHeaders?: Record<string, string>): Headers {
+function buildHeaders(customHeaders?: Record<string, string>, endpoint?: string): Headers {
   const headers = new Headers({
     'Content-Type': 'application/json',
     ...customHeaders,
   });
 
-  const token = getToken();
-  if (token) {
-    headers.set('Authorization', `Bearer ${token}`);
+  // Do NOT send Authorization header for login or register endpoints
+  if (!endpoint || (!endpoint.startsWith('/auth/login') && !endpoint.startsWith('/auth/register'))) {
+    const token = getToken();
+    if (token) {
+      headers.set('Authorization', `Bearer ${token}`);
+    }
   }
 
   return headers;
@@ -165,7 +168,7 @@ async function request<T>(
   
   const config: RequestInit = {
     method,
-    headers: buildHeaders(options?.headers),
+    headers: buildHeaders(options?.headers, endpoint),
     signal: options?.signal,
   };
 

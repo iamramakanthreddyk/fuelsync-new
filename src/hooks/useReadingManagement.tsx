@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { apiClient, ApiResponse, getToken } from '@/lib/api-client';
+import { apiClient, getToken } from '@/lib/api-client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -160,20 +160,20 @@ export const useReadingManagement = () => {
         user_id: user.id
       };
 
-      const response = await apiClient.post<unknown>('/readings/manual', payload);
-
-      if (!response.success) {
+      const response = await apiClient.post<{ success: boolean; data: unknown }>('/readings/manual', payload);
+      if (!response || typeof response !== 'object' || !('success' in response) || !('data' in response)) {
+        throw new Error('Invalid response from server');
+      }
+      if (!(response as { success: boolean }).success) {
         throw new Error('Failed to save reading');
       }
-
-      console.log('✅ Manual reading saved:', response.data);
-
+      const data = (response as { data: unknown }).data;
+      console.log('✅ Manual reading saved:', data);
       toast({
         title: "Reading Saved",
         description: "Manual reading recorded successfully",
       });
-
-      return { success: true, data: response.data };
+      return { success: true, data };
     } catch (error: unknown) {
       console.error("💥 Manual reading error:", error);
       let errorMessage = "An unexpected error occurred";
