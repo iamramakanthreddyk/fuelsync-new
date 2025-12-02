@@ -66,7 +66,6 @@ export default function QuickDataEntry() {
   const [selectedStation, setSelectedStation] = useState<string>('');
   const [readings, setReadings] = useState<Record<string, ReadingEntry>>({});
   const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
-  const [latestNozzleReadings, setLatestNozzleReadings] = useState<Record<string, number>>({});
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -90,23 +89,6 @@ export default function QuickDataEntry() {
     },
     enabled: !!selectedStation
   });
-
-  // Fetch latest readings for all nozzles after pumps are loaded
-  useEffect(() => {
-    const fetchLatestReadings = async () => {
-      if (!pumps || pumps.length === 0) return;
-      const nozzleIds = pumps.flatMap(pump => pump.nozzles.map(nozzle => nozzle.id));
-      if (nozzleIds.length === 0) return;
-      try {
-        // Batch fetch: assumes backend supports /nozzles/readings/latest?ids=...
-        const response = await apiClient.get<Record<string, number>>(`/readings/latest?ids=${nozzleIds.join(',')}`);
-        setLatestNozzleReadings(response || {});
-      } catch (err) {
-        setLatestNozzleReadings({});
-      }
-    };
-    fetchLatestReadings();
-  }, [pumps]);
 
   // Log last reading for all nozzles when pumps data changes
   useEffect(() => {
@@ -139,25 +121,13 @@ export default function QuickDataEntry() {
       );
       return Promise.all(promises);
     },
-    onSuccess: (responses: any[]) => {
-      // Update latest readings with the new values from responses
-      const updatedReadings: Record<string, number> = { ...latestNozzleReadings };
-      responses.forEach((response: any) => {
-        if (response?.data?.readingValue && response?.data?.nozzleId) {
-          updatedReadings[response.data.nozzleId] = response.data.readingValue;
-        }
-      });
-      setLatestNozzleReadings(updatedReadings);
-
+    onSuccess: () => {
       toast({
         title: 'Success',
         description: 'All readings saved successfully'
       });
       // Clear the form
       setReadings({});
-      // Optional: refresh pump data in background
-      // Update shared cache for latest readings so other components reflect changes immediately
-      queryClient.setQueryData<Record<string, number> | undefined>(['readings', 'latest'], (prev) => ({ ...(prev || {}), ...updatedReadings }));
       // Invalidate higher-level queries that depend on readings
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
       queryClient.invalidateQueries({ queryKey: ['station-pumps', selectedStation] });
@@ -314,13 +284,11 @@ export default function QuickDataEntry() {
                           <div className="bg-background p-2 rounded border">
                             <div className="text-xs text-muted-foreground mb-0.5">Meter Reading</div>
                             <div className="font-mono text-sm font-semibold">
-                              {typeof latestNozzleReadings[nozzle.id] === 'number' && !isNaN(latestNozzleReadings[nozzle.id])
-                                ? latestNozzleReadings[nozzle.id].toFixed(2)
-                                : (typeof nozzle.lastReading === 'number' && !isNaN(nozzle.lastReading)
-                                  ? nozzle.lastReading.toFixed(2)
-                                  : (typeof nozzle.initialReading === 'number' && !isNaN(nozzle.initialReading)
-                                    ? nozzle.initialReading.toFixed(2)
-                                    : '0.00'))}
+                              {typeof nozzle.lastReading === 'number' && !isNaN(nozzle.lastReading)
+                                ? nozzle.lastReading.toFixed(2)
+                                : (typeof nozzle.initialReading === 'number' && !isNaN(nozzle.initialReading)
+                                  ? nozzle.initialReading.toFixed(2)
+                                  : '0.00')}
                             </div>
                           </div>
 
@@ -337,7 +305,7 @@ export default function QuickDataEntry() {
                             />
                             {readings[nozzle.id]?.readingValue && (
                               <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                {parseFloat(readings[nozzle.id].readingValue) > (latestNozzleReadings[nozzle.id] || nozzle.lastReading || nozzle.initialReading || 0) ? (
+                                {parseFloat(readings[nozzle.id].readingValue) > (nozzle.lastReading || nozzle.initialReading || 0) ? (
                                   <Check className="w-4 h-4 text-green-500" />
                                 ) : (
                                   <X className="w-4 h-4 text-red-500" />

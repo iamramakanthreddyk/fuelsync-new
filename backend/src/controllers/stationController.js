@@ -424,7 +424,7 @@ exports.getPumps = async (req, res, next) => {
       include: [{
         model: Nozzle,
         as: 'nozzles',
-        attributes: ['id', 'nozzleNumber', 'fuelType', 'status']
+        attributes: ['id', 'nozzleNumber', 'fuelType', 'status', 'lastReading', 'lastReadingDate']
       }],
       order: [['pumpNumber', 'ASC']]
     });

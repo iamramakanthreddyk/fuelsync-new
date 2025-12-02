@@ -283,7 +283,9 @@ exports.getPumpPerformance = async (req, res, next) => {
       where: {
         readingDate: {
           [Op.between]: [startDate, endDate]
-        }
+        },
+        isInitialReading: false,
+        litresSold: { [Op.gt]: 0 }
       },
       group: ['pumpId'],
       raw: true
@@ -312,32 +314,51 @@ exports.getPumpPerformance = async (req, res, next) => {
       where: {
         readingDate: {
           [Op.between]: [startDate, endDate]
-        }
+        },
+        isInitialReading: false,
+        litresSold: { [Op.gt]: 0 }
       },
       group: ['pumpId', 'nozzleId'],
       raw: true
     });
 
+    // Get all pumps for the stations
+    const allPumps = await Pump.findAll({
+      where: { stationId: { [Op.in]: stationIds } },
+      include: [{
+        model: Station,
+        as: 'station',
+        attributes: ['name']
+      }, {
+        model: Nozzle,
+        as: 'nozzles',
+        attributes: ['id', 'nozzleNumber', 'fuelType']
+      }],
+      order: [['pumpNumber', 'ASC']]
+    });
+
     // Build report structure
-    const reports = pumpData.map(pump => {
-      const nozzles = nozzleData
-        .filter(n => n.pumpId === pump.pumpId)
-        .map(n => ({
-          nozzleId: n.nozzleId,
-          nozzleNumber: n.nozzleNumber,
-          fuelType: n.fuelType,
-          sales: parseFloat(n.sales || 0),
-          quantity: parseFloat(n.quantity || 0)
-        }));
+    const reports = allPumps.map(pump => {
+      const pumpReport = pumpData.find(p => p.pumpId === pump.id);
+      const nozzles = pump.nozzles.map(nozzle => {
+        const nozzleReport = nozzleData.find(n => n.nozzleId === nozzle.id);
+        return {
+          nozzleId: nozzle.id,
+          nozzleNumber: nozzle.nozzleNumber,
+          fuelType: nozzle.fuelType,
+          sales: nozzleReport ? parseFloat(nozzleReport.sales || 0) : 0,
+          quantity: nozzleReport ? parseFloat(nozzleReport.quantity || 0) : 0
+        };
+      });
 
       return {
-        pumpId: pump.pumpId,
-        pumpName: pump.pumpName,
+        pumpId: pump.id,
+        pumpName: pump.name,
         pumpNumber: pump.pumpNumber,
-        stationName: pump.stationName,
-        totalSales: parseFloat(pump.totalSales || 0),
-        totalQuantity: parseFloat(pump.totalQuantity || 0),
-        transactions: parseInt(pump.transactions || 0),
+        stationName: pump.station.name,
+        totalSales: pumpReport ? parseFloat(pumpReport.totalSales || 0) : 0,
+        totalQuantity: pumpReport ? parseFloat(pumpReport.totalQuantity || 0) : 0,
+        transactions: pumpReport ? parseInt(pumpReport.transactions || 0) : 0,
         nozzles
       };
     });

@@ -775,37 +775,45 @@ export default function StationDetail() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
               <div className="col-span-full text-sm text-green-600 mb-2">
                 ✅ Found {pumps.length} pumps
               </div>
               {pumps.map((pump) => (
-                <Card key={pump.id} className="flex flex-col h-full">
-                  <CardHeader className="flex-0 pb-2">
-                    <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
-                      <CardTitle className="text-lg truncate min-w-0">
-                        Pump {pump.pumpNumber} - {pump.name}
-                      </CardTitle>
-                      <div className="flex flex-wrap items-center gap-2 min-w-0">
-                        <Badge variant={pump.status === 'active' ? 'default' : 'secondary'} className="truncate max-w-[80px]">
+                <Card key={pump.id} className="hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-start justify-between">
+                      <div className="min-w-0 flex-1">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <Fuel className="w-5 h-5 text-primary" />
+                          Pump {pump.pumpNumber}
+                        </CardTitle>
+                        <CardDescription className="mt-1">
+                          {pump.name}
+                        </CardDescription>
+                      </div>
+                      <div className="flex items-center gap-2 ml-4">
+                        <Badge variant={pump.status === 'active' ? 'default' : 'secondary'}>
                           {pump.status}
                         </Badge>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditPump(pump)}
-                          className="flex-shrink-0"
+                          className="h-8 w-8 p-0"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4 flex-1 flex flex-col">
-                    {/* Nozzles */}
+                  <CardContent className="space-y-4">
+                    {/* Nozzles Section */}
                     <div>
-                      <div className="flex items-center justify-between mb-2">
-                        <span className="text-sm font-semibold">Nozzles ({pump.nozzles?.length || 0})</span>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="text-sm font-semibold text-muted-foreground">
+                          Nozzles ({pump.nozzles?.length || 0})
+                        </h4>
                         <Button
                           size="sm"
                           variant="outline"
@@ -813,53 +821,82 @@ export default function StationDetail() {
                             setSelectedPump(pump);
                             setIsNozzleDialogOpen(true);
                           }}
+                          className="h-7 px-2 text-xs"
                         >
                           <Plus className="w-3 h-3 mr-1" />
                           Add
                         </Button>
                       </div>
+
                       {pump.nozzles && pump.nozzles.length > 0 ? (
                         <div className="space-y-2">
                           {pump.nozzles.map((nozzle) => (
                             <div
                               key={nozzle.id}
-                              className="flex items-center justify-between text-sm p-2 border rounded"
+                              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
                             >
-                              <div className="flex items-center gap-2">
-                                <span className="font-medium">N{nozzle.nozzleNumber}</span>
-                                <Badge className={getFuelBadgeClasses(nozzle.fuelType)}>
-                                  {nozzle.fuelType}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
+                              <div className="flex items-center gap-3 min-w-0 flex-1">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-sm">N{nozzle.nozzleNumber}</span>
+                                  <Badge
+                                    className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs px-2 py-0.5`}
+                                  >
+                                    {nozzle.fuelType}
+                                  </Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground truncate">
                                   Last: {nozzle.lastReading != null ? toFixedNumber(nozzle.lastReading, 2) : toFixedNumber(nozzle.initialReading, 2)}
-                                </span>
+                                </div>
                               </div>
-                              <div className="flex items-center gap-1">
-                                <Badge variant="outline" className="text-xs">
+
+                              <div className="flex items-center gap-1 ml-2">
+                                <Badge
+                                  variant={nozzle.status === 'active' ? 'outline' : 'secondary'}
+                                  className="text-xs px-2 py-0.5"
+                                >
                                   {nozzle.status}
                                 </Badge>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleAddReading(nozzle)}
-                                  className="h-6 px-2"
-                                >
-                                  <Plus className="w-3 h-3" />
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="ghost"
-                                  onClick={() => handleEditNozzle(nozzle)}
-                                  className="h-6 px-2"
-                                >
-                                  <Edit className="w-3 h-3" />
-                                </Button>
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleAddReading(nozzle)}
+                                    className="h-7 w-7 p-0 hover:bg-primary/10"
+                                    title="Add Reading"
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="ghost"
+                                    onClick={() => handleEditNozzle(nozzle)}
+                                    className="h-7 w-7 p-0 hover:bg-primary/10"
+                                    title="Edit Nozzle"
+                                  >
+                                    <Edit className="w-3 h-3" />
+                                  </Button>
+                                </div>
                               </div>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <p className="text-sm text-muted-foreground">No nozzles added</p>
+                        <div className="text-center py-6 border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                          <Fuel className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
+                          <p className="text-sm text-muted-foreground mb-3">No nozzles configured</p>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedPump(pump);
+                              setIsNozzleDialogOpen(true);
+                            }}
+                            className="text-xs"
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Add First Nozzle
+                          </Button>
+                        </div>
                       )}
                     </div>
                   </CardContent>
