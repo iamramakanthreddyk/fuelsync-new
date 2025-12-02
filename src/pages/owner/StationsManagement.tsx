@@ -124,10 +124,23 @@ export default function StationsManagement() {
       setIsAddDialogOpen(false);
       setFormData(initialFormData);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = 'Failed to create station';
+      if (error && typeof error === 'object') {
+        const errObj = error as { response?: { data?: { error?: string } } };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to create station',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -149,10 +162,23 @@ export default function StationsManagement() {
       setEditingStation(null);
       setFormData(initialFormData);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = 'Failed to update station';
+      if (error && typeof error === 'object') {
+        const errObj = error as { response?: { data?: { error?: string } } };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to update station',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -172,10 +198,23 @@ export default function StationsManagement() {
       });
       setDeleteStationId(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = 'Failed to delete station';
+      if (error && typeof error === 'object') {
+        const errObj = error as { response?: { data?: { error?: string } } };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to delete station',
+        description: message,
         variant: 'destructive'
       });
     }

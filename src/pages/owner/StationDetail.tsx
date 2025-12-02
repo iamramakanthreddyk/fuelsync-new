@@ -3,7 +3,7 @@
  * Comprehensive view of a single station with pumps, nozzles, fuel prices
  */
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -277,10 +277,17 @@ export default function StationDetail() {
     onError: (error: unknown) => {
       let message = 'Failed to create pump';
       if (error && typeof error === 'object') {
-        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
-          message = (error.response.data as any).error || message;
-        } else if ('message' in error && typeof (error as any).message === 'string') {
-          message = (error as any).message;
+        const errObj = error as { response?: { data?: { error?: string } }; message?: string };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        } else if (typeof errObj.message === 'string') {
+          message = errObj.message;
         }
       }
       toast({
@@ -307,10 +314,17 @@ export default function StationDetail() {
     onError: (error: unknown) => {
       let message = 'Failed to create nozzle';
       if (error && typeof error === 'object') {
-        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
-          message = (error.response.data as any).error || message;
-        } else if ('message' in error && typeof (error as any).message === 'string') {
-          message = (error as any).message;
+        const errObj = error as { response?: { data?: { error?: string } }; message?: string };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        } else if (typeof errObj.message === 'string') {
+          message = errObj.message;
         }
       }
       toast({
@@ -336,10 +350,17 @@ export default function StationDetail() {
     onError: (error: unknown) => {
       let message = 'Failed to update price';
       if (error && typeof error === 'object') {
-        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
-          message = (error.response.data as any).error || message;
-        } else if ('message' in error && typeof (error as any).message === 'string') {
-          message = (error as any).message;
+        const errObj = error as { response?: { data?: { error?: string } }; message?: string };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        } else if (typeof errObj.message === 'string') {
+          message = errObj.message;
         }
       }
       toast({
@@ -365,10 +386,17 @@ export default function StationDetail() {
     onError: (error: unknown) => {
       let message = 'Failed to create creditor';
       if (error && typeof error === 'object') {
-        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
-          message = (error.response.data as any).error || message;
-        } else if ('message' in error && typeof (error as any).message === 'string') {
-          message = (error as any).message;
+        const errObj = error as { response?: { data?: { error?: string } }; message?: string };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        } else if (typeof errObj.message === 'string') {
+          message = errObj.message;
         }
       }
       toast({
@@ -394,10 +422,17 @@ export default function StationDetail() {
     onError: (error: unknown) => {
       let message = 'Failed to update pump';
       if (error && typeof error === 'object') {
-        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
-          message = (error.response.data as any).error || message;
-        } else if ('message' in error && typeof (error as any).message === 'string') {
-          message = (error as any).message;
+        const errObj = error as { response?: { data?: { error?: string } }; message?: string };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        } else if (typeof errObj.message === 'string') {
+          message = errObj.message;
         }
       }
       toast({
@@ -423,10 +458,17 @@ export default function StationDetail() {
     onError: (error: unknown) => {
       let message = 'Failed to update nozzle';
       if (error && typeof error === 'object') {
-        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
-          message = (error.response.data as any).error || message;
-        } else if ('message' in error && typeof (error as any).message === 'string') {
-          message = (error as any).message;
+        const errObj = error as { response?: { data?: { error?: string } }; message?: string };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        } else if (typeof errObj.message === 'string') {
+          message = errObj.message;
         }
       }
       toast({
@@ -453,10 +495,17 @@ export default function StationDetail() {
     onError: (error: unknown) => {
       let message = 'Failed to add reading';
       if (error && typeof error === 'object') {
-        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
-          message = (error.response.data as any).error || message;
-        } else if ('message' in error && typeof (error as any).message === 'string') {
-          message = (error as any).message;
+        const errObj = error as { response?: { data?: { error?: string } }; message?: string };
+        if (
+          errObj.response &&
+          typeof errObj.response === 'object' &&
+          errObj.response.data &&
+          typeof errObj.response.data === 'object' &&
+          'error' in errObj.response.data
+        ) {
+          message = errObj.response.data.error || message;
+        } else if (typeof errObj.message === 'string') {
+          message = errObj.message;
         }
       }
       toast({
