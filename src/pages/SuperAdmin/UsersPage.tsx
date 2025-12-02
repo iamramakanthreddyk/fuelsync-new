@@ -10,6 +10,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
+import { useAuth } from "@/hooks/useAuth";
 import { Users, Plus, Search, Edit, Trash2, UserCheck, UserX, Crown, Building2, Briefcase, User as UserIcon } from "lucide-react";
 
 interface User {
@@ -105,19 +106,16 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
   
   const { toast } = useToast();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
 
-  // Set default plan to "Basic" when plans are loaded
+  const { isAuthenticated, loading: authLoading } = useAuth();
+
   useEffect(() => {
-    if (plans.length > 0 && !createForm.planId) {
-      const basicPlan = plans.find(p => p.name.toLowerCase() === 'basic');
-      if (basicPlan) {
-        setCreateForm(f => ({ ...f, planId: basicPlan.id }));
-      }
+    if (isAuthenticated && !authLoading) {
+      fetchData();
     }
-  }, [plans]);
+  }, [isAuthenticated, authLoading]);
+
+  // No forced default plan for owners; user must select plan explicitly.
 
   const fetchData = async () => {
     try {
@@ -148,7 +146,6 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
   };
 
   const resetCreateForm = () => {
-    const basicPlan = plans.find(p => p.name.toLowerCase() === 'basic');
     setCreateForm({
       name: '',
       email: '',
@@ -156,7 +153,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       role: 'employee',
       password: 'changeme123',
       stationId: '',
-      planId: basicPlan?.id || ''
+      planId: ''
     });
   };
 
@@ -172,10 +169,16 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       return;
     }
 
-    // Validate plan for owner
-    if (createForm.role === 'owner' && !createForm.planId) {
-      toast({ title: "Validation Error", description: "Owner must have a plan assigned", variant: "destructive" });
-      return;
+    // Fallback to 'basic' plan if owner and no plan selected
+    let planIdToUse = createForm.planId;
+    if (createForm.role === 'owner' && !planIdToUse) {
+      const basicPlan = plans.find(p => p.name.toLowerCase() === 'basic');
+      if (basicPlan) {
+        planIdToUse = basicPlan.id;
+      } else {
+        toast({ title: "Validation Error", description: "No plan selected and no 'basic' plan found.", variant: "destructive" });
+        return;
+      }
     }
 
     try {
@@ -193,7 +196,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       }
 
       if (createForm.role === 'owner') {
-        payload.planId = createForm.planId;
+        payload.planId = planIdToUse;
       }
 
       await apiClient.post('/users', payload);
@@ -372,6 +375,14 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
     </Card>
   );
 
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-4 md:space-y-6 p-2 md:p-0">
       {/* Header */}
@@ -438,12 +449,12 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
               <div>
                 <Label htmlFor="role">Role *</Label>
                 <Select 
-                  value={createForm.role} 
-                  onValueChange={(value) => setCreateForm({ 
-                    ...createForm, 
+                  value={createForm.role}
+                  onValueChange={(value) => setCreateForm({
+                    ...createForm,
                     role: value as User['role'],
                     stationId: '',
-                    planId: value === 'owner' ? (plans.find(p => p.name.toLowerCase() === 'basic')?.id || '') : ''
+                    planId: '' // Do not auto-set planId, let user pick
                   })}
                 >
                   <SelectTrigger>

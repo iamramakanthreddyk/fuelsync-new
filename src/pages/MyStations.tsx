@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -7,8 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, ApiResponse } from "@/lib/api-client";
-import { Plus, Building2, MapPin, Fuel, Users, Phone, Mail, Edit, Trash2 } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
+import { Plus, Building2, MapPin, Fuel, Users, Phone, Mail, Edit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface Station {
@@ -44,7 +44,7 @@ export default function MyStations() {
   });
 
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading } = useAuth();
   const queryClient = useQueryClient();
 
   // Owners only
@@ -62,13 +62,18 @@ export default function MyStations() {
     );
   }
 
-  // Fetch owner's stations
-  const { data: stations, isLoading, error } = useQuery({
+  // Fetch owner's stations only after authentication
+  const {
+    data: stations,
+    isLoading,
+    error
+  } = useQuery({
     queryKey: ['my-stations'],
     queryFn: async () => {
       const response = await apiClient.get<Station[]>('/stations');
       return response;
     },
+    enabled: isAuthenticated && !loading,
   });
 
 
@@ -172,7 +177,7 @@ export default function MyStations() {
     setIsEditDialogOpen(true);
   };
 
-  if (isLoading) {
+  if (loading || isLoading) {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center">Loading your stations...</div>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,8 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, ApiResponse } from "@/lib/api-client";
-import { Plus, Users, Settings, Trash2, Shield } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
+import { Plus, Users, Settings, Shield } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
 interface UserWithStations {
@@ -41,10 +41,18 @@ export default function AdminUsers() {
   });
 
   const { toast } = useToast();
-  const { user } = useAuth();
+  const { user, isAuthenticated, loading: authLoading } = useAuth();
   const queryClient = useQueryClient();
 
   // Only superadmin can access this page
+  if (authLoading || !isAuthenticated) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
   if (user?.role !== 'super_admin') {
     return (
       <div className="container mx-auto p-6">
@@ -59,22 +67,24 @@ export default function AdminUsers() {
     );
   }
 
-  // Fetch users via REST API
+  // Fetch users via REST API (deferred until authenticated)
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
       const data = await apiClient.get<UserWithStations[]>('/users');
       return data || [];
     },
+    enabled: isAuthenticated && !authLoading,
   });
 
-  // Fetch stations for dropdown
+  // Fetch stations for dropdown (deferred until authenticated)
   const { data: stations } = useQuery({
     queryKey: ['stations'],
     queryFn: async () => {
       const data = await apiClient.get<Station[]>('/stations');
       return data || [];
     },
+    enabled: isAuthenticated && !authLoading,
   });
 
   // Add User Mutation via REST API

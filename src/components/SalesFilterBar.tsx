@@ -1,10 +1,10 @@
 
-import React from "react";
+
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
+
 import { Badge } from "@/components/ui/badge";
 import {
   Select,
@@ -90,11 +90,15 @@ export function SalesFilterBar({
                 from: dateRange.start ?? undefined,
                 to: dateRange.end ?? undefined,
               }}
-              onSelect={(range: { from?: Date; to?: Date }) => {
-                onDateRangeChange({
-                  start: range?.from ?? null,
-                  end: range?.to ?? null,
-                });
+              onSelect={(range) => {
+                if (!range) {
+                  onDateRangeChange({ start: null, end: null });
+                } else {
+                  onDateRangeChange({
+                    start: range.from ?? null,
+                    end: range.to ?? null,
+                  });
+                }
               }}
               className="p-3"
               initialFocus
