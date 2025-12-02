@@ -16,7 +16,7 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ReadingSummary } from "@/components/dashboard/ReadingSummary";
-import { useSetupChecklist } from "@/hooks/useSetupChecklist";
+import { safeToFixed } from '@/lib/format-utils';
 
 export default function Dashboard() {
   const logActivity = useActivityLogger();
@@ -75,7 +75,7 @@ export default function Dashboard() {
             <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="text-xl sm:text-2xl font-bold text-green-600">₹{data.todaySales.toFixed(2)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(data.todaySales)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               From fuel dispensing
             </p>
@@ -89,7 +89,7 @@ export default function Dashboard() {
             <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{data.todayTender.toFixed(2)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayTender)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Cash, card, UPI & credit
             </p>
@@ -209,7 +209,7 @@ export default function Dashboard() {
               <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">₹{data.todaySales.toFixed(2)}</div>
+              <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(data.todaySales)}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 From fuel dispensing
               </p>
@@ -223,7 +223,7 @@ export default function Dashboard() {
               <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
             </CardHeader>
             <CardContent className="px-4 pb-4">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{data.todayTender.toFixed(2)}</div>
+              <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayTender)}</div>
               <p className="text-xs text-muted-foreground mt-1">
                 Cash, card, UPI & credit
               </p>
@@ -254,7 +254,7 @@ export default function Dashboard() {
             </CardHeader>
             <CardContent className="px-4 pb-4">
               <div className={`text-xl sm:text-2xl font-bold ${Math.abs(variance) < 1 ? 'text-green-600' : variance > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                {Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${Math.abs(variance).toFixed(2)}`}
+                {Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${safeToFixed(Math.abs(variance))}`}
               </div>
               <p className="text-xs text-muted-foreground mt-1">
                 {Math.abs(variance) < 1 ? 'Sales match collections' : variance > 0 ? 'Collection excess' : 'Collection shortage'}

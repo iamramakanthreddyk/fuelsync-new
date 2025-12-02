@@ -2,6 +2,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp, DollarSign, Clock, AlertTriangle } from "lucide-react";
 import React from "react";
+import { safeToFixed } from '@/lib/format-utils';
 
 interface KeyMetricsCardsProps {
   todaySales: number;
@@ -31,7 +32,7 @@ export function KeyMetricsCards({
           <TrendingUp className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-green-600">₹{todaySales.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-green-600">₹{safeToFixed(todaySales, 2)}</div>
           <p className="text-xs text-muted-foreground">
             From fuel dispensing
           </p>
@@ -44,7 +45,7 @@ export function KeyMetricsCards({
           <DollarSign className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-blue-600">₹{todayTender.toFixed(2)}</div>
+          <div className="text-2xl font-bold text-blue-600">₹{safeToFixed(todayTender, 2)}</div>
           <p className="text-xs text-muted-foreground">
             Cash, card, UPI & credit
           </p>
@@ -76,7 +77,7 @@ export function KeyMetricsCards({
           </CardHeader>
           <CardContent>
             <div className={`text-2xl font-bold ${Math.abs(variance) < 1 ? 'text-green-600' : variance > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-              {Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${Math.abs(variance).toFixed(2)}`}
+              {Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${safeToFixed(Math.abs(variance), 2)}`}
             </div>
             <p className="text-xs text-muted-foreground">
               {Math.abs(variance) < 1 ? 'Sales match collections' : variance > 0 ? 'Collection excess' : 'Collection shortage'}

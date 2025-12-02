@@ -8,7 +8,7 @@ import { shiftService, dashboardAlertsService, Shift } from '@/services/tenderSe
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Fuel, DollarSign, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
-import { TodayReadings } from '@/components/TodayReadings';
+import { safeToFixed } from '@/lib/format-utils';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
@@ -269,7 +269,7 @@ const EmployeeDashboard = () => {
                   <div className="mt-2">
                     <p className="text-lg font-bold">₹{pump.today.amount.toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">
-                      {pump.today.litres.toFixed(2)} litres
+                      {safeToFixed(pump.today.litres)} litres
                     </p>
                   </div>
                 </div>

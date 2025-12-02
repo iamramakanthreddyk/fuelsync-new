@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
+import { safeToFixed } from '@/lib/format-utils';
 import { 
   Building2, 
   Users, 
@@ -165,7 +166,7 @@ export default function OwnerDashboard() {
                   className="w-20 h-2"
                 />
                 <span className="text-xs text-muted-foreground">
-                  {calculateProgress(stats.totalStations, user.plan.maxStations).toFixed(0)}%
+                  {safeToFixed(calculateProgress(stats.totalStations, user.plan.maxStations), 0)}%
                 </span>
               </div>
             )}

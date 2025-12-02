@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { FuelBadge } from '@/components/FuelBadge';
 import { apiClient } from '@/lib/api-client';
 import { getFuelColors } from '@/lib/fuelColors';
+import { safeToFixed } from '@/lib/format-utils';
 import {
   TrendingUp,
   TrendingDown,
@@ -161,8 +162,8 @@ export default function Analytics() {
   });
 
   const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-  const formatPercentage = (value: number) => `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
-  const formatLitres = (litres: number) => `${litres.toFixed(0)} L`;
+  const formatPercentage = (value: number) => `${value >= 0 ? '+' : ''}${safeToFixed(value, 1)}%`;
+  const formatLitres = (litres: number) => `${safeToFixed(litres, 0)} L`;
 
   // Custom tooltip for charts
   interface TooltipPayloadEntry {
@@ -405,13 +406,13 @@ export default function Analytics() {
                   <YAxis 
                     yAxisId="left"
                     tick={{ fontSize: 11 }}
-                    tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                    tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`}
                   />
                   <YAxis 
                     yAxisId="right"
                     orientation="right"
                     tick={{ fontSize: 11 }}
-                    tickFormatter={(value) => `${(value / 1000).toFixed(0)}K L`}
+                    tickFormatter={(value) => `${safeToFixed(value / 1000, 0)}K L`}
                   />
                   <Tooltip content={<CustomTooltip />} />
                   <Legend 
@@ -459,7 +460,7 @@ export default function Analytics() {
                       cy="50%"
                       labelLine={false}
                       label={({ stationName, percentage }) => 
-                        percentage > 5 ? `${stationName} (${percentage.toFixed(0)}%)` : ''
+                        percentage > 5 ? `${stationName} (${safeToFixed(percentage, 0)}%)` : ''
                       }
                       outerRadius={window.innerWidth < 640 ? 80 : 100}
                       fill="#8884d8"
@@ -502,7 +503,7 @@ export default function Analytics() {
                     <XAxis dataKey="fuelType" tick={{ fontSize: 11 }} />
                     <YAxis 
                       tick={{ fontSize: 11 }}
-                      tickFormatter={(value) => `₹${(value / 1000).toFixed(0)}K`}
+                      tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`}
                     />
                     <Tooltip content={<CustomTooltip />} />
                     <Bar dataKey="sales" fill="#3b82f6" radius={[8, 8, 0, 0]} name="Sales">

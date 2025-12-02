@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Fuel, IndianRupee } from "lucide-react";
 import { getFuelColors } from '@/lib/fuelColors';
+import { safeToFixed } from '@/lib/format-utils';
 
 interface FuelPriceCardProps {
   prices: {
@@ -66,7 +67,7 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({ prices, isLoading 
               <span className="text-xs font-bold flex items-center text-foreground">
                 <IndianRupee className="w-2.5 h-2.5" />
                 {typeof prices[key as keyof typeof prices] === 'number' 
-                  ? prices[key as keyof typeof prices]?.toFixed(2) 
+                  ? safeToFixed(prices[key as keyof typeof prices], 2) 
                   : 'N/A'}
               </span>
             </div>

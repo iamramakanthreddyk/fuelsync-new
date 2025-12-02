@@ -5,6 +5,7 @@ import { readingService } from '@/services/readingService';
 import { FuelBadge } from '@/components/FuelBadge';
 import { Clock, User, TrendingUp } from 'lucide-react';
 import { NozzleReading } from '@/types/api';
+import { safeToFixed } from '@/lib/format-utils';
 
 export function TodayReadings() {
   const { data: readings, isLoading, error } = useQuery({
@@ -61,7 +62,7 @@ export function TodayReadings() {
           Today's Readings
         </CardTitle>
         <CardDescription>
-          {totalReadings} readings • {totalLitres.toFixed(1)}L • ₹{totalAmount.toFixed(2)}
+          {totalReadings} readings • {safeToFixed(totalLitres, 1)}L • ₹{safeToFixed(totalAmount, 2)}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -102,10 +103,10 @@ export function TodayReadings() {
 
                 <div className="text-right">
                   <div className="font-mono font-semibold">
-                    {Number(reading.currentReading || reading.readingValue).toFixed(2)}
+                    {safeToFixed(reading.currentReading, 2)}
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {Number(reading.litresSold || 0).toFixed(1)}L • ₹{Number(reading.totalAmount || 0).toFixed(2)}
+                    {safeToFixed(reading.litresSold || 0, 1)}L • ₹{safeToFixed(reading.totalAmount || 0, 2)}
                   </div>
                 </div>
 

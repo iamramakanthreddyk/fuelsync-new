@@ -10,6 +10,7 @@ import React from 'react';
 import { cn } from '@/lib/utils';
 import { TrendingUp, TrendingDown, Minus, LucideIcon } from 'lucide-react';
 import { Card, CardContent } from './Card';
+import { safeToFixed } from '@/lib/format-utils';
 
 // ============================================
 // TYPES
@@ -153,7 +154,7 @@ export const StatCard: React.FC<StatCardProps> = ({
               <div className={cn('flex items-center gap-1', trendColor, styles.change)}>
                 <TrendIcon className="h-3 w-3" />
                 <span className="font-medium">
-                  {change > 0 ? '+' : ''}{change.toFixed(1)}%
+                  {change > 0 ? '+' : ''}{safeToFixed(change, 1)}%
                 </span>
                 {changeLabel && (
                   <span className="text-muted-foreground">

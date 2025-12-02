@@ -3,6 +3,7 @@ import React from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TrendingUp } from "lucide-react";
+import { safeToFixed } from '@/lib/format-utils';
 
 interface TrendsData {
   date: string;
@@ -58,7 +59,7 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, isLoading }) => 
               <YAxis tick={{ fontSize: 12 }} />
               <Tooltip 
                 formatter={(value, name) => [
-                  `₹${Number(value).toFixed(2)}`,
+                  `₹${safeToFixed(value, 2)}`,
                   name === 'sales' ? 'Sales' : 'Collections'
                 ]}
                 labelFormatter={(value) => {

@@ -4,6 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Fuel, BarChart3 } from 'lucide-react';
+import { safeToFixed } from '@/lib/format-utils';
 
 interface Sale {
   created_at: string;
@@ -188,7 +189,7 @@ export function SalesCharts({ salesData, isLoading }: SalesChartsProps) {
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                label={({ name, percent }) => `${name} ${safeToFixed(percent * 100, 0)}%`}
                 outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"

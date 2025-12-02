@@ -20,6 +20,7 @@ import { useReports, ReportType, ReportRow } from '@/hooks/useReports';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
+import { safeToFixed } from '@/lib/format-utils';
 // charts are not used in this page yet
 
 export default function Reports() {
@@ -165,7 +166,7 @@ export default function Reports() {
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" />
                       <XAxis dataKey="date" tick={{ fontSize: 11 }} />
-                      <YAxis tickFormatter={(v) => `₹${(v / 1000).toFixed(0)}K`} />
+                      <YAxis tickFormatter={(v) => `₹${safeToFixed(v / 1000, 0)}K`} />
                       <Tooltip formatter={(v: unknown) => typeof v === 'number' ? [`₹${v.toLocaleString('en-IN')}`, 'Sales'] : [String(v), 'Sales']} />
                       <Area type="monotone" dataKey="sales" stroke="#3b82f6" fill="url(#colorSales)" name="Sales" />
                     </AreaChart>

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFuelBadgeClasses } from "@/lib/fuelColors";
+import { safeToFixed } from '@/lib/format-utils';
 
 export interface FuelPricesGridProps {
   fuelPrices:
@@ -56,7 +57,7 @@ export const FuelPricesGrid: React.FC<FuelPricesGridProps> = ({
           <CardContent>
             <div className="text-3xl font-bold text-primary flex items-center gap-1">
               <IndianRupee className="w-5 h-5" />
-              {Number(price.price_per_litre).toFixed(2)}
+              {safeToFixed(price.price_per_litre, 2)}
             </div>
             <div className="text-sm text-muted-foreground mt-2">
               <div>Updated: {new Date(price.valid_from).toLocaleDateString()}</div>

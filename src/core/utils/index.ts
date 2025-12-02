@@ -7,6 +7,7 @@
  */
 
 import { CURRENCY, DATE_FORMATS, NUMBER_FORMATS } from '../constants/app.constants';
+import { safeToFixed } from '@/lib/format-utils';
 
 // ============================================
 // FORMATTING UTILITIES
@@ -33,10 +34,10 @@ export function formatCurrency(
     // Use Indian number system for large numbers
     if (Math.abs(value) >= 10000000) {
       const crores = value / 10000000;
-      return `${showSymbol ? CURRENCY.SYMBOL : ''}${crores.toFixed(2)} Cr`;
+      return `${showSymbol ? CURRENCY.SYMBOL : ''}${safeToFixed(crores, 2)} Cr`;
     }
     const lakhs = value / 100000;
-    return `${showSymbol ? CURRENCY.SYMBOL : ''}${lakhs.toFixed(2)} L`;
+    return `${showSymbol ? CURRENCY.SYMBOL : ''}${safeToFixed(lakhs, 2)} L`;
   }
 
   const formatted = new Intl.NumberFormat(CURRENCY.LOCALE, {
@@ -85,7 +86,7 @@ export function formatPercentage(
   value: number,
   decimals: number = NUMBER_FORMATS.PERCENTAGE_DECIMALS
 ): string {
-  return `${value >= 0 ? '+' : ''}${value.toFixed(decimals)}%`;
+  return `${value >= 0 ? '+' : ''}${safeToFixed(value, decimals)}%`;
 }
 
 /**

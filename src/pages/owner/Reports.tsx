@@ -19,7 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/api-client';
-import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { safeToFixed } from '@/lib/format-utils';
 import {
   FileText,
   TrendingUp,
@@ -282,7 +282,7 @@ export default function Reports() {
       html += `<div class="summary-box">
         <strong>Summary</strong>
         <div class="summary-row"><span>Total Sales:</span><span>${currency(grandTotal.sales)}</span></div>
-        <div class="summary-row"><span>Total Volume:</span><span>${grandTotal.quantity.toFixed(2)} L</span></div>
+        <div class="summary-row"><span>Total Volume:</span><span>${safeToFixed(grandTotal.quantity)} L</span></div>
         <div class="summary-row"><span>Total Transactions:</span><span>${grandTotal.transactions}</span></div>
         <div class="summary-row"><span>Avg Price/Liter:</span><span>${currency(avgPricePerLiter)}</span></div>
       </div>`;
@@ -294,7 +294,7 @@ export default function Reports() {
           <td>${r.stationName}</td>
           <td>${dateFmt(r.date)}</td>
           <td>${currency(r.totalSales)}</td>
-          <td>${(r.totalQuantity ?? 0).toFixed(2)}</td>
+          <td>${safeToFixed(r.totalQuantity ?? 0)}</td>
           <td>${currency(pricePerLiter)}</td>
           <td><strong>${r.totalTransactions ?? 0}</strong></td>
         </tr>`;
@@ -304,12 +304,12 @@ export default function Reports() {
             <thead><tr><th>Fuel Type</th><th>Sales</th><th>Quantity</th><th>Price/L</th><th>Txns</th></tr></thead><tbody>`;
           r.fuelTypeSales.forEach(f => {
             const fuelPricePerL = f.quantity > 0 ? f.sales / f.quantity : 0;
-            html += `<tr><td>${f.fuelType}</td><td>${currency(f.sales)}</td><td>${f.quantity.toFixed(2)} L</td><td>${currency(fuelPricePerL)}</td><td>${f.transactions}</td></tr>`;
+            html += `<tr><td>${f.fuelType}</td><td>${currency(f.sales)}</td><td>${safeToFixed(f.quantity)} L</td><td>${currency(fuelPricePerL)}</td><td>${f.transactions}</td></tr>`;
           });
           html += `</tbody></table></td></tr>`;
         }
       });
-      html += `<tr class="total-row"><td>TOTAL</td><td></td><td>${currency(grandTotal.sales)}</td><td>${grandTotal.quantity.toFixed(2)}</td><td>${currency(avgPricePerLiter)}</td><td>${grandTotal.transactions}</td></tr>`;
+      html += `<tr class="total-row"><td>TOTAL</td><td></td><td>${currency(grandTotal.sales)}</td><td>${safeToFixed(grandTotal.quantity)}</td><td>${currency(avgPricePerLiter)}</td><td>${grandTotal.transactions}</td></tr>`;
       html += `</tbody></table>`;
     } else if (reportType === 'nozzles') {
       const rows = nozzleBreakdown || [];
@@ -323,14 +323,14 @@ export default function Reports() {
         <strong>Nozzle Summary</strong>
         <div class="summary-row"><span>Total Nozzles:</span><span>${rows.length}</span></div>
         <div class="summary-row"><span>Total Sales:</span><span>${currency(grandTotal.sales)}</span></div>
-        <div class="summary-row"><span>Total Volume:</span><span>${grandTotal.quantity.toFixed(2)} L</span></div>
+        <div class="summary-row"><span>Total Volume:</span><span>${safeToFixed(grandTotal.quantity)} L</span></div>
         <div class="summary-row"><span>Total Transactions:</span><span>${grandTotal.transactions}</span></div>
       </div>`;
       
       html += `<table><thead><tr><th>Nozzle</th><th>Pump</th><th>Fuel</th><th>Sales</th><th>Volume (L)</th><th>Price/L</th><th>Txns</th><th>Avg Txn</th></tr></thead><tbody>`;
       rows.forEach(n => {
         const pricePerL = n.totalQuantity > 0 ? n.totalSales / n.totalQuantity : 0;
-        html += `<tr><td>${n.nozzleNumber}</td><td>${n.pumpName}</td><td>${n.fuelType}</td><td>${currency(n.totalSales)}</td><td>${(n.totalQuantity ?? 0).toFixed(2)}</td><td>${currency(pricePerL)}</td><td><strong>${n.transactions}</strong></td><td>${currency(n.avgTransactionValue)}</td></tr>`;
+        html += `<tr><td>${n.nozzleNumber}</td><td>${n.pumpName}</td><td>${n.fuelType}</td><td>${currency(n.totalSales)}</td><td>${safeToFixed(n.totalQuantity ?? 0)}</td><td>${currency(pricePerL)}</td><td><strong>${n.transactions}</strong></td><td>${currency(n.avgTransactionValue)}</td></tr>`;
       });
       html += `</tbody></table>`;
     } else if (reportType === 'shifts') {
@@ -344,7 +344,7 @@ export default function Reports() {
       const rows = pumpPerformance || [];
       html += `<table><thead><tr><th>Pump</th><th>Station</th><th>Sales</th><th>Volume</th><th>Txns</th></tr></thead><tbody>`;
       rows.forEach(p => {
-        html += `<tr><td>${p.pumpName} (${p.pumpNumber})</td><td>${p.stationName}</td><td>${currency(p.totalSales)}</td><td>${(p.totalQuantity ?? 0).toFixed(2)}</td><td>${p.transactions}</td></tr>`;
+        html += `<tr><td>${p.pumpName} (${p.pumpNumber})</td><td>${p.stationName}</td><td>${currency(p.totalSales)}</td><td>${safeToFixed(p.totalQuantity ?? 0)}</td><td>${p.transactions}</td></tr>`;
       });
       html += `</tbody></table>`;
     }
@@ -393,7 +393,7 @@ export default function Reports() {
           { key: 'date', label: 'Date', formatter: dateFmt },
           { key: 'fuelType', label: 'Fuel Type' },
           { key: 'totalSales', label: 'Total Sales', formatter: currency },
-          { key: 'totalQuantity', label: 'Quantity (L)', formatter: (v: unknown) => (v == null ? '' : Number(v).toFixed(2)) },
+          { key: 'totalQuantity', label: 'Quantity (L)', formatter: (v: unknown) => (v == null ? '' : safeToFixed(v)) },
           { key: 'pricePerLiter', label: 'Price/Liter', formatter: currency },
           { key: 'totalTransactions', label: 'Transactions', formatter: numberFmt }
         ];
@@ -422,7 +422,7 @@ export default function Reports() {
           { key: 'pumpName', label: 'Pump' },
           { key: 'fuelType', label: 'Fuel' },
           { key: 'totalSales', label: 'Total Sales', formatter: currency },
-          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: unknown) => (v == null ? '' : Number(v).toFixed(2)) },
+          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: unknown) => (v == null ? '' : safeToFixed(v)) },
           { key: 'pricePerLiter', label: 'Price/Liter', formatter: currency },
           { key: 'transactions', label: 'Transactions', formatter: numberFmt },
           { key: 'avgTransactionValue', label: 'Avg Transaction', formatter: currency }
@@ -476,7 +476,7 @@ export default function Reports() {
           { key: 'pumpName', label: 'Pump' },
           { key: 'stationName', label: 'Station' },
           { key: 'totalSales', label: 'Total Sales', formatter: currency },
-          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: unknown) => (v == null ? '' : Number(v).toFixed(2)) },
+          { key: 'totalQuantity', label: 'Volume (L)', formatter: (v: unknown) => (v == null ? '' : safeToFixed(v)) },
           { key: 'transactions', label: 'Transactions', formatter: numberFmt }
         ];
         const csv = toCsv(rowsRaw, cols);
@@ -517,7 +517,7 @@ export default function Reports() {
                 </div>
                 <div className="hidden lg:block w-px h-12 bg-white/20"></div>
                 <div className="text-center lg:text-right">
-                  <div className="text-xl md:text-2xl font-bold">{totals.quantity.toFixed(1)}L</div>
+                  <div className="text-xl md:text-2xl font-bold">{safeToFixed(totals.quantity, 1)}L</div>
                   <div className="text-blue-200 text-xs md:text-sm">Fuel Dispensed</div>
                 </div>
               </div>
@@ -619,7 +619,7 @@ export default function Reports() {
               <div className="flex items-center justify-between">
                 <div className="flex-1">
                   <p className="text-blue-100 text-xs md:text-sm font-medium">Fuel Dispensed</p>
-                  <p className="text-2xl md:text-3xl font-bold">{totals.quantity.toFixed(1)}L</p>
+                  <p className="text-2xl md:text-3xl font-bold">{safeToFixed(totals.quantity, 1)}L</p>
                   <div className="flex items-center mt-2">
                     <ArrowUpRight className="w-3 h-3 md:w-4 md:h-4 text-blue-200 mr-1" />
                     <span className="text-blue-200 text-xs md:text-sm">+8.2%</span>
@@ -656,7 +656,7 @@ export default function Reports() {
                 <div className="flex-1">
                   <p className="text-orange-100 text-xs md:text-sm font-medium">Avg Transaction</p>
                   <p className="text-2xl md:text-3xl font-bold">
-                    ₹{totals.transactions > 0 ? (totals.sales / totals.transactions).toFixed(0) : '0'}
+                    ₹{totals.transactions > 0 ? safeToFixed(totals.sales / totals.transactions, 0) : '0'}
                   </p>
                   <div className="flex items-center mt-2">
                     <ArrowDownRight className="w-3 h-3 md:w-4 md:h-4 text-orange-200 mr-1" />
@@ -920,7 +920,7 @@ export default function Reports() {
                               ₹{report.totalSales.toLocaleString('en-IN')}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              {report.totalQuantity.toFixed(2)} L
+                              {safeToFixed(report.totalQuantity)} L
                             </p>
                           </div>
                         </div>
@@ -939,7 +939,7 @@ export default function Reports() {
                                     ₹{fuel.sales.toLocaleString('en-IN')}
                                   </div>
                                   <div className="text-sm text-muted-foreground">
-                                    {fuel.quantity.toFixed(2)} L • {fuel.transactions} transactions
+                                    {safeToFixed(fuel.quantity)} L • {fuel.transactions} transactions
                                   </div>
                                 </div>
                               </div>
@@ -1018,7 +1018,7 @@ export default function Reports() {
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Volume</p>
-                              <p className="text-lg font-bold">{totalQuantity.toFixed(2)} L</p>
+                              <p className="text-lg font-bold">{safeToFixed(totalQuantity)} L</p>
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Transactions</p>
@@ -1026,7 +1026,7 @@ export default function Reports() {
                             </div>
                             <div>
                               <p className="text-xs text-muted-foreground">Avg. Value</p>
-                              <p className="text-lg font-bold">₹{avgTransactionValue.toFixed(2)}</p>
+                              <p className="text-lg font-bold">₹{safeToFixed(avgTransactionValue)}</p>
                             </div>
                           </div>
                         </CardContent>
@@ -1173,7 +1173,7 @@ export default function Reports() {
                               ₹{pump.totalSales.toLocaleString('en-IN')}
                             </div>
                             <p className="text-sm text-muted-foreground">
-                              {pump.totalQuantity.toFixed(2)} L • {pump.transactions} txns
+                              {safeToFixed(pump.totalQuantity)} L • {pump.transactions} txns
                             </p>
                           </div>
                         </div>
@@ -1195,7 +1195,7 @@ export default function Reports() {
                                   ₹{nozzle.sales.toLocaleString('en-IN')}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
-                                  {nozzle.quantity.toFixed(2)} L
+                                  {safeToFixed(nozzle.quantity)} L
                                 </div>
                               </div>
                             </div>

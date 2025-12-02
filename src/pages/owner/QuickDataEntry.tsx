@@ -19,6 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
+import { safeToFixed } from '@/lib/format-utils';
 import { FuelBadge } from '@/components/FuelBadge';
 import {
   Zap,
@@ -292,9 +293,9 @@ export default function QuickDataEntry() {
                                 const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
                                 
                                 if (lastReading !== null && !isNaN(lastReading)) {
-                                  return lastReading.toFixed(2);
+                                  return safeToFixed(lastReading);
                                 } else if (initialReading !== null && !isNaN(initialReading)) {
-                                  return initialReading.toFixed(2);
+                                  return safeToFixed(initialReading);
                                 } else {
                                   return '0.00';
                                 }

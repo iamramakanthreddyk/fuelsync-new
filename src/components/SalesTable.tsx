@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { safeToFixed } from '@/lib/format-utils';
 
 function sourceColor(source: string) {
   if (source === "OCR") return "bg-blue-100 text-blue-700";
@@ -81,7 +82,7 @@ export function SalesTable({
                   <TableCell>
                     #{sale.nozzle_number || sale.nozzle_id}
                   </TableCell>
-                  <TableCell className="font-semibold text-right">₹{sale.total_amount != null ? Number(sale.total_amount).toFixed(2) : "NA"}</TableCell>
+                  <TableCell className="font-semibold text-right">₹{sale.total_amount != null ? safeToFixed(sale.total_amount, 2) : "NA"}</TableCell>
                   <TableCell>
                     <Badge className={getFuelBadgeClasses(sale.fuel_type)}>
                       {sale.fuel_type}
