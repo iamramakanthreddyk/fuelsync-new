@@ -84,10 +84,14 @@ export default function MyStations() {
       });
       toast({ title: "Success", description: "Station created successfully" });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to create station";
+      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+        message = (error as { message: string }).message;
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to create station",
+        description: message,
         variant: "destructive",
       });
     },

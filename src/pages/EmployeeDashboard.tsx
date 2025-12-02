@@ -56,9 +56,9 @@ const EmployeeDashboard = () => {
         stationId: currentStation.id
       });
       setActiveShift(shift);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to start shift:', error);
-      alert(error.message || 'Failed to start shift');
+      alert(error instanceof Error ? error.message : 'Failed to start shift');
     } finally {
       setShiftLoading(false);
     }
@@ -83,9 +83,9 @@ const EmployeeDashboard = () => {
       // Refresh summary
       const summaryData = await dailyClosureService.getDailySummary();
       setDailySummary(summaryData);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Failed to end shift:', error);
-      alert(error.message || 'Failed to end shift');
+      alert(error instanceof Error ? error.message : 'Failed to end shift');
     } finally {
       setShiftLoading(false);
     }

@@ -33,11 +33,15 @@ export default function Login() {
         title: "Login Successful",
         description: "Welcome back!",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
+      let message = "Invalid credentials. Please check your email and password.";
+      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+        message = (error as { message: string }).message;
+      }
       toast({
         title: "Login Failed",
-        description: error.message || "Invalid credentials. Please check your email and password.",
+        description: message,
         variant: "destructive",
       });
     } finally {

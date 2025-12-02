@@ -185,9 +185,13 @@ export default function DataEntry() {
       setManualPump(null);
       setManualNozzle(null);
       setPreviousReading(null);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('❌ Manual reading error:', error);
-      toast.error(error instanceof Error ? error.message : 'Error adding manual reading');
+      let message = 'Error adding manual reading';
+      if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+        message = (error as { message: string }).message;
+      }
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -200,8 +204,12 @@ export default function DataEntry() {
       // For now, use cash handover endpoint: POST /api/v1/handovers
       toast.info('Tender entry feature coming soon!');
       console.log('Tender data:', data);
-    } catch (error: any) {
-      toast.error(error instanceof Error ? error.message : 'Error adding tender entry');
+    } catch (error: unknown) {
+      let message = 'Error adding tender entry';
+      if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+        message = (error as { message: string }).message;
+      }
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }
@@ -214,8 +222,12 @@ export default function DataEntry() {
       // Endpoint: POST /api/v1/tanks/:id/refill
       toast.info('Tank refill feature coming soon!');
       console.log('Refill data:', data);
-    } catch (error: any) {
-      toast.error(error instanceof Error ? error.message : 'Error adding tank refill');
+    } catch (error: unknown) {
+      let message = 'Error adding tank refill';
+      if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
+        message = (error as { message: string }).message;
+      }
+      toast.error(message);
     } finally {
       setIsSubmitting(false);
     }

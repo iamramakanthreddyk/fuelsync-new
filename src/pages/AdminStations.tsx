@@ -123,8 +123,13 @@ export default function AdminStations() {
     },
     onError: (error: unknown) => {
       let message = "Failed to create station";
-      if (typeof error === "object" && error && "message" in error && typeof (error as any).message === "string") {
-        message = (error as any).message;
+      if (
+        typeof error === "object" &&
+        error !== null &&
+        "message" in error &&
+        typeof (error as { message?: unknown }).message === "string"
+      ) {
+        message = (error as { message: string }).message;
       }
       toast({
         title: "Error",

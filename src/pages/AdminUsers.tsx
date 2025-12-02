@@ -95,10 +95,14 @@ export default function AdminUsers() {
       toast({ title: "User created", description: "User has been created successfully." });
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to create user";
+      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+        message = (error as { message: string }).message;
+      }
       toast({
         title: "Error Creating User",
-        description: error instanceof Error ? error.message : "Failed to create user",
+        description: message,
         variant: "destructive",
       });
     },
@@ -118,10 +122,14 @@ export default function AdminUsers() {
         description: "User status updated successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to update user status";
+      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+        message = (error as { message: string }).message;
+      }
       toast({
         title: "Error",
-        description: error instanceof Error ? error.message : "Failed to update user status",
+        description: message,
         variant: "destructive",
       });
     },

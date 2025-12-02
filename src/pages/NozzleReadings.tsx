@@ -61,10 +61,14 @@ export default function NozzleReadings() {
         description: "Reading added successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to add reading";
+      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+        message = (error as { message: string }).message;
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to add reading",
+        description: message,
         variant: "destructive",
       });
     }
@@ -81,10 +85,14 @@ export default function NozzleReadings() {
         description: "Reading updated successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to update reading";
+      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+        message = (error as { message: string }).message;
+      }
       toast({
         title: "Error", 
-        description: error.message || "Failed to update reading",
+        description: message,
         variant: "destructive",
       });
     }
@@ -99,10 +107,14 @@ export default function NozzleReadings() {
         description: "Reading deleted successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to delete reading";
+      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+        message = (error as { message: string }).message;
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to delete reading",
+        description: message,
         variant: "destructive",
       });
     }
