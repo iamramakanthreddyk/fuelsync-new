@@ -3,11 +3,12 @@
  * Comprehensive view of a single station with pumps, nozzles, fuel prices
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toFixedNumber } from '@/lib/numberFormat';
+import { formatDateISO, formatDateLocal, formatDateTimeLocal } from '@/lib/dateFormat';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -30,6 +31,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { mapReadingFormToPayload } from '@/lib/apiPayloadHelpers';
+import { debounce } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import {
@@ -144,23 +146,57 @@ export default function StationDetail() {
   const [readingForm, setReadingForm] = useState({
     nozzleId: '',
     readingValue: '',
-    readingDate: new Date().toISOString().split('T')[0],
+    readingDate: formatDateISO(new Date()),
     paymentType: 'cash' as 'cash' | 'digital' | 'credit'
   });
 
   const [priceForm, setPriceForm] = useState({
     fuelType: 'petrol',
     price: '',
-    effectiveFrom: new Date().toISOString().split('T')[0]
+    effectiveFrom: formatDateISO(new Date())
   });
 
-  const [creditorForm, setCreditorForm] = useState({
+
+  type CreditorForm = {
+    name: string;
+    phone: string;
+    email: string;
+    creditLimit: string;
+    vehicleNumber: string;
+  };
+  const [creditorForm, setCreditorForm] = useState<CreditorForm>({
     name: '',
     phone: '',
     email: '',
     creditLimit: '',
     vehicleNumber: ''
   });
+
+  // Debounced handlers for text fields
+  const debouncedSetCreditorName = React.useRef(
+    debounce((...args: unknown[]) => {
+      const value = args[0] as string;
+      setCreditorForm((prev) => ({ ...prev, name: value }));
+    }, 200)
+  ).current;
+  const debouncedSetCreditorPhone = React.useRef(
+    debounce((...args: unknown[]) => {
+      const value = args[0] as string;
+      setCreditorForm((prev) => ({ ...prev, phone: value }));
+    }, 200)
+  ).current;
+  const debouncedSetCreditorEmail = React.useRef(
+    debounce((...args: unknown[]) => {
+      const value = args[0] as string;
+      setCreditorForm((prev) => ({ ...prev, email: value }));
+    }, 200)
+  ).current;
+  const debouncedSetCreditorVehicle = React.useRef(
+    debounce((...args: unknown[]) => {
+      const value = args[0] as string;
+      setCreditorForm((prev) => ({ ...prev, vehicleNumber: value }));
+    }, 200)
+  ).current;
 
   // Fetch station details
   const { data: station, isLoading: stationLoading } = useQuery({
@@ -303,7 +339,7 @@ export default function StationDetail() {
       queryClient.invalidateQueries({ queryKey: ['station-prices', id] });
       toast({ title: 'Success', description: 'Price updated successfully' });
       setIsPriceDialogOpen(false);
-      setPriceForm({ fuelType: 'petrol', price: '', effectiveFrom: new Date().toISOString().split('T')[0] });
+      setPriceForm({ fuelType: 'petrol', price: '', effectiveFrom: formatDateISO(new Date()) });
     },
     onError: (error: unknown) => {
       let message = 'Failed to update price';
@@ -419,7 +455,7 @@ export default function StationDetail() {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
       toast({ title: 'Success', description: 'Reading added successfully' });
       setIsReadingDialogOpen(false);
-      setReadingForm({ nozzleId: '', readingValue: '', readingDate: new Date().toISOString().split('T')[0], paymentType: 'cash' });
+      setReadingForm({ nozzleId: '', readingValue: '', readingDate: formatDateISO(new Date()), paymentType: 'cash' });
       setSelectedNozzle(null);
     },
     onError: (error: unknown) => {
@@ -517,7 +553,7 @@ export default function StationDetail() {
     setReadingForm({
       nozzleId: nozzle.id,
       readingValue: '',
-      readingDate: new Date().toISOString().split('T')[0],
+      readingDate: formatDateISO(new Date()),
       paymentType: 'cash'
     });
     setIsReadingDialogOpen(true);
@@ -840,13 +876,13 @@ export default function StationDetail() {
                   <CardHeader>
                     <CardTitle className="text-lg capitalize">{price.fuelType}</CardTitle>
                     <CardDescription>
-                      Effective from {new Date(price.effectiveFrom).toLocaleDateString()}
+                      Effective from {formatDateLocal(price.effectiveFrom)}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="text-3xl font-bold">₹{toFixedNumber(price.price, 2)}</div>
                     <p className="text-sm text-muted-foreground mt-2">
-                      Updated {new Date(price.updatedAt).toLocaleString()}
+                      Updated {formatDateTimeLocal(price.updatedAt)}
                     </p>
                   </CardContent>
                 </Card>
@@ -888,7 +924,7 @@ export default function StationDetail() {
                     <Input
                       id="creditorName"
                       value={creditorForm.name}
-                      onChange={(e) => setCreditorForm({ ...creditorForm, name: e.target.value })}
+                      onChange={e => debouncedSetCreditorName(e.target.value)}
                       placeholder="Customer name"
                     />
                   </div>
@@ -897,7 +933,7 @@ export default function StationDetail() {
                     <Input
                       id="creditorPhone"
                       value={creditorForm.phone}
-                      onChange={(e) => setCreditorForm({ ...creditorForm, phone: e.target.value })}
+                      onChange={e => debouncedSetCreditorPhone(e.target.value)}
                       placeholder="+91-9876543210"
                     />
                   </div>
@@ -907,7 +943,7 @@ export default function StationDetail() {
                       id="creditorEmail"
                       type="email"
                       value={creditorForm.email}
-                      onChange={(e) => setCreditorForm({ ...creditorForm, email: e.target.value })}
+                      onChange={e => debouncedSetCreditorEmail(e.target.value)}
                       placeholder="customer@example.com"
                     />
                   </div>
@@ -927,7 +963,7 @@ export default function StationDetail() {
                     <Input
                       id="vehicleNumber"
                       value={creditorForm.vehicleNumber}
-                      onChange={(e) => setCreditorForm({ ...creditorForm, vehicleNumber: e.target.value })}
+                      onChange={e => debouncedSetCreditorVehicle(e.target.value)}
                       placeholder="MH-12-AB-1234"
                     />
                   </div>
