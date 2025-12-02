@@ -84,7 +84,7 @@ export default function PricesPage() {
     }
 
     // Use the correct endpoint: /stations/:stationId/prices
-    apiClient.post<any>(`/stations/${currentStation?.id}/prices`, {
+    apiClient.post<{ success: boolean; data: unknown }>(`/stations/${currentStation?.id}/prices`, {
       fuelType: input.fuel_type.toLowerCase(), // Backend expects lowercase
       price: price,
       effectiveFrom: new Date().toISOString(),
@@ -100,10 +100,16 @@ export default function PricesPage() {
         setEditId(undefined);
         queryClient.invalidateQueries({ queryKey: ["fuel-prices"] });
       })
-      .catch((error: any) => {
+      .catch((error: unknown) => {
+        let errorMessage = "Failed to update fuel price";
+        if (error && typeof error === 'object' && 'message' in error) {
+          errorMessage = (error as { message?: string }).message || errorMessage;
+        } else if (typeof error === 'string') {
+          errorMessage = error;
+        }
         toast({
           title: "Error",
-          description: error.message || "Failed to update fuel price",
+          description: errorMessage,
           variant: "destructive",
         });
       })

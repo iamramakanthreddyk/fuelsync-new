@@ -39,8 +39,7 @@ export default function Pumps() {
   const addPumpMutation = useMutation({
     mutationFn: async (pumpData: typeof newPump) => {
       if (!currentStation?.id) throw new Error('No station selected');
-
-      return await apiClient.post<any>(`/stations/${currentStation.id}/pumps`, {
+      return await apiClient.post<{ success: boolean; data: unknown }>(`/stations/${currentStation.id}/pumps`, {
         pumpNumber: parseInt(pumpData.pump_sno.replace(/\D/g, '') || '0') || 1,
         name: pumpData.name,
         status: pumpData.is_active ? 'active' : 'inactive'
@@ -55,10 +54,16 @@ export default function Pumps() {
         description: "Pump added successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let errorMessage = "Failed to add pump";
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as { message?: string }).message || errorMessage;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to add pump",
+        description: errorMessage,
         variant: "destructive",
       });
     },
@@ -67,7 +72,7 @@ export default function Pumps() {
   // Add nozzle mutation - uses /stations/pumps/:pumpId/nozzles
   const addNozzleMutation = useMutation({
     mutationFn: async (nozzleData: { nozzle_number: number; fuel_type: 'PETROL' | 'DIESEL' | 'CNG' | 'EV'; pump_id: string }) => {
-      return await apiClient.post<any>(`/stations/pumps/${nozzleData.pump_id}/nozzles`, {
+      return await apiClient.post<{ success: boolean; data: unknown }>(`/stations/pumps/${nozzleData.pump_id}/nozzles`, {
         nozzleNumber: nozzleData.nozzle_number,
         fuelType: nozzleData.fuel_type.toLowerCase() as 'petrol' | 'diesel',
         initialReading: 0, // Required by backend
@@ -84,10 +89,16 @@ export default function Pumps() {
         description: "Nozzle added successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let errorMessage = "Failed to add nozzle";
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as { message?: string }).message || errorMessage;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to add nozzle",
+        description: errorMessage,
         variant: "destructive",
       });
     },

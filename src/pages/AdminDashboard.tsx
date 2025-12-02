@@ -26,7 +26,7 @@ export default function AdminDashboard() {
     if (user?.role === 'super_admin') {
       loadAdminData();
     }
-  }, [user]);
+  }, [user, loadAdminData]);
 
   const loadAdminData = async () => {
     try {

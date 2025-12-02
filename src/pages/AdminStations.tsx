@@ -39,6 +39,7 @@ interface Plan {
   price_monthly: number;
 }
 
+
 export default function AdminStations() {
   const [isAddStationOpen, setIsAddStationOpen] = useState(false);
   const [newStation, setNewStation] = useState({
@@ -52,21 +53,6 @@ export default function AdminStations() {
   const { toast } = useToast();
   const { user } = useAuth();
   const queryClient = useQueryClient();
-
-  // Only superadmin can access this page
-  if (user?.role !== 'superadmin' && user?.role !== 'super_admin') {
-    return (
-      <div className="container mx-auto p-6">
-        <Card>
-          <CardContent className="pt-6">
-            <p className="text-center text-muted-foreground">
-              Access denied. This page is only available to super administrators.
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
 
   // Fetch stations using the REST API
   const { data: stations, isLoading } = useQuery({
@@ -138,6 +124,21 @@ export default function AdminStations() {
       });
     },
   });
+
+  // Only superadmin can access this page
+  if (user?.role !== 'superadmin' && user?.role !== 'super_admin') {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              Access denied. This page is only available to super administrators.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const handleAddStation = () => {
     if (!newStation.name || !newStation.address || !newStation.owner_id || !newStation.current_plan_id) {
