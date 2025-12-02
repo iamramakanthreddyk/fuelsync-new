@@ -109,10 +109,16 @@ export default function QuickDataEntry() {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', selectedStation] });
       setReadings({});
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = 'Failed to save readings';
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
       toast({
         title: 'Error',
-        description: error.message || 'Failed to save readings',
+        description: message,
         variant: 'destructive'
       });
     }

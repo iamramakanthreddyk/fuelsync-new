@@ -135,9 +135,15 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       setPlans(plansRes || []);
     } catch (error: any) {
       console.error('Error fetching data:', error);
+      let message = 'Failed to fetch data';
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to fetch data",
+        description: message,
         variant: "destructive",
       });
     } finally {
@@ -183,7 +189,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
 
     try {
       setIsCreating(true);
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: createForm.name,
         email: createForm.email,
         phone: createForm.phone || undefined,
@@ -205,8 +211,14 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       setIsCreateOpen(false);
       resetCreateForm();
       fetchData();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to create user", variant: "destructive" });
+    } catch (error: unknown) {
+      let message = 'Failed to create user';
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setIsCreating(false);
     }
@@ -231,7 +243,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
 
     try {
       setIsUpdating(true);
-      const payload: any = {
+      const payload: Record<string, unknown> = {
         name: editForm.name,
         email: editForm.email,
         phone: editForm.phone || undefined,
@@ -253,8 +265,14 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       setIsEditOpen(false);
       setSelectedUser(null);
       fetchData();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to update user", variant: "destructive" });
+    } catch (error: unknown) {
+      let message = 'Failed to update user';
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setIsUpdating(false);
     }
@@ -265,8 +283,14 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       await apiClient.delete(`/users/${userId}`);
       toast({ title: "Success", description: "User deleted successfully" });
       fetchData();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to delete user", variant: "destructive" });
+    } catch (error: unknown) {
+      let message = 'Failed to delete user';
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 
@@ -275,8 +299,14 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       await apiClient.put(`/users/${user.id}`, { isActive: !user.isActive });
       toast({ title: "Success", description: `User ${user.isActive ? 'deactivated' : 'activated'} successfully` });
       fetchData();
-    } catch (error: any) {
-      toast({ title: "Error", description: error.message || "Failed to update status", variant: "destructive" });
+    } catch (error: unknown) {
+      let message = 'Failed to update status';
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
+      toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
 

@@ -29,46 +29,37 @@ export default function CreateOwnerWizard() {
     brand: '',
     address: '',
   });
-  const [createdData, setCreatedData] = useState<any>(null);
+  const [createdData, setCreatedData] = useState<{ owner: unknown; station: unknown } | null>(null);
   const { toast } = useToast();
 
   const createOwnerMutation = useMutation({
     mutationFn: async (data: OwnerFormData) => {
       console.log('Creating owner with data:', data);
-      
       // Step 1: Create owner - apiClient unwraps the response automatically
-      const ownerResponse = await apiClient.post<any>('/users', {
+      const ownerResponse = await apiClient.post<{ id: string; planId?: string }>('/users', {
         name: data.name,
         email: data.email,
         phone: data.phone,
         password: data.password,
         role: 'owner'
       });
-      
       console.log('Owner created, response:', ownerResponse);
-      
-      // ownerResponse is already the user object (unwrapped)
       const owner = ownerResponse;
-      
       if (!owner || !owner.id) {
         throw new Error('Failed to create owner - invalid response');
       }
-
       // Verify owner has a plan
       if (!owner.planId) {
         console.warn('Owner created without a plan. This might cause issues.');
       }
-      
       // Step 2: Create station for the owner
       // Note: Brand field is collected but not sent to backend (not in Station model)
-      const stationResponse = await apiClient.post<any>('/stations', {
+      const stationResponse = await apiClient.post<{ id: string }>('/stations', {
         name: data.stationName,
         address: data.address,
         ownerId: owner.id
       });
-      
       console.log('Station created, response:', stationResponse);
-      
       return { owner, station: stationResponse };
     },
     onSuccess: (data) => {
@@ -80,17 +71,17 @@ export default function CreateOwnerWizard() {
         description: "Owner and station created successfully!" 
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
       console.error('Create owner error:', error);
-      console.error('Error details:', {
-        message: error.message,
-        status: error.status,
-        code: error.code,
-        details: error.details
-      });
+      let message = 'Failed to create owner and station';
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
       toast({ 
         title: "Error", 
-        description: error.message || "Failed to create owner and station", 
+        description: message, 
         variant: "destructive" 
       });
     },

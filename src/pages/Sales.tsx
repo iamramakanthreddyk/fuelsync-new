@@ -94,7 +94,7 @@ export default function Sales() {
   const getNozzle = (nozzleId: number) => {
     if (!nozzleId || !pumps) return null;
     for (const pump of pumps) {
-      const nozzle = pump.nozzles?.find((n: any) => n.id === nozzleId);
+      const nozzle = pump.nozzles?.find((n) => n.id === nozzleId);
       if (nozzle) {
         return { ...nozzle, pump };
       }
@@ -218,10 +218,16 @@ export default function Sales() {
       setIsAddSaleOpen(false);
       setManualEntry({ station_id: '', pump_id: '', nozzle_id: '', cumulative_volume: '' });
       toast({ title: "Success", description: "Manual entry recorded successfully" });
-    } catch (error: any) {
+    } catch (error: unknown) {
+      let message = 'Failed to record manual entry';
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to record manual entry",
+        description: message,
         variant: "destructive",
       });
     }

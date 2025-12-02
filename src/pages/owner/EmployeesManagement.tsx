@@ -156,10 +156,17 @@ export default function EmployeesManagement() {
       setIsAddDialogOpen(false);
       setFormData(initialFormData);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = 'Failed to create employee';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const errObj = error as { response?: { data?: { error?: string } } };
+        message = errObj.response?.data?.error || message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to create employee',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -178,10 +185,17 @@ export default function EmployeesManagement() {
       setEditingEmployee(null);
       setFormData(initialFormData);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = 'Failed to update employee';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const errObj = error as { response?: { data?: { error?: string } } };
+        message = errObj.response?.data?.error || message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to update employee',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -198,10 +212,17 @@ export default function EmployeesManagement() {
       toast({ title: 'Success', description: 'Employee deleted successfully' });
       setDeleteEmployeeId(null);
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = 'Failed to delete employee';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const errObj = error as { response?: { data?: { error?: string } } };
+        message = errObj.response?.data?.error || message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to delete employee',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -297,7 +318,7 @@ export default function EmployeesManagement() {
           <Label htmlFor="role">Role *</Label>
           <Select
             value={formData.role}
-            onValueChange={(value: any) => setFormData({ ...formData, role: value })}
+            onValueChange={(value) => setFormData({ ...formData, role: value as 'employee' | 'manager' })}
           >
             <SelectTrigger>
               <SelectValue />

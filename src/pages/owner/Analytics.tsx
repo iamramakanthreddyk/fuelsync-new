@@ -165,15 +165,25 @@ export default function Analytics() {
   const formatLitres = (litres: number) => `${litres.toFixed(0)} L`;
 
   // Custom tooltip for charts
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  interface TooltipPayloadEntry {
+    color?: string;
+    name: string;
+    value: number | string;
+  }
+  interface CustomTooltipProps {
+    active?: boolean;
+    payload?: TooltipPayloadEntry[];
+    label?: string;
+  }
+  const CustomTooltip = ({ active, payload, label }: CustomTooltipProps) => {
     if (active && payload && payload.length) {
       return (
         <div className="bg-background border rounded-lg shadow-lg p-3">
           <p className="font-medium mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => (
+          {payload.map((entry, index) => (
             <p key={index} className="text-sm" style={{ color: entry.color }}>
-              {entry.name}: {typeof entry.value === 'number' && entry.name.includes('Sales') 
-                ? formatCurrency(entry.value) 
+              {entry.name}: {typeof entry.value === 'number' && entry.name.includes('Sales')
+                ? formatCurrency(entry.value)
                 : entry.value}
             </p>
           ))}

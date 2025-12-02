@@ -160,7 +160,7 @@ export default function StationsPage() {
       return;
     }
     setFormErrors({});
-    const payload: any = {
+    const payload: Record<string, unknown> = {
       name: sanitized.name,
       ownerId: sanitized.ownerId,
       phone: sanitized.phone
@@ -204,7 +204,7 @@ export default function StationsPage() {
       return;
     }
     setFormErrors({});
-    const payload: any = { name: sanitized.name };
+    const payload: Record<string, unknown> = { name: sanitized.name };
     if (sanitized.code) payload.code = sanitized.code;
     if (sanitized.address) payload.address = sanitized.address;
     if (sanitized.city) payload.city = sanitized.city;
