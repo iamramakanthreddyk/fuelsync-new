@@ -665,9 +665,7 @@ export default function StationDetail() {
               <CardContent className="py-12 text-center">
                 <Fuel className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">No pumps added yet</p>
-                <div className="text-xs text-red-500 mb-4">
-                  Debug: pumps={JSON.stringify(pumps)}, isArray={String(Array.isArray(pumps))}, length={pumps?.length}
-                </div>
+
                 <Button onClick={() => setIsPumpDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Add First Pump
@@ -680,27 +678,28 @@ export default function StationDetail() {
                 ✅ Found {pumps.length} pumps
               </div>
               {pumps.map((pump) => (
-                <Card key={pump.id}>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="text-lg">
+                <Card key={pump.id} className="flex flex-col h-full">
+                  <CardHeader className="flex-0 pb-2">
+                    <div className="flex flex-wrap items-center justify-between gap-2 min-w-0">
+                      <CardTitle className="text-lg truncate min-w-0">
                         Pump {pump.pumpNumber} - {pump.name}
                       </CardTitle>
-                      <div className="flex items-center gap-2">
-                        <Badge variant={pump.status === 'active' ? 'default' : 'secondary'}>
+                      <div className="flex flex-wrap items-center gap-2 min-w-0">
+                        <Badge variant={pump.status === 'active' ? 'default' : 'secondary'} className="truncate max-w-[80px]">
                           {pump.status}
                         </Badge>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => handleEditPump(pump)}
+                          className="flex-shrink-0"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-4 flex-1 flex flex-col">
                     {/* Nozzles */}
                     <div>
                       <div className="flex items-center justify-between mb-2">
