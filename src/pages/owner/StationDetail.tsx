@@ -252,8 +252,14 @@ export default function StationDetail() {
       try {
         const response = await apiClient.get<Creditor[]>(`/credits/stations/${id}/creditors`);
         return response;
-      } catch (error: any) {
-        if (error?.response?.status === 404) {
+      } catch (error: unknown) {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'response' in error &&
+          typeof (error as { response?: { status?: number } }).response === 'object' &&
+          (error as { response?: { status?: number } }).response?.status === 404
+        ) {
           return [];
         }
         throw error;
@@ -481,7 +487,7 @@ export default function StationDetail() {
 
   // Add reading mutation
   const addReadingMutation = useMutation({
-    mutationFn: async (data: { nozzleId: string; reading: number; readingDate: string; paymentType: 'cash' | 'digital' | 'credit' }) => {
+    mutationFn: async (data: { nozzleId: string; readingValue: number; readingDate: string; paymentType: 'cash' | 'digital' | 'credit' }) => {
       const response = await apiClient.post(`/readings`, data);
       return response;
     },
@@ -606,7 +612,7 @@ export default function StationDetail() {
     const payload = mapReadingFormToPayload(readingForm);
     addReadingMutation.mutate({
       nozzleId: payload.nozzleId,
-      reading: payload.readingValue, // API expects 'reading'
+      readingValue: payload.readingValue, // API expects 'readingValue'
       readingDate: payload.readingDate,
       paymentType: payload.paymentType
     });

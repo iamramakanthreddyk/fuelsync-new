@@ -86,44 +86,45 @@ export function getDateRange(period: 'today' | 'yesterday' | 'week' | 'month' | 
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   
   switch (period) {
-    case 'today':
+    case 'today': {
       return {
         start: today,
         end: new Date(today.getTime() + 24 * 60 * 60 * 1000 - 1)
       };
-    
-    case 'yesterday':
+    }
+    case 'yesterday': {
       const yesterday = new Date(today);
       yesterday.setDate(yesterday.getDate() - 1);
       return {
         start: yesterday,
         end: new Date(yesterday.getTime() + 24 * 60 * 60 * 1000 - 1)
       };
-    
-    case 'week':
+    }
+    case 'week': {
       const weekStart = new Date(today);
       weekStart.setDate(weekStart.getDate() - 7);
       return {
         start: weekStart,
         end: today
       };
-    
-    case 'month':
+    }
+    case 'month': {
       const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
       return {
         start: monthStart,
         end: today
       };
-    
-    case 'year':
+    }
+    case 'year': {
       const yearStart = new Date(today.getFullYear(), 0, 1);
       return {
         start: yearStart,
         end: today
       };
-    
-    default:
+    }
+    default: {
       return { start: today, end: today };
+    }
   }
 }
 

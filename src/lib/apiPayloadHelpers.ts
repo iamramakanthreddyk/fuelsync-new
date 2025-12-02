@@ -4,9 +4,15 @@
 /**
  * Ensures a value is a number, returns 0 if not parseable.
  */
-export function toNumber(val: any): number {
-  const n = Number(val);
-  return isNaN(n) ? 0 : n;
+export function toNumber(val: unknown): number {
+  if (typeof val === 'number') {
+    return isNaN(val) ? 0 : val;
+  }
+  if (typeof val === 'string') {
+    const n = Number(val);
+    return isNaN(n) ? 0 : n;
+  }
+  return 0;
 }
 
 /**

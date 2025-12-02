@@ -64,10 +64,16 @@ export default function PlansPage() {
         description: "Plan created successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to create plan";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to create plan",
+        description: message,
         variant: "destructive",
       });
     },
@@ -86,10 +92,16 @@ export default function PlansPage() {
         description: "Plan updated successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to update plan";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to update plan",
+        description: message,
         variant: "destructive",
       });
     },
@@ -109,10 +121,16 @@ export default function PlansPage() {
         description: "Plan deactivated successfully",
       });
     },
-    onError: (error: any) => {
+    onError: (error: unknown) => {
+      let message = "Failed to deactivate plan";
+      if (error instanceof Error) {
+        message = error.message;
+      } else if (typeof error === 'object' && error && 'message' in error) {
+        message = String((error as { message?: string }).message);
+      }
       toast({
         title: "Error",
-        description: error.message || "Failed to deactivate plan",
+        description: message,
         variant: "destructive",
       });
     },
@@ -193,7 +211,9 @@ export default function PlansPage() {
     setFormData(defaultFormData);
   };
 
-  const handleInputChange = (field: keyof typeof formData, value: any) => {
+  type FormField = keyof typeof formData;
+  type FormValue = string | number | boolean | undefined;
+  const handleInputChange = (field: FormField, value: FormValue) => {
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
