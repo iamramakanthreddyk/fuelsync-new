@@ -29,6 +29,8 @@ interface Station {
 
 export default function MyStations() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingStation, setEditingStation] = useState<Station | null>(null);
   const [formData, setFormData] = useState({
     name: '',
     code: '',
@@ -69,6 +71,7 @@ export default function MyStations() {
     },
   });
 
+
   // Create station mutation
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
@@ -97,6 +100,36 @@ export default function MyStations() {
     },
   });
 
+  // Edit station mutation
+  const editMutation = useMutation({
+    mutationFn: async (data: typeof formData & { id: string }) => {
+      const response = await apiClient.put<Station>(`/stations/${data.id}`, data);
+      return response;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['my-stations'] });
+      setIsEditDialogOpen(false);
+      setEditingStation(null);
+      setFormData({
+        name: '', code: '', address: '', city: '', state: '',
+        pincode: '', phone: '', email: '', gstNumber: ''
+      });
+      toast({ title: "Success", description: "Station updated successfully" });
+    },
+    onError: (error: unknown) => {
+      let message = "Failed to update station";
+      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
+        message = (error as { message: string }).message;
+      }
+      toast({
+        title: "Error",
+        description: message,
+        variant: "destructive",
+      });
+    },
+  });
+
+
   const handleSubmit = () => {
     if (!formData.name || !formData.city || !formData.state) {
       toast({
@@ -107,6 +140,36 @@ export default function MyStations() {
       return;
     }
     createMutation.mutate(formData);
+  };
+
+  const handleEditSubmit = () => {
+    if (!formData.name || !formData.city || !formData.state) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in required fields (Name, City, State)",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (editingStation) {
+      editMutation.mutate({ ...formData, id: editingStation.id });
+    }
+  };
+
+  const openEditDialog = (station: Station) => {
+    setEditingStation(station);
+    setFormData({
+      name: station.name || '',
+      code: station.code || '',
+      address: station.address || '',
+      city: station.city || '',
+      state: station.state || '',
+      pincode: station.pincode || '',
+      phone: station.phone || '',
+      email: station.email || '',
+      gstNumber: station.gstNumber || ''
+    });
+    setIsEditDialogOpen(true);
   };
 
   if (isLoading) {
@@ -137,6 +200,7 @@ export default function MyStations() {
           <p className="text-muted-foreground">Manage your fuel stations</p>
         </div>
         
+        {/* Add Station Dialog */}
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
             <Button>
@@ -246,6 +310,111 @@ export default function MyStations() {
             </div>
           </DialogContent>
         </Dialog>
+
+        {/* Edit Station Dialog */}
+        <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Edit Station</DialogTitle>
+              <DialogDescription>
+                Update the details for this fuel station.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="sm:col-span-2">
+                <Label htmlFor="edit-name">Station Name *</Label>
+                <Input
+                  id="edit-name"
+                  value={formData.name}
+                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="My Fuel Station"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-code">Station Code</Label>
+                <Input
+                  id="edit-code"
+                  value={formData.code}
+                  onChange={(e) => setFormData(prev => ({ ...prev, code: e.target.value }))}
+                  placeholder="MFS001"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-gstNumber">GST Number</Label>
+                <Input
+                  id="edit-gstNumber"
+                  value={formData.gstNumber}
+                  onChange={(e) => setFormData(prev => ({ ...prev, gstNumber: e.target.value }))}
+                  placeholder="27AAAAA0000A1Z5"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="edit-address">Address</Label>
+                <Input
+                  id="edit-address"
+                  value={formData.address}
+                  onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                  placeholder="123 Main Road"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-city">City *</Label>
+                <Input
+                  id="edit-city"
+                  value={formData.city}
+                  onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+                  placeholder="Mumbai"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-state">State *</Label>
+                <Input
+                  id="edit-state"
+                  value={formData.state}
+                  onChange={(e) => setFormData(prev => ({ ...prev, state: e.target.value }))}
+                  placeholder="Maharashtra"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-pincode">Pincode</Label>
+                <Input
+                  id="edit-pincode"
+                  value={formData.pincode}
+                  onChange={(e) => setFormData(prev => ({ ...prev, pincode: e.target.value }))}
+                  placeholder="400001"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-phone">Phone</Label>
+                <Input
+                  id="edit-phone"
+                  value={formData.phone}
+                  onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                  placeholder="+91 9876543210"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Label htmlFor="edit-email">Email</Label>
+                <Input
+                  id="edit-email"
+                  type="email"
+                  value={formData.email}
+                  onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="station@example.com"
+                />
+              </div>
+              <div className="sm:col-span-2">
+                <Button 
+                  onClick={handleEditSubmit} 
+                  disabled={editMutation.isPending} 
+                  className="w-full"
+                >
+                  {editMutation.isPending ? 'Updating...' : 'Update Station'}
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Stations Grid */}
@@ -280,21 +449,18 @@ export default function MyStations() {
                   </span>
                 </div>
               )}
-              
               {station.phone && (
                 <div className="flex items-center gap-2 text-sm">
                   <Phone className="w-4 h-4 text-muted-foreground" />
                   <span className="text-muted-foreground">{station.phone}</span>
                 </div>
               )}
-              
               {station.email && (
                 <div className="flex items-center gap-2 text-sm">
                   <Mail className="w-4 h-4 text-muted-foreground" />
                   <span className="text-muted-foreground">{station.email}</span>
                 </div>
               )}
-
               {station.pumps && station.pumps.length > 0 && (
                 <div className="flex items-center gap-2 text-sm">
                   <Fuel className="w-4 h-4 text-muted-foreground" />
@@ -303,7 +469,6 @@ export default function MyStations() {
                   </span>
                 </div>
               )}
-
               <div className="flex gap-2 pt-2">
                 <Button variant="outline" size="sm" className="flex-1" asChild>
                   <a href={`/pumps?stationId=${station.id}`}>
@@ -316,6 +481,10 @@ export default function MyStations() {
                     <Users className="w-3 h-3 mr-1" />
                     Staff
                   </a>
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => openEditDialog(station)}>
+                  <Edit className="w-3 h-3 mr-1" />
+                  Edit
                 </Button>
               </div>
             </CardContent>
