@@ -34,7 +34,6 @@ import {
   ArrowLeft,
   Plus,
   Edit,
-  Trash2,
   Fuel,
   Settings,
   DollarSign,
@@ -115,7 +114,7 @@ export default function StationDetail() {
   const [pumpForm, setPumpForm] = useState({
     pumpNumber: '',
     name: '',
-    status: 'active' as const
+    status: 'active' as 'active' | 'inactive' | 'maintenance'
   });
 
   const [editPumpForm, setEditPumpForm] = useState<{
@@ -146,7 +145,7 @@ export default function StationDetail() {
     nozzleId: '',
     readingValue: '',
     readingDate: new Date().toISOString().split('T')[0],
-    paymentType: 'cash' as const
+    paymentType: 'cash' as 'cash' | 'digital' | 'credit'
   });
 
   const [priceForm, setPriceForm] = useState({
@@ -241,9 +240,17 @@ export default function StationDetail() {
       setPumpForm({ pumpNumber: '', name: '', status: 'active' });
     },
     onError: (error: unknown) => {
+      let message = 'Failed to create pump';
+      if (error && typeof error === 'object') {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
+          message = (error.response.data as any).error || message;
+        } else if ('message' in error && typeof (error as any).message === 'string') {
+          message = (error as any).message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to create pump',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -263,9 +270,17 @@ export default function StationDetail() {
       setSelectedPump(null);
     },
     onError: (error: unknown) => {
+      let message = 'Failed to create nozzle';
+      if (error && typeof error === 'object') {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
+          message = (error.response.data as any).error || message;
+        } else if ('message' in error && typeof (error as any).message === 'string') {
+          message = (error as any).message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to create nozzle',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -284,9 +299,17 @@ export default function StationDetail() {
       setPriceForm({ fuelType: 'petrol', price: '', effectiveFrom: new Date().toISOString().split('T')[0] });
     },
     onError: (error: unknown) => {
+      let message = 'Failed to update price';
+      if (error && typeof error === 'object') {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
+          message = (error.response.data as any).error || message;
+        } else if ('message' in error && typeof (error as any).message === 'string') {
+          message = (error as any).message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to update price',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -305,9 +328,17 @@ export default function StationDetail() {
       setCreditorForm({ name: '', phone: '', email: '', creditLimit: '', vehicleNumber: '' });
     },
     onError: (error: unknown) => {
+      let message = 'Failed to create creditor';
+      if (error && typeof error === 'object') {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
+          message = (error.response.data as any).error || message;
+        } else if ('message' in error && typeof (error as any).message === 'string') {
+          message = (error as any).message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to create creditor',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -326,9 +357,17 @@ export default function StationDetail() {
       setSelectedPump(null);
     },
     onError: (error: unknown) => {
+      let message = 'Failed to update pump';
+      if (error && typeof error === 'object') {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
+          message = (error.response.data as any).error || message;
+        } else if ('message' in error && typeof (error as any).message === 'string') {
+          message = (error as any).message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to update pump',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -347,9 +386,17 @@ export default function StationDetail() {
       setSelectedNozzle(null);
     },
     onError: (error: unknown) => {
+      let message = 'Failed to update nozzle';
+      if (error && typeof error === 'object') {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
+          message = (error.response.data as any).error || message;
+        } else if ('message' in error && typeof (error as any).message === 'string') {
+          message = (error as any).message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to update nozzle',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -357,7 +404,7 @@ export default function StationDetail() {
 
   // Add reading mutation
   const addReadingMutation = useMutation({
-    mutationFn: async (data: { nozzleId: string; readingValue: string; readingDate: string; paymentType: string }) => {
+    mutationFn: async (data: { nozzleId: string; readingValue: string; readingDate: string; paymentType: 'cash' | 'digital' | 'credit' }) => {
       const response = await apiClient.post(`/readings`, data);
       return response;
     },
@@ -369,9 +416,17 @@ export default function StationDetail() {
       setSelectedNozzle(null);
     },
     onError: (error: unknown) => {
+      let message = 'Failed to add reading';
+      if (error && typeof error === 'object') {
+        if ('response' in error && error.response && typeof error.response === 'object' && 'data' in error.response && error.response.data && typeof error.response.data === 'object' && 'error' in error.response.data) {
+          message = (error.response.data as any).error || message;
+        } else if ('message' in error && typeof (error as any).message === 'string') {
+          message = (error as any).message;
+        }
+      }
       toast({
         title: 'Error',
-        description: error.response?.data?.error || 'Failed to add reading',
+        description: message,
         variant: 'destructive'
       });
     }
@@ -400,7 +455,7 @@ export default function StationDetail() {
   const handleSetPrice = () => {
     setPriceMutation.mutate({
       fuelType: priceForm.fuelType,
-      price: parseFloat(priceForm.price),
+      price: priceForm.price,
       effectiveFrom: priceForm.effectiveFrom
     });
   };
@@ -409,9 +464,9 @@ export default function StationDetail() {
     createCreditorMutation.mutate({
       name: creditorForm.name,
       phone: creditorForm.phone,
-      email: creditorForm.email || undefined,
-      creditLimit: parseFloat(creditorForm.creditLimit),
-      vehicleNumber: creditorForm.vehicleNumber || undefined
+      email: creditorForm.email || '',
+      creditLimit: creditorForm.creditLimit,
+      vehicleNumber: creditorForm.vehicleNumber || ''
     });
   };
 
@@ -465,10 +520,9 @@ export default function StationDetail() {
     if (!selectedNozzle) return;
     addReadingMutation.mutate({
       nozzleId: readingForm.nozzleId,
-      stationId: id,
-      readingValue: parseFloat(readingForm.readingValue),
+      readingValue: readingForm.readingValue,
       readingDate: readingForm.readingDate,
-      paymentType: readingForm.paymentType
+      paymentType: readingForm.paymentType as 'cash' | 'digital' | 'credit'
     });
   };
 
@@ -568,7 +622,7 @@ export default function StationDetail() {
                     <Label htmlFor="pumpStatus">Status</Label>
                     <Select
                       value={pumpForm.status}
-                      onValueChange={(value: string) => setPumpForm({ ...pumpForm, status: value })}
+                      onValueChange={(value) => setPumpForm({ ...pumpForm, status: value as 'active' | 'inactive' | 'maintenance' })}
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -1073,7 +1127,7 @@ export default function StationDetail() {
               <Label htmlFor="editPumpStatus">Status</Label>
               <Select
                 value={editPumpForm.status}
-                onValueChange={(value: string) => setEditPumpForm({ ...editPumpForm, status: value })}
+                onValueChange={(value) => setEditPumpForm({ ...editPumpForm, status: value as 'active' | 'inactive' | 'maintenance' })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1123,7 +1177,7 @@ export default function StationDetail() {
               <Label htmlFor="editNozzleStatus">Status</Label>
               <Select
                 value={editNozzleForm.status}
-                onValueChange={(value: string) => setEditNozzleForm({ ...editNozzleForm, status: value })}
+                onValueChange={(value) => setEditNozzleForm({ ...editNozzleForm, status: value as 'active' | 'inactive' | 'maintenance' })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1198,7 +1252,7 @@ export default function StationDetail() {
               <Label htmlFor="paymentType">Payment Type *</Label>
               <Select
                 value={readingForm.paymentType}
-                onValueChange={(value: string) => setReadingForm({ ...readingForm, paymentType: value })}
+                onValueChange={(value) => setReadingForm({ ...readingForm, paymentType: value as 'cash' | 'digital' | 'credit' })}
               >
                 <SelectTrigger>
                   <SelectValue />
