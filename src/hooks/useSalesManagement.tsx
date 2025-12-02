@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import { useAuth } from "./useAuth";
+import { Sale } from "./useSalesData";
 
 interface ManualEntryData {
   station_id: number;
@@ -24,7 +25,7 @@ export function useSalesManagement() {
 
   const createManualEntry = useMutation({
     mutationFn: async (data: ManualEntryData) => {
-      const response = await apiClient.post<any>('/sales/manual-entry', {
+      const response = await apiClient.post<Sale>('/sales/manual-entry', {
         ...data,
         user_id: user?.id
       });
@@ -52,7 +53,7 @@ export function useSalesManagement() {
           }
         });
 
-        const response = await apiClient.get<ApiResponse<any[]>>(
+        const response = await apiClient.get<ApiResponse<Sale[]>>(
           `/sales?${params.toString()}`
         );
 
@@ -75,7 +76,7 @@ export function useSalesManagement() {
           }
         });
 
-        const response = await apiClient.get<ApiResponse<any>>(
+        const response = await apiClient.get<ApiResponse<Record<string, unknown>>>(
           `/sales/summary?${params.toString()}`
         );
 

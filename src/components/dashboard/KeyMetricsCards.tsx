@@ -9,7 +9,7 @@ interface KeyMetricsCardsProps {
   pendingClosures: number;
   premiumRequired: boolean;
   variance: number;
-  lockWidgetProps: any;
+  lockWidgetProps: React.HTMLAttributes<HTMLDivElement>;
   lockOverlay: React.ReactNode;
 }
 

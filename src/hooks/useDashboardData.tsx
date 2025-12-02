@@ -83,7 +83,7 @@ export const useDashboardData = () => {
         totalSales: number;
         totalReadings: number;
         fuelSales: Record<string, { litres: number; amount: number }>;
-        recentReadings: any[];
+        recentReadings: { createdAt?: string }[];
       }>(`/dashboard/summary?stationId=${currentStation.id}&startDate=${today}&endDate=${today}`);
 
       console.log('📊 Dashboard summary:', summary);
@@ -91,9 +91,10 @@ export const useDashboardData = () => {
       // Extract fuel prices from current prices endpoint
       let fuelPrices: DashboardData['fuelPrices'] = {};
       try {
-        const pricesData = await apiClient.get<{ current: any[] }>(`/stations/${currentStation.id}/prices`);
+        type Price = { fuelType: string; price: number };
+        const pricesData = await apiClient.get<{ current: Price[] }>(`/stations/${currentStation.id}/prices`);
         if (pricesData?.current) {
-          pricesData.current.forEach((p: any) => {
+          pricesData.current.forEach((p: Price) => {
             fuelPrices[p.fuelType as keyof typeof fuelPrices] = p.price;
           });
         }
@@ -111,7 +112,7 @@ export const useDashboardData = () => {
         fuelPrices,
         alerts: []
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Error loading dashboard data:', error);
       setData(prev => ({
         ...prev,
@@ -119,7 +120,7 @@ export const useDashboardData = () => {
           {
             id: 'load_error',
             type: 'error',
-            message: error?.message || 'Failed to load dashboard data',
+            message: error && typeof error === 'object' && 'message' in error ? (error as { message?: string }).message || 'Failed to load dashboard data' : 'Failed to load dashboard data',
             severity: 'high',
             tags: ['system']
           }

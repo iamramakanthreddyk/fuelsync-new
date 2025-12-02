@@ -142,7 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(userData);
 
       console.log('[AUTH] Login successful:', authUser.email, authUser.role);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('[AUTH] Login error:', error);
       if (error.message?.includes('Invalid credentials') || error.statusCode === 401) {
         throw new Error('Invalid credentials');

@@ -16,14 +16,14 @@ export interface OCRUploadResult {
   success: boolean;
   data: {
     readings_inserted: number;
-    ocr_preview: any;
-    readings: any[];
+    ocr_preview: unknown;
+    readings: unknown[];
   };
 }
 
 export interface ManualReadingResult {
   success: boolean;
-  data: any;
+  data: unknown;
 }
 
 export const useReadingManagement = () => {
@@ -114,23 +114,19 @@ export const useReadingManagement = () => {
           readings: data.data?.ocr?.nozzles || [],
         },
       };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("💥 OCR upload error:", error);
-      
       let errorMessage = "An unexpected error occurred";
-      
-      if (error.message) {
-        errorMessage = error.message;
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as { message?: string }).message || errorMessage;
       } else if (typeof error === 'string') {
         errorMessage = error;
       }
-
       toast({
         title: "OCR Upload Failed",
         description: errorMessage,
         variant: "destructive",
       });
-      
       return null;
     } finally {
       setIsLoading(false);
@@ -164,7 +160,7 @@ export const useReadingManagement = () => {
         user_id: user.id
       };
 
-      const response = await apiClient.post<any>('/readings/manual', payload);
+      const response = await apiClient.post<unknown>('/readings/manual', payload);
 
       if (!response.success) {
         throw new Error('Failed to save reading');
@@ -178,17 +174,19 @@ export const useReadingManagement = () => {
       });
 
       return { success: true, data: response.data };
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("💥 Manual reading error:", error);
-      
-      const errorMessage = error.message || "An unexpected error occurred";
-      
+      let errorMessage = "An unexpected error occurred";
+      if (error && typeof error === 'object' && 'message' in error) {
+        errorMessage = (error as { message?: string }).message || errorMessage;
+      } else if (typeof error === 'string') {
+        errorMessage = error;
+      }
       toast({
         title: "Manual Reading Failed",
         description: errorMessage,
         variant: "destructive",
       });
-      
       return null;
     } finally {
       setIsLoading(false);

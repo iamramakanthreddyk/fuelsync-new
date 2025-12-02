@@ -2,6 +2,17 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 
+
+interface Nozzle {
+  id: string;
+  name: string;
+  status: string;
+  fuelType?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  [key: string]: unknown;
+}
+
 interface Pump {
   id: string;
   stationId: string;
@@ -11,7 +22,7 @@ interface Pump {
   notes?: string | null;
   createdAt: string;
   updatedAt: string;
-  nozzles?: any[];
+  nozzles?: Nozzle[];
 }
 
 export function useStationPumps(stationId?: string) {

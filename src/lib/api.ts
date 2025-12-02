@@ -16,35 +16,35 @@ import type { ApiResponse } from './api-client';
  * Fetch current user profile
  */
 export async function fetchCurrentUser() {
-  return apiClient.get<ApiResponse<any>>('/auth/me');
+  return apiClient.get<ApiResponse<User>>('/auth/me');
 }
 
 /**
  * Fetch stations for current user
  */
 export async function fetchStations() {
-  return apiClient.get<ApiResponse<any[]>>('/stations');
+  return apiClient.get<ApiResponse<Station[]>>('/stations');
 }
 
 /**
  * Fetch pumps for a station
  */
 export async function fetchPumps(stationId: string) {
-  return apiClient.get<ApiResponse<any[]>>(`/stations/${stationId}/pumps`);
+  return apiClient.get<ApiResponse<Pump[]>>(`/stations/${stationId}/pumps`);
 }
 
 /**
  * Fetch nozzles for a pump
  */
 export async function fetchNozzles(pumpId: string) {
-  return apiClient.get<ApiResponse<any[]>>(`/stations/pumps/${pumpId}/nozzles`);
+  return apiClient.get<ApiResponse<Nozzle[]>>(`/stations/pumps/${pumpId}/nozzles`);
 }
 
 /**
  * Fetch fuel prices for a station
  */
 export async function fetchFuelPrices(stationId: string) {
-  return apiClient.get<ApiResponse<any>>(`/stations/${stationId}/prices`);
+  return apiClient.get<ApiResponse<FuelPrice[]>>(`/stations/${stationId}/prices`);
 }
 
 /**
@@ -57,7 +57,7 @@ export async function submitReading(data: {
   readingDate: string;
   shiftId?: number;
 }) {
-  return apiClient.post<ApiResponse<any>>('/readings', data);
+  return apiClient.post<ApiResponse<NozzleReading>>('/readings', data);
 }
 
 /**
@@ -67,5 +67,5 @@ export async function fetchDashboardSummary(stationId: string, startDate?: strin
   const params = new URLSearchParams({ stationId });
   if (startDate) params.set('startDate', startDate);
   if (endDate) params.set('endDate', endDate);
-  return apiClient.get<ApiResponse<any>>(`/dashboard/summary?${params.toString()}`);
+  return apiClient.get<ApiResponse<DashboardSummary>>(`/dashboard/summary?${params.toString()}`);
 }

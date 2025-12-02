@@ -19,7 +19,7 @@ export function useActivityLogger() {
   const logActivity = useCallback(
     async (
       activityType: string,
-      details?: Record<string, any>,
+      details?: Record<string, unknown>,
       stationId?: number
     ) => {
       if (!user?.id) return;

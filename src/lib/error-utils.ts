@@ -6,13 +6,13 @@ export interface AppError {
   message: string;
   code?: string;
   statusCode?: number;
-  details?: any;
+  details?: Array<{ field: string; message: string }>;
 }
 
 /**
  * Format error for display
  */
-export function formatError(error: any): AppError {
+export function formatError(error: unknown): AppError {
   // API Error
   if (error.response?.data) {
     return {
@@ -42,7 +42,7 @@ export function formatError(error: any): AppError {
 /**
  * Get user-friendly error message
  */
-export function getUserMessage(error: any): string {
+export function getUserMessage(error: unknown): string {
   const formattedError = formatError(error);
   
   // Map common error codes to user-friendly messages
@@ -74,7 +74,7 @@ export function getUserMessage(error: any): string {
 /**
  * Log error to console with context
  */
-export function logError(error: any, context?: string) {
+export function logError(error: unknown, context?: string) {
   const formattedError = formatError(error);
   console.error(
     `[Error${context ? ` - ${context}` : ''}]:`,
@@ -86,7 +86,7 @@ export function logError(error: any, context?: string) {
 /**
  * Check if error is authentication related
  */
-export function isAuthError(error: any): boolean {
+export function isAuthError(error: unknown): boolean {
   const formattedError = formatError(error);
   return (
     formattedError.statusCode === 401 ||
@@ -98,7 +98,7 @@ export function isAuthError(error: any): boolean {
 /**
  * Check if error is validation related
  */
-export function isValidationError(error: any): boolean {
+export function isValidationError(error: unknown): boolean {
   const formattedError = formatError(error);
   return (
     formattedError.statusCode === 400 ||
@@ -110,7 +110,7 @@ export function isValidationError(error: any): boolean {
 /**
  * Extract validation errors
  */
-export function getValidationErrors(error: any): Record<string, string> {
+export function getValidationErrors(error: unknown): Record<string, string> {
   const formattedError = formatError(error);
   
   if (!formattedError.details || !Array.isArray(formattedError.details)) {
@@ -118,7 +118,7 @@ export function getValidationErrors(error: any): Record<string, string> {
   }
 
   const errors: Record<string, string> = {};
-  formattedError.details.forEach((detail: any) => {
+  (formattedError.details as Array<{ field: string; message: string }> | undefined)?.forEach((detail) => {
     if (detail.field && detail.message) {
       errors[detail.field] = detail.message;
     }

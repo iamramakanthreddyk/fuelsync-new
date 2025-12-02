@@ -17,7 +17,7 @@ interface Sale {
   delta_volume_l: number;
   price_per_litre: number;
   total_amount: number;
-  payment_breakdown: any;
+  payment_breakdown: Record<string, unknown>;
   cash_amount: number;
   online_amount: number;
   entered_by: string;
