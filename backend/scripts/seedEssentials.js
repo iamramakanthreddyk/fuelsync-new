@@ -26,10 +26,12 @@ async function seedEssentials() {
       await Plan.bulkCreate([
         {
           name: 'Free',
-          price: 0,
+          description: 'Free plan',
+          priceMonthly: 0,
+          priceYearly: 0,
           billingCycle: 'monthly',
           maxStations: 1,
-          maxPumps: 2,
+          maxPumpsPerStation: 2,
           maxNozzlesPerPump: 4,
           maxEmployees: 2,
           features: {
@@ -45,10 +47,12 @@ async function seedEssentials() {
         },
         {
           name: 'Basic',
-          price: 999,
+          description: 'Basic plan',
+          priceMonthly: 999,
+          priceYearly: 9990,
           billingCycle: 'monthly',
           maxStations: 3,
-          maxPumps: 10,
+          maxPumpsPerStation: 10,
           maxNozzlesPerPump: 4,
           maxEmployees: 10,
           features: {
@@ -65,10 +69,12 @@ async function seedEssentials() {
         },
         {
           name: 'Premium',
-          price: 2499,
+          description: 'Premium plan',
+          priceMonthly: 2499,
+          priceYearly: 24990,
           billingCycle: 'monthly',
           maxStations: 10,
-          maxPumps: 50,
+          maxPumpsPerStation: 50,
           maxNozzlesPerPump: 8,
           maxEmployees: 50,
           features: {
@@ -88,10 +94,12 @@ async function seedEssentials() {
         },
         {
           name: 'Enterprise',
-          price: 4999,
+          description: 'Enterprise plan',
+          priceMonthly: 4999,
+          priceYearly: 49990,
           billingCycle: 'monthly',
           maxStations: 999, // effectively unlimited
-          maxPumps: 999,
+          maxPumpsPerStation: 999,
           maxNozzlesPerPump: 12,
           maxEmployees: 999,
           features: {

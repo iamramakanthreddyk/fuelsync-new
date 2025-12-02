@@ -93,7 +93,6 @@ router.post('/', requireRole(['super_admin']), async (req, res) => {
 router.put('/:id', requireRole(['super_admin']), async (req, res) => {
   try {
     const plan = await Plan.findByPk(req.params.id);
-    
     if (!plan) {
       return res.status(404).json({
         success: false,
@@ -101,7 +100,14 @@ router.put('/:id', requireRole(['super_admin']), async (req, res) => {
       });
     }
 
-    await plan.update(req.body);
+    // Allow updating features (JSON) and isActive
+    let updateData = { ...req.body };
+    if (typeof req.body.features === 'object' && req.body.features !== null) {
+      // Merge features with existing
+      updateData.features = { ...plan.features, ...req.body.features };
+    }
+
+    await plan.update(updateData);
 
     res.json({
       success: true,

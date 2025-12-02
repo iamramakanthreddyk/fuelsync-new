@@ -1,12 +1,12 @@
+
 import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { Fuel, Eye, EyeOff, AlertCircle, CheckCircle, RefreshCw } from "lucide-react";
+import { Eye, EyeOff, CheckCircle, RefreshCw } from "lucide-react";
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -18,7 +18,6 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!email || !password) {
       toast({
         title: "Missing Information",
@@ -27,9 +26,7 @@ export default function Login() {
       });
       return;
     }
-
     setIsLoading(true);
-    
     try {
       await login(email, password);
       toast({
@@ -48,11 +45,7 @@ export default function Login() {
     }
   };
 
-
-  // Removed demo accounts for production security
-
   return (
-
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-100 to-blue-200 relative overflow-hidden p-4">
       {/* Decorative SVG background */}
       <svg className="absolute left-0 top-0 w-full h-full opacity-20 pointer-events-none" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -77,17 +70,40 @@ export default function Login() {
           <h1 className="text-3xl font-bold text-gray-900">FuelSync</h1>
           <p className="text-gray-600">Fuel Station Management System</p>
         </div>
-
         <Card>
           <CardHeader>
             <CardTitle>Welcome Back</CardTitle>
             <CardDescription>
               Sign in to your account to continue
             </CardDescription>
-          {/* Demo accounts removed for production */}
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="email">Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="Enter your email"
+                  autoComplete="username"
+                  className="w-full"
+                  disabled={isLoading}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Password</Label>
+                <div className="relative">
+                  <Input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
                     className="w-full pr-10"
+                    autoComplete="current-password"
+                    disabled={isLoading}
                   />
                   <Button
                     type="button"
@@ -95,6 +111,7 @@ export default function Login() {
                     size="sm"
                     className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
                     onClick={() => setShowPassword(!showPassword)}
+                    tabIndex={-1}
                   >
                     {showPassword ? (
                       <EyeOff className="h-4 w-4" />
@@ -104,7 +121,6 @@ export default function Login() {
                   </Button>
                 </div>
               </div>
-
               <Button 
                 type="submit" 
                 className="w-full" 
@@ -122,37 +138,10 @@ export default function Login() {
             </form>
           </CardContent>
         </Card>
-
         <div className="mt-4 text-center">
           <span className="text-sm text-gray-600">Don't have an account? </span>
           <a href="/signup" className="text-blue-600 hover:underline">Sign Up</a>
         </div>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Demo Accounts</CardTitle>
-            <CardDescription className="text-xs">
-              Click to auto-fill credentials
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {demoAccounts.map((account, index) => (
-              <Button
-                key={index}
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-xs"
-                onClick={() => fillDemo(account.email, account.password)}
-              >
-                <div className="text-left">
-                  <div className="font-medium">{account.role}</div>
-                  <div className="text-muted-foreground">{account.email}</div>
-                </div>
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
-
         <Card className="border-green-200 bg-green-50">
           <CardContent className="pt-4">
             <div className="flex items-center space-x-2 text-green-800">
