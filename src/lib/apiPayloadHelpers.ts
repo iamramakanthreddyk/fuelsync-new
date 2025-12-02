@@ -19,13 +19,13 @@ export function mapReadingFormToPayload(form: {
   paymentType: 'cash' | 'credit' | 'digital';
 }): {
   nozzleId: string;
-  reading: number;
+  readingValue: number;
   readingDate: string;
   paymentType: 'cash' | 'credit' | 'digital';
 } {
   return {
     nozzleId: form.nozzleId,
-    reading: toNumber(form.readingValue),
+    readingValue: toNumber(form.readingValue),
     readingDate: form.readingDate,
     paymentType: form.paymentType,
   };

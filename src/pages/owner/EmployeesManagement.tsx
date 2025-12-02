@@ -3,7 +3,9 @@
  * Manage employees across all stations
  */
 
+import React from 'react';
 import { useState } from 'react';
+import { debounce } from '@/lib/utils';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -81,6 +83,31 @@ const initialFormData: EmployeeFormData = {
 };
 
 export default function EmployeesManagement() {
+    // Debounced handlers for text fields
+    const debouncedSetName = React.useRef(
+      debounce((...args: unknown[]) => {
+        const value = args[0] as string;
+        setFormData((prev) => ({ ...prev, name: value }));
+      }, 200)
+    ).current;
+    const debouncedSetEmail = React.useRef(
+      debounce((...args: unknown[]) => {
+        const value = args[0] as string;
+        setFormData((prev) => ({ ...prev, email: value }));
+      }, 200)
+    ).current;
+    const debouncedSetPhone = React.useRef(
+      debounce((...args: unknown[]) => {
+        const value = args[0] as string;
+        setFormData((prev) => ({ ...prev, phone: value }));
+      }, 200)
+    ).current;
+    const debouncedSetPassword = React.useRef(
+      debounce((...args: unknown[]) => {
+        const value = args[0] as string;
+        setFormData((prev) => ({ ...prev, password: value }));
+      }, 200)
+    ).current;
   const [searchParams] = useSearchParams();
   const filterStationId = searchParams.get('station');
 
@@ -227,7 +254,7 @@ export default function EmployeesManagement() {
           <Input
             id="name"
             value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            onChange={e => debouncedSetName(e.target.value)}
             placeholder="John Doe"
           />
         </div>
@@ -237,7 +264,7 @@ export default function EmployeesManagement() {
             id="email"
             type="email"
             value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            onChange={e => debouncedSetEmail(e.target.value)}
             placeholder="john@example.com"
           />
         </div>
@@ -249,7 +276,7 @@ export default function EmployeesManagement() {
           <Input
             id="phone"
             value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            onChange={e => debouncedSetPhone(e.target.value)}
             placeholder="+91-9876543210"
           />
         </div>
@@ -259,7 +286,7 @@ export default function EmployeesManagement() {
             id="password"
             type="password"
             value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+            onChange={e => debouncedSetPassword(e.target.value)}
             placeholder={isEdit ? 'Leave blank to keep current' : 'Enter password'}
           />
         </div>
