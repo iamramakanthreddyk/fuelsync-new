@@ -4,7 +4,7 @@ import { apiService } from '@/services/api';
 export type ReportType = 'daily' | 'monthly' | 'pump' | 'fuel';
 
 export interface ReportRow {
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export function useReports(stationId?: string, startDate?: string, endDate?: string, reportType: ReportType = 'daily', enabled = true) {

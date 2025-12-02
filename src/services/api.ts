@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api-client';
+import { NozzleReading, Pump, Nozzle, DashboardSummary } from '@/types/api';
 
 export class ApiService {
   async getNozzleReadings(stationId: string) {
@@ -22,14 +23,19 @@ export class ApiService {
 
   async createManualReading(data: {
     nozzleId: string;
-    currentReading: number;
     readingDate: string;
-  }, stationId: string) {
-    const response = await apiClient.post<NozzleReading>('/readings', {
+    readingValue: number;
+    cashAmount?: number;
+    onlineAmount?: number;
+    notes?: string;
+  }) {
+    const response = await apiClient.post('/readings', {
       nozzleId: data.nozzleId,
-      stationId,
-      currentReading: data.currentReading,
-      readingDate: data.readingDate
+      readingDate: data.readingDate,
+      readingValue: data.readingValue,
+      cashAmount: data.cashAmount,
+      onlineAmount: data.onlineAmount,
+      notes: data.notes
     });
 
     return response;
@@ -55,7 +61,7 @@ export class ApiService {
         id: pump.id,
         name: pump.name || `Pump ${pump.pumpNumber}`,
         pumpNumber: pump.pumpNumber,
-        status: pump.isActive ? 'active' : 'inactive',
+        status: pump.status === 'active' ? 'active' : 'inactive',
         nozzles: (pump.nozzles || []).map((nozzle: Nozzle) => ({
           id: nozzle.id,
           pumpId: pump.id,
@@ -117,12 +123,12 @@ export class ApiService {
     return { data: response || [] };
   }
 
-  async getUploads(stationId: string) {
+  async getUploads(_stationId: string) {
     // No OCR uploads in the REST API - return empty for now
     return { data: [] };
   }
 
-  async uploadReceipt(file: File, stationId: string) {
+  async uploadReceipt(_file: File, _stationId: string) {
     // OCR upload not implemented in REST API
     throw new Error('OCR upload not implemented');
   }

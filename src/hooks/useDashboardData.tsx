@@ -89,7 +89,7 @@ export const useDashboardData = () => {
       console.log('📊 Dashboard summary:', summary);
 
       // Extract fuel prices from current prices endpoint
-      let fuelPrices: DashboardData['fuelPrices'] = {};
+      const fuelPrices: DashboardData['fuelPrices'] = {};
       try {
         type Price = { fuelType: string; price: number };
         const pricesData = await apiClient.get<{ current: Price[] }>(`/stations/${currentStation.id}/prices`);

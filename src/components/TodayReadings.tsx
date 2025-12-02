@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { readingService } from '@/services/readingService';
 import { FuelBadge } from '@/components/FuelBadge';
 import { Clock, User, TrendingUp } from 'lucide-react';
+import { NozzleReading } from '@/types/api';
 
 export function TodayReadings() {
   const { data: readings, isLoading, error } = useQuery({
@@ -71,7 +72,7 @@ export function TodayReadings() {
           </div>
         ) : (
           <div className="space-y-3 max-h-96 overflow-y-auto">
-            {readings?.map((reading: any) => (
+            {readings?.map((reading: NozzleReading) => (
               <div
                 key={reading.id}
                 className="flex items-center justify-between p-3 border rounded-lg bg-muted/30"
