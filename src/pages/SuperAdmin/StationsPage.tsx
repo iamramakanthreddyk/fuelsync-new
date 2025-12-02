@@ -1,5 +1,10 @@
 
 import { useState, useEffect } from 'react';
+import {
+  isValidEmail,
+  isValidPhone,
+  sanitizeString
+} from '@/lib/validation-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,6 +69,7 @@ export default function StationsPage() {
   const [selectedStation, setSelectedStation] = useState<Station | null>(null);
   const [formData, setFormData] = useState({
     name: '',
+    code: '',
     address: '',
     city: '',
     state: '',
@@ -109,6 +115,7 @@ export default function StationsPage() {
   const resetForm = () => {
     setFormData({
       name: '',
+      code: '',
       address: '',
       city: '',
       state: '',
@@ -136,65 +143,47 @@ export default function StationsPage() {
     return code;
   };
 
-  const handleCreateStation = async () => {
-    // Clear previous errors
+  // Shared validation and sanitization for create/edit
+  const validateAndSanitize = (data: typeof formData, isEdit = false) => {
     const errors: Record<string, string> = {};
+    // Required fields
+    if (!data.name?.trim()) errors.name = "Station name is required";
+    if (!isEdit && !data.ownerId?.trim()) errors.ownerId = "Please select an owner";
+    if (!data.phone?.trim()) errors.phone = "Phone number is required";
+    else if (!isValidPhone(data.phone)) errors.phone = "Invalid phone number format";
+    if (data.email && !isValidEmail(data.email)) errors.email = "Invalid email address";
+    // Sanitize all string fields
+    const sanitized = Object.fromEntries(
+      Object.entries(data).map(([k, v]) => [k, typeof v === 'string' ? sanitizeString(v) : v])
+    );
+    return { errors, sanitized };
+  };
 
-    // Validate required fields
-    if (!formData.name?.trim()) {
-      errors.name = "Station name is required";
-    }
-
-    if (!formData.ownerId?.trim()) {
-      errors.ownerId = "Please select an owner";
-    }
-
-    if (!formData.phone?.trim()) {
-      errors.phone = "Phone number is required";
-    }
-
-    // If there are errors, show them inline
+  const handleCreateStation = async () => {
+    const { errors, sanitized } = validateAndSanitize(formData);
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       return;
     }
-
     setFormErrors({});
-
     try {
-      console.log('📋 Creating station with ownerId:', formData.ownerId);
-      console.log('📋 OwnerId type:', typeof formData.ownerId);
-      console.log('📋 OwnerId length:', formData.ownerId?.length);
-
-      // Build payload - backend will auto-generate code
       const payload: any = {
-        name: formData.name.trim(),
-        ownerId: formData.ownerId.trim(),
-        phone: formData.phone.trim()
+        name: sanitized.name,
+        ownerId: sanitized.ownerId,
+        phone: sanitized.phone
       };
-
-      // Add optional fields only if they have values
-      if (formData.address?.trim()) payload.address = formData.address.trim();
-      if (formData.city?.trim()) payload.city = formData.city.trim();
-      if (formData.state?.trim()) payload.state = formData.state.trim();
-      if (formData.pincode?.trim()) payload.pincode = formData.pincode.trim();
-      if (formData.phone?.trim()) payload.phone = formData.phone.trim();
-      if (formData.email?.trim()) payload.email = formData.email.trim();
-      if (formData.gstNumber?.trim()) payload.gstNumber = formData.gstNumber.trim();
-      
-      console.log('🚀 About to send API request');
-      console.log('📦 Final payload:', JSON.stringify(payload, null, 2));
-      console.log('🔑 ownerId in payload:', payload.ownerId);
-      console.log('📏 ownerId length:', payload.ownerId?.length);
-      console.log('🔤 ownerId type:', typeof payload.ownerId);
-      
+      if (sanitized.address) payload.address = sanitized.address;
+      if (sanitized.city) payload.city = sanitized.city;
+      if (sanitized.state) payload.state = sanitized.state;
+      if (sanitized.pincode) payload.pincode = sanitized.pincode;
+      if (sanitized.email) payload.email = sanitized.email;
+      if (sanitized.gstNumber) payload.gstNumber = sanitized.gstNumber;
+      if (sanitized.code) payload.code = sanitized.code;
       await apiClient.post('/stations', payload);
-
       toast({
         title: "Station Created",
         description: "Station has been created successfully",
       });
-
       setIsCreateOpen(false);
       resetForm();
       fetchData();
@@ -210,40 +199,32 @@ export default function StationsPage() {
 
   const handleEditStation = async () => {
     if (!selectedStation) return;
-
-    // Validate required fields
-    if (!formData.name?.trim()) {
+    const { errors, sanitized } = validateAndSanitize(formData, true);
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
       toast({
         title: "Validation Error",
-        description: "Station name is required",
+        description: Object.values(errors).join(', '),
         variant: "destructive",
       });
       return;
     }
-
+    setFormErrors({});
     try {
-      // Build payload - only include non-empty fields
-      const payload: any = {
-        name: formData.name.trim()
-      };
-
-      // Add optional fields only if they have values
-      if (formData.code?.trim()) payload.code = formData.code.trim();
-      if (formData.address?.trim()) payload.address = formData.address.trim();
-      if (formData.city?.trim()) payload.city = formData.city.trim();
-      if (formData.state?.trim()) payload.state = formData.state.trim();
-      if (formData.pincode?.trim()) payload.pincode = formData.pincode.trim();
-      if (formData.phone?.trim()) payload.phone = formData.phone.trim();
-      if (formData.email?.trim()) payload.email = formData.email.trim();
-      if (formData.gstNumber?.trim()) payload.gstNumber = formData.gstNumber.trim();
-
+      const payload: any = { name: sanitized.name };
+      if (sanitized.code) payload.code = sanitized.code;
+      if (sanitized.address) payload.address = sanitized.address;
+      if (sanitized.city) payload.city = sanitized.city;
+      if (sanitized.state) payload.state = sanitized.state;
+      if (sanitized.pincode) payload.pincode = sanitized.pincode;
+      if (sanitized.phone) payload.phone = sanitized.phone;
+      if (sanitized.email) payload.email = sanitized.email;
+      if (sanitized.gstNumber) payload.gstNumber = sanitized.gstNumber;
       await apiClient.put(`/stations/${selectedStation.id}`, payload);
-
       toast({
         title: "Station Updated",
         description: "Station has been updated successfully",
       });
-
       setIsEditOpen(false);
       setSelectedStation(null);
       resetForm();
@@ -282,6 +263,7 @@ export default function StationsPage() {
     setSelectedStation(station);
     setFormData({
       name: station.name,
+      code: station.code || '',
       address: station.address || '',
       city: station.city || '',
       state: station.state || '',

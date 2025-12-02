@@ -5,7 +5,7 @@
   },
   "deploy": {
     "numReplicas": 1,
-    "startCommand": "cd backend && node src/server.js",
+    "startCommand": "cd backend && npm run db:migrate && node src/server.js",
     "restartPolicyType": "on_failure",
     "restartPolicyMaxRetries": 3,
     "sleepApplication": false

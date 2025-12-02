@@ -30,6 +30,7 @@ const planRoutes = require('./routes/plans');
 const activityLogRoutes = require('./routes/activityLogs');
 const salesRoutes = require('./routes/sales');
 const reportRoutes = require('./routes/reports');
+const adminRoutes = require('./routes/admin');
 
 // Import constants for API info
 const { FUEL_TYPES, PAYMENT_METHODS, EXPENSE_CATEGORIES, USER_ROLES } = require('./config/constants');
@@ -126,6 +127,9 @@ app.use('/api/v1/handovers', handoverRoutes); // Cash handover management
 app.use('/api/v1/config', configRoutes); // Configuration/dropdown endpoints
 app.use('/api/v1/plans', planRoutes); // Subscription plans
 app.use('/api/v1/activity-logs', activityLogRoutes); // Activity logging
+
+// Admin-only endpoints (backup, migration, etc.)
+app.use('/api/v1/admin', adminRoutes);
 
 // API info with configuration options
 app.get('/api/v1', (req, res) => {

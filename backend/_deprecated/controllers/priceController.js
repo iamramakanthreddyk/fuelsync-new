@@ -104,7 +104,7 @@ exports.getPriceHistory = async (req, res) => {
     }
 
     // TODO: Implement price history table for tracking changes
-    // For now, return current prices
+    // For now, return only the current prices without fake previous/change values
     const prices = await FuelPrice.findAll({
       where: whereClause,
       include: [{ 
@@ -116,15 +116,14 @@ exports.getPriceHistory = async (req, res) => {
       order: [['updatedAt', 'DESC']]
     });
 
+    // Only return actual price data, no fake history
     const history = prices.map(price => ({
       id: price.id,
       fuelType: price.fuelType,
       price: price.price,
-      previousPrice: price.price - (Math.random() * 2 - 1), // TODO: Get from history
-      change: Math.random() * 2 - 1, // TODO: Calculate real change
       updatedBy: price.updatedByUser?.name || 'Unknown',
-      updatedAt: price.updatedAt,
-      reason: 'Market adjustment' // TODO: Add reason field
+      updatedAt: price.updatedAt
+      // previousPrice, change, reason: to be implemented when real history is available
     }));
 
     res.json({
@@ -143,10 +142,9 @@ exports.getPriceHistory = async (req, res) => {
 // Get price comparison with nearby stations
 exports.getPriceComparison = async (req, res) => {
   try {
-    // TODO: Implement competitor price tracking
-    // For now, return dummy comparison data
+    // TODO: Implement competitor price tracking with real data
+    // For now, return only your station's prices
     const ourPrices = await FuelPrice.findAll();
-    
     const petrolPrice = ourPrices.find(p => p.fuelType === 'Petrol')?.price || 105.50;
     const dieselPrice = ourPrices.find(p => p.fuelType === 'Diesel')?.price || 98.75;
 
@@ -157,21 +155,8 @@ exports.getPriceComparison = async (req, res) => {
         dieselPrice: dieselPrice,
         distance: 0,
         isOurStation: true
-      },
-      {
-        stationName: 'Competitor A',
-        petrolPrice: petrolPrice + (Math.random() * 4 - 2),
-        dieselPrice: dieselPrice + (Math.random() * 4 - 2),
-        distance: 0.5,
-        isOurStation: false
-      },
-      {
-        stationName: 'Competitor B',
-        petrolPrice: petrolPrice + (Math.random() * 4 - 2),
-        dieselPrice: dieselPrice + (Math.random() * 4 - 2),
-        distance: 1.2,
-        isOurStation: false
       }
+      // Add real competitor data here when available
     ];
 
     res.json({

@@ -14,6 +14,25 @@ FuelSync is a **modern fuel station management system** focused on:
 
 ## 🚀 How to Contribute
 
+## 🚦 Database Migration Workflow (MANDATORY)
+
+**All database schema changes must use Sequelize migrations.**
+
+**Checklist for schema changes:**
+- [ ] Use `npx sequelize-cli migration:generate --name <change>` to create a migration in `backend/migrations/`.
+- [ ] Never edit or delete existing migration files after they are committed.
+- [ ] Do not change the database schema by editing models only—always add a migration.
+- [ ] Review PRs to ensure all schema changes have a corresponding migration file.
+- [ ] If you change models, check if a migration is needed and add one if so.
+- [ ] Never apply schema changes directly to the production database.
+
+**CI/CD Enforcement (Recommended):**
+- Add a check to fail PRs if there are model changes but no new migration file in `backend/migrations/`.
+- Keep the migration folder organized and version-controlled.
+
+**Why?**
+Migrations ensure your production, staging, and development databases stay in sync and prevent data loss or drift.
+
 ### 1️⃣ Get Started
 
 * **Fork** the repository

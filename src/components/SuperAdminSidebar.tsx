@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/hooks/useAuth';
 import { Users, Building2, UserPlus, BarChart3, LogOut, Settings, Crown } from 'lucide-react';
 import FuelSyncLogo from './FuelSyncLogo';
+import { useSidebar } from '@/components/ui/sidebar';
 
 const superAdminItems = [
   {
@@ -51,9 +52,11 @@ const superAdminItems = [
   },
 ];
 
+
 export function SuperAdminSidebar() {
   const location = useLocation();
   const { logout } = useAuth();
+  const { isMobile, setOpenMobile } = useSidebar();
 
   const handleLogout = async () => {
     try {
@@ -61,6 +64,11 @@ export function SuperAdminSidebar() {
     } catch (error) {
       console.error('Logout error:', error);
     }
+  };
+
+  // Helper to close sidebar on mobile when a menu item is clicked
+  const handleItemClick = () => {
+    if (isMobile) setOpenMobile(false);
   };
 
   return (
@@ -88,7 +96,7 @@ export function SuperAdminSidebar() {
                     isActive={location.pathname === item.url}
                     className="flex flex-col items-start h-auto py-3"
                   >
-                    <Link to={item.url}>
+                    <Link to={item.url} onClick={handleItemClick}>
                       <div className="flex items-center gap-2 w-full">
                         <item.icon className="w-4 h-4" />
                         <span className="font-medium">{item.title}</span>
