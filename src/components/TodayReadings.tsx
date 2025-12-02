@@ -1,16 +1,18 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { readingService } from '@/services/readingService';
+import { readingService, NozzleReading } from '@/services/readingService';
 import { FuelBadge } from '@/components/FuelBadge';
 import { Clock, User, TrendingUp } from 'lucide-react';
-import { NozzleReading } from '@/types/api';
 import { safeToFixed } from '@/lib/format-utils';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 
 export function TodayReadings() {
+  const { currentStation } = useRoleAccess();
+  
   const { data: readings, isLoading, error } = useQuery({
-    queryKey: ['today-readings'],
-    queryFn: () => readingService.getTodayReadings(''),
+    queryKey: ['today-readings', currentStation?.id],
+    queryFn: () => readingService.getTodayReadings(currentStation?.id || ''),
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
@@ -91,7 +93,7 @@ export function TodayReadings() {
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center gap-2">
                       <User className="w-3 h-3" />
-                      {reading.user?.name || reading.enteredByUser?.name || 'Unknown'}
+                      {reading.user?.name || reading.enteredBy || 'Unknown'}
                       <span>•</span>
                       {new Date(reading.createdAt).toLocaleTimeString('en-IN', {
                         hour: '2-digit',

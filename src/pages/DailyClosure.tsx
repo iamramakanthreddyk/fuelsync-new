@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,16 +10,15 @@ import { apiClient, ApiResponse } from "@/lib/api-client";
 import { ClipboardCheck, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
 import { useDailySummary } from "@/hooks/useDailySummary";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
-import { useAuth } from "@/hooks/useAuth";
 
 import { safeToFixed } from '@/lib/format-utils';
+import { getDifferenceBadgeClasses } from '@/lib/badgeColors';
 
 export default function DailyClosure() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [closureNotes, setClosureNotes] = useState('');
 
   const { toast } = useToast();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { data: summary, isLoading } = useDailySummary(selectedDate);
   const { currentStation, isOwner, isAdmin } = useRoleAccess();

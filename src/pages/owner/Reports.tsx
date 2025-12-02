@@ -20,13 +20,13 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
+import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import {
   FileText,
   TrendingUp,
   DollarSign,
   BarChart3,
   Download,
-  Calendar,
   Filter,
   Activity,
   Droplet,
@@ -94,18 +94,6 @@ interface PumpPerformance {
     sales: number;
     quantity: number;
   }[];
-}
-
-interface NozzleBreakdown {
-  nozzleId: string;
-  nozzleNumber: number;
-  fuelType: string;
-  pumpName: string;
-  stationName: string;
-  totalSales: number;
-  totalQuantity: number;
-  transactions: number;
-  avgTransactionValue: number;
 }
 
 export default function Reports() {
