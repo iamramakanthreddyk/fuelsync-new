@@ -5,6 +5,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient, ApiResponse, PaginatedResponse } from '@/lib/api-client';
 import { useStationStore } from '@/store/stationStore';
+import { getApiErrorMessage } from '@/lib/apiErrorHandler';
 import type {
   Station,
   Pump,
@@ -106,17 +107,25 @@ export function useConfig() {
 // STATION HOOKS
 // ============================================
 
+/**
+ * Fetches all stations and updates the station store.
+ * Standardized with centralized API error handling.
+ */
 export function useStations() {
   const setStations = useStationStore(state => state.setStations);
-  
   return useQuery({
     queryKey: queryKeys.stations,
     queryFn: async () => {
-      const response = await apiClient.get<ApiResponse<Station[]>>('/stations');
-      if (response.success) {
-        setStations(response.data);
+      try {
+        const response = await apiClient.get<ApiResponse<Station[]>>('/stations');
+        if (response.success) {
+          setStations(response.data);
+        }
+        return response;
+      } catch (error) {
+        // Use centralized error handler
+        throw new Error(getApiErrorMessage(error));
       }
-      return response;
     },
     staleTime: 1000 * 60 * 10, // 10 minutes
   });

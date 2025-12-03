@@ -4,18 +4,20 @@
  */
 
 // ============================================
-// ENUMS
+// ENUMS (imported from core/enums)
 // ============================================
 
-export type UserRole = 'super_admin' | 'superadmin' | 'owner' | 'manager' | 'employee';
-export type FuelType = 'petrol' | 'diesel' | 'premium_petrol' | 'premium_diesel' | 'cng' | 'lpg';
-export type PaymentMethod = 'cash' | 'upi' | 'card' | 'credit' | 'fleet_card' | 'wallet';
-export type PumpStatus = 'active' | 'inactive' | 'maintenance';
-export type ShiftType = 'morning' | 'evening' | 'night' | 'full_day' | 'custom';
-export type ShiftStatus = 'active' | 'completed' | 'cancelled';
-export type CreditStatus = 'pending' | 'partial' | 'settled';
-export type HandoverStatus = 'pending' | 'confirmed' | 'disputed';
-export type ExpenseCategory = 'salary' | 'electricity' | 'rent' | 'maintenance' | 'supplies' | 'taxes' | 'insurance' | 'transportation' | 'miscellaneous';
+import type {
+  UserRole,
+  FuelType,
+  PaymentMethod,
+  PumpStatus,
+  ShiftType,
+  ShiftStatus,
+  CreditStatus,
+  HandoverStatus,
+  ExpenseCategory,
+} from '@/core/enums';
 
 // ============================================
 // BASE ENTITIES
@@ -391,6 +393,7 @@ export interface PriceCheckResponse {
   };
 }
 
+// Remove duplicate ApiResponse and PaginatedResponse interfaces to resolve export ambiguity.
 // Standard API Response
 export interface ApiResponse<T> {
   success: boolean;

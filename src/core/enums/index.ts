@@ -7,6 +7,10 @@
  * @module core/enums
  */
 
+// Central export for all enums and type aliases
+// (This file already exports all enums and types directly)
+// No further action needed unless you split enums into multiple files
+
 // ============================================
 // USER & AUTH ENUMS
 // ============================================
