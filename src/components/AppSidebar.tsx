@@ -13,6 +13,7 @@ import {
   SidebarHeader,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/useAuth';
+import { isOwner, getDashboardUrl } from '@/lib/roleUtils';
 import { 
   Home,
   Upload,
@@ -36,7 +37,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const { isMobile: sidebarIsMobile, setOpenMobile, toggleSidebar, state } = useSidebar();
+  const { setOpenMobile, toggleSidebar, state } = useSidebar();
   // local hook to decide collapsible mode for Sidebar (ensures mobile uses Sheet)
   const isMobile = useIsMobile();
 
@@ -45,6 +46,9 @@ export function AppSidebar() {
   if (user?.role === 'super_admin') {
     return null;
   }
+
+  const isOwnerRole = isOwner(user?.role);
+  const dashboardURL = getDashboardUrl(user?.role);
 
   // Owner-specific menu items
   const ownerMenuItems = [
@@ -124,7 +128,7 @@ export function AppSidebar() {
     },
   ];
 
-  const menuItems = user?.role === 'owner' ? ownerMenuItems : staffMenuItems;
+  const menuItems = isOwnerRole ? ownerMenuItems : staffMenuItems;
 
   const iconColorMap: Record<string, string> = {
     Dashboard: 'text-[#2B6EF6]',
@@ -154,7 +158,7 @@ export function AppSidebar() {
   };
 
   // Determine dashboard URL based on user role
-  const dashboardUrl = user?.role === 'owner' ? '/owner/dashboard' : '/dashboard';
+  const dashboardUrl = dashboardURL;
 
   return (
     <Sidebar

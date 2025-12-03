@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useQuery } from "@tanstack/react-query";
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
-import { RequireRole } from '@/components/RequireRole';
 import { SuperAdminLayout } from '@/layouts/SuperAdminLayout';
 import { 
   UsersPage, 
@@ -69,8 +68,9 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
   }
 
   if (user) {
-    // Role-based redirect after login
-    if (user.role === 'super_admin' || user.role === 'superadmin') {
+    // Role-based redirect after login (check for both new and legacy role formats)
+    const isSuperAdmin = user.role === 'super_admin' || user.role === 'superadmin' || (user.role as any) === 'Super Admin';
+    if (isSuperAdmin) {
       return <Navigate to="/superadmin/users" replace />;
     }
     if (user.role === 'owner') {
@@ -83,11 +83,24 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 }
 
 function RoleBasedRedirect() {
-  const { user } = useAuth();
+  const { user, loading } = useAuth();
+  
+  // Wait for auth to load
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+  
   // If no user, send to login (landing)
   if (!user) return <Navigate to="/login" replace />;
 
-  if (user.role === 'super_admin' || user.role === 'superadmin') {
+  // Check for both new and legacy role naming conventions
+  const isSuperAdmin = user.role === 'super_admin' || user.role === 'superadmin' || (user.role as any) === 'Super Admin';
+  
+  if (isSuperAdmin) {
     return <Navigate to="/superadmin/users" replace />;
   }
 
@@ -108,6 +121,29 @@ function useStationsForSuperAdmin() {
       return response || [];
     }
   });
+}
+
+function SuperAdminGuard({ children }: { children: React.ReactNode }) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  // Normalize role to handle legacy formats
+  const normalizedRole = user?.role?.toLowerCase().trim() === 'super admin' || 
+                         user?.role === 'super_admin' || 
+                         user?.role === 'superadmin';
+
+  if (!user || !normalizedRole) {
+    return <Navigate to="/login" replace />;
+  }
+
+  return <>{children}</>;
 }
 
 export function AppWithQueries() {
@@ -134,36 +170,34 @@ export function AppWithQueries() {
             }
           />
           
-          {/* Super Admin Routes - Completely separate from owner/employee routes */}
+          {/* Super Admin Routes - MUST come BEFORE the catch-all /* route */}
           <Route 
             path="/superadmin/*" 
             element={
-              <ProtectedRoute>
-                <RequireRole role="superadmin">
-                  <SuperAdminLayout>
-                    <Routes>
-                      <Route
-                        path="/users"
-                        element={
-                          stationsQuery.isLoading
-                            ? (
-                                <div className="flex items-center justify-center min-h-screen">Loading stations…</div>
-                              )
-                            : (
-                                <UsersPage stations={stationsQuery.data || []} />
-                              )
-                        }
-                      />
-                      <Route path="/stations" element={<StationsPage />} />
-                      <Route path="/pumps" element={<PumpsPage />} />
-                      <Route path="/plans" element={<PlansPage />} />
-                      <Route path="/analytics" element={<AnalyticsPage />} />
-                      <Route path="/create-owner" element={<CreateOwnerWizard />} />
-                      <Route path="/" element={<Navigate to="/superadmin/users" replace />} />
-                    </Routes>
-                  </SuperAdminLayout>
-                </RequireRole>
-              </ProtectedRoute>
+              <SuperAdminGuard>
+                <SuperAdminLayout>
+                  <Routes>
+                    <Route
+                      path="/users"
+                      element={
+                        stationsQuery.isLoading
+                          ? (
+                              <div className="flex items-center justify-center min-h-screen">Loading stations…</div>
+                            )
+                          : (
+                              <UsersPage stations={stationsQuery.data || []} />
+                            )
+                      }
+                    />
+                    <Route path="/stations" element={<StationsPage />} />
+                    <Route path="/pumps" element={<PumpsPage />} />
+                    <Route path="/plans" element={<PlansPage />} />
+                    <Route path="/analytics" element={<AnalyticsPage />} />
+                    <Route path="/create-owner" element={<CreateOwnerWizard />} />
+                    <Route path="/" element={<Navigate to="/superadmin/users" replace />} />
+                  </Routes>
+                </SuperAdminLayout>
+              </SuperAdminGuard>
             } 
           />
           

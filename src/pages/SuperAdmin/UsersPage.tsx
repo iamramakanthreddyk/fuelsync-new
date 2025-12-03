@@ -491,7 +491,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                       <SelectValue placeholder="Select station" />
                     </SelectTrigger>
                     <SelectContent>
-                      {stations.map((station) => (
+                      {(Array.isArray(stations) ? stations : []).map((station) => (
                         <SelectItem key={station.id} value={station.id}>
                           {station.name}
                         </SelectItem>
@@ -754,7 +754,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                     <SelectValue placeholder="Select station" />
                   </SelectTrigger>
                   <SelectContent>
-                    {stations.map((station) => (
+                    {(Array.isArray(stations) ? stations : []).map((station) => (
                       <SelectItem key={station.id} value={station.id}>
                         {station.name}
                       </SelectItem>

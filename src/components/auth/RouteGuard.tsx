@@ -67,13 +67,21 @@ function hasRequiredRole(userRole: UserRole | undefined, roles: UserRole[]): boo
 /**
  * Get default redirect path based on user role
  */
-function getDefaultRedirect(userRole?: UserRole): string {
+function getDefaultRedirect(userRole?: UserRole | string): string {
   if (!userRole) return '/login';
   
-  switch (userRole) {
+  // Normalize legacy role formats
+  const normalizedRole = String(userRole).toLowerCase().trim();
+  
+  switch (normalizedRole) {
     case 'super_admin':
+    case 'superadmin':
+    case 'super admin':
       return '/superadmin/users';
     case 'owner':
+    case 'pump owner':
+    case 'pump_owner':
+      return '/owner/dashboard';
     case 'manager':
     case 'employee':
     default:

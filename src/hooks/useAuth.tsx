@@ -214,19 +214,27 @@ export function useAuthSafe(): AuthContextType | null {
 export function useRoleAccess() {
   const { user } = useAuth();
   
-  const role = user?.role || 'employee';
+  const normalizeRole = (r: string): string => {
+    const lower = r.toLowerCase().trim();
+    if (lower === 'superadmin' || lower === 'super admin') return 'super_admin';
+    if (lower === 'pump owner' || lower === 'pump_owner') return 'owner';
+    return r;
+  };
+
+  const role = normalizeRole(user?.role || 'employee');
   const roleLevel = ROLE_HIERARCHY[role] || 0;
 
   const hasRole = useCallback((requiredRole: string) => {
-    return role === requiredRole;
+    return normalizeRole(role) === normalizeRole(requiredRole);
   }, [role]);
 
   const hasMinRole = useCallback((minRole: string) => {
-    const minLevel = ROLE_HIERARCHY[minRole] || 0;
+    const normalizedMinRole = normalizeRole(minRole);
+    const minLevel = ROLE_HIERARCHY[normalizedMinRole] || 0;
     return roleLevel >= minLevel;
   }, [roleLevel]);
 
-  const isSuperAdmin = role === 'super_admin' || role === 'superadmin';
+  const isSuperAdmin = role === 'super_admin';
   const isOwner = role === 'owner';
   const isManager = role === 'manager';
   const isEmployee = role === 'employee';

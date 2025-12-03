@@ -13,7 +13,9 @@ interface RequireRoleProps {
 
 // Map old role names to new ones
 function normalizeRole(role: string): string {
-  if (role === 'superadmin') return 'super_admin';
+  const lowerRole = role.toLowerCase().trim();
+  if (lowerRole === 'superadmin' || lowerRole === 'super admin') return 'super_admin';
+  if (lowerRole === 'pump owner') return 'owner';
   return role;
 }
 
