@@ -293,7 +293,7 @@ exports.createUser = async (req, res, next) => {
 exports.updateUser = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { name, phone, stationId, isActive } = req.body;
+    const { name, phone, stationId, isActive, planId } = req.body;
     const currentUser = req.user;
 
     const user = await User.findByPk(id);
@@ -330,12 +330,20 @@ exports.updateUser = async (req, res, next) => {
       }
     }
 
-    await user.update({
+
+    // Allow super_admin to update planId for owners
+    const updateFields = {
       name: name || user.name,
       phone: phone !== undefined ? phone : user.phone,
       stationId: stationId || user.stationId,
       isActive: isActive !== undefined ? isActive : user.isActive
-    });
+    };
+
+    if (user.role === 'owner' && req.user.role === 'super_admin' && planId) {
+      updateFields.planId = planId;
+    }
+
+    await user.update(updateFields);
 
     res.json({
       success: true,

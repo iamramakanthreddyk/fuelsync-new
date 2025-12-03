@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import {
   isValidEmail,
@@ -74,8 +73,9 @@ export default function StationsPage() {
       setLoading(false);
       return;
     }
-    setStations(stationsRes || []);
-    setOwners((usersRes || []).filter((user: Owner) => user.role === 'owner'));
+    // Defensive: always set to array
+    setStations(Array.isArray(stationsRes) ? stationsRes : []);
+    setOwners(Array.isArray(usersRes) ? usersRes.filter((user: Owner) => user.role === 'owner') : []);
     setLoading(false);
   };
 

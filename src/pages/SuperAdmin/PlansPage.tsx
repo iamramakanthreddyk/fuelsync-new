@@ -44,13 +44,14 @@ export default function PlansPage() {
   const queryClient = useQueryClient();
 
   // Fetch plans using React Query
-  const { data: plans = [], isLoading, error } = useQuery({
+  const { data: plansRaw, isLoading, error } = useQuery({
     queryKey: ['plans'],
     queryFn: async () => {
       const data = await apiClient.get<Plan[]>('/plans');
-      return data || [];
+      return Array.isArray(data) ? data : [];
     },
   });
+  const plans = Array.isArray(plansRaw) ? plansRaw : [];
 
   // Create plan mutation
   const createPlanMutation = useMutation({
