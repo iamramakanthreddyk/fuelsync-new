@@ -17,7 +17,7 @@
 
 const { User, Station, Plan } = require('../models');
 const { Op } = require('sequelize');
-const { ROLES } = require('../config/constants');
+const { USER_ROLES } = require('../config/constants');
 
 /**
  * Get users based on role permissions
@@ -27,16 +27,17 @@ exports.getUsers = async (req, res, next) => {
   try {
     const { role, stationId, isActive, search, page = 1, limit = 20 } = req.query;
     const currentUser = req.user;
+    const currentRole = (currentUser.role || '').toLowerCase();
 
     let where = {};
     let stationFilter = {};
 
     // Role-based filtering
-    if (currentUser.role === 'super_admin') {
+    if (currentRole === 'super_admin') {
       // Super admin can see all users
       if (role) where.role = role;
       if (stationId) where.stationId = stationId;
-    } else if (currentUser.role === 'owner') {
+    } else if (currentRole === 'owner') {
       // Owner sees staff in their stations only
       const ownerStations = await Station.findAll({
         where: { ownerId: currentUser.id },
@@ -54,7 +55,7 @@ exports.getUsers = async (req, res, next) => {
       if (stationId && stationIds.includes(stationId)) {
         where.stationId = stationId;
       }
-    } else if (currentUser.role === 'manager') {
+    } else if (currentRole === 'manager') {
       // Manager sees only employees in their station
       where.stationId = currentUser.stationId;
       where.role = 'employee';
@@ -152,6 +153,8 @@ exports.createUser = async (req, res, next) => {
   try {
     const { email, password, name, phone, role, stationId } = req.body;
     const currentUser = req.user;
+    const currentRole = (currentUser.role || '').toLowerCase();
+    const roleNormalized = (role || '').toLowerCase();
 
     // Validation
     if (!email || !password || !name || !role) {
@@ -169,8 +172,8 @@ exports.createUser = async (req, res, next) => {
       'employee': []
     };
 
-    const allowedRoles = creationRules[currentUser.role] || [];
-    if (!allowedRoles.includes(role)) {
+    const allowedRoles = creationRules[currentRole] || [];
+    if (!allowedRoles.includes(roleNormalized)) {
       return res.status(403).json({
         success: false,
         error: `${currentUser.role} cannot create ${role} users`
@@ -178,7 +181,7 @@ exports.createUser = async (req, res, next) => {
     }
 
     // Station validation for manager/employee
-    if (['manager', 'employee'].includes(role)) {
+    if (['manager', 'employee'].includes(roleNormalized)) {
       if (!stationId) {
         return res.status(400).json({
           success: false,
@@ -192,14 +195,14 @@ exports.createUser = async (req, res, next) => {
         return res.status(404).json({ success: false, error: 'Station not found' });
       }
 
-      if (currentUser.role === 'owner' && station.ownerId !== currentUser.id) {
+      if (currentRole === 'owner' && station.ownerId !== currentUser.id) {
         return res.status(403).json({
           success: false,
           error: 'You can only add staff to your own stations'
         });
       }
 
-      if (currentUser.role === 'manager' && currentUser.stationId !== stationId) {
+      if (currentRole === 'manager' && currentUser.stationId !== stationId) {
         return res.status(403).json({
           success: false,
           error: 'You can only add employees to your station'
@@ -207,7 +210,7 @@ exports.createUser = async (req, res, next) => {
       }
 
       // Check employee limit
-      if (currentUser.role === 'owner') {
+      if (currentRole === 'owner') {
         const ownerPlan = await Plan.findByPk(currentUser.planId);
         if (ownerPlan) {
           const employeeCount = await User.count({
@@ -232,7 +235,7 @@ exports.createUser = async (req, res, next) => {
 
     // Get plan for new owner
     let planId = null;
-    if (role === 'owner') {
+    if (roleNormalized === 'owner') {
       // Try to find Free plan first, then Basic plan as fallback
       let plan = await Plan.findOne({ where: { name: 'Free' } });
       if (!plan) {
@@ -266,8 +269,8 @@ exports.createUser = async (req, res, next) => {
       password,
       name,
       phone,
-      role,
-      stationId: ['manager', 'employee'].includes(role) ? stationId : null,
+      role: roleNormalized,
+      stationId: ['manager', 'employee'].includes(roleNormalized) ? stationId : null,
       planId,
       createdBy: currentUser.id
     });
@@ -441,11 +444,11 @@ exports.getStationStaff = async (req, res, next) => {
     }
 
     // Check permissions
-    if (currentUser.role === 'owner' && station.ownerId !== currentUser.id) {
+    const currentRole = (currentUser.role || '').toLowerCase();
+    if (currentRole === 'owner' && station.ownerId !== currentUser.id) {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
-
-    if (['manager', 'employee'].includes(currentUser.role) && currentUser.stationId !== stationId) {
+    if (['manager', 'employee'].includes(currentRole) && currentUser.stationId !== stationId) {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
@@ -478,20 +481,20 @@ exports.getStationStaff = async (req, res, next) => {
  */
 async function canAccessUser(currentUser, targetUser) {
   // Super admin can access anyone
-  if (currentUser.role === 'super_admin') return true;
+  if ((currentUser.role || '').toLowerCase() === 'super_admin') return true;
 
   // Self access always allowed
   if (currentUser.id === targetUser.id) return true;
 
   // Owner can access staff in their stations
-  if (currentUser.role === 'owner') {
+  if ((currentUser.role || '').toLowerCase() === 'owner') {
     if (!targetUser.stationId) return false;
     const station = await Station.findByPk(targetUser.stationId);
     return station && station.ownerId === currentUser.id;
   }
 
   // Manager can access employees in their station
-  if (currentUser.role === 'manager') {
+  if ((currentUser.role || '').toLowerCase() === 'manager') {
     return targetUser.stationId === currentUser.stationId && targetUser.role === 'employee';
   }
 

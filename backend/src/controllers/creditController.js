@@ -14,6 +14,10 @@ const { canAccessStation } = require('../middleware/accessControl');
 const getCreditors = async (req, res) => {
   try {
     const { stationId } = req.params;
+    // Verify station access
+    if (!(await canAccessStation(req.user, stationId))) {
+      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    }
     const { isActive, search, page = 1, limit = 20 } = req.query;
     
     // Build where clause
@@ -89,6 +93,10 @@ const getCreditor = async (req, res) => {
 const createCreditor = async (req, res) => {
   try {
     const { stationId } = req.params;
+    // Verify station access
+    if (!(await canAccessStation(req.user, stationId))) {
+      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    }
     const { name, contactPerson, phone, email, address, businessName, gstNumber, creditLimit, notes } = req.body;
     
     // Validate required fields
@@ -164,6 +172,7 @@ const updateCreditor = async (req, res) => {
   }
 };
 
+
 /**
  * Record a credit sale - wrapped in transaction for atomicity
  */
@@ -172,6 +181,10 @@ const recordCreditSale = async (req, res) => {
   
   try {
     const { stationId } = req.params;
+    if (!(await canAccessStation(req.user, stationId))) {
+      await t.rollback();
+      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    }
     const { creditorId, fuelType, litres, pricePerLitre, amount, transactionDate, vehicleNumber, referenceNumber, notes, nozzleReadingId } = req.body;
     
     // Validate creditor (lock only for non-SQLite databases)
@@ -251,6 +264,10 @@ const recordSettlement = async (req, res) => {
   
   try {
     const { stationId, creditorId } = req.params;
+    if (!(await canAccessStation(req.user, stationId))) {
+      await t.rollback();
+      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    }
     const { amount, transactionDate, referenceNumber, notes } = req.body;
     
     // Validate creditor (lock only for non-SQLite databases)
@@ -318,6 +335,9 @@ const recordSettlement = async (req, res) => {
 const getTransactions = async (req, res) => {
   try {
     const { stationId } = req.params;
+    if (!(await canAccessStation(req.user, stationId))) {
+      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    }
     const { creditorId, type, startDate, endDate, page = 1, limit = 50 } = req.query;
     
     const where = { stationId };
@@ -363,6 +383,9 @@ const getTransactions = async (req, res) => {
 const getCreditSummary = async (req, res) => {
   try {
     const { stationId } = req.params;
+    if (!(await canAccessStation(req.user, stationId))) {
+      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    }
     
     // Get all active creditors with balances
     const creditors = await Creditor.findAll({
@@ -410,6 +433,9 @@ const getCreditSummary = async (req, res) => {
 const getAgingReport = async (req, res) => {
   try {
     const { stationId } = req.params;
+    if (!(await canAccessStation(req.user, stationId))) {
+      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    }
     
     const report = await Creditor.getAgingReport(stationId);
     
@@ -430,6 +456,9 @@ const getAgingReport = async (req, res) => {
 const getOverdueCreditors = async (req, res) => {
   try {
     const { stationId } = req.params;
+    if (!(await canAccessStation(req.user, stationId))) {
+      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    }
     
     const creditors = await Creditor.getOverdueCreditors(stationId);
     

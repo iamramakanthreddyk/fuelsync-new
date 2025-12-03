@@ -128,7 +128,7 @@ exports.getCurrentUser = async (req, res, next) => {
     const userData = user.toSafeObject();
     
     // For owners, fetch their owned stations
-    if (user.role === 'owner') {
+    if ((user.role || '').toLowerCase() === 'owner') {
       const ownedStations = await Station.findAll({
         where: { ownerId: user.id },
         attributes: ['id', 'name', 'code', 'address', 'city', 'state']

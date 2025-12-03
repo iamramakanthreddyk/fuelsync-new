@@ -25,7 +25,7 @@ const verifyStationAccess = async (req, res, next) => {
     const user = req.user;
 
     // Super admin has access to all
-    if (user.role === 'super_admin') {
+    if ((user.role || '').toLowerCase() === 'super_admin' || (user.role || '').toLowerCase() === 'superadmin') {
       req.stationId = stationId;
       return next();
     }
@@ -36,7 +36,7 @@ const verifyStationAccess = async (req, res, next) => {
     }
 
     // Owner can access their own stations
-    if (user.role === 'owner') {
+    if ((user.role || '').toLowerCase() === 'owner') {
       if (station.ownerId !== user.id) {
         return res.status(403).json({
           success: false,
@@ -49,8 +49,8 @@ const verifyStationAccess = async (req, res, next) => {
     }
 
     // Manager/Employee can only access their assigned station
-    if (['manager', 'employee'].includes(user.role)) {
-      if (user.stationId !== stationId) {
+    if (['manager', 'employee'].includes((user.role || '').toLowerCase())) {
+      if (String(user.stationId) !== String(stationId)) {
         return res.status(403).json({
           success: false,
           error: 'You are not assigned to this station'

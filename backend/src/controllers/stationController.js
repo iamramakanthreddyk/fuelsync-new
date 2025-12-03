@@ -43,9 +43,10 @@ exports.getStations = async (req, res, next) => {
     
     let where = { isActive: true };
     
-    if (user.role === 'super_admin') {
+    const role = (user.role || '').toLowerCase();
+    if (role === 'super_admin' || role === 'superadmin') {
       // Super admin sees all
-    } else if (user.role === 'owner') {
+    } else if (role === 'owner') {
       // Owner sees stations they own
       where.ownerId = user.id;
     } else {

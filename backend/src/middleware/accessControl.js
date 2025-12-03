@@ -21,10 +21,10 @@ const canAccessStation = async (user, stationId) => {
   if (!stationId) return false;
   
   // Super admin can access all stations
-  if (user.role === 'super_admin') return true;
+  if ((user.role || '').toLowerCase() === 'super_admin' || (user.role || '').toLowerCase() === 'superadmin') return true;
   
   // Owner accesses stations they own
-  if (user.role === 'owner') {
+  if ((user.role || '').toLowerCase() === 'owner') {
     const station = await Station.findOne({
       where: { id: stationId, ownerId: user.id }
     });
@@ -42,12 +42,12 @@ const canAccessStation = async (user, stationId) => {
  * @returns {Promise<number[]>} Array of station IDs
  */
 const getAccessibleStationIds = async (user) => {
-  if (user.role === 'super_admin') {
+  if ((user.role || '').toLowerCase() === 'super_admin' || (user.role || '').toLowerCase() === 'superadmin') {
     const stations = await Station.findAll({ attributes: ['id'] });
     return stations.map(s => s.id);
   }
   
-  if (user.role === 'owner') {
+  if ((user.role || '').toLowerCase() === 'owner') {
     const stations = await Station.findAll({
       where: { ownerId: user.id },
       attributes: ['id']

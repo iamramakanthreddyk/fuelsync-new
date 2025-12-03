@@ -108,16 +108,16 @@ const enforcePlanLimit = (resourceType) => {
         });
       }
 
-      // Super admin bypasses all limits
-      if (user.role === 'super_admin') {
-        return next();
-      }
+        // Super admin bypasses all limits
+        if ((user.role || '').toLowerCase() === 'super_admin' || (user.role || '').toLowerCase() === 'superadmin') {
+          return next();
+        }
 
       // Get the owner ID (either self or from request body)
       let ownerId;
-      if (user.role === 'owner') {
+      if ((user.role || '').toLowerCase() === 'owner') {
         ownerId = user.id;
-      } else if (user.role === 'super_admin' && req.body.ownerId) {
+      } else if ((user.role || '').toLowerCase() === 'super_admin' && req.body.ownerId) {
         ownerId = req.body.ownerId;
       } else {
         // Staff members - get owner from their assigned station
