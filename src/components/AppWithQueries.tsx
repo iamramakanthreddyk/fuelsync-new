@@ -38,6 +38,11 @@ import OwnerReports from '@/pages/owner/Reports';
 import OwnerAnalytics from '@/pages/owner/Analytics';
 import QuickDataEntry from '@/pages/owner/QuickDataEntry';
 
+// Cash Management pages
+import ShiftManagement from '@/pages/shifts/ShiftManagement';
+import CashHandoverConfirmation from '@/pages/cash/CashHandoverConfirmation';
+import CashReconciliationReport from '@/pages/cash/CashReconciliationReport';
+
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
 
@@ -219,6 +224,14 @@ export function AppWithQueries() {
                     <Route path="/owner/employees" element={<EmployeesManagement />} />
                     <Route path="/owner/reports" element={<OwnerReports />} />
                     <Route path="/owner/analytics" element={<OwnerAnalytics />} />
+                    <Route path="/owner/shifts" element={<ShiftManagement />} />
+                    <Route path="/owner/cash-handovers" element={<CashHandoverConfirmation />} />
+                    <Route path="/owner/cash-report" element={<CashReconciliationReport />} />
+                    
+                    {/* Cash/Shift routes for employees and managers */}
+                    <Route path="/shifts" element={<ShiftManagement />} />
+                    <Route path="/cash-handovers" element={<CashHandoverConfirmation />} />
+                    <Route path="/cash-report" element={<CashReconciliationReport />} />
                     
                     {/* Legacy routes - keep for backward compatibility */}
                     <Route path="/stations" element={<MyStations />} />

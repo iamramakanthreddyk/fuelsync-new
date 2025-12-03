@@ -861,23 +861,108 @@ const { user } = useAuth();
 
 ---
 
+## Cash Handling & Meter Reading Reconciliation
+
+### **How Meter Readings Compare with Cash**
+
+The system compares **expected sales** (from meter readings) with **actual cash collected**:
+
+1. **Expected Sales Calculation**:
+   ```
+   litresSold = currentReading - previousReading
+   expectedSales = litresSold × fuelPrice
+   ```
+
+2. **Actual Cash Collection**:
+   - Employees record cash at shift end
+   - Managers/Owners confirm receipt
+   - System calculates variance: `actualCash - expectedSales`
+
+### **Cash Entry Workflow**
+
+| Role | Can Enter | Can Confirm | Can View All |
+|------|-----------|-------------|--------------|
+| Employee | Cash at shift end | - | Own shifts |
+| Manager | Handovers | Employee handovers | Station |
+| Owner | Bank deposits | All handovers | All stations |
+
+### **Cash Flow Chain**
+```
+Employee ends shift → shift_collection (pending)
+         ↓
+Manager confirms → employee_to_manager (confirmed/disputed)
+         ↓
+Owner confirms → manager_to_owner (confirmed/disputed)
+         ↓
+Bank deposit → deposit_to_bank (with receipt)
+```
+
+### **Where to Enter Cash**
+
+1. **DataEntry Page** (`/data-entry` → Tender tab):
+   - Cash, Card, UPI, Credit entries
+   - Available to: Employees, Managers
+   
+2. **Shift End** (automatic):
+   - `cashCollected` field when ending shift
+   - Creates `shift_collection` handover
+   
+3. **Handover Confirmation** (`/handovers`):
+   - Manager/Owner confirms actual amount
+   - Disputes flagged if variance > ₹1
+
+### **API Endpoints for Cash**
+
+| Endpoint | Method | Role | Purpose |
+|----------|--------|------|---------|
+| `/handovers/pending` | GET | All | My pending confirmations |
+| `/handovers` | POST | Manager+ | Create handover |
+| `/handovers/:id/confirm` | POST | All | Confirm with actual amount |
+| `/handovers/:id/resolve` | POST | Owner+ | Resolve disputes |
+| `/handovers/bank-deposit` | POST | Owner+ | Record bank deposit |
+
+---
+
+## Component Architecture (Refactored)
+
+### Owner Dashboard Subcomponents
+
+The Owner Dashboard has been refactored into modular subcomponents for maintainability:
+
+**File Structure**:
+```
+src/components/owner/
+├── StatsGrid.tsx         # KPI cards (stations, employees, sales)
+├── PlanInfoAlert.tsx     # Subscription plan usage alert
+├── PendingActionsAlert.tsx # Pending actions notification
+├── StationsList.tsx      # Station cards with performance
+├── QuickActionsGrid.tsx  # Navigation buttons
+```
+
+**Main Dashboard** (`src/pages/owner/OwnerDashboard.tsx`):
+- Imports and composes subcomponents
+- Handles data fetching via React Query
+- Minimal JSX, delegated to subcomponents
+
+---
+
 ## Completion Status
 
-✅ **Completed Components (6/10)**:
-1. Owner Dashboard - 100%
+✅ **Completed Components (7/10)**:
+1. Owner Dashboard - 100% (refactored)
 2. Stations Management - 100%
 3. Station Detail - 100%
 4. Employees Management - 100%
 5. Reports - 100%
 6. Analytics - 100%
+7. Cash Handling Flow - 100%
 
-⏳ **Pending Components (4/10)**:
-7. Expenses Management - 0%
-8. Creditors Management - 0%
-9. Profit/Loss - 0%
-10. Settings/Profile - 0%
+⏳ **Pending Components (3/10)**:
+8. Expenses Management - 0%
+9. Creditors Management - 0%
+10. Profit/Loss - 0%
 
-**Overall Progress**: 60% complete
+**Overall Progress**: 70% complete
 
 **Backend Integration**: 100% ready (all tests passing)
 

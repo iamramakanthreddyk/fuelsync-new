@@ -1,9 +1,4 @@
 import { useState, useEffect } from 'react';
-import {
-  isValidEmail,
-  isValidPhone,
-  sanitizeString
-} from '@/lib/validation-utils';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -96,55 +91,22 @@ export default function StationsPage() {
   };
 
   // Auto-generate station code when owner is selected
-  const generateStationCode = (ownerId: string) => {
-    const owner = owners.find(o => o.id === ownerId);
-    if (!owner) return '';
-    
-    // Get owner's existing stations count
-    const ownerStationsCount = (Array.isArray(stations) ? stations : []).filter(s => s.ownerId === ownerId).length;
-    
-    // Generate code: First 3 letters of name + count + 1
-    const namePrefix = owner.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
-    const code = `${namePrefix}${String(ownerStationsCount + 1).padStart(3, '0')}`;
-    
-    return code;
-  };
-
-  // Shared validation and sanitization for create/edit
-  const validateAndSanitize = (data: typeof formData, isEdit = false) => {
-    const errors: Record<string, string> = {};
-    // Required fields
-    if (!data.name?.trim()) errors.name = "Station name is required";
-    if (!isEdit && !data.ownerId?.trim()) errors.ownerId = "Please select an owner";
-    if (!data.phone?.trim()) errors.phone = "Phone number is required";
-    else if (!isValidPhone(data.phone)) errors.phone = "Invalid phone number format";
-    if (data.email && !isValidEmail(data.email)) errors.email = "Invalid email address";
-    // Sanitize all string fields
-    const sanitized = Object.fromEntries(
-      Object.entries(data).map(([k, v]) => [k, typeof v === 'string' ? sanitizeString(v) : v])
-    );
-    return { errors, sanitized };
-  };
 
   const handleCreateStation = async () => {
-    const { errors, sanitized } = validateAndSanitize(formData);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      return;
-    }
+    // Basic payload construction without validation
     setFormErrors({});
     const payload: Record<string, unknown> = {
-      name: sanitized.name,
-      ownerId: sanitized.ownerId,
-      phone: sanitized.phone
+      name: formData.name,
+      ownerId: formData.ownerId,
+      phone: formData.phone
     };
-    if (sanitized.address) payload.address = sanitized.address;
-    if (sanitized.city) payload.city = sanitized.city;
-    if (sanitized.state) payload.state = sanitized.state;
-    if (sanitized.pincode) payload.pincode = sanitized.pincode;
-    if (sanitized.email) payload.email = sanitized.email;
-    if (sanitized.gstNumber) payload.gstNumber = sanitized.gstNumber;
-    if (sanitized.code) payload.code = sanitized.code;
+    if (formData.address) payload.address = formData.address;
+    if (formData.city) payload.city = formData.city;
+    if (formData.state) payload.state = formData.state;
+    if (formData.pincode) payload.pincode = formData.pincode;
+    if (formData.email) payload.email = formData.email;
+    if (formData.gstNumber) payload.gstNumber = formData.gstNumber;
+    if (formData.code) payload.code = formData.code;
     const [, error] = await handleApiCall(() => apiClient.post('/stations', payload));
     if (error) {
       setFormErrors(getValidationErrors(error));
@@ -166,26 +128,17 @@ export default function StationsPage() {
 
   const handleEditStation = async () => {
     if (!selectedStation) return;
-    const { errors, sanitized } = validateAndSanitize(formData, true);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
-      toast({
-        title: "Validation Error",
-        description: Object.values(errors).join(', '),
-        variant: "destructive",
-      });
-      return;
-    }
+    // Basic payload construction without validation
     setFormErrors({});
-    const payload: Record<string, unknown> = { name: sanitized.name };
-    if (sanitized.code) payload.code = sanitized.code;
-    if (sanitized.address) payload.address = sanitized.address;
-    if (sanitized.city) payload.city = sanitized.city;
-    if (sanitized.state) payload.state = sanitized.state;
-    if (sanitized.pincode) payload.pincode = sanitized.pincode;
-    if (sanitized.phone) payload.phone = sanitized.phone;
-    if (sanitized.email) payload.email = sanitized.email;
-    if (sanitized.gstNumber) payload.gstNumber = sanitized.gstNumber;
+    const payload: Record<string, unknown> = { name: formData.name };
+    if (formData.code) payload.code = formData.code;
+    if (formData.address) payload.address = formData.address;
+    if (formData.city) payload.city = formData.city;
+    if (formData.state) payload.state = formData.state;
+    if (formData.pincode) payload.pincode = formData.pincode;
+    if (formData.phone) payload.phone = formData.phone;
+    if (formData.email) payload.email = formData.email;
+    if (formData.gstNumber) payload.gstNumber = formData.gstNumber;
     const [, error] = await handleApiCall(() => apiClient.put(`/stations/${selectedStation.id}`, payload));
     if (error) {
       setFormErrors(getValidationErrors(error));

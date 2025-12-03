@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -18,7 +18,11 @@ import { IndianRupee, Fuel, Gauge } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { useFuelPricesData } from '@/hooks/useFuelPricesData';
+import { cashHandoverService } from '@/services/tenderService';
 import { getFuelColors } from '@/lib/fuelColors';
+import { PaymentSplit, SaleCalculation } from '@/components/readings';
+import type { PaymentSplitData } from '@/components/readings';
+import { Checkbox } from '@/components/ui/checkbox';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
 import { usePumpNozzles } from "@/hooks/usePumpNozzles";
@@ -50,17 +54,23 @@ interface RefillData {
 
 export default function DataEntry() {
   // Fetch global fuel prices for the selected station
-  const { data: fuelPrices, isLoading: isPricesLoading } = useFuelPricesData();
+  const { data: fuelPrices } = useFuelPricesData();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
-  useState<string | null>(null);
 
   // Manual states
   const [manualPump, setManualPump] = useState<string | null>(null);
   const [manualNozzle, setManualNozzle] = useState<string | null>(null);
   const [previousReading, setPreviousReading] = useState<number | null>(null);
   const [loadingPreviousReading, setLoadingPreviousReading] = useState(false);
+  
+  // Current reading for calculations
+  const [currentReadingValue, setCurrentReadingValue] = useState<number>(0);
+  
+  // Payment split state
+  const [paymentSplit, setPaymentSplit] = useState<PaymentSplitData | null>(null);
+  const [showCreditOption, setShowCreditOption] = useState(false);
 
   useAuth();
 
@@ -72,6 +82,39 @@ export default function DataEntry() {
   // Derived dropdown options, use the userStations list from useRoleAccess
   const { data: pumps = [], isLoading: pumpsLoading, error: pumpsError } = useStationPumps(selectedStation || userStations[0]?.id);
   const { data: manualNozzles = [], isLoading: nozzlesLoading, error: nozzlesError } = usePumpNozzles(manualPump ?? undefined);
+  
+  // Get selected nozzle details for fuel type and price (MUST be after manualNozzles is defined)
+  const selectedNozzleData = useMemo(() => {
+    if (!manualNozzle || !manualNozzles?.length) return null;
+    return manualNozzles.find((n: { id: string }) => n.id === manualNozzle);
+  }, [manualNozzle, manualNozzles]);
+  
+  // Get fuel price for selected nozzle
+  const currentFuelPrice = useMemo(() => {
+    if (!selectedNozzleData?.fuelType || !fuelPrices?.length) return 0;
+    const priceRecord = fuelPrices.find(
+      (p) => p.fuel_type?.toUpperCase() === selectedNozzleData.fuelType?.toUpperCase()
+    );
+    return priceRecord?.price_per_litre || 0;
+  }, [selectedNozzleData, fuelPrices]);
+  
+  // Calculate sale values
+  const saleCalculation = useMemo(() => {
+    const prev = previousReading || 0;
+    const curr = currentReadingValue || 0;
+    const litresSold = Math.max(0, curr - prev);
+    const saleValue = litresSold * currentFuelPrice;
+    const isValid = curr >= prev && litresSold > 0;
+    
+    return {
+      previousReading: prev,
+      currentReading: curr,
+      litresSold,
+      saleValue,
+      pricePerLitre: currentFuelPrice,
+      isValid
+    };
+  }, [previousReading, currentReadingValue, currentFuelPrice]);
 
   // Debug logging
   React.useEffect(() => {
@@ -115,7 +158,7 @@ export default function DataEntry() {
     register: registerTender,
     handleSubmit: handleSubmitTender,
     formState: { errors: tenderErrors },
-    // reset: resetTender,
+    reset: resetTender,
     setValue: setTenderValue,
     watch: watchTender
   } = useForm<TenderEntryData>({
@@ -167,15 +210,32 @@ export default function DataEntry() {
     try {
       setIsSubmitting(true);
       
-      // Map to backend expected format
+      // Validate payment split
+      if (saleCalculation.saleValue > 0 && !paymentSplit?.isBalanced) {
+        toast.error('Please ensure payment amounts balance with sale value');
+        return;
+      }
+      
+      // Map to backend expected format with payment breakdown
       const payload = {
         nozzleId: data.nozzle_id,
         readingDate: data.reading_date,
         readingValue: data.cumulative_vol,
         readingTime: data.reading_time,
+        // Include payment breakdown if sale has value
+        ...(saleCalculation.saleValue > 0 && paymentSplit && {
+          paymentBreakdown: {
+            cash: paymentSplit.cash,
+            online: paymentSplit.online,
+            credit: paymentSplit.credit
+          },
+          cashAmount: paymentSplit.cash,
+          onlineAmount: paymentSplit.online,
+          creditAmount: paymentSplit.credit
+        })
       };
 
-      console.log('📤 Submitting manual reading:', payload);
+      console.log('📤 Submitting manual reading with payment:', payload);
 
       const result = await apiClient.post<{ litresSold?: number; totalAmount?: number }>('/readings', payload);
 
@@ -211,6 +271,9 @@ export default function DataEntry() {
       setManualPump(null);
       setManualNozzle(null);
       setPreviousReading(null);
+      setCurrentReadingValue(0);
+      setPaymentSplit(null);
+      setShowCreditOption(false);
     } catch (error: unknown) {
       console.error('❌ Manual reading error:', error);
       let message = 'Error adding manual reading';
@@ -226,10 +289,27 @@ export default function DataEntry() {
   const onSubmitTender = async (data: TenderEntryData) => {
     try {
       setIsSubmitting(true);
-      // TODO: Implement tender/cash handover endpoint
-      // For now, use cash handover endpoint: POST /api/v1/handovers
-      toast.info('Tender entry feature coming soon!');
-      console.log('Tender data:', data);
+      
+      // Create a cash handover record for tender entry
+      // This records cash/card/upi/credit collections
+      const amount = parseFloat(data.amount) || 0;
+      if (amount <= 0) {
+        toast.error('Please enter a valid amount');
+        return;
+      }
+
+      await cashHandoverService.createHandover({
+        stationId: data.station_id,
+        handoverType: 'shift_collection',
+        handoverDate: data.entry_date,
+        expectedAmount: amount,
+        notes: `${data.type.toUpperCase()} collection from ${data.payer || 'unknown'}`
+      });
+
+      toast.success(`Tender entry recorded: ₹${safeToFixed(amount)} (${data.type})`);
+      resetTender();
+      queryClient.invalidateQueries({ queryKey: ['handovers'] });
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
     } catch (error: unknown) {
       let message = 'Error adding tender entry';
       if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
@@ -466,7 +546,8 @@ export default function DataEntry() {
                         min: {
                           value: previousReading || 0,
                           message: `Must be greater than previous reading (${safeToFixed(previousReading) || 0})`
-                        }
+                        },
+                        onChange: (e) => setCurrentReadingValue(parseFloat(e.target.value) || 0)
                       })}
                     />
                     {manualErrors.cumulative_vol && (
@@ -496,7 +577,44 @@ export default function DataEntry() {
                     )}
                   </div>
                 </div>
-                <Button disabled={isSubmitting} className="w-full text-base py-2">
+                
+                {/* Sale Calculation Display */}
+                {manualNozzle && currentFuelPrice > 0 && (
+                  <SaleCalculation
+                    previousReading={saleCalculation.previousReading}
+                    currentReading={saleCalculation.currentReading}
+                    pricePerLitre={saleCalculation.pricePerLitre}
+                    fuelType={selectedNozzleData?.fuelType}
+                    className="mt-4"
+                  />
+                )}
+                
+                {/* Payment Split (only show when we have a valid sale) */}
+                {saleCalculation.isValid && saleCalculation.saleValue > 0 && (
+                  <div className="space-y-3 mt-4">
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="show-credit"
+                        checked={showCreditOption}
+                        onCheckedChange={(checked) => setShowCreditOption(!!checked)}
+                      />
+                      <Label htmlFor="show-credit" className="text-sm text-muted-foreground cursor-pointer">
+                        Include credit sale option
+                      </Label>
+                    </div>
+                    
+                    <PaymentSplit
+                      totalAmount={saleCalculation.saleValue}
+                      onPaymentChange={setPaymentSplit}
+                      showCredit={showCreditOption}
+                    />
+                  </div>
+                )}
+                
+                <Button 
+                  disabled={isSubmitting || (saleCalculation.saleValue > 0 && !paymentSplit?.isBalanced)} 
+                  className="w-full text-base py-2"
+                >
                   {isSubmitting ? 'Submitting...' : 'Add Manual Reading'}
                 </Button>
               </form>

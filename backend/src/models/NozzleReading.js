@@ -143,6 +143,30 @@ module.exports = (sequelize) => {
       allowNull: true,
       references: { model: 'shifts', key: 'id' },
       comment: 'Links reading to active shift if station requires it'
+    },
+    
+    // Approval workflow
+    approvalStatus: {
+      type: DataTypes.ENUM('pending', 'approved', 'rejected'),
+      defaultValue: 'pending',
+      field: 'approval_status',
+      comment: 'Manager/Owner approval status'
+    },
+    approvedBy: {
+      type: DataTypes.UUID,
+      field: 'approved_by',
+      allowNull: true,
+      references: { model: 'users', key: 'id' }
+    },
+    approvedAt: {
+      type: DataTypes.DATE,
+      field: 'approved_at',
+      allowNull: true
+    },
+    rejectionReason: {
+      type: DataTypes.TEXT,
+      field: 'rejection_reason',
+      allowNull: true
     }
   }, {
     tableName: 'nozzle_readings',
@@ -161,6 +185,7 @@ module.exports = (sequelize) => {
     NozzleReading.belongsTo(models.Nozzle, { foreignKey: 'nozzleId', as: 'nozzle' });
     NozzleReading.belongsTo(models.Station, { foreignKey: 'stationId', as: 'station' });
     NozzleReading.belongsTo(models.User, { foreignKey: 'enteredBy', as: 'enteredByUser' });
+    NozzleReading.belongsTo(models.User, { foreignKey: 'approvedBy', as: 'approvedByUser' });
     NozzleReading.belongsTo(models.Creditor, { foreignKey: 'creditorId', as: 'creditor' });
     NozzleReading.belongsTo(models.Pump, { foreignKey: 'pumpId', as: 'pump' });
     NozzleReading.belongsTo(models.Shift, { foreignKey: 'shiftId', as: 'shift' });
