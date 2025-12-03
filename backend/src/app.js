@@ -35,6 +35,8 @@ const adminRoutes = require('./routes/admin');
 // Import constants for API info
 const { FUEL_TYPES, PAYMENT_METHODS, EXPENSE_CATEGORIES, USER_ROLES } = require('./config/constants');
 
+// Import middleware
+const normalizeRequestBody = require('./middleware/normalizeRequestBody');
 
 // Create Express app
 const app = express();
@@ -94,6 +96,9 @@ if (process.env.NODE_ENV !== 'test') {
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
+
+// Normalize request body (snake_case to camelCase)
+app.use(normalizeRequestBody);
 
 // ============================================
 // ROUTES

@@ -161,13 +161,13 @@ const readingValidators = {
 const fuelPriceValidators = {
   create: Joi.object({
     fuelType: Joi.string().valid(...FUEL_TYPE_VALUES).required(),
-    pricePerLitre: Joi.number().positive().precision(2).required(),
-    effectiveDate: dateString.required(),
+    price: Joi.number().positive().precision(2).required(),
+    effectiveFrom: dateString.optional(),
     costPrice: Joi.number().positive().precision(2).optional()
   }),
 
   update: Joi.object({
-    pricePerLitre: Joi.number().positive().precision(2).optional(),
+    price: Joi.number().positive().precision(2).optional(),
     costPrice: Joi.number().positive().precision(2).optional()
   })
 };
