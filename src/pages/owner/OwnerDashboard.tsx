@@ -63,7 +63,7 @@ export default function OwnerDashboard() {
     queryKey: ['owner-dashboard-stats'],
     queryFn: async () => {
       const response = await apiClient.get('/dashboard/owner/stats');
-      return extractApiData(response, null);
+      return response?.data ?? null;
     },
     enabled: !!user
   });
@@ -78,6 +78,9 @@ export default function OwnerDashboard() {
   if (!user || user.role !== 'owner') {
     return null;
   }
+
+  // Defensive: stats may be null/undefined
+  const safeStats = stats ?? { totalStations: 0, totalEmployees: 0, pendingActions: 0 };
 
   const isLoading = statsLoading || stationsLoading;
 
@@ -99,7 +102,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Plan Info Alert */}
-      <PlanInfoAlert user={user} stats={stats} />
+      <PlanInfoAlert user={user} stats={{ totalStations: safeStats.totalStations, totalEmployees: safeStats.totalEmployees }} />
 
       {/* Stats Grid */}
       <StatsGrid stats={stats ?? null} isLoading={isLoading} />
@@ -112,7 +115,7 @@ export default function OwnerDashboard() {
       />
 
       {/* Pending Actions Alert */}
-      <PendingActionsAlert stats={stats} navigate={navigate} />
+      <PendingActionsAlert stats={{ pendingActions: safeStats.pendingActions ?? 0 }} navigate={navigate} />
 
       {/* Quick Entry Cards */}
       <QuickEntryCardsGrid navigate={navigate} />

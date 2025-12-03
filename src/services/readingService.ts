@@ -54,7 +54,7 @@ export interface PreviousReadingInfo {
   previousReading: number;
   lastReadingDate?: string;
   fuelType: 'petrol' | 'diesel';
-  currentPrice?: number;
+  currentPrice: number;
   priceSet: boolean;
 }
 
@@ -70,6 +70,27 @@ export interface ReadingFilters {
 }
 
 export const readingService = {
+    /**
+     * Approve a reading
+     * POST /api/v1/readings/:id/approve
+     */
+    async approveReading(id: string): Promise<void> {
+      const response = await apiClient.post<ApiResponse<void>>(`/readings/${id}/approve`, {});
+      if (!response.success) {
+        throw new Error('Failed to approve reading');
+      }
+    },
+
+    /**
+     * Reject a reading
+     * POST /api/v1/readings/:id/reject
+     */
+    async rejectReading(id: string, reason: string): Promise<void> {
+      const response = await apiClient.post<ApiResponse<void>>(`/readings/${id}/reject`, { reason });
+      if (!response.success) {
+        throw new Error('Failed to reject reading');
+      }
+    },
   /**
    * Get readings with filters
    * GET /api/v1/readings
@@ -104,10 +125,10 @@ export const readingService = {
       return {
         data: response.data || [],
         pagination: {
-          page: response.pagination.page,
-          limit: response.pagination.limit,
-          total: response.pagination.total,
-          pages: response.pagination.totalPages || response.pagination.pages
+          page: response.pagination.page ?? 0,
+          limit: response.pagination.limit ?? 0,
+          total: response.pagination.total ?? 0,
+          pages: response.pagination.totalPages ?? response.pagination.pages ?? 0
         }
       };
     }
@@ -145,7 +166,11 @@ export const readingService = {
       const response = await apiClient.get<ApiResponse<PreviousReadingInfo>>(url);
 
       if (response.success && response.data) {
-        return response.data;
+        // Ensure currentPrice is always a number
+        return {
+          ...response.data,
+          currentPrice: response.data.currentPrice ?? 0,
+        };
       }
       return null;
     } catch {
@@ -199,7 +224,7 @@ export const readingService = {
    */
   async getTodayReadings(stationId: string): Promise<NozzleReading[]> {
     const response = await apiClient.get<ApiResponse<NozzleReading[]>>('/readings/today');
-    return response.data;
+    return response.data ?? [];
   },
 
   /**

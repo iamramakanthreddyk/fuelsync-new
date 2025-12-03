@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +10,9 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from '@/lib/errorUtils';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiClient, ApiResponse } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
 import type { Plan } from '@/types/database';
-import { Settings, Plus, Edit, Trash2, Check, X, Crown, Building2, Users, CreditCard, Calendar, TrendingUp, FileText, DollarSign, Loader2 } from 'lucide-react';
+import { Settings, Plus, Edit, Trash2, Check, X, Crown, Building2, Users, CreditCard, Calendar, TrendingUp, DollarSign, Loader2 } from 'lucide-react';
 
 const defaultFormData: Omit<Plan, 'id' | 'createdAt'> = {
   name: '',

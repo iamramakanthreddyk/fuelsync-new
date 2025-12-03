@@ -12,10 +12,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { User, CreditCard, TrendingUp, TrendingDown, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { CreditCard, CheckCircle2 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
-import { creditService } from '@/services/tenderService';
+import { creditService } from '@/services/creditService';
 import { notificationService } from '@/services/notificationService';
 
 export default function CreditLedger() {
@@ -94,7 +94,7 @@ export default function CreditLedger() {
                 {creditors.map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium flex items-center gap-2">
-                      <User className="w-4 h-4" /> {c.name}
+                      {c.name}
                     </TableCell>
                     <TableCell>{c.mobile || '--'}</TableCell>
                     <TableCell>

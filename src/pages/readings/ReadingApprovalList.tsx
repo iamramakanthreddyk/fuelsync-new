@@ -22,10 +22,10 @@ import {
 } from '@/components/ui/dialog';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { CheckCircle2, XCircle, AlertTriangle, Fuel, User, Calendar } from 'lucide-react';
+import { CheckCircle2, XCircle, Fuel } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
-import { nozzleReadingService } from '@/services/tenderService';
+import { readingService } from '@/services/readingService';
 import { notificationService } from '@/services/notificationService';
 
 export default function ReadingApprovalList() {
@@ -35,18 +35,21 @@ export default function ReadingApprovalList() {
   const [showDialog, setShowDialog] = useState(false);
   const [rejectionReason, setRejectionReason] = useState('');
 
-  // Fetch pending readings
-  const { data: readings = [], isLoading } = useQuery({
-    queryKey: ['pending-readings'],
-    queryFn: () => nozzleReadingService.getPendingReadings(),
+  // Fetch all readings and filter for pending status client-side
+  const { data: allReadings = { data: [] }, isLoading } = useQuery({
+    queryKey: ['all-readings'],
+    queryFn: () => readingService.getReadings(),
     refetchInterval: 30000,
   });
+
+  // Filter for pending readings (assuming a 'status' property exists on reading)
+  const readings = allReadings.data.filter((r: any) => r.status === 'pending');
 
   // Approve mutation
   const approveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedReading) throw new Error('No reading selected');
-      return nozzleReadingService.approveReading(selectedReading.id);
+      return readingService.approveReading(selectedReading.id);
     },
     onSuccess: () => {
       toast.success('Reading approved');
@@ -64,7 +67,7 @@ export default function ReadingApprovalList() {
     mutationFn: async () => {
       if (!selectedReading) throw new Error('No reading selected');
       if (!rejectionReason) throw new Error('Rejection reason required');
-      return nozzleReadingService.rejectReading(selectedReading.id, rejectionReason);
+      return readingService.rejectReading(selectedReading.id, rejectionReason);
     },
     onSuccess: () => {
       toast.warning('Reading rejected');

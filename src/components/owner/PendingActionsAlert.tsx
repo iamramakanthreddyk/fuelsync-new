@@ -2,7 +2,13 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-export function PendingActionsAlert({ stats, navigate }) {
+interface PendingActionsAlertProps {
+  stats: {
+    pendingActions: number;
+  };
+  navigate: (path: string) => void;
+}
+export function PendingActionsAlert({ stats, navigate }: PendingActionsAlertProps) {
   if (!stats || stats.pendingActions <= 0) return null;
   return (
     <Alert className="border-yellow-200 bg-yellow-50 dark:bg-yellow-950/20">

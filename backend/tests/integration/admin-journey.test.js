@@ -425,7 +425,8 @@ describe('Super Admin Journey', () => {
           planId: '99999999-9999-9999-9999-999999999999'
         });
 
-      expect(response.status).toBe(200); // Backend doesn't validate plan existence
+      // Should fail with 400 or 500 due to foreign key constraint
+      expect([400, 500]).toContain(response.status);
       testReport.passed++;
     });
   });

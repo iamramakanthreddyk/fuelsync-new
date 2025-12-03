@@ -3,7 +3,15 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Zap } from 'lucide-react';
 
-export function PlanInfoAlert({ user, stats }) {
+import type { User } from '@/types/api';
+interface PlanInfoAlertProps {
+  user: User;
+  stats?: {
+    totalStations?: number;
+    totalEmployees?: number;
+  };
+}
+export function PlanInfoAlert({ user, stats }: PlanInfoAlertProps) {
   const calculateProgress = (current: number, max: number) => Math.min((current / max) * 100, 100);
   return user.plan ? (
     <Alert className="border-blue-200 bg-gradient-to-r from-blue-50 to-purple-50 dark:from-blue-950/20 dark:to-purple-950/20">
@@ -22,11 +30,11 @@ export function PlanInfoAlert({ user, stats }) {
         {stats && user.plan.maxStations && (
           <div className="flex items-center gap-2">
             <Progress 
-              value={calculateProgress(stats.totalStations, user.plan.maxStations)} 
+              value={calculateProgress(stats.totalStations ?? 0, user.plan.maxStations ?? 1)} 
               className="w-20 h-2"
             />
             <span className="text-xs text-muted-foreground">
-              {calculateProgress(stats.totalStations, user.plan.maxStations).toFixed(0)}%
+              {calculateProgress(stats.totalStations ?? 0, user.plan.maxStations ?? 1).toFixed(0)}%
             </span>
           </div>
         )}

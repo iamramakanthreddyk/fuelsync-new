@@ -27,7 +27,7 @@ import Prices from '@/pages/Prices';
 import Reports from '@/pages/Reports';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
-import type { Station } from '@/types/api';
+import type { Station, User } from '@/types/api';
 import { ReadingApprovalList } from '@/pages/readings';
 import { CreditLedger } from '@/pages/credit';
 
@@ -76,8 +76,8 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
   if (user) {
     // Role-based redirect after login (check for both new and legacy role formats)
-    const isSuperAdmin = user.role === 'super_admin' || user.role === 'superadmin' || (user.role as any) === 'Super Admin';
-    if (isSuperAdmin) {
+    const normalizedRole = typeof user.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
+    if (normalizedRole === 'superadmin' || normalizedRole === 'super_admin') {
       return <Navigate to="/superadmin/users" replace />;
     }
     if (user.role === 'owner') {
@@ -105,9 +105,8 @@ function RoleBasedRedirect() {
   if (!user) return <Navigate to="/login" replace />;
 
   // Check for both new and legacy role naming conventions
-  const isSuperAdmin = user.role === 'super_admin' || user.role === 'superadmin' || (user.role as any) === 'Super Admin';
-  
-  if (isSuperAdmin) {
+  const normalizedRole = typeof user.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
+  if (normalizedRole === 'superadmin' || normalizedRole === 'super_admin') {
     return <Navigate to="/superadmin/users" replace />;
   }
 
@@ -142,11 +141,10 @@ function SuperAdminGuard({ children }: { children: React.ReactNode }) {
   }
 
   // Normalize role to handle legacy formats
-  const normalizedRole = user?.role?.toLowerCase().trim() === 'super admin' || 
-                         user?.role === 'super_admin' || 
-                         user?.role === 'superadmin';
+  const normalizedRole = typeof user?.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
+  const isSuperAdmin = normalizedRole === 'superadmin' || normalizedRole === 'super_admin';
 
-  if (!user || !normalizedRole) {
+  if (!user || !isSuperAdmin) {
     return <Navigate to="/login" replace />;
   }
 

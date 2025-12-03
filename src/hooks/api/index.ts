@@ -3,7 +3,7 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient, ApiResponse, PaginatedResponse } from '@/lib/api-client';
+import { apiClient, ApiResponse } from '@/lib/api-client';
 import { useStationStore } from '@/store/stationStore';
 import { getApiErrorMessage } from '@/lib/apiErrorHandler';
 import type {
