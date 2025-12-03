@@ -151,7 +151,7 @@ exports.getUser = async (req, res, next) => {
  */
 exports.createUser = async (req, res, next) => {
   try {
-    const { email, password, name, phone, role, stationId } = req.body;
+    const { email, password, name, phone, role, stationId, planId } = req.body;
     const currentUser = req.user;
     const currentRole = (currentUser.role || '').toLowerCase();
     const roleNormalized = (role || '').toLowerCase();
@@ -234,33 +234,43 @@ exports.createUser = async (req, res, next) => {
     }
 
     // Get plan for new owner
-    let planId = null;
+    let ownerPlanId = null;
     if (roleNormalized === 'owner') {
-      // Try to find Free plan first, then Basic plan as fallback
-      let plan = await Plan.findOne({ where: { name: 'Free' } });
-      if (!plan) {
-        plan = await Plan.findOne({ where: { name: 'Basic' } });
+      // If super_admin provides a planId, validate and use it
+      if (planId && currentRole === 'super_admin') {
+        const plan = await Plan.findByPk(planId);
+        if (plan) {
+          ownerPlanId = plan.id;
+        } else {
+          return res.status(400).json({ success: false, error: 'Invalid planId provided' });
+        }
+      } else {
+        // Try to find Free plan first, then Basic plan as fallback
+        let plan = await Plan.findOne({ where: { name: 'Free' } });
+        if (!plan) {
+          plan = await Plan.findOne({ where: { name: 'Basic' } });
+        }
+        // If no default plan exists (fresh DB in tests), create a Free plan automatically
+        if (!plan) {
+          console.warn('No default plan found — creating a Free plan automatically for owner creation');
+          plan = await Plan.create({
+            name: 'Free',
+            description: 'Auto-created Free plan',
+            maxStations: 1,
+            maxPumpsPerStation: 5,
+            maxNozzlesPerPump: 4,
+            maxEmployees: 5,
+            maxCreditors: 10,
+            backdatedDays: 3,
+            analyticsDays: 7,
+            priceMonthly: 0,
+            features: {},
+            sortOrder: 999,
+            isActive: true
+          });
+        }
+        ownerPlanId = plan.id;
       }
-      // If no default plan exists (fresh DB in tests), create a Free plan automatically
-      if (!plan) {
-        console.warn('No default plan found — creating a Free plan automatically for owner creation');
-        plan = await Plan.create({
-          name: 'Free',
-          description: 'Auto-created Free plan',
-          maxStations: 1,
-          maxPumpsPerStation: 5,
-          maxNozzlesPerPump: 4,
-          maxEmployees: 5,
-          maxCreditors: 10,
-          backdatedDays: 3,
-          analyticsDays: 7,
-          priceMonthly: 0,
-          features: {},
-          sortOrder: 999,
-          isActive: true
-        });
-      }
-      planId = plan.id;
     }
 
     // Create user
@@ -271,7 +281,7 @@ exports.createUser = async (req, res, next) => {
       phone,
       role: roleNormalized,
       stationId: ['manager', 'employee'].includes(roleNormalized) ? stationId : null,
-      planId,
+      planId: ownerPlanId,
       createdBy: currentUser.id
     });
 
