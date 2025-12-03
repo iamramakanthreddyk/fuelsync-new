@@ -10,47 +10,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
-import { useAuth } from "@/hooks/useAuth";
-// Using local Station interface defined below
+import { useAuth } from '@/hooks/useAuth';
+import type { User, Station, Plan } from '@/types/api';
 import { Users, Plus, Search, Edit, Trash2, UserCheck, UserX, Crown, Building2, Briefcase, User as UserIcon } from "lucide-react";
 
-interface Plan {
-  id: string;
-  name: string;
-  priceMonthly: number;
-  maxStations: number;
-  maxEmployees: number;
-}
-
-interface Station {
-  id: string;
-  name: string;
-}
-
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  role: 'super_admin' | 'owner' | 'manager' | 'employee';
-  isActive: boolean;
-  createdAt: string;
-  stationId?: string;
-  planId?: string;
-  station?: {
-    id: string;
-    name: string;
-  };
-  plan?: {
-    id: string;
-    name: string;
-    priceMonthly: number;
-  };
-  ownedStations?: Array<{
-    id: string;
-    name: string;
-  }>;
-}
+// Using canonical `User`, `Station`, and `Plan` types from `src/types/api.ts`
 
 interface Props {
   stations?: Station[];
@@ -58,6 +22,7 @@ interface Props {
 
 const ROLE_ICONS = {
   super_admin: Crown,
+  superadmin: Crown,
   owner: Building2,
   manager: Briefcase,
   employee: UserIcon
@@ -227,7 +192,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       email: user.email,
       phone: user.phone || '',
       role: user.role,
-      stationId: user.stationId || user.station?.id || '',
+      stationId: user.stationId || (user.stations && user.stations[0]?.id) || '',
       planId: user.planId || user.plan?.id || '',
       isActive: user.isActive
     });
@@ -345,15 +310,15 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                 </Badge>
               )}
               
-              {(user.role === 'manager' || user.role === 'employee') && user.station && (
+              {(user.role === 'manager' || user.role === 'employee') && (
                 <Badge variant="secondary">
-                  Station: {user.station.name}
+                  Station: {user.stations?.find(s => s.id === user.stationId)?.name || 'Not assigned'}
                 </Badge>
               )}
               
-              {user.role === 'owner' && user.ownedStations && user.ownedStations.length > 0 && (
+              {user.role === 'owner' && user.stations && user.stations.length > 0 && (
                 <Badge variant="outline">
-                  {user.ownedStations.length} station(s)
+                  {user.stations.length} station(s)
                 </Badge>
               )}
             </div>
@@ -667,16 +632,16 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                               <Badge variant="secondary">
                                 {user.plan?.name || 'No plan'}
                               </Badge>
-                              {user.ownedStations && user.ownedStations.length > 0 && (
+                              {user.stations && user.stations.length > 0 && (
                                 <div className="text-xs text-muted-foreground mt-1">
-                                  {user.ownedStations.length} station(s) owned
+                                  {user.stations.length} station(s) owned
                                 </div>
                               )}
                             </div>
                           )}
                           {(user.role === 'manager' || user.role === 'employee') && (
                             <Badge variant="outline">
-                              {user.station?.name || 'Not assigned'}
+                              {user.stations?.find(s => s.id === user.stationId)?.name || 'Not assigned'}
                             </Badge>
                           )}
                           {(user.role === 'super_admin') && (
