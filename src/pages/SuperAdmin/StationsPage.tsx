@@ -101,7 +101,7 @@ export default function StationsPage() {
     if (!owner) return '';
     
     // Get owner's existing stations count
-    const ownerStationsCount = stations.filter(s => s.ownerId === ownerId).length;
+    const ownerStationsCount = (Array.isArray(stations) ? stations : []).filter(s => s.ownerId === ownerId).length;
     
     // Generate code: First 3 letters of name + count + 1
     const namePrefix = owner.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
@@ -240,7 +240,7 @@ export default function StationsPage() {
     setIsEditOpen(true);
   };
 
-  const filteredStations = stations.filter(station => 
+  const filteredStations = (Array.isArray(stations) ? stations : []).filter(station => 
     station.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     station.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     station.owner?.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -449,7 +449,7 @@ export default function StationsPage() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {filteredStations.map((station) => (
+                {(Array.isArray(filteredStations) ? filteredStations : []).map((station) => (
                   <TableRow key={station.id}>
                     <TableCell>
                       <div>

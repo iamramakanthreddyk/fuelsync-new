@@ -190,7 +190,7 @@ export default function Reports() {
       const backendNozzles = (response as any)?.data?.nozzles || (response as any)?.nozzles || [];
 
       // Map backend shape to UI shape expected by this component
-      const mapped = backendNozzles.map((n: any) => ({
+      const mapped = (Array.isArray(backendNozzles) ? backendNozzles : []).map((n: any) => ({
         nozzleId: n.nozzleId,
         nozzleNumber: n.nozzleNumber,
         fuelType: n.fuelType || n.fuelLabel || 'unknown',
@@ -356,7 +356,7 @@ export default function Reports() {
             totalTransactions: r.totalTransactions
           };
           // Add fuel type breakdown rows
-          const fuelRows = (r.fuelTypeSales || []).map((f: any) => ({
+          const fuelRows = (Array.isArray(r.fuelTypeSales) ? r.fuelTypeSales : []).map((f: any) => ({
             stationName: r.stationName,
             date: r.date,
             fuelType: f.fuelType,
@@ -382,7 +382,7 @@ export default function Reports() {
         toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
         return;
       } else if (reportType === 'nozzles') {
-        const rowsRaw = (nozzleBreakdown || []).map((n: any) => {
+        const rowsRaw = (Array.isArray(nozzleBreakdown) ? nozzleBreakdown : []).map((n: any) => {
           const pricePerLiter = n.totalQuantity > 0 ? n.totalSales / n.totalQuantity : 0;
           return {
             nozzleId: n.nozzleId,
@@ -412,7 +412,7 @@ export default function Reports() {
         toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
         return;
       } else if (reportType === 'shifts') {
-        const rowsRaw = (shiftReports || []).map(s => ({
+        const rowsRaw = (Array.isArray(shiftReports) ? shiftReports : []).map(s => ({
           id: s.id,
           stationName: s.stationName,
           employeeName: s.employeeName,
@@ -442,7 +442,7 @@ export default function Reports() {
         toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
         return;
       } else if (reportType === 'pumps') {
-        const rowsRaw = (pumpPerformance || []).map(p => ({
+        const rowsRaw = (Array.isArray(pumpPerformance) ? pumpPerformance : []).map(p => ({
           pumpId: p.pumpId,
           pumpName: p.pumpName,
           pumpNumber: p.pumpNumber,
@@ -549,7 +549,7 @@ export default function Reports() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Stations</SelectItem>
-                      {stations?.map((station) => (
+                      {(Array.isArray(stations) ? stations : []).map((station) => (
                         <SelectItem key={station.id} value={station.id}>
                           {station.name}
                         </SelectItem>
@@ -754,7 +754,7 @@ export default function Reports() {
                     </CardHeader>
                     <CardContent>
                       <div className="space-y-3">
-                        {stations?.slice(0, 3).map((station, idx) => (
+                        {(Array.isArray(stations) ? stations : []).slice(0, 3).map((station, idx) => (
                           <div key={station.id} className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
                               <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
@@ -884,7 +884,7 @@ export default function Reports() {
                 <div className="text-center py-8 text-muted-foreground">Loading sales reports...</div>
               ) : salesReports && salesReports.length > 0 ? (
                 <div className="space-y-4">
-                  {salesReports.map((report, idx) => (
+                        {(Array.isArray(salesReports) ? salesReports : []).map((report, idx) => (
                     <Card key={idx}>
                       <CardHeader>
                         <div className="flex items-center justify-between">
@@ -906,7 +906,7 @@ export default function Reports() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          {report.fuelTypeSales.map((fuel: any, fuelIdx: number) => (
+                          {(Array.isArray(report.fuelTypeSales) ? report.fuelTypeSales : []).map((fuel: any, fuelIdx: number) => (
                             <div
                               key={fuelIdx}
                               className="flex items-center justify-between p-3 bg-muted rounded-lg"
@@ -968,7 +968,7 @@ export default function Reports() {
               ) : nozzleBreakdown && nozzleBreakdown.length > 0 ? (
                 <div className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
-                    {nozzleBreakdown.map((nozzle: any) => {
+                    {(Array.isArray(nozzleBreakdown) ? nozzleBreakdown : []).map((nozzle: any) => {
                       const totalSales = nozzle?.totalSales ?? 0;
                       const totalQuantity = nozzle?.totalQuantity ?? 0;
                       const transactions = nozzle?.transactions ?? 0;
@@ -1052,7 +1052,7 @@ export default function Reports() {
                 <div className="text-center py-8 text-muted-foreground">Loading shift reports...</div>
               ) : shiftReports && shiftReports.length > 0 ? (
                 <div className="space-y-3">
-                  {shiftReports.map((shift) => (
+                  {(Array.isArray(shiftReports) ? shiftReports : []).map((shift) => (
                     <Card key={shift.id}>
                       <CardContent className="pt-6">
                         <div className="grid gap-4 md:grid-cols-2">
@@ -1137,7 +1137,7 @@ export default function Reports() {
                 <div className="text-center py-8 text-muted-foreground">Loading pump performance...</div>
               ) : pumpPerformance && pumpPerformance.length > 0 ? (
                 <div className="space-y-4">
-                  {pumpPerformance.map((pump, idx) => (
+                  {(Array.isArray(pumpPerformance) ? pumpPerformance : []).map((pump, idx) => (
                     <Card key={idx}>
                       <CardHeader>
                         <div className="flex items-center justify-between">

@@ -21,9 +21,7 @@ import {
   Fuel, 
   DollarSign, 
   TrendingUp,
-  AlertCircle,
   ArrowRight,
-  Settings,
   BarChart3,
   Activity,
   CheckCircle2,
@@ -258,7 +256,7 @@ export default function OwnerDashboard() {
               <div className="flex items-center gap-2">
                 <Building2 className="w-5 h-5 text-primary" />
                 <CardTitle className="text-base sm:text-lg">Your Stations</CardTitle>
-                {stations && stations.length > 0 && (
+                {Array.isArray(stations) && stations.length > 0 && (
                   <Badge variant="secondary">{stations.length}</Badge>
                 )}
               </div>
@@ -284,9 +282,9 @@ export default function OwnerDashboard() {
               <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mb-3"></div>
               <p className="text-sm text-muted-foreground">Loading stations...</p>
             </div>
-          ) : stations && stations.length > 0 ? (
+          ) : Array.isArray(stations) && stations.length > 0 ? (
             <div className="space-y-3">
-              {stations.map((station: Station, idx: number) => {
+              {(Array.isArray(stations) ? stations : []).map((station: Station, idx: number) => {
                 const pumpUtilization = (station.pumpCount || 0) > 0 
                   ? ((station.activePumps || 0) / (station.pumpCount || 0)) * 100 
                   : 0;

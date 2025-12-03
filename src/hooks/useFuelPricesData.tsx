@@ -53,10 +53,14 @@ export function useFuelPricesData() {
   return useQuery<FuelPrice[]>({
     queryKey: ['fuel-prices', stationId],
     queryFn: async () => {
+      // Prevent API call if stationId is undefined
       if (!stationId && !isAdmin) {
         return [];
       }
-
+      if (!stationId) {
+        // If stationId is undefined, return empty and do not call API
+        return [];
+      }
       try {
         // Use the correct endpoint: /stations/:stationId/prices
         const url = `/stations/${stationId}/prices`;

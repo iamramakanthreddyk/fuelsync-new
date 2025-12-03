@@ -416,9 +416,9 @@ export default function StationsManagement() {
             </div>
           </CardContent>
         </Card>
-      ) : stations && stations.length > 0 ? (
+      ) : Array.isArray(stations) && stations.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {stations.map((station) => (
+          {(Array.isArray(stations) ? stations : []).map((station) => (
             <Card 
               key={station.id} 
               className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer"
