@@ -16,6 +16,8 @@ import {
 import { CurrencyInput } from '@/components/inputs/CurrencyInput';
 import { IndianRupee, Fuel, Gauge } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
+import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
+import { getFuelColors } from '@/lib/fuelColors';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
 import { usePumpNozzles } from "@/hooks/usePumpNozzles";
@@ -334,6 +336,10 @@ export default function DataEntry() {
             Fast & easy data entry!
           </span>
         </div>
+        
+        {/* Show alert if prices are not set */}
+        <PricesRequiredAlert showIfMissing={true} compact={true} />
+        
         <Tabs defaultValue="manual" className="space-y-6 w-full">
           {/* TabsList */}
           <TabsList className="grid grid-cols-3 gap-2 md:gap-4 w-full mx-auto mb-4">

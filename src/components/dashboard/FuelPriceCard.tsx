@@ -1,9 +1,10 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Fuel, IndianRupee } from "lucide-react";
+import { Fuel, IndianRupee, AlertCircle } from "lucide-react";
 import { getFuelColors } from '@/lib/fuelColors';
 import { safeToFixed } from '@/lib/format-utils';
+import { useNavigate } from 'react-router-dom';
 
 interface FuelPriceCardProps {
   prices: {
@@ -13,9 +14,18 @@ interface FuelPriceCardProps {
     EV?: number;
   };
   isLoading?: boolean;
+  showWarning?: boolean;
+  onSetPrices?: () => void;
 }
 
-export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({ prices, isLoading }) => {
+export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({ 
+  prices, 
+  isLoading,
+  showWarning = true,
+  onSetPrices
+}) => {
+  const navigate = useNavigate();
+
   if (isLoading) {
     return (
       <div className="flex items-center gap-2 px-3 py-2 bg-muted/30 rounded-lg border animate-pulse">
@@ -38,8 +48,19 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({ prices, isLoading 
                  prices[key as keyof typeof prices] !== null
   );
 
-  // If no prices are set, show a compact message
+  // If no prices are set, show warning
   if (setPrices.length === 0) {
+    if (showWarning) {
+      return (
+        <div 
+          onClick={() => onSetPrices?.() || navigate('/prices')}
+          className="flex items-center gap-2 px-3 py-2 bg-red-50 rounded-lg border border-red-200 cursor-pointer hover:bg-red-100 transition-colors"
+        >
+          <AlertCircle className="h-4 w-4 text-red-600 flex-shrink-0" />
+          <span className="text-xs sm:text-sm font-medium text-red-700">Set fuel prices</span>
+        </div>
+      );
+    }
     return (
       <div className="flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-200">
         <Fuel className="h-4 w-4 text-amber-600 flex-shrink-0" />

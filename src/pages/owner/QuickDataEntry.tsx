@@ -22,14 +22,13 @@ import { apiClient } from '@/lib/api-client';
 import { useStations, usePumps } from '@/hooks/api';
 import { safeToFixed } from '@/lib/format-utils';
 import { FuelBadge } from '@/components/FuelBadge';
+import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import {
   Zap,
   Building2,
   Fuel,
   Check,
-  X,
-  Calendar,
-  TrendingUp
+  X
 } from 'lucide-react';
 
 interface ReadingEntry {
@@ -172,6 +171,9 @@ export default function QuickDataEntry() {
           </Badge>
         )}
       </div>
+
+      {/* Show alert if prices are not set */}
+      <PricesRequiredAlert showIfMissing={true} compact={true} />
 
       {/* Station & Date Selection */}
       <Card>
