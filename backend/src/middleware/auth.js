@@ -79,7 +79,14 @@ const authenticate = async (req, res, next) => {
 /**
  * Role-based authorization
  */
-const requireRole = (roles) => {
+const normalizeRole = (r) => (typeof r === 'string' ? r.toLowerCase() : r);
+
+const requireRole = (...roles) => {
+  // allow requireRole(['owner','super_admin']) or requireRole('owner','super_admin')
+  const allowed = roles.length === 1 && Array.isArray(roles[0]) ? roles[0] : roles;
+
+  const allowedNormalized = allowed.map(normalizeRole);
+
   return (req, res, next) => {
     if (!req.user) {
       return res.status(401).json({
@@ -88,9 +95,9 @@ const requireRole = (roles) => {
       });
     }
 
-    const allowedRoles = Array.isArray(roles) ? roles : [roles];
-    
-    if (!allowedRoles.includes(req.user.role)) {
+    const userRole = normalizeRole(req.user.role);
+
+    if (!allowedNormalized.includes(userRole)) {
       return res.status(403).json({
         success: false,
         error: 'Insufficient permissions'
@@ -107,10 +114,11 @@ const requireRole = (roles) => {
  */
 const requireMinRole = (minRole) => {
   const roleHierarchy = {
-    'employee': 1,
-    'manager': 2,
-    'owner': 3,
-    'super_admin': 4
+    employee: 1,
+    manager: 2,
+    owner: 3,
+    super_admin: 4,
+    superadmin: 4
   };
 
   return (req, res, next) => {
@@ -121,8 +129,8 @@ const requireMinRole = (minRole) => {
       });
     }
 
-    const userLevel = roleHierarchy[req.user.role] || 0;
-    const requiredLevel = roleHierarchy[minRole] || 0;
+    const userLevel = roleHierarchy[normalizeRole(req.user.role)] || 0;
+    const requiredLevel = roleHierarchy[normalizeRole(minRole)] || 0;
 
     if (userLevel < requiredLevel) {
       return res.status(403).json({

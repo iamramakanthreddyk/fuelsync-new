@@ -71,24 +71,29 @@ exports.login = async (req, res, next) => {
     // Generate token
     const token = generateToken(user.id, user.role);
 
+    const userPayload = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      station: user.station ? {
+        id: user.station.id,
+        name: user.station.name
+      } : null,
+      plan: user.plan ? {
+        name: user.plan.name,
+        canExport: user.plan.canExport
+      } : null
+    };
+
+    // Backwards-compatible response: include top-level token/user and nested data object
     res.json({
       success: true,
+      token,
+      user: userPayload,
       data: {
         token,
-        user: {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-          station: user.station ? {
-            id: user.station.id,
-            name: user.station.name
-          } : null,
-          plan: user.plan ? {
-            name: user.plan.name,
-            canExport: user.plan.canExport
-          } : null
-        }
+        user: userPayload
       }
     });
 
@@ -151,7 +156,10 @@ exports.getCurrentUser = async (req, res, next) => {
 
     res.json({
       success: true,
-      data: userData
+      user: userData,
+      data: {
+        user: userData
+      }
     });
 
   } catch (error) {
@@ -231,6 +239,8 @@ exports.register = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
+      token,
+      user: user.toSafeObject(),
       data: {
         token,
         user: user.toSafeObject()

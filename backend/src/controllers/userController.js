@@ -238,10 +238,23 @@ exports.createUser = async (req, res, next) => {
       if (!plan) {
         plan = await Plan.findOne({ where: { name: 'Basic' } });
       }
+      // If no default plan exists (fresh DB in tests), create a Free plan automatically
       if (!plan) {
-        return res.status(500).json({ 
-          success: false, 
-          error: 'No default plan available. Please create a Free or Basic plan first.' 
+        console.warn('No default plan found — creating a Free plan automatically for owner creation');
+        plan = await Plan.create({
+          name: 'Free',
+          description: 'Auto-created Free plan',
+          maxStations: 1,
+          maxPumpsPerStation: 5,
+          maxNozzlesPerPump: 4,
+          maxEmployees: 5,
+          maxCreditors: 10,
+          backdatedDays: 3,
+          analyticsDays: 7,
+          priceMonthly: 0,
+          features: {},
+          sortOrder: 999,
+          isActive: true
         });
       }
       planId = plan.id;

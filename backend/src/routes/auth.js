@@ -13,6 +13,8 @@ router.post('/register', authController.register);
 
 // Protected routes
 router.get('/me', authenticate, authController.getCurrentUser);
+// Backwards-compatible alias
+router.get('/profile', authenticate, authController.getCurrentUser);
 router.post('/logout', authenticate, authController.logout);
 
 module.exports = router;

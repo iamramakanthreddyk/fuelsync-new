@@ -21,14 +21,16 @@ module.exports = (sequelize) => {
     
     employeeId: {
       type: DataTypes.UUID,
-      allowNull: false,
-      references: { model: 'users', key: 'id' }
+      allowNull: true,
+      references: { model: 'users', key: 'id' },
+      comment: 'For employee shifts - may be null for manager/opening shifts'
     },
     
     // Shift timing
     shiftDate: {
       type: DataTypes.DATEONLY,
-      allowNull: false
+      allowNull: false,
+      defaultValue: DataTypes.NOW
     },
     
     startTime: {
@@ -72,6 +74,20 @@ module.exports = (sequelize) => {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: true,
       comment: 'Difference between expected and actual cash'
+    },
+
+    // Opening cash when shift starts (for managers/owners)
+    openingCash: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true,
+      comment: 'Opening cash at shift start'
+    },
+
+    // Manager ID for manager-started shifts
+    managerId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      references: { model: 'users', key: 'id' }
     },
     
     // Readings summary

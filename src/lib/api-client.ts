@@ -132,14 +132,19 @@ async function handleResponse<T>(response: Response): Promise<T> {
   if (isJson) {
     const jsonData = await response.json();
 
-    // Use centralized conversion utility to normalize response keys
-
-    // If response has the {success, data} structure, unwrap and convert
+    // If response follows the { success, data } envelope, convert nested data keys
     if (jsonData && typeof jsonData === 'object' && 'data' in jsonData) {
       try {
-        return convertKeysToCamel((jsonData as any).data) as T;
+        // Convert only the data payload to camelCase to preserve envelope fields like success/message/error
+        (jsonData as any).data = convertKeysToCamel((jsonData as any).data);
       } catch (e) {
-        return (jsonData as any).data as T;
+        // fallback: leave data as-is
+      }
+
+      try {
+        return convertKeysToCamel(jsonData) as T;
+      } catch (e) {
+        return jsonData as T;
       }
     }
 

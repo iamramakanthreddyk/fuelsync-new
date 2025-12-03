@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, queryKeys } from '@/hooks/api';
 import { Station } from '@/types/api';
+import type { ApiResponse } from '@/lib/api-client';
 import { 
   Plus, 
   Building2, 
@@ -85,9 +86,9 @@ export default function StationsManagement() {
   const {
     data: stationsResponse,
     isLoading
-  } = useStations();
+  } = useStations() as { data?: ApiResponse<Station[]> | undefined; isLoading: boolean };
 
-  const stations = stationsResponse?.data;
+  const stations = stationsResponse?.data ?? [];
 
   // Create station mutation
   const createMutation = useMutation({
