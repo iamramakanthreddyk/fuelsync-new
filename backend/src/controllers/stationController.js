@@ -628,7 +628,7 @@ exports.createNozzle = async (req, res, next) => {
       stationId: pump.stationId, // Denormalize for faster queries
       nozzleNumber,
       fuelType,
-      initialReading: initialReading || 0,
+      initialReading: initialReading != null ? initialReading : 0,
       notes
     });
 

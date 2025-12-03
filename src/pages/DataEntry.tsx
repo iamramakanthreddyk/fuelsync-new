@@ -17,6 +17,7 @@ import { CurrencyInput } from '@/components/inputs/CurrencyInput';
 import { IndianRupee, Fuel, Gauge } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
+import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { getFuelColors } from '@/lib/fuelColors';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
@@ -48,6 +49,8 @@ interface RefillData {
 }
 
 export default function DataEntry() {
+  // Fetch global fuel prices for the selected station
+  const { data: fuelPrices, isLoading: isPricesLoading } = useFuelPricesData();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
@@ -88,7 +91,9 @@ export default function DataEntry() {
 
 
 
-  // Manual Forms Hookups (as per previous version)
+  // ...existing code...
+  // You can now use fuelPrices and isPricesLoading anywhere in this component
+  // ...existing code...
   const {
     register: registerManual,
     handleSubmit: handleSubmitManual,

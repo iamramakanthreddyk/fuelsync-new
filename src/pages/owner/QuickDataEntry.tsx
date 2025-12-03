@@ -23,6 +23,7 @@ import { useStations, usePumps } from '@/hooks/api';
 import { safeToFixed } from '@/lib/format-utils';
 import { FuelBadge } from '@/components/FuelBadge';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
+import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import {
   Zap,
   Building2,
@@ -39,6 +40,19 @@ interface ReadingEntry {
 }
 
 export default function QuickDataEntry() {
+  // Fetch global fuel prices for the selected station
+  const { isLoading: isPricesLoading } = useFuelPricesData();
+
+  // Show loading indicator while prices are loading
+  if (isPricesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[200px]">
+        <span className="text-muted-foreground">Loading fuel prices...</span>
+      </div>
+    );
+  }
+
+  // Optionally, you can use fuelPrices in your UI as needed
 
   const [selectedStation, setSelectedStation] = useState<string>('');
   const [readings, setReadings] = useState<Record<string, ReadingEntry>>({});
@@ -151,6 +165,10 @@ export default function QuickDataEntry() {
 
   const pendingCount = Object.keys(readings).length;
   const totalNozzles = pumps?.reduce((sum, pump) => sum + (pump.nozzles?.length || 0), 0) || 0;
+
+  // ...existing code...
+
+  // You can now use fuelPrices and isPricesLoading anywhere in this component
 
   return (
     <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-5xl">
