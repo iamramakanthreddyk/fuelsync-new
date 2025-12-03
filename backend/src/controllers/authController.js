@@ -154,12 +154,11 @@ exports.getCurrentUser = async (req, res, next) => {
       userData.stations = [];
     }
 
+    // Return a flat `data` object for compatibility with tests/frontend
     res.json({
       success: true,
       user: userData,
-      data: {
-        user: userData
-      }
+      data: userData
     });
 
   } catch (error) {

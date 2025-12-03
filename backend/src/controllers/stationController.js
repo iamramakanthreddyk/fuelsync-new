@@ -298,11 +298,11 @@ exports.getStation = async (req, res, next) => {
     const lastReadingResult = await NozzleReading.findOne({
       where: { stationId: id },
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
-      attributes: ['currentReading', 'readingDate'],
+      attributes: ['readingValue', 'readingDate'],
       raw: true
     });
 
-    const lastReading = lastReadingResult ? parseFloat(lastReadingResult.currentReading || lastReadingResult.current_reading || 0) : null;
+    const lastReading = lastReadingResult ? parseFloat(lastReadingResult.readingValue || lastReadingResult.reading_value || 0) : null;
 
     res.json({ success: true, data: { ...station.toJSON(), todaySales, lastReading } });
 

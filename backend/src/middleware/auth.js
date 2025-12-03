@@ -48,9 +48,14 @@ const authenticate = async (req, res, next) => {
     }
 
     // Attach user info to request
+    // Normalize role string for consistent checks
+    if (user.role && typeof user.role === 'string') {
+      user.role = user.role.toLowerCase();
+    }
+
     req.userId = user.id;
     req.user = user;
-    req.userRole = user.role;
+    req.userRole = (user.role || '').toLowerCase();
 
     next();
   } catch (error) {

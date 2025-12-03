@@ -343,7 +343,19 @@ exports.recordRefill = async (req, res, next) => {
     }
     
     const tankLevelBefore = parseFloat(tank.currentLevel);
-    
+
+    // Validate capacity: if tank does not allow overflow, reject refill that exceeds capacity
+    if (typeof tank.capacity === 'number' && !tank.allowNegative) {
+      const projectedLevel = tankLevelBefore + parseFloat(litres);
+      if (projectedLevel > tank.capacity) {
+        await t.rollback();
+        return res.status(400).json({
+          success: false,
+          error: 'Refill would exceed tank capacity'
+        });
+      }
+    }
+
     const refill = await TankRefill.create({
       tankId: tank.id,
       stationId: tank.stationId,

@@ -76,19 +76,28 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [usersRes, stationsRes, plansRes] = await Promise.all([
-        apiClient.get<User[]>('/users'),
-        apiClient.get<Station[]>('/stations'),
-        apiClient.get<Plan[]>('/plans')
-      ]);
-      
+      const rawResponses = await Promise.all([
+        apiClient.get('/users'),
+        apiClient.get('/stations'),
+        apiClient.get('/plans')
+      ] as unknown[]);
+
+      const [usersResRaw, stationsResRaw, plansResRaw] = rawResponses as any[];
+
+      // Normalize responses: apiClient may return an envelope { success, data } or the raw payload
+      const normalize = (res: any) => (res && typeof res === 'object' && 'data' in res ? res.data : res);
+
+      const usersRes = normalize(usersResRaw) || [];
+      const stationsRes = normalize(stationsResRaw) || [];
+      const plansRes = normalize(plansResRaw) || [];
+
       console.log('👥 Users response:', usersRes);
       console.log('🏢 Stations response:', stationsRes);
       console.log('📋 Plans response:', plansRes);
-      
-      setUsers(usersRes || []);
-      setStations(stationsRes || []);
-      setPlans(plansRes || []);
+
+      setUsers(Array.isArray(usersRes) ? usersRes : []);
+      setStations(Array.isArray(stationsRes) ? stationsRes : []);
+      setPlans(Array.isArray(plansRes) ? plansRes : []);
     } catch (error: unknown) {
       const message = getErrorMessage(error);
       console.error('Error fetching data:', message);
