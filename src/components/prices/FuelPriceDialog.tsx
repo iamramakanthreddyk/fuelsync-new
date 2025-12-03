@@ -5,12 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 
-const FUEL_TYPE_LABELS: Record<string, string> = {
-  PETROL: "Petrol",
-  DIESEL: "Diesel",
-  CNG: "CNG",
-  EV: "EV Charging",
-};
+import { FUEL_TYPE_LABELS } from '@/lib/constants';
 
 interface FuelPriceDialogProps {
   open: boolean;

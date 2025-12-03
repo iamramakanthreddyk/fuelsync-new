@@ -5,25 +5,15 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/
 import { BarChart, Bar, XAxis, YAxis, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
 import { TrendingUp, Fuel, BarChart3 } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
+import { CHART_COLORS as COLORS } from '@/lib/constants';
 
-interface Sale {
-  created_at: string;
-  total_amount?: string | number;
-  delta_volume_l?: string | number;
-  nozzles?: {
-    pumps?: {
-      pump_sno?: string;
-    };
-    fuel_type?: string;
-  };
-}
 
 interface SalesChartsProps {
   salesData: Sale[];
   isLoading?: boolean;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
+import type { NozzleReading as Sale } from '@/types/api';
 
 export function SalesCharts({ salesData, isLoading }: SalesChartsProps) {
   if (isLoading) {
@@ -44,12 +34,16 @@ export function SalesCharts({ salesData, isLoading }: SalesChartsProps) {
 
   type DailyTrend = { date: string; amount: number; volume: number; transactions: number };
   const dailyTrend = salesData.reduce<Record<string, DailyTrend>>((acc, sale) => {
-    const date = new Date(sale.created_at).toISOString().split('T')[0];
+    const s = sale as any;
+    const created = s.createdAt ?? s.created_at;
+    const date = new Date(created).toISOString().split('T')[0];
     if (!acc[date]) {
       acc[date] = { date, amount: 0, volume: 0, transactions: 0 };
     }
-    acc[date].amount += parseFloat(sale.total_amount as string || '0');
-    acc[date].volume += parseFloat(sale.delta_volume_l as string || '0');
+    const amt = parseFloat((s.totalAmount ?? s.total_amount ?? s.total_amount_str ?? 0).toString() || '0');
+    const vol = parseFloat((s.litresSold ?? s.deltaVolumeL ?? s.delta_volume_l ?? s.litres ?? 0).toString() || '0');
+    acc[date].amount += amt;
+    acc[date].volume += vol;
     acc[date].transactions += 1;
     return acc;
   }, {});
@@ -60,12 +54,15 @@ export function SalesCharts({ salesData, isLoading }: SalesChartsProps) {
 
   type PumpBreakdown = { pump: string; amount: number; volume: number; transactions: number };
   const pumpBreakdown = salesData.reduce<Record<string, PumpBreakdown>>((acc, sale) => {
-    const pumpId = sale.nozzles?.pumps?.pump_sno || 'Unknown';
+    const s = sale as any;
+    const pumpId = s.nozzle?.pumpId ?? s.nozzles?.pumpId ?? s.pumpId ?? s.pump_id ?? s.nozzles?.pumps?.pump_sno ?? 'Unknown';
     if (!acc[pumpId]) {
       acc[pumpId] = { pump: pumpId, amount: 0, volume: 0, transactions: 0 };
     }
-    acc[pumpId].amount += parseFloat(sale.total_amount as string || '0');
-    acc[pumpId].volume += parseFloat(sale.delta_volume_l as string || '0');
+    const amt = parseFloat((s.totalAmount ?? s.total_amount ?? 0).toString() || '0');
+    const vol = parseFloat((s.litresSold ?? s.deltaVolumeL ?? s.delta_volume_l ?? 0).toString() || '0');
+    acc[pumpId].amount += amt;
+    acc[pumpId].volume += vol;
     acc[pumpId].transactions += 1;
     return acc;
   }, {});
@@ -76,12 +73,15 @@ export function SalesCharts({ salesData, isLoading }: SalesChartsProps) {
 
   type FuelTypeBreakdown = { name: string; value: number; amount: number };
   const fuelTypeBreakdown = salesData.reduce<Record<string, FuelTypeBreakdown>>((acc, sale) => {
-    const fuelType = sale.nozzles?.fuel_type || 'Unknown';
+    const s = sale as any;
+    const fuelType = s.nozzle?.fuelType ?? s.fuelType ?? s.fuel_type ?? s.nozzles?.fuel_type ?? 'Unknown';
     if (!acc[fuelType]) {
       acc[fuelType] = { name: fuelType, value: 0, amount: 0 };
     }
-    acc[fuelType].value += parseFloat(sale.delta_volume_l as string || '0');
-    acc[fuelType].amount += parseFloat(sale.total_amount as string || '0');
+    const vol = parseFloat((s.litresSold ?? s.deltaVolumeL ?? s.delta_volume_l ?? 0).toString() || '0');
+    const amt = parseFloat((s.totalAmount ?? s.total_amount ?? 0).toString() || '0');
+    acc[fuelType].value += vol;
+    acc[fuelType].amount += amt;
     return acc;
   }, {});
 
@@ -91,11 +91,15 @@ export function SalesCharts({ salesData, isLoading }: SalesChartsProps) {
 
   type HourlyBreakdown = { hour: string; amount: number; transactions: number };
   const hourlyBreakdown = salesData.reduce<Record<string, HourlyBreakdown>>((acc, sale) => {
-    const hour = new Date(sale.created_at).getHours();
+    const s = sale as any;
+    const created = s.createdAt ?? s.created_at;
+    const hourNum = new Date(created).getHours();
+    const hour = hourNum.toString();
     if (!acc[hour]) {
-      acc[hour] = { hour: `${hour}:00`, amount: 0, transactions: 0 };
+      acc[hour] = { hour: `${hourNum}:00`, amount: 0, transactions: 0 };
     }
-    acc[hour].amount += parseFloat(sale.total_amount as string || '0');
+    const amt = parseFloat((s.totalAmount ?? s.total_amount ?? 0).toString() || '0');
+    acc[hour].amount += amt;
     acc[hour].transactions += 1;
     return acc;
   }, {});
@@ -194,7 +198,7 @@ export function SalesCharts({ salesData, isLoading }: SalesChartsProps) {
                 fill="#8884d8"
                 dataKey="value"
               >
-                {fuelTypeData.map((entry, index) => (
+                {fuelTypeData.map((_, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>

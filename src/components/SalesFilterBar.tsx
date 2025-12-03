@@ -14,18 +14,7 @@ import {
   SelectContent
 } from "@/components/ui/select";
 import { SlidersHorizontal, Fuel, Droplet, Zap } from "lucide-react";
-
-interface Pump {
-  id: string | number;
-  name?: string;
-  pump_sno?: string | number;
-}
-
-interface Nozzle {
-  id: string | number;
-  nozzle_number?: string | number;
-  fuel_type?: string;
-}
+import type { Pump as PumpType, Nozzle as NozzleType } from '@/types/api';
 
 interface SalesFilterBarProps {
   dateRange: { start: Date | null; end: Date | null };
@@ -36,8 +25,8 @@ interface SalesFilterBarProps {
   onPumpIdChange: (id: string) => void;
   nozzleId: string;
   onNozzleIdChange: (id: string) => void;
-  pumps: Pump[];
-  nozzles: Nozzle[];
+  pumps: PumpType[];
+  nozzles: NozzleType[];
   isMobile?: boolean;
 }
 
@@ -156,11 +145,15 @@ export function SalesFilterBar({
           <SelectItem value="all">All Pumps</SelectItem>
           {pumps
             .filter(pump => pump && pump.id != null && pump.id !== "")
-            .map((pump) => (
-              <SelectItem key={pump.id} value={String(pump.id)}>
-                {pump.name || `Pump ${pump.pump_sno}`}
-              </SelectItem>
-            ))}
+            .map((pump) => {
+              const p = pump as any;
+              const pumpLabel = pump.name ?? p.pumpNumber ?? p.pump_sno ?? '';
+              return (
+                <SelectItem key={pump.id} value={String(pump.id)}>
+                  {pumpLabel || `Pump ${pump.id}`}
+                </SelectItem>
+              );
+            })}
         </SelectContent>
       </Select>
 
@@ -179,9 +172,14 @@ export function SalesFilterBar({
             <span className="truncate text-xs font-medium">
               {nozzleValue === "all"
                 ? "All Nozzles"
-                : nozzles.find(n => n.id?.toString() === nozzleValue)
-                  ? `#${nozzles.find(n => n.id?.toString() === nozzleValue)?.nozzle_number} (${nozzles.find(n => n.id?.toString() === nozzleValue)?.fuel_type})`
-                  : nozzleValue}
+                : (() => {
+                    const found = nozzles.find(n => n.id?.toString() === nozzleValue);
+                    if (!found) return nozzleValue;
+                    const f = found as any;
+                    const num = found.nozzleNumber ?? f.nozzle_number ?? '';
+                    const fuel = found.fuelType ?? f.fuel_type ?? '';
+                    return `#${num} (${fuel})`;
+                  })()}
             </span>
           </SelectValue>
         </SelectTrigger>
@@ -189,11 +187,16 @@ export function SalesFilterBar({
           <SelectItem value="all">All Nozzles</SelectItem>
           {nozzles
             .filter(nozzle => nozzle && nozzle.id != null && nozzle.id !== "")
-            .map((nozzle) => (
-              <SelectItem key={nozzle.id} value={String(nozzle.id)}>
-                #{nozzle.nozzle_number} ({nozzle.fuel_type})
-              </SelectItem>
-            ))}
+            .map((nozzle) => {
+              const n = nozzle as any;
+              const num = nozzle.nozzleNumber ?? n.nozzle_number ?? '';
+              const fuel = nozzle.fuelType ?? n.fuel_type ?? '';
+              return (
+                <SelectItem key={nozzle.id} value={String(nozzle.id)}>
+                  #{num} ({fuel})
+                </SelectItem>
+              );
+            })}
         </SelectContent>
       </Select>
     </div>

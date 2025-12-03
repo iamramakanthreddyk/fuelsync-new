@@ -70,8 +70,11 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
   if (user) {
     // Role-based redirect after login
-    if (user.role === 'super_admin') {
+    if (user.role === 'super_admin' || user.role === 'superadmin') {
       return <Navigate to="/superadmin/users" replace />;
+    }
+    if (user.role === 'owner') {
+      return <Navigate to="/owner/dashboard" replace />;
     }
     return <Navigate to="/dashboard" replace />;
   }
@@ -81,16 +84,18 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function RoleBasedRedirect() {
   const { user } = useAuth();
-  
-  if (user?.role === 'super_admin') {
+  // If no user, send to login (landing)
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (user.role === 'super_admin' || user.role === 'superadmin') {
     return <Navigate to="/superadmin/users" replace />;
   }
-  
+
   // Redirect owners to new owner dashboard
-  if (user?.role === 'owner') {
+  if (user.role === 'owner') {
     return <Navigate to="/owner/dashboard" replace />;
   }
-  
+
   return <Navigate to="/dashboard" replace />;
 }
 

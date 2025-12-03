@@ -20,13 +20,7 @@ interface Props {
   stations?: Station[];
 }
 
-const ROLE_ICONS = {
-  super_admin: Crown,
-  superadmin: Crown,
-  owner: Building2,
-  manager: Briefcase,
-  employee: UserIcon
-};
+import { ROLE_ICONS } from '@/lib/constants';
 
 import { getRoleBadgeClasses, getStatusBadgeClasses } from '@/lib/badgeColors';
 

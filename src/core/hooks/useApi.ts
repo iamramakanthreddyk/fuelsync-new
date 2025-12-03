@@ -11,6 +11,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { ApiResponse, ApiError, ApiRequestConfig } from '../models/api.model';
 import { API_BASE_URL, API_TIMEOUT, HTTP_STATUS } from '../constants/api.constants';
 import { STORAGE_KEYS } from '../constants/app.constants';
+import { getToken, removeToken } from '@/lib/api-client';
 
 // ============================================
 // TYPES
@@ -40,7 +41,7 @@ interface UseApiReturn<T, TParams = void> extends UseApiState<T> {
 // ============================================
 
 const getAuthToken = (): string | null => {
-  return localStorage.getItem(STORAGE_KEYS.AUTH_TOKEN);
+  return getToken();
 };
 
 const buildUrl = (endpoint: string, params?: Record<string, string | number | boolean | undefined>): string => {
@@ -127,11 +128,10 @@ export async function apiClient<T>(
         details: errorData.details,
       };
 
-      // Handle unauthorized - clear token
+      // Handle unauthorized - clear token and notify app
       if (response.status === HTTP_STATUS.UNAUTHORIZED) {
-        localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
-        localStorage.removeItem(STORAGE_KEYS.USER);
-        window.dispatchEvent(new CustomEvent('auth:logout'));
+        removeToken();
+        window.dispatchEvent(new CustomEvent('auth-expired'));
       }
 
       throw apiError;

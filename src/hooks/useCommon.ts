@@ -3,6 +3,7 @@
  */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { debounce } from '@/lib/utils';
+import { getStorageItem, setStorageItem } from '@/lib/storage-utils';
 
 /**
  * Hook for debounced value
@@ -32,10 +33,10 @@ export function useLocalStorage<T>(
 ): [T, (value: T | ((val: T) => T)) => void] {
   const [storedValue, setStoredValue] = useState<T>(() => {
     try {
-      const item = window.localStorage.getItem(key);
-      return item ? JSON.parse(item) : initialValue;
+      const item = getStorageItem<T>(key);
+      return item ?? initialValue;
     } catch (error) {
-      console.error('Error reading from localStorage:', error);
+      console.error('Error reading from storage:', error);
       return initialValue;
     }
   });
@@ -44,7 +45,7 @@ export function useLocalStorage<T>(
     try {
       const valueToStore = value instanceof Function ? value(storedValue) : value;
       setStoredValue(valueToStore);
-      window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      setStorageItem<T>(key, valueToStore);
     } catch (error) {
       console.error('Error writing to localStorage:', error);
     }

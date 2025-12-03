@@ -3,8 +3,8 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
-
-type UserRole = 'super_admin' | 'superadmin' | 'owner' | 'manager' | 'employee';
+import type { UserRole } from '@/types/api';
+import { ROLE_ICONS } from '@/lib/constants';
 
 interface RequireRoleProps {
   role: UserRole | UserRole[];

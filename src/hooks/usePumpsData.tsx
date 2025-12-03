@@ -9,6 +9,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import { useRoleAccess } from "./useRoleAccess";
+import type { Pump as PumpType, Nozzle as NozzleType } from '@/types/api';
 
 // Backend pump format
 interface BackendPump {
@@ -35,45 +36,30 @@ interface BackendNozzle {
   lastReadingDate?: string;
 }
 
-// Frontend-friendly format (for backward compatibility)
-export interface Pump {
-  id: number | string;
-  pump_sno: string;
-  name: string;
-  is_active: boolean;
-  station_id: string;
-  created_at: string;
-  updated_at: string;
-  nozzles: Array<{
-    id: string;
-    nozzle_number: number;
-    fuel_type: 'PETROL' | 'DIESEL' | 'CNG' | 'EV';
-    is_active: boolean;
-    pumpId: string;
-    initialReading?: number;
-    lastReading?: number;
-  }>;
-}
-
 // Transform backend format to frontend format
-function transformPump(pump: BackendPump): Pump {
+function transformPump(pump: BackendPump): PumpType {
   return {
     id: pump.id,
-    pump_sno: `P${pump.pumpNumber}`,
+    stationId: pump.stationId,
+    pumpNumber: pump.pumpNumber,
     name: pump.name,
-    is_active: pump.status === 'active',
-    station_id: pump.stationId,
-    created_at: pump.createdAt,
-    updated_at: pump.updatedAt,
+    status: pump.status,
+    notes: pump.notes,
+    createdAt: pump.createdAt,
+    updatedAt: pump.updatedAt,
     nozzles: (pump.nozzles || []).map(nozzle => ({
       id: nozzle.id,
-      nozzle_number: nozzle.nozzleNumber,
-      fuel_type: nozzle.fuelType.toUpperCase() as 'PETROL' | 'DIESEL' | 'CNG' | 'EV',
-      is_active: nozzle.status === 'active',
       pumpId: nozzle.pumpId,
+      stationId: nozzle.stationId,
+      nozzleNumber: nozzle.nozzleNumber,
+      fuelType: (nozzle.fuelType as 'petrol' | 'diesel'),
+      status: nozzle.status,
       initialReading: nozzle.initialReading,
-      lastReading: nozzle.lastReading
-    }))
+      lastReading: nozzle.lastReading,
+      lastReadingDate: nozzle.lastReadingDate,
+      createdAt: '',
+      updatedAt: ''
+    } as NozzleType))
   };
 }
 

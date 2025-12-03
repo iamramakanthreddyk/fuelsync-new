@@ -1,29 +1,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
-
-
-interface Nozzle {
-  id: string;
-  name: string;
-  status: string;
-  fuelType?: string;
-  createdAt?: string;
-  updatedAt?: string;
-  [key: string]: unknown;
-}
-
-interface Pump {
-  id: string;
-  stationId: string;
-  name: string;
-  pumpNumber: number;
-  status: string;
-  notes?: string | null;
-  createdAt: string;
-  updatedAt: string;
-  nozzles?: Nozzle[];
-}
+import type { Pump, Nozzle } from "@/types/api";
 
 export function useStationPumps(stationId?: string) {
   return useQuery({

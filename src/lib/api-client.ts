@@ -6,9 +6,11 @@
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
-// Token storage keys
-const TOKEN_KEY = 'fuelsync_token';
-const USER_KEY = 'fuelsync_user';
+import { getStorageItem, setStorageItem, removeStorageItem } from './storage-utils';
+
+// Token storage keys (without prefix — `storage-utils` will add prefix)
+const TOKEN_KEY = 'token';
+const USER_KEY = 'user';
 
 /**
  * API Error class for structured error handling
@@ -29,42 +31,36 @@ export class ApiError extends Error {
  * Get stored auth token
  */
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return getStorageItem<string>(TOKEN_KEY);
 }
 
 /**
  * Set auth token
  */
 export function setToken(token: string): void {
-  localStorage.setItem(TOKEN_KEY, token);
+  setStorageItem<string>(TOKEN_KEY, token);
 }
 
 /**
  * Remove auth token
  */
 export function removeToken(): void {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(USER_KEY);
+  removeStorageItem(TOKEN_KEY);
+  removeStorageItem(USER_KEY);
 }
 
 /**
  * Get stored user
  */
 export function getStoredUser<T>(): T | null {
-  const userJson = localStorage.getItem(USER_KEY);
-  if (!userJson) return null;
-  try {
-    return JSON.parse(userJson) as T;
-  } catch {
-    return null;
-  }
+  return getStorageItem<T>(USER_KEY);
 }
 
 /**
  * Set stored user
  */
 export function setStoredUser<T>(user: T): void {
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  setStorageItem<T>(USER_KEY, user);
 }
 
 /**
@@ -134,11 +130,39 @@ async function handleResponse<T>(response: Response): Promise<T> {
 
   if (isJson) {
     const jsonData = await response.json();
-    // If response has the {success, data} structure, unwrap it
-    if (jsonData && typeof jsonData === 'object' && 'data' in jsonData) {
-      return jsonData.data as T;
+
+    // Helper: convert snake_case keys to camelCase recursively
+    const toCamel = (s: string) => s.replace(/_([a-z0-9])/g, (_m, p1) => p1.toUpperCase());
+
+    function convertKeysToCamel(obj: any): any {
+      if (obj === null || obj === undefined) return obj;
+      if (Array.isArray(obj)) return obj.map(convertKeysToCamel);
+      if (typeof obj === 'object') {
+        const out: Record<string, any> = {};
+        for (const key of Object.keys(obj)) {
+          const value = obj[key];
+          const newKey = toCamel(key);
+          out[newKey] = convertKeysToCamel(value);
+        }
+        return out;
+      }
+      return obj;
     }
-    return jsonData as T;
+
+    // If response has the {success, data} structure, unwrap and convert
+    if (jsonData && typeof jsonData === 'object' && 'data' in jsonData) {
+      try {
+        return convertKeysToCamel(jsonData.data) as T;
+      } catch (e) {
+        return jsonData.data as T;
+      }
+    }
+
+    try {
+      return convertKeysToCamel(jsonData) as T;
+    } catch (e) {
+      return jsonData as T;
+    }
   }
 
   return {} as T;

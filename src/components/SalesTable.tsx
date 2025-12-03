@@ -4,30 +4,12 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { getSourceBadgeClasses } from '@/lib/constants';
 import { safeToFixed } from '@/lib/format-utils';
 
-function sourceColor(source: string) {
-  if (source === "OCR") return "bg-blue-100 text-blue-700";
-  if (source === "Manual") return "bg-orange-100 text-orange-700";
-  if (source === "Tender") return "bg-green-100 text-green-700";
-  if (source === "Refill") return "bg-purple-100 text-purple-700";
-  return "bg-gray-100 text-gray-800";
-}
 
 
-export interface Sale {
-  id: string | number;
-  station_name?: string;
-  station_id?: string | number;
-  pump_name?: string;
-  pump_id?: string | number;
-  nozzle_number?: string | number;
-  nozzle_id?: string | number;
-  total_amount?: number;
-  fuel_type?: string;
-  source?: string;
-  created_at?: string;
-}
+import type { NozzleReading as Sale } from '@/types/api';
 
 export interface SaleTableProps {
   sales: Sale[];
@@ -75,31 +57,42 @@ export function SalesTable({
                   <TableCell><Skeleton className="h-4 w-28" /></TableCell>
                 </TableRow>
               ))
-            : sales.length > 0 ? sales.map((sale) => (
-                <TableRow key={sale.id}>
-                  <TableCell>{sale.station_name || sale.station_id}</TableCell>
-                  <TableCell>{sale.pump_name || sale.pump_id}</TableCell>
-                  <TableCell>
-                    #{sale.nozzle_number || sale.nozzle_id}
-                  </TableCell>
-                  <TableCell className="font-semibold text-right">₹{sale.total_amount != null ? safeToFixed(sale.total_amount, 2) : "NA"}</TableCell>
-                  <TableCell>
-                    <Badge className={getFuelBadgeClasses(sale.fuel_type)}>
-                      {sale.fuel_type}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <Badge className={sourceColor(sale.source || "Manual")}>
-                      {sale.source || "Manual"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    <span className="text-xs" title={sale.created_at}>
-                      {sale.created_at ? new Date(sale.created_at).toLocaleString() : ""}
-                    </span>
-                  </TableCell>
-                </TableRow>
-              ))
+            : sales.length > 0 ? sales.map((sale) => {
+                const s = sale as any;
+                const stationLabel = s.station_name ?? s.stationName ?? s.stationId ?? s.station_id ?? "";
+                const pumpLabel = s.pump_name ?? s.pumpName ?? s.pumpId ?? s.pump_id ?? "";
+                const nozzleLabel = s.nozzle_number ?? s.nozzleNumber ?? s.nozzleId ?? s.nozzle_id ?? "";
+                const totalAmt = (s.totalAmount ?? s.total_amount) as number | undefined;
+                const fuelType = s.fuelType ?? s.fuel_type;
+                const sourceLabel = s.source ?? s.source_type ?? "Manual";
+                const createdAt = s.createdAt ?? s.created_at;
+
+                return (
+                  <TableRow key={sale.id}>
+                    <TableCell>{stationLabel}</TableCell>
+                    <TableCell>{pumpLabel}</TableCell>
+                    <TableCell>
+                      #{nozzleLabel}
+                    </TableCell>
+                    <TableCell className="font-semibold text-right">₹{totalAmt != null ? safeToFixed(totalAmt, 2) : "NA"}</TableCell>
+                    <TableCell>
+                      <Badge className={getFuelBadgeClasses(fuelType)}>
+                        {fuelType}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge className={getSourceBadgeClasses(sourceLabel)}>
+                        {sourceLabel}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <span className="text-xs" title={createdAt}>
+                        {createdAt ? new Date(createdAt).toLocaleString() : ""}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })
             : (
               <TableRow>
                 <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
