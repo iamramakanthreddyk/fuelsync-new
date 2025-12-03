@@ -6,27 +6,13 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
+import { useStations, queryKeys } from "@/hooks/api";
 import { Plus, Building2, MapPin, Fuel, Users, Phone, Mail, Edit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getStationBadgeClasses } from '@/lib/badgeColors';
-
-interface Station {
-  id: string;
-  name: string;
-  code: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-  phone: string;
-  email: string;
-  gstNumber: string;
-  isActive: boolean;
-  createdAt: string;
-  pumps?: { id: string; name: string; status: string }[];
-}
+import { Station } from '@/types/api';
 
 export default function MyStations() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -50,17 +36,12 @@ export default function MyStations() {
 
   // Fetch owner's stations only after authentication
   const {
-    data: stations,
+    data: stationsResponse,
     isLoading,
     error
-  } = useQuery({
-    queryKey: ['my-stations'],
-    queryFn: async () => {
-      const response = await apiClient.get<Station[]>('/stations');
-      return response;
-    },
-    enabled: isAuthenticated && !loading,
-  });
+  } = useStations();
+
+  const stations = stationsResponse?.data;
 
   // Create station mutation
   const createMutation = useMutation({
@@ -69,7 +50,7 @@ export default function MyStations() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-stations'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
       setIsAddDialogOpen(false);
       setFormData({
         name: '', code: '', address: '', city: '', state: '',
@@ -97,7 +78,7 @@ export default function MyStations() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['my-stations'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
       setIsEditDialogOpen(false);
       setEditingStation(null);
       setFormData({

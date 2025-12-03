@@ -11,7 +11,21 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+// Using local Station interface defined below
 import { Users, Plus, Search, Edit, Trash2, UserCheck, UserX, Crown, Building2, Briefcase, User as UserIcon } from "lucide-react";
+
+interface Plan {
+  id: string;
+  name: string;
+  priceMonthly: number;
+  maxStations: number;
+  maxEmployees: number;
+}
+
+interface Station {
+  id: string;
+  name: string;
+}
 
 interface User {
   id: string;
@@ -38,19 +52,6 @@ interface User {
   }>;
 }
 
-interface Station {
-  id: string;
-  name: string;
-}
-
-interface Plan {
-  id: string;
-  name: string;
-  priceMonthly: number;
-  maxStations: number;
-  maxEmployees: number;
-}
-
 interface Props {
   stations?: Station[];
 }
@@ -62,7 +63,7 @@ const ROLE_ICONS = {
   employee: UserIcon
 };
 
-import { getRoleBadgeClasses, getStatusBadgeClasses, getPlanBadgeClasses, getStationBadgeClasses } from '@/lib/badgeColors';
+import { getRoleBadgeClasses, getStatusBadgeClasses } from '@/lib/badgeColors';
 
 const UsersPage = ({ stations: propStations = [] }: Props) => {
   const [users, setUsers] = useState<User[]>([]);
@@ -326,7 +327,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
           <div className="flex-1">
             <div className="flex items-center gap-2 mb-1">
               <span className="font-medium">{user.name}</span>
-              <Badge variant="outline" className={getStatusBadgeClasses(user.isActive)}>
+              <Badge variant="outline" className={getStatusBadgeClasses(user.isActive ? 'active' : 'inactive')}>
                 {user.isActive ? 'Active' : 'Inactive'}
               </Badge>
             </div>
@@ -683,7 +684,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                           )}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={getStatusBadgeClasses(user.isActive)}>
+                          <Badge variant="outline" className={getStatusBadgeClasses(user.isActive ? 'active' : 'inactive')}>
                             {user.isActive ? 'Active' : 'Inactive'}
                           </Badge>
                         </TableCell>

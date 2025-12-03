@@ -28,6 +28,7 @@ import Prices from '@/pages/Prices';
 import Reports from '@/pages/Reports';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
+import type { Station } from '@/types/api';
 
 // Owner pages
 import OwnerDashboard from '@/pages/owner/OwnerDashboard';
@@ -94,10 +95,10 @@ function RoleBasedRedirect() {
 }
 
 function useStationsForSuperAdmin() {
-  return useQuery({
+  return useQuery<Station[]>({
     queryKey: ["all-stations"],
-    queryFn: async () => {
-      const response = await apiClient.get<Array<{ id: string; name: string; brand: string }>>('/stations');
+    queryFn: async (): Promise<Station[]> => {
+      const response = await apiClient.get<Station[]>('/stations');
       console.log('🏢 All stations response:', response);
       return response || [];
     }

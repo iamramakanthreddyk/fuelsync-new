@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
+import { useStations, usePumps } from '@/hooks/api';
 import { safeToFixed } from '@/lib/format-utils';
 import { FuelBadge } from '@/components/FuelBadge';
 import {
@@ -30,30 +31,6 @@ import {
   Calendar,
   TrendingUp
 } from 'lucide-react';
-
-interface Station {
-  id: string;
-  name: string;
-  code: string;
-}
-
-interface Pump {
-  id: string;
-  pumpNumber: number;
-  name: string;
-  status: string;
-  nozzles: Nozzle[];
-}
-
-interface Nozzle {
-  id: string;
-  nozzleNumber: number;
-  fuelType: string;
-  status: string;
-  initialReading: number;
-  lastReading?: number;
-}
-
 
 interface ReadingEntry {
   nozzleId: string;
@@ -72,41 +49,38 @@ export default function QuickDataEntry() {
   const queryClient = useQueryClient();
 
   // Fetch stations
-  const { data: stations } = useQuery({
-    queryKey: ['owner-stations'],
-    queryFn: async () => {
-      const response = await apiClient.get<Station[]>('/stations');
-      return response;
-    }
-  });
+  const {
+    data: stationsResponse
+  } = useStations();
+
+  const stations = stationsResponse?.data;
 
   // Fetch pumps for selected station
-  const { data: pumps, isLoading: pumpsLoading } = useQuery({
-    queryKey: ['station-pumps', selectedStation],
-    queryFn: async () => {
-      if (!selectedStation) return [];
-      const response = await apiClient.get<Pump[]>(`/stations/${selectedStation}/pumps`);
-      return response;
-    },
-    enabled: !!selectedStation
-  });
+  const {
+    data: pumpsResponse,
+    isLoading: pumpsLoading
+  } = usePumps(selectedStation);
+
+  const pumps = pumpsResponse?.data;
 
   // Log last reading for all nozzles when pumps data changes
   useEffect(() => {
     if (pumps && pumps.length > 0) {
       pumps.forEach(pump => {
-        pump.nozzles.forEach(nozzle => {
-          const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-          const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-          
-          const last =
-            lastReading !== null && !isNaN(lastReading)
-              ? lastReading
-              : (initialReading !== null && !isNaN(initialReading)
-                ? initialReading
-                : Number(nozzle.lastReading) || Number(nozzle.initialReading) || 0);
-          console.log(`Pump ${pump.name || pump.pumpNumber}, Nozzle ${nozzle.nozzleNumber}: Last Reading =`, last);
-        });
+        if (pump.nozzles) {
+          pump.nozzles.forEach(nozzle => {
+            const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
+            const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+            
+            const last =
+              lastReading !== null && !isNaN(lastReading)
+                ? lastReading
+                : (initialReading !== null && !isNaN(initialReading)
+                  ? initialReading
+                  : Number(nozzle.lastReading) || Number(nozzle.initialReading) || 0);
+            console.log(`Pump ${pump.name || pump.pumpNumber}, Nozzle ${nozzle.nozzleNumber}: Last Reading =`, last);
+          });
+        }
       });
     }
   }, [pumps]);
@@ -177,7 +151,7 @@ export default function QuickDataEntry() {
   };
 
   const pendingCount = Object.keys(readings).length;
-  const totalNozzles = pumps?.reduce((sum, pump) => sum + pump.nozzles.length, 0) || 0;
+  const totalNozzles = pumps?.reduce((sum, pump) => sum + (pump.nozzles?.length || 0), 0) || 0;
 
   return (
     <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-5xl">
@@ -263,7 +237,7 @@ export default function QuickDataEntry() {
                           {pump.name || `Pump ${pump.pumpNumber}`}
                         </CardTitle>
                         <CardDescription className="text-xs">
-                          {pump.nozzles.length} nozzles
+                          {pump.nozzles?.length || 0} nozzles
                         </CardDescription>
                       </div>
                     </div>
@@ -274,7 +248,7 @@ export default function QuickDataEntry() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {pump.nozzles.map((nozzle) => (
+                    {pump.nozzles?.map((nozzle) => (
                       <div
                         key={nozzle.id}
                         className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg bg-muted/30"

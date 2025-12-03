@@ -19,8 +19,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { FuelBadge } from '@/components/FuelBadge';
 import { apiClient } from '@/lib/api-client';
+import { useStations } from '@/hooks/api';
 import { getFuelColors } from '@/lib/fuelColors';
 import { safeToFixed } from '@/lib/format-utils';
+import { Station } from '@/types/api';
 import {
   TrendingUp,
   TrendingDown,
@@ -49,12 +51,6 @@ import {
   Legend,
   ResponsiveContainer
 } from 'recharts';
-
-interface Station {
-  id: string;
-  name: string;
-  code: string;
-}
 
 interface AnalyticsData {
   overview: {
@@ -137,13 +133,11 @@ export default function Analytics() {
   };
 
   // Fetch stations
-  const { data: stations } = useQuery({
-    queryKey: ['owner-stations'],
-    queryFn: async () => {
-      const response = await apiClient.get<Station[]>('/stations');
-      return response;
-    }
-  });
+  const {
+    data: stationsResponse
+  } = useStations();
+
+  const stations = stationsResponse?.data;
 
   // Fetch analytics data
   const { data: analytics, isLoading } = useQuery({

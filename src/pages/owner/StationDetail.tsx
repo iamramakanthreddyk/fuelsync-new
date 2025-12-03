@@ -34,6 +34,7 @@ import { mapReadingFormToPayload } from '@/lib/apiPayloadHelpers';
 import { debounce } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { Station } from '@/types/api';
 import {
   ArrowLeft,
   Plus,
@@ -44,48 +45,6 @@ import {
   Users,
   CreditCard
 } from 'lucide-react';
-
-interface Pump {
-  id: string;
-  stationId: string;
-  pumpNumber: number;
-  name: string;
-  status: 'active' | 'inactive' | 'maintenance';
-  notes?: string;
-  nozzles?: Nozzle[];
-}
-
-interface Nozzle {
-  id: string;
-  pumpId: string;
-  nozzleNumber: number;
-  fuelType: string;
-  status: 'active' | 'inactive' | 'maintenance';
-  initialReading: number;
-  lastReading?: number;
-}
-
-interface FuelPrice {
-  id: string;
-  stationId: string;
-  fuelType: string;
-  price: number;
-  effectiveFrom: string;
-  updatedBy: string;
-  createdAt: string;
-}
-interface Station {
-  id: string;
-  name: string;
-  code: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-  phone: string;
-  email: string;
-  isActive: boolean;
-}
 
 interface Creditor {
   id: string;

@@ -18,35 +18,8 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { apiClient } from "@/lib/api";
 import { handleApiCall } from "@/lib/handleApiCall";
 import { getUserMessage, getValidationErrors } from "@/lib/error-utils";
+import { Station } from '@/types/api';
 import { Building2, Plus, Search, Edit, Trash2 } from "lucide-react";
-
-// Station interface matching backend model
-interface Station {
-  id: string;
-  name: string;
-  code: string | null;
-  address: string | null;
-  city: string | null;
-  state: string | null;
-  pincode: string | null;
-  phone: string | null;
-  email: string | null;
-  gstNumber: string | null;
-  ownerId: string;
-  isActive: boolean;
-  createdAt: string;
-  pumpCount?: number;
-  activePumps?: number;
-  owner?: {
-    id: string;
-    name: string;
-    email: string;
-    plan?: {
-      name: string;
-      priceMonthly: number;
-    };
-  };
-}
 
 interface Owner {
   id: string;

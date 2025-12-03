@@ -65,6 +65,7 @@ export interface Station {
   state?: string;
   pincode?: string;
   phone?: string;
+  email?: string;
   gstNumber?: string;
   oilCompany?: string;
   isActive: boolean;
@@ -79,6 +80,9 @@ export interface Station {
   staff?: User[];
   pumpCount?: number;
   activePumps?: number;
+  // Frontend helper fields
+  lastReading?: string | null;
+  todaySales?: number;
 }
 
 export interface StationSettings {

@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
+import { useStations } from '@/hooks/api';
 import { safeToFixed } from '@/lib/format-utils';
 import { 
   Building2, 
@@ -72,14 +73,12 @@ export default function OwnerDashboard() {
   });
 
   // Fetch station summaries
-  const { data: stations, isLoading: stationsLoading } = useQuery({
-    queryKey: ['owner-stations-summary'],
-    queryFn: async () => {
-      const response = await apiClient.get<StationSummary[]>('/stations');
-      return response;
-    },
-    enabled: !!user
-  });
+  const {
+    data: stationsResponse,
+    isLoading: stationsLoading
+  } = useStations();
+
+  const stations = stationsResponse?.data;
 
   if (!user || user.role !== 'owner') {
     return null;
@@ -286,8 +285,8 @@ export default function OwnerDashboard() {
           ) : stations && stations.length > 0 ? (
             <div className="space-y-3">
               {stations.map((station, idx) => {
-                const pumpUtilization = station.pumpCount > 0 
-                  ? (station.activePumps / station.pumpCount) * 100 
+                const pumpUtilization = (station.pumpCount || 0) > 0 
+                  ? ((station.activePumps || 0) / (station.pumpCount || 0)) * 100 
                   : 0;
                 
                 return (
@@ -320,7 +319,7 @@ export default function OwnerDashboard() {
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Activity className="w-3 h-3" />
                             <span>
-                              {station.activePumps}/{station.pumpCount} pumps
+                              {(station.activePumps || 0)}/{(station.pumpCount || 0)} pumps
                             </span>
                           </div>
                           {station.lastReading && (

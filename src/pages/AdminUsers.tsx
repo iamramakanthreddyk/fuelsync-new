@@ -12,23 +12,17 @@ import { apiClient } from "@/lib/api-client";
 import { Plus, Users, Settings, Shield } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getRoleBadgeClasses, getStatusBadgeClasses } from '@/lib/badgeColors';
+import { Station, UserRole } from '@/types/api';
 
 interface UserWithStations {
   id: string;
   name: string;
   email: string;
   phone: string;
-  role: 'super_admin' | 'owner' | 'manager' | 'employee';
+  role: UserRole;
   isActive: boolean;
   createdAt: string;
   station?: { id: string; name: string; code?: string };
-}
-
-interface Station {
-  id: number;
-  name: string;
-  brand: string;
-  address: string;
 }
 
 
@@ -38,7 +32,7 @@ export default function AdminUsers() {
     name: '',
     email: '',
     phone: '',
-    role: 'employee' as 'super_admin' | 'owner' | 'manager' | 'employee',
+    role: 'employee' as UserRole,
     stationId: ''
   });
 
@@ -57,9 +51,9 @@ export default function AdminUsers() {
   });
 
   // Fetch stations for dropdown (deferred until authenticated)
-  const { data: stations } = useQuery({
+  const { data: stationsResponse } = useQuery<Station[]>({
     queryKey: ['stations'],
-    queryFn: async () => {
+    queryFn: async (): Promise<Station[]> => {
       const data = await apiClient.get<Station[]>('/stations');
       return data || [];
     },
@@ -237,7 +231,7 @@ export default function AdminUsers() {
               </div>
               <div>
                 <Label htmlFor="role">Role</Label>
-                <Select value={newUser.role} onValueChange={(value: string) => setNewUser(prev => ({ ...prev, role: value as UserWithStations['role'], stationId: '' }))}>
+                <Select value={newUser.role} onValueChange={(value: string) => setNewUser(prev => ({ ...prev, role: value as UserRole, stationId: '' }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -257,9 +251,9 @@ export default function AdminUsers() {
                       <SelectValue placeholder="Select a station" />
                     </SelectTrigger>
                     <SelectContent>
-                      {stations?.map((station) => (
-                        <SelectItem key={station.id} value={station.id.toString()}>
-                          {station.name} ({station.brand})
+                      {stationsResponse?.map((station) => (
+                        <SelectItem key={station.id} value={station.id}>
+                          {station.name} ({station.oilCompany || station.code || 'No Code'})
                         </SelectItem>
                       ))}
                     </SelectContent>

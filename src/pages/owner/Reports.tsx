@@ -5,6 +5,7 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { apiClient } from '@/lib/api-client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,9 +19,10 @@ import {
 } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { apiClient } from '@/lib/api-client';
+import { useStations } from '@/hooks/api';
 import { safeToFixed } from '@/lib/format-utils';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { Station } from '@/types/api';
 import {
   FileText,
   TrendingUp,
@@ -43,12 +45,6 @@ import {
 import { format } from 'date-fns';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { useToast } from '@/hooks/use-toast';
-
-interface Station {
-  id: string;
-  name: string;
-  code: string;
-}
 
 interface SalesReport {
   stationId: string;
@@ -109,13 +105,8 @@ export default function Reports() {
   const [selectedStation, setSelectedStation] = useState<string>('all');
 
   // Fetch stations
-  const { data: stations } = useQuery({
-    queryKey: ['owner-stations'],
-    queryFn: async () => {
-      const response = await apiClient.get<Station[]>('/stations');
-      return response;
-    }
-  });
+  const { data: stationsResponse } = useStations();
+  const stations = stationsResponse?.data;
 
   // Fetch sales reports
   const { data: salesReports, isLoading: salesLoading } = useQuery({

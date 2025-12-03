@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -31,39 +31,20 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
+import { useStations, queryKeys } from '@/hooks/api';
+import { Station } from '@/types/api';
 import { 
   Plus, 
   Building2, 
   Edit, 
   Trash2,
+  ArrowRight,
   MapPin,
   Phone,
-  Mail,
-  ArrowRight,
-  Settings,
   Fuel,
   TrendingUp,
   Clock
 } from 'lucide-react';
-
-interface Station {
-  id: string;
-  name: string;
-  code: string;
-  address: string;
-  city: string;
-  state: string;
-  pincode: string;
-  phone: string;
-  email: string;
-  gstNumber: string;
-  isActive: boolean;
-  pumpCount: number;
-  activePumps: number;
-  todaySales?: number;
-  lastReading?: string;
-  createdAt: string;
-}
 
 interface StationFormData {
   name: string;
@@ -101,13 +82,12 @@ export default function StationsManagement() {
   const queryClient = useQueryClient();
 
   // Fetch stations
-  const { data: stations, isLoading } = useQuery({
-    queryKey: ['owner-stations'],
-    queryFn: async () => {
-      const response = await apiClient.get<Station[]>('/stations');
-      return response;
-    }
-  });
+  const {
+    data: stationsResponse,
+    isLoading
+  } = useStations();
+
+  const stations = stationsResponse?.data;
 
   // Create station mutation
   const createMutation = useMutation({
@@ -116,8 +96,7 @@ export default function StationsManagement() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['owner-stations'] });
-      queryClient.invalidateQueries({ queryKey: ['owner-stations-summary'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
       toast({
         title: 'Success',
         description: 'Station created successfully'
@@ -154,8 +133,7 @@ export default function StationsManagement() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['owner-stations'] });
-      queryClient.invalidateQueries({ queryKey: ['owner-stations-summary'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
       toast({
         title: 'Success',
         description: 'Station updated successfully'
@@ -193,8 +171,7 @@ export default function StationsManagement() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['owner-stations'] });
-      queryClient.invalidateQueries({ queryKey: ['owner-stations-summary'] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
       toast({
         title: 'Success',
         description: 'Station deleted successfully'
@@ -236,8 +213,8 @@ export default function StationsManagement() {
   const handleEdit = (station: Station) => {
     setEditingStation(station);
     setFormData({
-      name: station.name,
-      code: station.code,
+      name: station.name || '',
+      code: station.code || '',
       address: station.address || '',
       city: station.city || '',
       state: station.state || '',

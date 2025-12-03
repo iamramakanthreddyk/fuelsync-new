@@ -13,6 +13,8 @@ import { useFuelPricesData } from "@/hooks/useFuelPricesData";
 import { Button } from "@/components/ui/button";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 
+import { useSetupChecklist } from "@/hooks/useSetupChecklist";
+
 import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ReadingSummary } from "@/components/dashboard/ReadingSummary";

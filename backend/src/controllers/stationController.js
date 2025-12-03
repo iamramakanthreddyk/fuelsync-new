@@ -105,13 +105,33 @@ exports.getStations = async (req, res, next) => {
       todaySalesMap.set(item.stationId, parseFloat(item.todaySales || 0));
     });
 
+    // Aggregate latest cached nozzle reading per station (use denormalized Nozzle.lastReading)
+    let lastReadingMap = new Map();
+    if (stationIds.length > 0) {
+      const nozzleLastReadings = await Nozzle.findAll({
+        where: { stationId: { [Op.in]: stationIds } },
+        attributes: [
+          'stationId',
+          [fn('MAX', col('last_reading_date')), 'lastReadingDate'],
+          [fn('MAX', col('last_reading')), 'lastReading']
+        ],
+        group: ['stationId'],
+        raw: true
+      });
+
+      nozzleLastReadings.forEach(item => {
+        lastReadingMap.set(item.stationId, item.lastReading != null ? parseFloat(item.lastReading) : null);
+      });
+    }
+
     res.json({
       success: true,
       data: stations.map(s => ({
         ...s.toJSON(),
         pumpCount: s.pumps?.length || 0,
         activePumps: s.pumps?.filter(p => p.status === 'active').length || 0,
-        todaySales: todaySalesMap.get(s.id) || 0
+        todaySales: todaySalesMap.get(s.id) || 0,
+        lastReading: lastReadingMap.get(s.id) || null
       }))
     });
 
@@ -259,7 +279,31 @@ exports.getStation = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    res.json({ success: true, data: station });
+    // Compute today's sales for this station
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todaySalesResult = await NozzleReading.findOne({
+      attributes: [[fn('SUM', col('total_amount')), 'todaySales']],
+      where: {
+        stationId: id,
+        readingDate: { [Op.gte]: today }
+      },
+      raw: true
+    });
+
+    const todaySales = parseFloat(todaySalesResult?.todaySales || 0);
+
+    // Compute last reading (most recent reading) for this station
+    const lastReadingResult = await NozzleReading.findOne({
+      where: { stationId: id },
+      order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
+      attributes: ['currentReading', 'readingDate'],
+      raw: true
+    });
+
+    const lastReading = lastReadingResult ? parseFloat(lastReadingResult.currentReading || lastReadingResult.current_reading || 0) : null;
+
+    res.json({ success: true, data: { ...station.toJSON(), todaySales, lastReading } });
 
   } catch (error) {
     next(error);

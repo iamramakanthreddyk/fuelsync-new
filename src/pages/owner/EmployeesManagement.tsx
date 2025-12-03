@@ -40,6 +40,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
+import { useStations } from '@/hooks/api';
 import { Plus, UserPlus, Edit, Trash2, Mail, Phone, Building2, Shield } from 'lucide-react';
 
 interface Employee {
@@ -56,12 +57,6 @@ interface Employee {
     name: string;
     code: string;
   };
-}
-
-interface Station {
-  id: string;
-  name: string;
-  code: string;
 }
 
 interface EmployeeFormData {
@@ -122,13 +117,11 @@ export default function EmployeesManagement() {
   const queryClient = useQueryClient();
 
   // Fetch stations
-  const { data: stations } = useQuery({
-    queryKey: ['owner-stations'],
-    queryFn: async () => {
-      const response = await apiClient.get<Station[]>('/stations');
-      return response;
-    }
-  });
+  const {
+    data: stationsResponse
+  } = useStations();
+
+  const stations = stationsResponse?.data;
 
   // Fetch employees
   const { data: employees, isLoading } = useQuery({
