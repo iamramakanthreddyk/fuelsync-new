@@ -27,7 +27,7 @@ import Prices from '@/pages/Prices';
 import Reports from '@/pages/Reports';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
-import type { Station, User } from '@/types/api';
+import type { Station } from '@/types/api';
 import { ReadingApprovalList } from '@/pages/readings';
 import { CreditLedger } from '@/pages/credit';
 

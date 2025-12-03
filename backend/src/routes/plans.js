@@ -70,8 +70,15 @@ router.get('/:id', async (req, res) => {
  */
 router.post('/', requireRole(['super_admin']), async (req, res) => {
   try {
+    // Check for existing plan name
+    const existing = await Plan.findOne({ where: { name: req.body.name } });
+    if (existing) {
+      return res.status(409).json({
+        success: false,
+        error: 'Plan name must be unique'
+      });
+    }
     const plan = await Plan.create(req.body);
-
     res.status(201).json({
       success: true,
       data: plan,

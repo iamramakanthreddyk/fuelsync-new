@@ -4,7 +4,7 @@
  * Backend: /api/v1/readings/*
  */
 
-import { apiClient, ApiResponse, PaginatedResponse } from '@/lib/api-client';
+import { apiClient, ApiResponse } from '@/lib/api-client';
 
 export interface NozzleReading {
   id: string;

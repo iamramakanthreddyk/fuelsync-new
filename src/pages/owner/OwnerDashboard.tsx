@@ -62,8 +62,8 @@ export default function OwnerDashboard() {
   const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats | null>({
     queryKey: ['owner-dashboard-stats'],
     queryFn: async () => {
-      const response = await apiClient.get('/dashboard/owner/stats');
-      return response?.data ?? null;
+      const response = await apiClient.get<DashboardStats | null>('/dashboard/owner/stats');
+      return response ?? null;
     },
     enabled: !!user
   });
@@ -79,8 +79,15 @@ export default function OwnerDashboard() {
     return null;
   }
 
-  // Defensive: stats may be null/undefined
-  const safeStats = stats ?? { totalStations: 0, totalEmployees: 0, pendingActions: 0 };
+  // Defensive: stats may be null/undefined and may not have expected properties
+  function isDashboardStats(obj: any): obj is DashboardStats {
+    return obj && typeof obj === 'object' &&
+      ('totalStations' in obj) && ('totalEmployees' in obj) && ('pendingActions' in obj);
+  }
+
+  const safeStats: DashboardStats = isDashboardStats(stats)
+    ? stats
+    : { totalStations: 0, totalEmployees: 0, pendingActions: 0 };
 
   const isLoading = statsLoading || stationsLoading;
 

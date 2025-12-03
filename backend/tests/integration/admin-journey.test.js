@@ -230,7 +230,7 @@ describe('Super Admin Journey', () => {
           priceMonthly: 1999
         });
 
-      expect(response.status).toBe(500); // Backend returns 500 for unhandled unique constraint
+      expect(response.status).toBe(409); // Backend returns 409 for duplicate name (conflict)
       testReport.passed++;
     });
 
