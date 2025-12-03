@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
+import { extractApiData } from '@/lib/api-response';
 import { useStations } from '@/hooks/api';
 import { safeToFixed } from '@/lib/format-utils';
 import { 
@@ -66,8 +67,8 @@ export default function OwnerDashboard() {
   const { data: stats, isLoading: statsLoading } = useQuery({
     queryKey: ['owner-dashboard-stats'],
     queryFn: async () => {
-      const response = await apiClient.get<DashboardStats>('/dashboard/owner/stats');
-      return response;
+      const response = await apiClient.get('/dashboard/owner/stats');
+      return extractApiData(response, null);
     },
     enabled: !!user
   });
@@ -78,7 +79,8 @@ export default function OwnerDashboard() {
     isLoading: stationsLoading
   } = useStations();
 
-  const stations = stationsResponse?.data;
+  // Unwrap stations if needed
+  const stations = stationsResponse?.data ?? extractApiData(stationsResponse, []);
 
   if (!user || user.role !== 'owner') {
     return null;
@@ -284,7 +286,7 @@ export default function OwnerDashboard() {
             </div>
           ) : stations && stations.length > 0 ? (
             <div className="space-y-3">
-              {stations.map((station, idx) => {
+              {stations.map((station: Station, idx: number) => {
                 const pumpUtilization = (station.pumpCount || 0) > 0 
                   ? ((station.activePumps || 0) / (station.pumpCount || 0)) * 100 
                   : 0;

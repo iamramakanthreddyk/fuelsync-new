@@ -256,7 +256,7 @@ export default function StationDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
-      toast({ title: 'Success', description: 'Pump created successfully' });
+      toast({ title: 'Success', description: 'Pump created successfully', variant: 'success' });
       setIsPumpDialogOpen(false);
       setPumpForm({ pumpNumber: '', name: '', status: 'active' });
     },
@@ -292,7 +292,7 @@ export default function StationDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
-      toast({ title: 'Success', description: 'Nozzle created successfully' });
+      toast({ title: 'Success', description: 'Nozzle created successfully', variant: 'success' });
       setIsNozzleDialogOpen(false);
       setNozzleForm({ nozzleNumber: '', fuelType: 'petrol', initialReading: '' });
       setSelectedPump(null);
@@ -329,7 +329,7 @@ export default function StationDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['station-prices', id] });
-      toast({ title: 'Success', description: 'Price updated successfully' });
+      toast({ title: 'Success', description: 'Price updated successfully', variant: 'success' });
       setIsPriceDialogOpen(false);
       setPriceForm({ fuelType: 'petrol', price: '', effectiveFrom: formatDateISO(new Date()) });
     },
@@ -365,7 +365,7 @@ export default function StationDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['station-creditors', id] });
-      toast({ title: 'Success', description: 'Creditor created successfully' });
+      toast({ title: 'Success', description: 'Creditor created successfully', variant: 'success' });
       setIsCreditorDialogOpen(false);
       setCreditorForm({ name: '', phone: '', email: '', creditLimit: '', vehicleNumber: '' });
     },
@@ -401,7 +401,7 @@ export default function StationDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
-      toast({ title: 'Success', description: 'Pump updated successfully' });
+      toast({ title: 'Success', description: 'Pump updated successfully', variant: 'success' });
       setIsEditPumpDialogOpen(false);
       setSelectedPump(null);
     },
@@ -437,7 +437,7 @@ export default function StationDetail() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
-      toast({ title: 'Success', description: 'Nozzle updated successfully' });
+      toast({ title: 'Success', description: 'Nozzle updated successfully', variant: 'success' });
       setIsEditNozzleDialogOpen(false);
       setSelectedNozzle(null);
     },
@@ -476,7 +476,7 @@ export default function StationDetail() {
       // Ensure other components (latest readings, analytics) refresh
       queryClient.invalidateQueries({ queryKey: ['readings', 'latest'] });
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
-      toast({ title: 'Success', description: 'Reading added successfully' });
+      toast({ title: 'Success', description: 'Reading added successfully', variant: 'success' });
       setIsReadingDialogOpen(false);
       setReadingForm({ nozzleId: '', readingValue: '', readingDate: formatDateISO(new Date()), paymentType: 'cash' });
       setSelectedNozzle(null);

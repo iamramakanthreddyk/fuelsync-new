@@ -167,7 +167,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
 
       await apiClient.post('/users', payload);
 
-      toast({ title: "Success", description: "User created successfully" });
+      toast({ title: "Success", description: "User created successfully", variant: "success" });
       setIsCreateOpen(false);
       resetCreateForm();
       fetchData();
@@ -216,7 +216,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
 
       await apiClient.put(`/users/${selectedUser.id}`, payload);
 
-      toast({ title: "Success", description: "User updated successfully" });
+      toast({ title: "Success", description: "User updated successfully", variant: "success" });
       setIsEditOpen(false);
       setSelectedUser(null);
       fetchData();
@@ -231,7 +231,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
   const handleDeleteUser = async (userId: string) => {
     try {
       await apiClient.delete(`/users/${userId}`);
-      toast({ title: "Success", description: "User deleted successfully" });
+      toast({ title: "Success", description: "User deleted successfully", variant: "success" });
       fetchData();
     } catch (error: unknown) {
       const message = getErrorMessage(error);
@@ -242,7 +242,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
   const handleToggleStatus = async (user: User) => {
     try {
       await apiClient.put(`/users/${user.id}`, { isActive: !user.isActive });
-      toast({ title: "Success", description: `User ${user.isActive ? 'deactivated' : 'activated'} successfully` });
+      toast({ title: "Success", description: `User ${user.isActive ? 'deactivated' : 'activated'} successfully`, variant: "success" });
       fetchData();
     } catch (error: unknown) {
       const message = getErrorMessage(error);

@@ -32,6 +32,7 @@ export default function Login() {
       toast({
         title: "Login Successful",
         description: "Welcome back!",
+        variant: "success",
       });
     } catch (error: unknown) {
       console.error('Login error:', error);

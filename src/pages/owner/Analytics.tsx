@@ -19,6 +19,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { FuelBadge } from '@/components/FuelBadge';
 import { apiClient } from '@/lib/api-client';
+import { extractApiData } from '@/lib/api-response';
 import { useStations } from '@/hooks/api';
 import { getFuelColors } from '@/lib/fuelColors';
 import { safeToFixed } from '@/lib/format-utils';
@@ -30,7 +31,6 @@ import {
   Activity,
   Droplet,
   Users,
-  Calendar,
   BarChart3,
   Award
 } from 'lucide-react';
@@ -150,8 +150,8 @@ export default function Analytics() {
       if (selectedStation !== 'all') {
         params.append('stationId', selectedStation);
       }
-      const response = await apiClient.get<AnalyticsData>(`/dashboard/owner/analytics?${params.toString()}`);
-      return response;
+      const response = await apiClient.get(`/dashboard/owner/analytics?${params.toString()}`);
+      return extractApiData(response, null);
     }
   });
 
@@ -262,7 +262,7 @@ export default function Analytics() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Stations</SelectItem>
-                  {stations?.map((station) => (
+                  {stations?.map((station: Station) => (
                     <SelectItem key={station.id} value={station.id}>
                       {station.name}
                     </SelectItem>
@@ -294,16 +294,16 @@ export default function Analytics() {
               </CardHeader>
               <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
                 <div className="text-lg sm:text-2xl font-bold truncate">
-                  {formatCurrency(analytics.overview.totalSales)}
+                  {formatCurrency(analytics?.overview?.totalSales ?? 0)}
                 </div>
                 <div className="flex items-center gap-1 text-xs mt-1">
-                  {analytics.overview.salesGrowth >= 0 ? (
+                  {(analytics?.overview?.salesGrowth ?? 0) >= 0 ? (
                     <TrendingUp className="w-3 h-3 text-green-500" />
                   ) : (
                     <TrendingDown className="w-3 h-3 text-red-500" />
                   )}
-                  <span className={analytics.overview.salesGrowth >= 0 ? 'text-green-500' : 'text-red-500'}>
-                    {formatPercentage(analytics.overview.salesGrowth)}
+                  <span className={(analytics?.overview?.salesGrowth ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'}>
+                    {formatPercentage(analytics?.overview?.salesGrowth ?? 0)}
                   </span>
                 </div>
               </CardContent>
@@ -316,16 +316,16 @@ export default function Analytics() {
               </CardHeader>
               <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
                 <div className="text-lg sm:text-2xl font-bold truncate">
-                  {formatLitres(analytics.overview.totalQuantity)}
+                  {formatLitres(analytics?.overview?.totalQuantity ?? 0)}
                 </div>
                 <div className="flex items-center gap-1 text-xs mt-1">
-                  {analytics.overview.quantityGrowth >= 0 ? (
+                  {(analytics?.overview?.quantityGrowth ?? 0) >= 0 ? (
                     <TrendingUp className="w-3 h-3 text-green-500" />
                   ) : (
                     <TrendingDown className="w-3 h-3 text-red-500" />
                   )}
-                  <span className={analytics.overview.quantityGrowth >= 0 ? 'text-green-500' : 'text-red-500'}>
-                    {formatPercentage(analytics.overview.quantityGrowth)}
+                  <span className={(analytics?.overview?.quantityGrowth ?? 0) >= 0 ? 'text-green-500' : 'text-red-500'}>
+                    {formatPercentage(analytics?.overview?.quantityGrowth ?? 0)}
                   </span>
                 </div>
               </CardContent>
@@ -338,7 +338,7 @@ export default function Analytics() {
               </CardHeader>
               <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
                 <div className="text-lg sm:text-2xl font-bold">
-                  {analytics.overview.totalTransactions.toLocaleString()}
+                  {(analytics?.overview?.totalTransactions ?? 0).toLocaleString()}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Total count
@@ -353,7 +353,7 @@ export default function Analytics() {
               </CardHeader>
               <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
                 <div className="text-lg sm:text-2xl font-bold truncate">
-                  {formatCurrency(analytics.overview.averageTransaction)}
+                  {formatCurrency(analytics?.overview?.averageTransaction ?? 0)}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Per transaction
@@ -371,14 +371,14 @@ export default function Analytics() {
                   <CardTitle className="text-base sm:text-lg">Sales Trend</CardTitle>
                 </div>
                 <Badge variant="outline" className="text-xs">
-                  {analytics.dailyTrend.length} days
+                  {(analytics?.dailyTrend?.length ?? 0)} days
                 </Badge>
               </div>
               <CardDescription className="text-xs sm:text-sm">Daily performance over time</CardDescription>
             </CardHeader>
             <CardContent className="px-2 sm:px-6 pb-4">
               <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={analytics.dailyTrend}>
+                <AreaChart data={analytics?.dailyTrend ?? []}>
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
@@ -446,38 +446,44 @@ export default function Analytics() {
                 <CardDescription className="text-xs sm:text-sm">Revenue distribution</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={analytics.salesByStation}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ stationName, percentage }) => 
-                        percentage > 5 ? `${stationName} (${safeToFixed(percentage, 0)}%)` : ''
-                      }
-                      outerRadius={window.innerWidth < 640 ? 80 : 100}
-                      fill="#8884d8"
-                      dataKey="sales"
-                    >
-                      {analytics.salesByStation.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                {((analytics?.salesByStation?.length ?? 0) === 0) ? (
+                  <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No station sales data</div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <PieChart>
+                        <Pie
+                          data={analytics?.salesByStation ?? []}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ stationName, percentage }) =>
+                            `${stationName} (${safeToFixed(percentage, 0)}%)`
+                          }
+                          outerRadius={window.innerWidth < 640 ? 80 : 100}
+                          fill="#8884d8"
+                          dataKey="sales"
+                        >
+                          {(analytics?.salesByStation ?? []).map((entry: { stationId: string; stationName: string; sales: number; percentage: number }, index: number) => (
+                            <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<CustomTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+                      {(analytics?.salesByStation ?? []).map((station: { stationId: string; stationName: string; sales: number; percentage: number }, idx: number) => (
+                        <div key={idx} className="flex items-center gap-2">
+                          <div
+                            className="w-3 h-3 rounded-full flex-shrink-0"
+                            style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                          />
+                          <span className="truncate">{station.stationName}</span>
+                        </div>
                       ))}
-                    </Pie>
-                    <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
-                  {analytics.salesByStation.map((station, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <div 
-                        className="w-3 h-3 rounded-full flex-shrink-0" 
-                        style={{ backgroundColor: COLORS[idx % COLORS.length] }}
-                      />
-                      <span className="truncate">{station.stationName}</span>
                     </div>
-                  ))}
-                </div>
+                  </>
+                )}
               </CardContent>
             </Card>
 
@@ -491,27 +497,33 @@ export default function Analytics() {
                 <CardDescription className="text-xs sm:text-sm">Revenue by category</CardDescription>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={analytics.salesByFuelType}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                    <XAxis dataKey="fuelType" tick={{ fontSize: 11 }} />
-                    <YAxis 
-                      tick={{ fontSize: 11 }}
-                      tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`}
-                    />
-                    <Tooltip content={<CustomTooltip />} />
-                    <Bar dataKey="sales" fill="#3b82f6" radius={[8, 8, 0, 0]} name="Sales">
-                      {analytics.salesByFuelType.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={getFuelChartColor(entry.fuelType)} />
+                {((analytics?.salesByFuelType?.length ?? 0) === 0) ? (
+                  <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No fuel type sales data</div>
+                ) : (
+                  <>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={analytics?.salesByFuelType ?? []}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                        <XAxis dataKey="fuelType" tick={{ fontSize: 11 }} />
+                        <YAxis
+                          tick={{ fontSize: 11 }}
+                          tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`}
+                        />
+                        <Tooltip content={<CustomTooltip />} />
+                        <Bar dataKey="sales" fill="#3b82f6" radius={[8, 8, 0, 0]} name="Sales">
+                          {(analytics?.salesByFuelType ?? []).map((entry: { fuelType: string; sales: number; quantity: number; percentage: number }, index: number) => (
+                            <Cell key={`cell-${index}`} fill={getFuelChartColor(entry.fuelType)} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {(analytics?.salesByFuelType ?? []).map((fuel: { fuelType: string; sales: number; quantity: number; percentage: number }, idx: number) => (
+                        <FuelBadge key={idx} fuelType={fuel.fuelType} showDot />
                       ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {analytics.salesByFuelType.map((fuel, idx) => (
-                    <FuelBadge key={idx} fuelType={fuel.fuelType} showDot />
-                  ))}
-                </div>
+                    </div>
+                  </>
+                )}
               </CardContent>
             </Card>
           </div>
@@ -527,7 +539,7 @@ export default function Analytics() {
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {analytics.topPerformingStations.map((station, idx) => (
+                {(analytics?.topPerformingStations ?? []).map((station: { stationId: string; stationName: string; sales: number; growth: number }, idx: number) => (
                   <div
                     key={idx}
                     className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-muted to-background rounded-lg border hover:shadow-md transition-shadow"
@@ -565,7 +577,7 @@ export default function Analytics() {
           </Card>
 
           {/* Employee Performance - Mobile Optimized */}
-          {analytics.employeePerformance.length > 0 && (
+          {(analytics?.employeePerformance?.length ?? 0) > 0 && (
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
@@ -576,7 +588,7 @@ export default function Analytics() {
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {analytics.employeePerformance.map((employee, idx) => (
+                  {(analytics?.employeePerformance ?? []).map((employee: { employeeId: string; employeeName: string; shifts: number; totalSales: number; averageSales: number }, idx: number) => (
                     <div
                       key={idx}
                       className="flex items-center justify-between p-3 sm:p-4 bg-gradient-to-r from-blue-50 to-transparent rounded-lg border hover:shadow-md transition-shadow"

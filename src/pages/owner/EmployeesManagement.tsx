@@ -232,7 +232,7 @@ export default function EmployeesManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owner-employees'] });
-      toast({ title: 'Success', description: 'Employee created successfully' });
+      toast({ title: 'Success', description: 'Employee created successfully', variant: 'success' });
       setIsAddDialogOpen(false);
       setFormData(initialFormData);
     },
@@ -260,7 +260,7 @@ export default function EmployeesManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owner-employees'] });
-      toast({ title: 'Success', description: 'Employee updated successfully' });
+      toast({ title: 'Success', description: 'Employee updated successfully', variant: 'success' });
       setIsEditDialogOpen(false);
       setEditingEmployee(null);
       setFormData(initialFormData);
@@ -289,7 +289,7 @@ export default function EmployeesManagement() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owner-employees'] });
-      toast({ title: 'Success', description: 'Employee deleted successfully' });
+      toast({ title: 'Success', description: 'Employee deleted successfully', variant: 'success' });
       setDeleteEmployeeId(null);
     },
     onError: (error: unknown) => {

@@ -118,6 +118,7 @@ export function useStations() {
       }
       return response;
     },
+    staleTime: 1000 * 60 * 10, // 10 minutes
   });
 }
 
