@@ -95,6 +95,8 @@ export interface Pump {
   id: string;
   stationId: string;
   pumpNumber: number;
+  // Legacy compatibility
+  pump_sno?: number;
   name: string;
   status: PumpStatus;
   notes?: string;
@@ -109,6 +111,9 @@ export interface Nozzle {
   pumpId: string;
   stationId: string;
   nozzleNumber: number;
+  // Legacy compatibility
+  nozzle_number?: number;
+  fuel_type?: FuelType;
   fuelType: FuelType;
   status: PumpStatus;
   initialReading: number;

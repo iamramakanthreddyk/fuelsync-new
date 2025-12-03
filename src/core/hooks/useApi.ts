@@ -9,6 +9,7 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { ApiResponse, ApiError, ApiRequestConfig } from '../models/api.model';
+import { getErrorMessage } from '@/lib/errorUtils';
 import { API_BASE_URL, API_TIMEOUT, HTTP_STATUS } from '../constants/api.constants';
 import { STORAGE_KEYS } from '../constants/app.constants';
 import { getToken, removeToken } from '@/lib/api-client';
@@ -59,18 +60,15 @@ const buildUrl = (endpoint: string, params?: Record<string, string | number | bo
 };
 
 const parseError = (error: unknown): ApiError => {
+  const msg = getErrorMessage(error);
   if (error instanceof Error) {
     return {
-      message: error.message,
+      message: msg,
       originalError: error,
-    };
+    } as ApiError;
   }
-  
-  if (typeof error === 'string') {
-    return { message: error };
-  }
-  
-  return { message: 'An unknown error occurred' };
+
+  return { message: msg } as ApiError;
 };
 
 // ============================================
@@ -139,7 +137,7 @@ export async function apiClient<T>(
 
     const data = await response.json();
     return data as ApiResponse<T>;
-  } catch (error) {
+  } catch (error: unknown) {
     clearTimeout(timeoutId);
 
     if (error instanceof DOMException && error.name === 'AbortError') {

@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo } from 'react';
 import { apiClient, getToken, setToken, removeToken, getStoredUser, setStoredUser, ApiError } from '@/lib/api-client';
+import { getErrorMessage } from '@/lib/errorUtils';
 
 // ============================================
 // TYPES
@@ -95,8 +96,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           // Verify token is still valid
           await verifyToken();
         }
-      } catch (error) {
-        console.error('[AUTH] Init error:', error);
+      } catch (error: unknown) {
+        console.error('[AUTH] Init error:', getErrorMessage(error));
         removeToken();
         setUser(null);
       } finally {
@@ -105,6 +106,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initAuth();
+    // Listen for global auth expiry events (dispatched by api-client)
+    const onAuthExpired = () => {
+      removeToken();
+      setUser(null);
+    };
+    window.addEventListener('auth-expired', onAuthExpired as EventListener);
+
+    // Keep auth state in sync across tabs
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === 'fuelsync_token' && !e.newValue) {
+        // token removed in another tab
+        setUser(null);
+      }
+    };
+    window.addEventListener('storage', onStorage);
+
+    return () => {
+      window.removeEventListener('auth-expired', onAuthExpired as EventListener);
+      window.removeEventListener('storage', onStorage);
+    };
   }, []);
 
   // Verify token with backend
@@ -117,10 +138,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       };
       setUser(userWithStations);
       setStoredUser(userWithStations);
-    } catch (error) {
+    } catch (error: unknown) {
+      // If API returned an ApiError with 401, clear auth
       if (error instanceof ApiError && error.statusCode === 401) {
         removeToken();
         setUser(null);
+      } else {
+        console.error('[AUTH] verifyToken error:', getErrorMessage(error));
       }
     }
   }, []);
@@ -143,11 +167,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       console.log('[AUTH] Login successful:', authUser.email, authUser.role);
     } catch (error: unknown) {
-      console.error('[AUTH] Login error:', error);
-      if (error.message?.includes('Invalid credentials') || error.statusCode === 401) {
+      const msg = getErrorMessage(error);
+      console.error('[AUTH] Login error:', msg);
+      if (msg.includes('Invalid credentials') || (error instanceof ApiError && error.statusCode === 401)) {
         throw new Error('Invalid credentials');
       }
-      throw error;
+      throw new Error(msg);
     } finally {
       setLoading(false);
     }

@@ -3,6 +3,7 @@
  */
 
 const STORAGE_PREFIX = 'fuelsync_';
+import { getErrorMessage } from './errorUtils';
 
 /**
  * Get item from localStorage with type safety
@@ -12,8 +13,8 @@ export function getStorageItem<T>(key: string, defaultValue?: T): T | null {
     const item = localStorage.getItem(STORAGE_PREFIX + key);
     if (!item) return defaultValue ?? null;
     return JSON.parse(item) as T;
-  } catch (error) {
-    console.error('Error reading from localStorage:', error);
+  } catch (error: unknown) {
+    console.error('Error reading from localStorage:', getErrorMessage(error));
     return defaultValue ?? null;
   }
 }
@@ -24,8 +25,8 @@ export function getStorageItem<T>(key: string, defaultValue?: T): T | null {
 export function setStorageItem<T>(key: string, value: T): void {
   try {
     localStorage.setItem(STORAGE_PREFIX + key, JSON.stringify(value));
-  } catch (error) {
-    console.error('Error writing to localStorage:', error);
+  } catch (error: unknown) {
+    console.error('Error writing to localStorage:', getErrorMessage(error));
   }
 }
 
@@ -35,8 +36,8 @@ export function setStorageItem<T>(key: string, value: T): void {
 export function removeStorageItem(key: string): void {
   try {
     localStorage.removeItem(STORAGE_PREFIX + key);
-  } catch (error) {
-    console.error('Error removing from localStorage:', error);
+  } catch (error: unknown) {
+    console.error('Error removing from localStorage:', getErrorMessage(error));
   }
 }
 
@@ -51,8 +52,8 @@ export function clearStorage(): void {
         localStorage.removeItem(key);
       }
     });
-  } catch (error) {
-    console.error('Error clearing localStorage:', error);
+  } catch (error: unknown) {
+    console.error('Error clearing localStorage:', getErrorMessage(error));
   }
 }
 
@@ -65,7 +66,7 @@ export function isStorageAvailable(): boolean {
     localStorage.setItem(test, test);
     localStorage.removeItem(test);
     return true;
-  } catch {
+  } catch (error: unknown) {
     return false;
   }
 }

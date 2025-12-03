@@ -7,6 +7,7 @@
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
 import { getStorageItem, setStorageItem, removeStorageItem } from './storage-utils';
+import { convertKeysToCamel, convertKeysToSnake } from './caseUtils';
 
 // Token storage keys (without prefix — `storage-utils` will add prefix)
 const TOKEN_KEY = 'token';
@@ -131,30 +132,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
   if (isJson) {
     const jsonData = await response.json();
 
-    // Helper: convert snake_case keys to camelCase recursively
-    const toCamel = (s: string) => s.replace(/_([a-z0-9])/g, (_m, p1) => p1.toUpperCase());
-
-    function convertKeysToCamel(obj: any): any {
-      if (obj === null || obj === undefined) return obj;
-      if (Array.isArray(obj)) return obj.map(convertKeysToCamel);
-      if (typeof obj === 'object') {
-        const out: Record<string, any> = {};
-        for (const key of Object.keys(obj)) {
-          const value = obj[key];
-          const newKey = toCamel(key);
-          out[newKey] = convertKeysToCamel(value);
-        }
-        return out;
-      }
-      return obj;
-    }
+    // Use centralized conversion utility to normalize response keys
 
     // If response has the {success, data} structure, unwrap and convert
     if (jsonData && typeof jsonData === 'object' && 'data' in jsonData) {
       try {
-        return convertKeysToCamel(jsonData.data) as T;
+        return convertKeysToCamel((jsonData as any).data) as T;
       } catch (e) {
-        return jsonData.data as T;
+        return (jsonData as any).data as T;
       }
     }
 
@@ -194,16 +179,24 @@ async function request<T>(
   };
 
   if (data && method !== 'GET') {
-    const bodyString = JSON.stringify(data);
-    config.body = bodyString;
+    // Normalize outgoing request body keys to snake_case for backend compatibility
+    try {
+      const snake = convertKeysToSnake(data);
+      const bodyString = JSON.stringify(snake);
+      config.body = bodyString;
+    } catch (e) {
+      config.body = JSON.stringify(data);
+    }
     
     // Log the request for debugging
     if (method === 'POST' && endpoint.includes('/stations')) {
       console.log('🌐 API Client sending request:');
       console.log('   URL:', url);
       console.log('   Method:', method);
-      console.log('   Body string:', bodyString);
-      console.log('   Parsed body:', JSON.parse(bodyString));
+      console.log('   Body string:', config.body);
+      try {
+        console.log('   Parsed body:', JSON.parse(config.body as string));
+      } catch (_) {}
     }
   }
 
@@ -211,15 +204,18 @@ async function request<T>(
     const response = await fetch(url, config);
     return await handleResponse<T>(response);
   } catch (error) {
+    // Avoid unsafe access on unknown
+    const { getErrorMessage } = await import('./errorUtils');
     if (error instanceof ApiError) {
       throw error;
     }
-    
-    if (error instanceof TypeError && error.message.includes('fetch')) {
+
+    const msg = getErrorMessage(error as unknown);
+    if (error instanceof TypeError && typeof (error as any).message === 'string' && (error as any).message.includes('fetch')) {
       throw new ApiError('Network error - unable to connect to server', 0, 'NETWORK_ERROR');
     }
-    
-    throw new ApiError('An unexpected error occurred', 500);
+
+    throw new ApiError(msg || 'An unexpected error occurred', 500);
   }
 }
 

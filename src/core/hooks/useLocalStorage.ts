@@ -8,6 +8,7 @@
  */
 
 import { useState, useCallback, useEffect } from 'react';
+import { getErrorMessage } from '@/lib/errorUtils';
 
 // ============================================
 // TYPES
@@ -35,8 +36,8 @@ interface UseLocalStorageReturn<T> {
 const defaultSerializer = <T>(value: T): string => {
   try {
     return JSON.stringify(value);
-  } catch {
-    console.warn('Failed to serialize value for localStorage');
+  } catch (error: unknown) {
+    console.warn('Failed to serialize value for localStorage', getErrorMessage(error));
     return String(value);
   }
 };
@@ -78,8 +79,8 @@ export function useLocalStorage<T>(
         return deserializer(item);
       }
       return initialValue;
-    } catch (error) {
-      console.warn(`Error reading localStorage key "${key}":`, error);
+    } catch (error: unknown) {
+      console.warn(`Error reading localStorage key "${key}":`, getErrorMessage(error));
       return initialValue;
     }
   });
@@ -108,8 +109,8 @@ export function useLocalStorage<T>(
             })
           );
         }
-      } catch (error) {
-        console.warn(`Error setting localStorage key "${key}":`, error);
+      } catch (error: unknown) {
+        console.warn(`Error setting localStorage key "${key}":`, getErrorMessage(error));
       }
     },
     [key, serializer, storedValue]
@@ -130,8 +131,8 @@ export function useLocalStorage<T>(
           })
         );
       }
-    } catch (error) {
-      console.warn(`Error removing localStorage key "${key}":`, error);
+    } catch (error: unknown) {
+      console.warn(`Error removing localStorage key "${key}":`, getErrorMessage(error));
     }
   }, [key, initialValue]);
 
@@ -149,7 +150,8 @@ export function useLocalStorage<T>(
       } else {
         try {
           setStoredValue(deserializer(event.newValue));
-        } catch {
+        } catch (error: unknown) {
+          console.warn('Failed to parse storage event value', getErrorMessage(error));
           setStoredValue(initialValue);
         }
       }
@@ -231,7 +233,8 @@ export function useSessionStorage<T>(
         return JSON.parse(item) as T;
       }
       return initialValue;
-    } catch {
+    } catch (error: unknown) {
+      console.warn(`Error reading sessionStorage key "${key}":`, getErrorMessage(error));
       return initialValue;
     }
   });
@@ -246,8 +249,8 @@ export function useSessionStorage<T>(
         const valueToStore = value instanceof Function ? value(storedValue) : value;
         setStoredValue(valueToStore);
         sessionStorage.setItem(key, JSON.stringify(valueToStore));
-      } catch (error) {
-        console.warn(`Error setting sessionStorage key "${key}":`, error);
+      } catch (error: unknown) {
+        console.warn(`Error setting sessionStorage key "${key}":`, getErrorMessage(error));
       }
     },
     [key, storedValue]
