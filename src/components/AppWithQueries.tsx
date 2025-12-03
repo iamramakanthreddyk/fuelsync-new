@@ -28,6 +28,8 @@ import Reports from '@/pages/Reports';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
 import type { Station } from '@/types/api';
+import { ReadingApprovalList } from '@/pages/readings';
+import { CreditLedger } from '@/pages/credit';
 
 // Owner pages
 import OwnerDashboard from '@/pages/owner/OwnerDashboard';
@@ -151,6 +153,14 @@ function SuperAdminGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ManagerOrOwnerRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  if (!user || (user.role !== 'manager' && user.role !== 'owner')) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 export function AppWithQueries() {
   const stationsQuery = useStationsForSuperAdmin();
 
@@ -227,11 +237,43 @@ export function AppWithQueries() {
                     <Route path="/owner/shifts" element={<ShiftManagement />} />
                     <Route path="/owner/cash-handovers" element={<CashHandoverConfirmation />} />
                     <Route path="/owner/cash-report" element={<CashReconciliationReport />} />
+                    <Route path="/owner/reading-approvals" element={
+                      <ManagerOrOwnerRoute>
+                        <ReadingApprovalList />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/reading-approvals" element={
+                      <ManagerOrOwnerRoute>
+                        <ReadingApprovalList />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/owner/credit-ledger" element={
+                      <ManagerOrOwnerRoute>
+                        <CreditLedger />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/credit-ledger" element={
+                      <ManagerOrOwnerRoute>
+                        <CreditLedger />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/owner/cash-handovers" element={
+                      <ManagerOrOwnerRoute>
+                        <CashHandoverConfirmation />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/cash-handovers" element={
+                      <ManagerOrOwnerRoute>
+                        <CashHandoverConfirmation />
+                      </ManagerOrOwnerRoute>
+                    } />
                     
                     {/* Cash/Shift routes for employees and managers */}
                     <Route path="/shifts" element={<ShiftManagement />} />
                     <Route path="/cash-handovers" element={<CashHandoverConfirmation />} />
                     <Route path="/cash-report" element={<CashReconciliationReport />} />
+                    <Route path="/reading-approvals" element={<ReadingApprovalList />} />
+                    <Route path="/credit-ledger" element={<CreditLedger />} />
                     
                     {/* Legacy routes - keep for backward compatibility */}
                     <Route path="/stations" element={<MyStations />} />

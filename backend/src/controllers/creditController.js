@@ -97,22 +97,22 @@ const createCreditor = async (req, res) => {
     if (!(await canAccessStation(req.user, stationId))) {
       return res.status(403).json({ success: false, error: { message: 'Access denied' } });
     }
+    // Only owner/manager/super_admin can create creditors
+    if (!['super_admin', 'owner', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, error: { message: 'Only owner or manager can create creditors' } });
+    }
     const { name, contactPerson, phone, email, address, businessName, gstNumber, creditLimit, notes } = req.body;
-    
     // Validate required fields
     if (!name) {
       return res.status(400).json({ success: false, error: { message: 'Creditor name is required' } });
     }
-    
     // Check plan limits
     const station = await Station.findByPk(stationId, {
       include: [{ model: User, as: 'owner', include: ['plan'] }]
     });
-    
     if (station?.owner?.plan) {
       const currentCount = await Creditor.count({ where: { stationId, isActive: true } });
       const limit = station.owner.plan.maxCreditors;
-      
       if (currentCount >= limit) {
         return res.status(403).json({
           success: false,
@@ -120,7 +120,6 @@ const createCreditor = async (req, res) => {
         });
       }
     }
-    
     const creditor = await Creditor.create({
       stationId,
       name,
@@ -134,7 +133,6 @@ const createCreditor = async (req, res) => {
       notes,
       createdBy: req.user.id
     });
-    
     res.status(201).json({ success: true, data: creditor });
   } catch (error) {
     console.error('Create creditor error:', error);
@@ -149,21 +147,21 @@ const updateCreditor = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
-    
     const creditor = await Creditor.findByPk(id);
     if (!creditor) {
       return res.status(404).json({ success: false, error: { message: 'Creditor not found' } });
     }
-    
+    // Only owner/manager/super_admin can update creditors
+    if (!['super_admin', 'owner', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, error: { message: 'Only owner or manager can update creditors' } });
+    }
     // Only allow updating specific fields
     const allowedUpdates = ['name', 'contactPerson', 'phone', 'email', 'address', 'businessName', 'gstNumber', 'creditLimit', 'notes', 'isActive'];
-    
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {
         creditor[field] = updates[field];
       }
     });
-    
     await creditor.save();
     res.json({ success: true, data: creditor });
   } catch (error) {
@@ -178,30 +176,30 @@ const updateCreditor = async (req, res) => {
  */
 const recordCreditSale = async (req, res) => {
   const t = await sequelize.transaction();
-  
   try {
     const { stationId } = req.params;
     if (!(await canAccessStation(req.user, stationId))) {
       await t.rollback();
       return res.status(403).json({ success: false, error: { message: 'Access denied' } });
     }
+    // Only owner/manager/super_admin/employee can record credit sales
+    if (!['super_admin', 'owner', 'manager', 'employee'].includes(req.user.role)) {
+      await t.rollback();
+      return res.status(403).json({ success: false, error: { message: 'Not authorized to record credit sale' } });
+    }
     const { creditorId, fuelType, litres, pricePerLitre, amount, transactionDate, vehicleNumber, referenceNumber, notes, nozzleReadingId } = req.body;
-    
     // Validate creditor (lock only for non-SQLite databases)
     const findOptions = { transaction: t };
     if (sequelize.getDialect() !== 'sqlite') {
       findOptions.lock = t.LOCK.UPDATE;
     }
-    
     const creditor = await Creditor.findByPk(creditorId, findOptions);
     if (!creditor || String(creditor.stationId) !== String(stationId)) {
       await t.rollback();
       return res.status(404).json({ success: false, error: { message: 'Creditor not found' } });
     }
-    
     // Calculate amount if not provided
     const calculatedAmount = amount || (parseFloat(litres) * parseFloat(pricePerLitre));
-    
     // Check credit limit
     if (!creditor.canTakeCredit(calculatedAmount)) {
       await t.rollback();
@@ -213,7 +211,6 @@ const recordCreditSale = async (req, res) => {
         }
       });
     }
-    
     const transaction = await CreditTransaction.create({
       stationId,
       creditorId,
@@ -229,15 +226,12 @@ const recordCreditSale = async (req, res) => {
       nozzleReadingId,
       enteredBy: req.user.id
     }, { transaction: t });
-    
     // Update creditor balance atomically
     await creditor.update({
       currentBalance: parseFloat(creditor.currentBalance) + calculatedAmount,
       lastTransactionDate: new Date()
     }, { transaction: t });
-    
     await t.commit();
-    
     res.status(201).json({
       success: true,
       data: {
@@ -261,35 +255,34 @@ const recordCreditSale = async (req, res) => {
  */
 const recordSettlement = async (req, res) => {
   const t = await sequelize.transaction();
-  
   try {
     const { stationId, creditorId } = req.params;
     if (!(await canAccessStation(req.user, stationId))) {
       await t.rollback();
       return res.status(403).json({ success: false, error: { message: 'Access denied' } });
     }
+    // Only owner/manager/super_admin can record settlements
+    if (!['super_admin', 'owner', 'manager'].includes(req.user.role)) {
+      await t.rollback();
+      return res.status(403).json({ success: false, error: { message: 'Only owner or manager can record settlements' } });
+    }
     const { amount, transactionDate, referenceNumber, notes } = req.body;
-    
     // Validate creditor (lock only for non-SQLite databases)
     const findOptions = { transaction: t };
     if (sequelize.getDialect() !== 'sqlite') {
       findOptions.lock = t.LOCK.UPDATE;
     }
-    
     const creditor = await Creditor.findByPk(creditorId, findOptions);
     if (!creditor || String(creditor.stationId) !== String(stationId)) {
       await t.rollback();
       return res.status(404).json({ success: false, error: { message: 'Creditor not found' } });
     }
-    
     // Validate amount
     if (!amount || parseFloat(amount) <= 0) {
       await t.rollback();
       return res.status(400).json({ success: false, error: { message: 'Settlement amount must be positive' } });
     }
-    
     const settlementAmount = parseFloat(amount);
-    
     const transaction = await CreditTransaction.create({
       stationId,
       creditorId,
@@ -300,16 +293,13 @@ const recordSettlement = async (req, res) => {
       notes,
       enteredBy: req.user.id
     }, { transaction: t });
-    
     // Update creditor balance atomically
     const newBalance = parseFloat(creditor.currentBalance) - settlementAmount;
     await creditor.update({
       currentBalance: newBalance,
       lastTransactionDate: new Date()
     }, { transaction: t });
-    
     await t.commit();
-    
     res.status(201).json({
       success: true,
       data: {
@@ -490,15 +480,15 @@ const flagCreditor = async (req, res) => {
   try {
     const { id } = req.params;
     const { reason } = req.body;
-    
+    // Only owner/manager/super_admin can flag creditors
+    if (!['super_admin', 'owner', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, error: { message: 'Only owner or manager can flag creditors' } });
+    }
     const creditor = await Creditor.findByPk(id);
-    
     if (!creditor) {
       return res.status(404).json({ success: false, error: { message: 'Creditor not found' } });
     }
-    
     await creditor.flag(reason || 'Credit issue');
-    
     res.json({
       success: true,
       data: creditor,
@@ -517,15 +507,15 @@ const flagCreditor = async (req, res) => {
 const unflagCreditor = async (req, res) => {
   try {
     const { id } = req.params;
-    
+    // Only owner/manager/super_admin can unflag creditors
+    if (!['super_admin', 'owner', 'manager'].includes(req.user.role)) {
+      return res.status(403).json({ success: false, error: { message: 'Only owner or manager can unflag creditors' } });
+    }
     const creditor = await Creditor.findByPk(id);
-    
     if (!creditor) {
       return res.status(404).json({ success: false, error: { message: 'Creditor not found' } });
     }
-    
     await creditor.unflag();
-    
     res.json({
       success: true,
       data: creditor,
