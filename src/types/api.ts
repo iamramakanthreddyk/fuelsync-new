@@ -80,6 +80,7 @@ export interface Station {
   staff?: User[];
   pumpCount?: number;
   activePumps?: number;
+  plan?: Plan;
   // Frontend helper fields
   lastReading?: string | null;
   todaySales?: number;

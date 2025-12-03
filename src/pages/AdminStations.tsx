@@ -10,41 +10,25 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse, getToken } from "@/lib/api-client";
 import { Plus, Building2, MapPin, Fuel, Users } from "lucide-react";
+import type { Station, User, Plan } from '@/types/api';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 
-interface StationWithDetails {
-  id: number;
+// Using canonical types from '@/types/api'
+
+type NewStation = {
   name: string;
   brand: 'IOCL' | 'BPCL' | 'HPCL';
   address: string;
-  owner_id: string; // UUID
-  current_plan_id: number;
-  is_active: boolean;
-  created_at: string;
-  updated_at: string;
-  users: { id: string; name: string; email: string; role: string } | null;
-  plans: { id: number; name: string; price_monthly: number } | null;
-}
-
-interface User {
-  id: string; // UUID
-  name: string;
-  email: string;
-  role: string;
-}
-
-interface Plan {
-  id: number;
-  name: string;
-  price_monthly: number;
+  owner_id: string;
+  current_plan_id: string;
 }
 
 
 export default function AdminStations() {
   const [isAddStationOpen, setIsAddStationOpen] = useState(false);
-  const [newStation, setNewStation] = useState({
+  const [newStation, setNewStation] = useState<NewStation>({
     name: '',
-    brand: 'IOCL' as const,
+    brand: 'IOCL',
     address: '',
     owner_id: '',
     current_plan_id: ''
@@ -58,7 +42,7 @@ export default function AdminStations() {
   const { data: stations, isLoading } = useQuery({
     queryKey: ['admin-stations'],
     queryFn: async () => {
-      const data = await apiClient.get<StationWithDetails[]>('/admin/stations');
+      const data = await apiClient.get<Station[]>('/admin/stations');
       return data || [];
     },
   });
@@ -84,12 +68,12 @@ export default function AdminStations() {
   // Add station mutation using REST API
   const addStationMutation = useMutation({
     mutationFn: async (stationData: typeof newStation) => {
-      return await apiClient.post<StationWithDetails>('/admin/stations', {
+      return await apiClient.post<Station>('/admin/stations', {
         name: stationData.name,
         brand: stationData.brand,
         address: stationData.address,
-        owner_id: stationData.owner_id,
-        current_plan_id: stationData.current_plan_id
+        ownerId: stationData.owner_id,
+        currentPlanId: stationData.current_plan_id
       });
     },
     onSuccess: () => {
@@ -204,7 +188,7 @@ export default function AdminStations() {
               </div>
               <div>
                 <Label htmlFor="brand">Brand</Label>
-                <Select value={newStation.brand} onValueChange={(value: string) => setNewStation(prev => ({ ...prev, brand: value }))}>
+                <Select value={newStation.brand} onValueChange={(value: NewStation['brand']) => setNewStation(prev => ({ ...prev, brand: value }))}>
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
@@ -247,8 +231,8 @@ export default function AdminStations() {
                   </SelectTrigger>
                   <SelectContent>
                     {plans?.map((plan) => (
-                      <SelectItem key={plan.id} value={plan.id.toString()}>
-                        {plan.name} (₹{plan.price_monthly}/month)
+                      <SelectItem key={plan.id} value={plan.id}>
+                        {plan.name} (₹{plan.priceMonthly}/month)
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -277,32 +261,32 @@ export default function AdminStations() {
                     {station.address}
                   </CardDescription>
                 </div>
-                <Badge className={getBrandColor(station.brand)}>
-                  {station.brand}
+                <Badge className={getBrandColor((station as any).brand || 'IOCL')}>
+                  {(station as any).brand || 'IOCL'}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="text-sm">
                 <div className="text-muted-foreground">Owner:</div>
-                <div>{station.users?.name || 'Unknown'}</div>
-                <div className="text-xs text-muted-foreground">{station.users?.email}</div>
+                <div>{(station.owner && station.owner.name) || 'Unknown'}</div>
+                <div className="text-xs text-muted-foreground">{(station.owner && station.owner.email) || ''}</div>
               </div>
               
               <div className="text-sm">
                 <div className="text-muted-foreground">Plan:</div>
                 <div className="flex items-center gap-2">
-                  <span>{station.plans?.name || 'No Plan'}</span>
-                  {station.plans?.price_monthly && (
+                  <span>{(station.plan && station.plan.name) || 'No Plan'}</span>
+                  {station.plan?.priceMonthly && (
                     <Badge variant="outline">
-                      ₹{station.plans.price_monthly}/mo
+                      ₹{station.plan.priceMonthly}/mo
                     </Badge>
                   )}
                 </div>
               </div>
               
               <div className="text-sm text-muted-foreground">
-                Created: {new Date(station.created_at).toLocaleDateString()}
+                Created: {new Date(station.createdAt).toLocaleDateString()}
               </div>
               
               <div className="flex gap-2">

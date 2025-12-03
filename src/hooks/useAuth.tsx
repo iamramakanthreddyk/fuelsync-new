@@ -1,45 +1,13 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo } from 'react';
 import { apiClient, getToken, setToken, removeToken, getStoredUser, setStoredUser, ApiError } from '@/lib/api-client';
 import { getErrorMessage } from '@/lib/errorUtils';
+import type { User, UserRole } from '@/types/api';
 
 // ============================================
 // TYPES
 // ============================================
 
-export type UserRole = 'super_admin' | 'superadmin' | 'owner' | 'manager' | 'employee';
-
-export interface User {
-  id: string;
-  name: string | null;
-  email: string;
-  phone: string | null;
-  role: UserRole;
-  isActive: boolean;
-  createdAt: string | null;
-  updatedAt: string | null;
-  stationId?: string | null;
-  planId?: string | null;
-  stations: Array<{
-    id: string;
-    name: string;
-    brand: string;
-    address: string | null;
-    code?: string;
-    city?: string;
-  }>;
-  station?: {
-    id: string;
-    name: string;
-    code?: string;
-    address?: string;
-  };
-  plan?: {
-    name: string;
-    maxStations: number;
-    maxPumpsPerStation: number;
-    canExport?: boolean;
-  };
-}
+// Use canonical User and UserRole from `src/types/api.ts`
 
 interface AuthContextType {
   user: User | null;

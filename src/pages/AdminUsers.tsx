@@ -10,20 +10,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { Plus, Users, Settings, Shield } from "lucide-react";
+import type { Station, User, UserRole } from '@/types/api';
+import { getErrorMessage } from '@/lib/errorUtils';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getRoleBadgeClasses, getStatusBadgeClasses } from '@/lib/badgeColors';
-import { Station, UserRole } from '@/types/api';
 
-interface UserWithStations {
-  id: string;
-  name: string;
-  email: string;
-  phone: string;
-  role: UserRole;
-  isActive: boolean;
-  createdAt: string;
-  station?: { id: string; name: string; code?: string };
-}
+// use canonical `User` and `Station` types from `src/types/api`
 
 
 export default function AdminUsers() {
@@ -44,7 +36,7 @@ export default function AdminUsers() {
   const { data: users, isLoading } = useQuery({
     queryKey: ['users'],
     queryFn: async () => {
-      const data = await apiClient.get<UserWithStations[]>('/users');
+      const data = await apiClient.get<User[]>('/users');
       return data || [];
     },
     enabled: isAuthenticated && !authLoading,
@@ -63,7 +55,7 @@ export default function AdminUsers() {
   // Add User Mutation via REST API
   const inviteUserMutation = useMutation({
     mutationFn: async (userData: typeof newUser) => {
-      return await apiClient.post<UserWithStations>('/users', {
+      return await apiClient.post<User>('/users', {
         name: userData.name,
         email: userData.email,
         phone: userData.phone,
@@ -79,10 +71,7 @@ export default function AdminUsers() {
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
     onError: (error: unknown) => {
-      let message = "Failed to create user";
-      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
-        message = (error as { message: string }).message;
-      }
+      const message = getErrorMessage(error);
       toast({
         title: "Error Creating User",
         description: message,
@@ -94,7 +83,7 @@ export default function AdminUsers() {
   // Toggle user status mutation
   const toggleUserStatusMutation = useMutation({
     mutationFn: async ({ userId, isActive }: { userId: string; isActive: boolean }) => {
-      return await apiClient.put<UserWithStations>(`/users/${userId}`, {
+      return await apiClient.put<User>(`/users/${userId}`, {
         isActive: isActive
       });
     },
@@ -106,10 +95,7 @@ export default function AdminUsers() {
       });
     },
     onError: (error: unknown) => {
-      let message = "Failed to update user status";
-      if (typeof error === "object" && error !== null && "message" in error && typeof (error as { message?: unknown }).message === "string") {
-        message = (error as { message: string }).message;
-      }
+      const message = getErrorMessage(error);
       toast({
         title: "Error",
         description: message,
@@ -271,6 +257,7 @@ export default function AdminUsers() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {users?.map((userItem) => {
           console.log('User role:', userItem.role, 'Type:', typeof userItem.role);
+          const primaryStation = userItem.stations?.[0];
           return (
           <Card key={userItem.id} className="relative">
             <CardHeader>
@@ -298,10 +285,10 @@ export default function AdminUsers() {
                 <div>{userItem.phone || 'Not provided'}</div>
               </div>
               
-              {userItem.station && (
+              {primaryStation && (
                 <div className="text-sm">
                   <div className="text-muted-foreground">Station:</div>
-                  <div>{userItem.station.name}</div>
+                  <div>{primaryStation.name}</div>
                 </div>
               )}
               
