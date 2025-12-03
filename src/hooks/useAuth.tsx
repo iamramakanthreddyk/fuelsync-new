@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo } from 'react';
 import { apiClient, getToken, setToken, removeToken, getStoredUser, setStoredUser, ApiError } from '@/lib/api-client';
 import { getErrorMessage } from '@/lib/errorUtils';
-import type { User, UserRole } from '@/types/api';
+import type { User } from '@/types/api';
 
 // ============================================
 // TYPES
@@ -99,7 +99,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Verify token with backend
   const verifyToken = useCallback(async () => {
     try {
-      const userData = await apiClient.get<User>('/auth/me');
+      const response = await apiClient.get<User>('/auth/me');
+      // response is ApiResponse<User> so data is nested
+      const userData = (response as any).data || response;
       const userWithStations = {
         ...userData,
         stations: userData.stations || [],
@@ -122,7 +124,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const response = await apiClient.post<{ token: string; user: User }>('/auth/login', { email, password });
       
-      const { token: authToken, user: authUser } = response;
+      // response is ApiResponse<{ token: string; user: User }> so data is nested
+      const { token: authToken, user: authUser } = (response as any).data || response;
+      
+      if (!authToken || !authUser) {
+        throw new Error('Invalid login response: missing token or user');
+      }
       
       // Store credentials
       setToken(authToken);

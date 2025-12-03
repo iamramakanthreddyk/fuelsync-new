@@ -3,12 +3,10 @@
  * Manage employees across all stations
  */
 
-import React from 'react';
 import { useState } from 'react';
-import { debounce } from '@/lib/utils';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -77,32 +75,120 @@ const initialFormData: EmployeeFormData = {
   stationId: ''
 };
 
+// Extract EmployeeForm outside component to prevent recreation on re-renders
+interface EmployeeFormProps {
+  isEdit?: boolean;
+  formData: EmployeeFormData;
+  stations?: Array<{ id: string; name: string; code: string }>;
+  onNameChange: (value: string) => void;
+  onEmailChange: (value: string) => void;
+  onPhoneChange: (value: string) => void;
+  onPasswordChange: (value: string) => void;
+  onRoleChange: (value: 'employee' | 'manager') => void;
+  onStationChange: (value: string) => void;
+}
+
+function EmployeeFormContent({
+  isEdit = false,
+  formData,
+  stations,
+  onNameChange,
+  onEmailChange,
+  onPhoneChange,
+  onPasswordChange,
+  onRoleChange,
+  onStationChange,
+}: EmployeeFormProps) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="name">Full Name *</Label>
+          <Input
+            id="name"
+            value={formData.name}
+            onChange={e => onNameChange(e.target.value)}
+            placeholder="John Doe"
+            autoComplete="off"
+          />
+        </div>
+        <div>
+          <Label htmlFor="email">Email *</Label>
+          <Input
+            id="email"
+            type="email"
+            value={formData.email}
+            onChange={e => onEmailChange(e.target.value)}
+            placeholder="john@example.com"
+            autoComplete="off"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="phone">Phone</Label>
+          <Input
+            id="phone"
+            value={formData.phone}
+            onChange={e => onPhoneChange(e.target.value)}
+            placeholder="+91-9876543210"
+            autoComplete="off"
+          />
+        </div>
+        <div>
+          <Label htmlFor="password">Password {isEdit && '(leave blank to keep current)'}</Label>
+          <Input
+            id="password"
+            type="password"
+            value={formData.password}
+            onChange={e => onPasswordChange(e.target.value)}
+            placeholder={isEdit ? 'Leave blank to keep current' : 'Enter password'}
+            autoComplete="off"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <div>
+          <Label htmlFor="role">Role *</Label>
+          <Select
+            value={formData.role}
+            onValueChange={onRoleChange}
+          >
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="employee">Employee</SelectItem>
+              <SelectItem value="manager">Manager</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <div>
+          <Label htmlFor="stationId">Assign to Station *</Label>
+          <Select
+            value={formData.stationId}
+            onValueChange={onStationChange}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Select station" />
+            </SelectTrigger>
+            <SelectContent>
+              {stations?.map((station) => (
+                <SelectItem key={station.id} value={station.id}>
+                  {station.name} {station.code && `(${station.code})`}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function EmployeesManagement() {
-    // Debounced handlers for text fields
-    const debouncedSetName = React.useRef(
-      debounce((...args: unknown[]) => {
-        const value = args[0] as string;
-        setFormData((prev) => ({ ...prev, name: value }));
-      }, 200)
-    ).current;
-    const debouncedSetEmail = React.useRef(
-      debounce((...args: unknown[]) => {
-        const value = args[0] as string;
-        setFormData((prev) => ({ ...prev, email: value }));
-      }, 200)
-    ).current;
-    const debouncedSetPhone = React.useRef(
-      debounce((...args: unknown[]) => {
-        const value = args[0] as string;
-        setFormData((prev) => ({ ...prev, phone: value }));
-      }, 200)
-    ).current;
-    const debouncedSetPassword = React.useRef(
-      debounce((...args: unknown[]) => {
-        const value = args[0] as string;
-        setFormData((prev) => ({ ...prev, password: value }));
-      }, 200)
-    ).current;
   const [searchParams] = useSearchParams();
   const filterStationId = searchParams.get('station');
 
@@ -121,7 +207,7 @@ export default function EmployeesManagement() {
     data: stationsResponse
   } = useStations();
 
-  const stations = stationsResponse?.data;
+  const stations = (stationsResponse as any)?.data || stationsResponse;
 
   // Fetch employees
   const { data: employees, isLoading } = useQuery({
@@ -133,7 +219,8 @@ export default function EmployeesManagement() {
       }
       params.append('role', 'employee,manager');
       const response = await apiClient.get<Employee[]>(`/users?${params.toString()}`);
-      return response;
+      // Extract from nested data property
+      return (response as any).data || response;
     }
   });
 
@@ -254,95 +341,26 @@ export default function EmployeesManagement() {
     }
   };
 
-  const filteredEmployees = employees?.filter(emp =>
+  const filteredEmployees = employees?.filter((emp: Employee) =>
     emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     emp.station?.name.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const EmployeeForm = ({ isEdit = false }: { isEdit?: boolean }) => (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="name">Full Name *</Label>
-          <Input
-            id="name"
-            value={formData.name}
-            onChange={e => debouncedSetName(e.target.value)}
-            placeholder="John Doe"
-          />
-        </div>
-        <div>
-          <Label htmlFor="email">Email *</Label>
-          <Input
-            id="email"
-            type="email"
-            value={formData.email}
-            onChange={e => debouncedSetEmail(e.target.value)}
-            placeholder="john@example.com"
-          />
-        </div>
-      </div>
+  const handleAddDialogOpenChange = (open: boolean) => {
+    setIsAddDialogOpen(open);
+    if (!open) {
+      setFormData(initialFormData);
+    }
+  };
 
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="phone">Phone</Label>
-          <Input
-            id="phone"
-            value={formData.phone}
-            onChange={e => debouncedSetPhone(e.target.value)}
-            placeholder="+91-9876543210"
-          />
-        </div>
-        <div>
-          <Label htmlFor="password">Password {isEdit && '(leave blank to keep current)'}</Label>
-          <Input
-            id="password"
-            type="password"
-            value={formData.password}
-            onChange={e => debouncedSetPassword(e.target.value)}
-            placeholder={isEdit ? 'Leave blank to keep current' : 'Enter password'}
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <Label htmlFor="role">Role *</Label>
-          <Select
-            value={formData.role}
-            onValueChange={(value) => setFormData({ ...formData, role: value as 'employee' | 'manager' })}
-          >
-            <SelectTrigger>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="employee">Employee</SelectItem>
-              <SelectItem value="manager">Manager</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div>
-          <Label htmlFor="stationId">Assign to Station *</Label>
-          <Select
-            value={formData.stationId}
-            onValueChange={(value) => setFormData({ ...formData, stationId: value })}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Select station" />
-            </SelectTrigger>
-            <SelectContent>
-              {stations?.map((station) => (
-                <SelectItem key={station.id} value={station.id}>
-                  {station.name} {station.code && `(${station.code})`}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-      </div>
-    </div>
-  );
+  const handleEditDialogOpenChange = (open: boolean) => {
+    setIsEditDialogOpen(open);
+    if (!open) {
+      setEditingEmployee(null);
+      setFormData(initialFormData);
+    }
+  };
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -354,7 +372,7 @@ export default function EmployeesManagement() {
             Manage employees and managers across all stations
           </p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
+        <Dialog open={isAddDialogOpen} onOpenChange={handleAddDialogOpenChange}>
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
@@ -366,7 +384,16 @@ export default function EmployeesManagement() {
               <DialogTitle>Add New Employee</DialogTitle>
               <DialogDescription>Create a new employee or manager account</DialogDescription>
             </DialogHeader>
-            <EmployeeForm />
+            <EmployeeFormContent
+              formData={formData}
+              stations={stations}
+              onNameChange={(value) => setFormData({ ...formData, name: value })}
+              onEmailChange={(value) => setFormData({ ...formData, email: value })}
+              onPhoneChange={(value) => setFormData({ ...formData, phone: value })}
+              onPasswordChange={(value) => setFormData({ ...formData, password: value })}
+              onRoleChange={(value) => setFormData({ ...formData, role: value })}
+              onStationChange={(value) => setFormData({ ...formData, stationId: value })}
+            />
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
                 Cancel
@@ -413,7 +440,7 @@ export default function EmployeesManagement() {
         </Card>
       ) : filteredEmployees && filteredEmployees.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {filteredEmployees.map((employee) => (
+          {filteredEmployees.map((employee: Employee) => (
             <Card key={employee.id} className="hover:shadow-lg transition-shadow">
               <CardHeader>
                 <div className="flex items-start justify-between">
@@ -503,13 +530,23 @@ export default function EmployeesManagement() {
       )}
 
       {/* Edit Dialog */}
-      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+      <Dialog open={isEditDialogOpen} onOpenChange={handleEditDialogOpenChange}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Edit Employee</DialogTitle>
             <DialogDescription>Update employee information</DialogDescription>
           </DialogHeader>
-          <EmployeeForm isEdit />
+          <EmployeeFormContent
+            isEdit
+            formData={formData}
+            stations={stations}
+            onNameChange={(value) => setFormData({ ...formData, name: value })}
+            onEmailChange={(value) => setFormData({ ...formData, email: value })}
+            onPhoneChange={(value) => setFormData({ ...formData, phone: value })}
+            onPasswordChange={(value) => setFormData({ ...formData, password: value })}
+            onRoleChange={(value) => setFormData({ ...formData, role: value })}
+            onStationChange={(value) => setFormData({ ...formData, stationId: value })}
+          />
           <div className="flex justify-end gap-2">
             <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
               Cancel
