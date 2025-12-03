@@ -11,7 +11,7 @@ const tankController = require('../controllers/tankController');
 const shiftController = require('../controllers/shiftController');
 const cashHandoverController = require('../controllers/cashHandoverController');
 const { authenticate, requireRole, requireMinRole } = require('../middleware/auth');
-const { validate, stationValidators, tankValidators } = require('../validators');
+const { validate, stationValidators, pumpValidators, tankValidators } = require('../validators');
 const { enforcePlanLimit } = require('../middleware/planLimits');
 
 // All routes require authentication
@@ -54,6 +54,7 @@ router.get('/:stationId/staff', userController.getStationStaff);
 router.get('/:stationId/pumps', stationController.getPumps);
 router.post('/:stationId/pumps', 
   requireRole(['owner', 'super_admin']),
+  validate(pumpValidators.create), // Validate pump creation
   enforcePlanLimit('pump'), // Check plan limits before creation
   stationController.createPump
 );

@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { extractApiArray } from '@/lib/api-response';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -22,7 +23,6 @@ import { Badge } from '@/components/ui/badge';
 import { useStations } from '@/hooks/api';
 import { safeToFixed } from '@/lib/format-utils';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
-import { Station } from '@/types/api';
 import {
   FileText,
   TrendingUp,
@@ -119,8 +119,8 @@ export default function Reports() {
       if (selectedStation !== 'all') {
         params.append('stationId', selectedStation);
       }
-      const response = await apiClient.get<SalesReport[]>(`/reports/sales?${params.toString()}`);
-      return response;
+      const response = await apiClient.get<{ success: boolean; data: SalesReport[] }>(`/reports/sales?${params.toString()}`);
+      return extractApiArray(response, []);
     }
   });
 
@@ -135,8 +135,8 @@ export default function Reports() {
       if (selectedStation !== 'all') {
         params.append('stationId', selectedStation);
       }
-      const response = await apiClient.get<ShiftReport[]>(`/reports/shifts?${params.toString()}`);
-      return response;
+      const response = await apiClient.get<{ success: boolean; data: ShiftReport[] }>(`/reports/shifts?${params.toString()}`);
+      return extractApiArray(response, []);
     }
   });
 
@@ -151,8 +151,8 @@ export default function Reports() {
       if (selectedStation !== 'all') {
         params.append('stationId', selectedStation);
       }
-      const response = await apiClient.get<PumpPerformance[]>(`/reports/pumps?${params.toString()}`);
-      return response;
+      const response = await apiClient.get<{ success: boolean; data: PumpPerformance[] }>(`/reports/pumps?${params.toString()}`);
+      return extractApiArray(response, []);
     }
   });
 
@@ -169,7 +169,7 @@ export default function Reports() {
       }
       // Backend returns { success: true, data: { startDate, endDate, nozzles: [...] } }
       // Backend nozzle fields: nozzleId, nozzleNumber, fuelType, fuelLabel, pump:{id,name,number}, litres, amount, cash, online, credit, readings
-      const response = await apiClient.get<{
+      const response = await apiClient.get<{ success: boolean; data: {
         startDate: string;
         endDate: string;
         nozzles: Array<{
@@ -185,12 +185,12 @@ export default function Reports() {
           credit?: number;
           readings?: number;
         }>;
-      }>(`/dashboard/nozzle-breakdown?${params.toString()}`);
+      }}>(`/dashboard/nozzle-breakdown?${params.toString()}`);
 
-      const backendNozzles = response?.nozzles || [];
+      const backendNozzles = (response as any)?.data?.nozzles || (response as any)?.nozzles || [];
 
       // Map backend shape to UI shape expected by this component
-      const mapped = backendNozzles.map(n => ({
+      const mapped = backendNozzles.map((n: any) => ({
         nozzleId: n.nozzleId,
         nozzleNumber: n.nozzleNumber,
         fuelType: n.fuelType || n.fuelLabel || 'unknown',
@@ -281,7 +281,7 @@ export default function Reports() {
         if (r.fuelTypeSales && r.fuelTypeSales.length > 0) {
           html += `<tr><td colspan="6" class="fuel-breakdown"><strong>Fuel Breakdown:</strong><table style="margin:10px 0;width:95%;margin-left:auto;">
             <thead><tr><th>Fuel Type</th><th>Sales</th><th>Quantity</th><th>Price/L</th><th>Txns</th></tr></thead><tbody>`;
-          r.fuelTypeSales.forEach(f => {
+          r.fuelTypeSales.forEach((f: any) => {
             const fuelPricePerL = f.quantity > 0 ? f.sales / f.quantity : 0;
             html += `<tr><td>${f.fuelType}</td><td>${currency(f.sales)}</td><td>${safeToFixed(f.quantity)} L</td><td>${currency(fuelPricePerL)}</td><td>${f.transactions}</td></tr>`;
           });
@@ -292,7 +292,7 @@ export default function Reports() {
       html += `</tbody></table>`;
     } else if (reportType === 'nozzles') {
       const rows = nozzleBreakdown || [];
-      const grandTotal = rows.reduce((acc, n) => ({
+      const grandTotal = rows.reduce((acc: any, n: any) => ({
         sales: acc.sales + (n.totalSales || 0),
         quantity: acc.quantity + (n.totalQuantity || 0),
         transactions: acc.transactions + (n.transactions || 0)
@@ -307,7 +307,7 @@ export default function Reports() {
       </div>`;
       
       html += `<table><thead><tr><th>Nozzle</th><th>Pump</th><th>Fuel</th><th>Sales</th><th>Volume (L)</th><th>Price/L</th><th>Txns</th><th>Avg Txn</th></tr></thead><tbody>`;
-      rows.forEach(n => {
+      rows.forEach((n: any) => {
         const pricePerL = n.totalQuantity > 0 ? n.totalSales / n.totalQuantity : 0;
         html += `<tr><td>${n.nozzleNumber}</td><td>${n.pumpName}</td><td>${n.fuelType}</td><td>${currency(n.totalSales)}</td><td>${safeToFixed(n.totalQuantity ?? 0)}</td><td>${currency(pricePerL)}</td><td><strong>${n.transactions}</strong></td><td>${currency(n.avgTransactionValue)}</td></tr>`;
       });
@@ -356,7 +356,7 @@ export default function Reports() {
             totalTransactions: r.totalTransactions
           };
           // Add fuel type breakdown rows
-          const fuelRows = (r.fuelTypeSales || []).map(f => ({
+          const fuelRows = (r.fuelTypeSales || []).map((f: any) => ({
             stationName: r.stationName,
             date: r.date,
             fuelType: f.fuelType,
@@ -382,7 +382,7 @@ export default function Reports() {
         toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
         return;
       } else if (reportType === 'nozzles') {
-        const rowsRaw = (nozzleBreakdown || []).map(n => {
+        const rowsRaw = (nozzleBreakdown || []).map((n: any) => {
           const pricePerLiter = n.totalQuantity > 0 ? n.totalSales / n.totalQuantity : 0;
           return {
             nozzleId: n.nozzleId,
@@ -906,7 +906,7 @@ export default function Reports() {
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          {report.fuelTypeSales.map((fuel, fuelIdx) => (
+                          {report.fuelTypeSales.map((fuel: any, fuelIdx: number) => (
                             <div
                               key={fuelIdx}
                               className="flex items-center justify-between p-3 bg-muted rounded-lg"
@@ -968,7 +968,7 @@ export default function Reports() {
               ) : nozzleBreakdown && nozzleBreakdown.length > 0 ? (
                 <div className="space-y-4">
                   <div className="grid gap-4 md:grid-cols-2">
-                    {nozzleBreakdown.map((nozzle) => {
+                    {nozzleBreakdown.map((nozzle: any) => {
                       const totalSales = nozzle?.totalSales ?? 0;
                       const totalQuantity = nozzle?.totalQuantity ?? 0;
                       const transactions = nozzle?.transactions ?? 0;
@@ -1160,7 +1160,7 @@ export default function Reports() {
                       <CardContent>
                         <div className="space-y-2">
                           <div className="text-sm font-medium mb-2">Nozzles Performance:</div>
-                          {pump.nozzles.map((nozzle, nIdx) => (
+                          {pump.nozzles.map((nozzle: any, nIdx: number) => (
                             <div
                               key={nIdx}
                               className="flex items-center justify-between p-3 bg-muted rounded-lg"

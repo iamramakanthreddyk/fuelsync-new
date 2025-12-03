@@ -459,6 +459,8 @@ exports.getPumps = async (req, res, next) => {
     const { stationId } = req.params;
     const user = req.user;
 
+    console.log(`📋 GET PUMPS - Station: ${stationId}, User: ${user.id}`);
+
     // Check station access using helper
     if (!(await canAccessStation(user, stationId))) {
       return res.status(403).json({ success: false, error: 'Access denied' });
@@ -474,6 +476,7 @@ exports.getPumps = async (req, res, next) => {
       order: [['pumpNumber', 'ASC']]
     });
 
+    console.log(`📋 FOUND ${pumps.length} PUMPS in station ${stationId}`);
     res.json({ success: true, data: pumps });
 
   } catch (error) {
@@ -487,9 +490,30 @@ exports.createPump = async (req, res, next) => {
     const { name, pumpNumber, notes } = req.body;
     const user = req.user;
 
+    console.log(`🔧 CREATE PUMP - Station: ${stationId}, Pump#: ${pumpNumber}, User: ${user.id}`);
+
     // Check station access
     if (!(await canAccessStation(user, stationId))) {
       return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // Check if pump already exists (before creation attempt)
+    const existingPump = await Pump.findOne({
+      where: { stationId, pumpNumber }
+    });
+    
+    if (existingPump) {
+      console.log(`⚠️  PUMP ALREADY EXISTS - ID: ${existingPump.id}, Created: ${existingPump.createdAt}`);
+      return res.status(409).json({ 
+        success: false, 
+        error: `Pump number ${pumpNumber} already exists in this station (ID: ${existingPump.id})`,
+        existingPump: {
+          id: existingPump.id,
+          pumpNumber: existingPump.pumpNumber,
+          name: existingPump.name,
+          createdAt: existingPump.createdAt
+        }
+      });
     }
 
     // Plan limits are checked by enforcePlanLimit middleware
@@ -501,11 +525,17 @@ exports.createPump = async (req, res, next) => {
       notes
     });
 
+    console.log(`✅ PUMP CREATED - ID: ${pump.id}, Number: ${pump.pumpNumber}`);
     res.status(201).json({ success: true, data: pump });
 
   } catch (error) {
+    console.error(`❌ CREATE PUMP ERROR - Station: ${req.params.stationId}, Pump#: ${req.body.pumpNumber}`, error.message);
     if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({ success: false, error: 'Pump number already exists' });
+      // Composite unique constraint on (station_id, pump_number)
+      return res.status(409).json({ 
+        success: false, 
+        error: `Pump number ${req.body.pumpNumber} already exists in this station` 
+      });
     }
     next(error);
   }

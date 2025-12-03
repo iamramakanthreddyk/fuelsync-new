@@ -7,7 +7,8 @@
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { apiClient, ApiResponse } from "@/lib/api-client";
+import { apiClient } from "@/lib/api-client";
+import { extractApiArray } from "@/lib/api-response";
 import { useRoleAccess } from "./useRoleAccess";
 import type { Pump as PumpType, Nozzle as NozzleType } from '@/types/api';
 
@@ -64,7 +65,7 @@ function transformPump(pump: BackendPump): PumpType {
 }
 
 export function usePumpsData() {
-  const { currentStation, canAccessAllStations, isAdmin } = useRoleAccess();
+  const { currentStation, isAdmin } = useRoleAccess();
   const stationId = currentStation?.id;
 
   return useQuery<Pump[]>({
@@ -79,21 +80,24 @@ export function usePumpsData() {
         const url = `/stations/${stationId}/pumps`;
         console.log('🔍 Fetching pumps from:', url);
         
-        // apiClient.get already unwraps {success, data} structure
-        const pumps = await apiClient.get<BackendPump[]>(url);
+        // apiClient.get returns the full response: {success, data}
+        const response = await apiClient.get<{ success: boolean; data: BackendPump[] }>(url);
         
-        console.log('✅ Pumps fetched:', pumps);
-        console.log('Is array?', Array.isArray(pumps));
-        console.log('Count:', pumps?.length);
+        // Extract array data from wrapped response - handles both wrapped and unwrapped
+        const pumpsData = extractApiArray(response, []);
+        
+        console.log('✅ Raw response:', response);
+        console.log('✅ Extracted data:', pumpsData);
+        console.log('Count:', pumpsData?.length);
 
-        if (Array.isArray(pumps)) {
+        if (Array.isArray(pumpsData) && pumpsData.length > 0) {
           // Transform each pump to frontend format
-          const transformed = pumps.map(transformPump);
+          const transformed = pumpsData.map(transformPump);
           console.log('✅ Transformed pumps:', transformed);
           return transformed;
         }
         
-        console.warn('⚠️ Pumps is not an array:', pumps);
+        console.warn('⚠️ No pumps data found');
         return [];
       } catch (error) {
         console.error('❌ Error fetching pumps:', error);

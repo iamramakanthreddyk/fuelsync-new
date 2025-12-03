@@ -7,6 +7,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
+import { extractNestedData } from "@/lib/api-response";
 import { useRoleAccess } from "./useRoleAccess";
 
 // Backend price format
@@ -59,12 +60,15 @@ export function useFuelPricesData() {
       try {
         // Use the correct endpoint: /stations/:stationId/prices
         const url = `/stations/${stationId}/prices`;
-        // apiClient.get already unwraps {success, data} structure
-        const data = await apiClient.get<{ current: BackendFuelPrice[], history: BackendFuelPrice[] }>(url);
+        // apiClient.get returns the full response: {success, data}
+        const response = await apiClient.get<ApiResponse<{ current: BackendFuelPrice[], history: BackendFuelPrice[] }>>(url);
 
-        // Backend returns {current: [], history: []} - we want current prices
-        if (data && data.current && Array.isArray(data.current)) {
-          return data.current.map(transformPrice);
+        // Extract nested 'current' array from the wrapped response
+        // Handles {success, data: {current: [...], history: [...]}}
+        const currentPrices = extractNestedData(response, 'current', []);
+        
+        if (Array.isArray(currentPrices) && currentPrices.length > 0) {
+          return currentPrices.map(transformPrice);
         }
         return [];
       } catch (error) {

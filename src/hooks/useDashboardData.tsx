@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/api-client";
+import { extractNestedData } from "@/lib/api-response";
 
 interface DashboardData {
   todaySales: number;
@@ -92,9 +93,11 @@ export const useDashboardData = () => {
       const fuelPrices: DashboardData['fuelPrices'] = {};
       try {
         type Price = { fuelType: string; price: number };
-        const pricesData = await apiClient.get<{ current: Price[] }>(`/stations/${currentStation.id}/prices`);
-        if (pricesData?.current) {
-          pricesData.current.forEach((p: Price) => {
+        const response = await apiClient.get<{ success: boolean; data: { current: Price[]; history: Price[] } }>(`/stations/${currentStation.id}/prices`);
+        // Extract nested 'current' array from the wrapped response
+        const currentPrices = extractNestedData(response, 'current', []);
+        if (Array.isArray(currentPrices)) {
+          currentPrices.forEach((p: Price) => {
             fuelPrices[p.fuelType as keyof typeof fuelPrices] = p.price;
           });
         }

@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { mapReadingFormToPayload } from '@/lib/apiPayloadHelpers';
 import { debounce } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
+import { extractApiArray } from '@/lib/api-response';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { Station } from '@/types/api';
 import {
@@ -180,16 +181,17 @@ export default function StationDetail() {
   const { data: pumps, isLoading: pumpsLoading } = useQuery({
     queryKey: ['station-pumps', id],
     queryFn: async () => {
-      const response = await apiClient.get<Pump[]>(`/stations/${id}/pumps`);
+      const response = await apiClient.get<{ success: boolean; data: Pump[] }>(`/stations/${id}/pumps`);
+      // Extract array data from wrapped response
+      const pumpData = extractApiArray(response, []);
       console.log('=== PUMPS DEBUG ===');
       console.log('Raw API Response:', response);
-      console.log('Is Array?', Array.isArray(response));
-      console.log('Type:', typeof response);
-      console.log('Length:', response?.length);
-      if (response && response.length > 0) {
-        console.log('First pump:', response[0]);
+      console.log('Extracted Data:', pumpData);
+      console.log('Count:', pumpData?.length);
+      if (pumpData && pumpData.length > 0) {
+        console.log('First pump:', pumpData[0]);
       }
-      return response;
+      return pumpData;
     },
     enabled: !!id
   });
@@ -214,8 +216,10 @@ export default function StationDetail() {
   const { data: prices, isLoading: pricesLoading } = useQuery({
     queryKey: ['station-prices', id],
     queryFn: async () => {
-      const response = await apiClient.get<{current: FuelPrice[], history: FuelPrice[]}>(`/stations/${id}/prices`);
-      return response.current;
+      const response = await apiClient.get<{ success: boolean; data: { current: FuelPrice[]; history: FuelPrice[] } }>(`/stations/${id}/prices`);
+      // Extract nested 'current' array from wrapped response
+      const currentPrices = extractApiArray((response as any).data?.current, []);
+      return currentPrices;
     },
     enabled: !!id
   });
@@ -225,8 +229,9 @@ export default function StationDetail() {
     queryKey: ['station-creditors', id],
     queryFn: async () => {
       try {
-        const response = await apiClient.get<Creditor[]>(`/stations/${id}/creditors`);
-        return response;
+        const response = await apiClient.get<{ success: boolean; data: Creditor[] }>(`/stations/${id}/creditors`);
+        // Extract array data from wrapped response
+        return extractApiArray(response, []);
       } catch (error: unknown) {
         if (
           typeof error === 'object' &&
@@ -813,7 +818,7 @@ export default function StationDetail() {
 
                       {pump.nozzles && pump.nozzles.length > 0 ? (
                         <div className="space-y-2">
-                          {pump.nozzles.map((nozzle) => (
+                          {pump.nozzles.map((nozzle: any) => (
                             <div
                               key={nozzle.id}
                               className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
@@ -962,7 +967,7 @@ export default function StationDetail() {
             <div className="text-center py-8">Loading prices...</div>
           ) : prices && prices.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {prices.map((price) => (
+              {prices.map((price: any) => (
                 <Card key={price.id}>
                   <CardHeader>
                     <CardTitle className="text-lg capitalize">{price.fuelType}</CardTitle>
