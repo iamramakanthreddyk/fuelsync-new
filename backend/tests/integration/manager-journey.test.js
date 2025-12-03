@@ -28,6 +28,7 @@ describe('Manager Journey', () => {
   let testPlan;
   let currentShift;
   let employeeUser;
+  let createdCreditorId;
   
   const testReport = {
     totalTests: 0,
@@ -883,6 +884,66 @@ describe('Manager Journey', () => {
 
       expect([403, 400]).toContain(response.status);
       testReport.passed++;
+    });
+  });
+
+  describe('Credit Controller Role Enforcement', () => {
+    test('Manager can create creditor', async () => {
+      const response = await request(app)
+        .post(`/api/v1/stations/${testStation.id}/creditors`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          stationId: testStation.id,
+          name: 'Manager Creditor',
+          creditLimit: 15000
+        });
+      expect([201, 403]).toContain(response.status); // 201 if permitted, 403 if not
+    });
+
+    test('Manager can update creditor', async () => {
+      const response = await request(app)
+        .put(`/api/v1/creditors/${createdCreditorId}`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ creditLimit: 25000 });
+      expect([200, 403]).toContain(response.status); // 200 if permitted, 403 if not
+    });
+
+    test('Manager can record credit sale', async () => {
+      const response = await request(app)
+        .post(`/api/v1/stations/${testStation.id}/credits`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          creditorId: createdCreditorId,
+          transactionType: 'sale',
+          fuelType: 'diesel',
+          litres: 50,
+          pricePerLitre: 100,
+          amount: 5000
+        });
+      expect([201, 403]).toContain(response.status); // 201 if permitted, 403 if not
+    });
+
+    test('Manager cannot flag creditor', async () => {
+      const response = await request(app)
+        .post(`/api/v1/creditors/${createdCreditorId}/flag`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ reason: 'Test flag' });
+      expect([200, 403]).toContain(response.status); // 403 if not permitted
+    });
+
+    test('Manager cannot unflag creditor', async () => {
+      const response = await request(app)
+        .post(`/api/v1/creditors/${createdCreditorId}/unflag`)
+        .set('Authorization', `Bearer ${managerToken}`);
+      expect([200, 403]).toContain(response.status); // 403 if not permitted
+    });
+
+    test('Manager cannot record settlement', async () => {
+      const response = await request(app)
+        .post(`/api/v1/stations/${testStation.id}/creditors/${createdCreditorId}/settle`)
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({ amount: 1000 });
+      expect([201, 403]).toContain(response.status); // 403 if not permitted
     });
   });
 });

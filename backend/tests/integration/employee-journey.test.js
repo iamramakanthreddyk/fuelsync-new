@@ -847,4 +847,66 @@ describe('Employee Journey', () => {
       testReport.passed++;
     });
   });
+
+  describe('Credit Controller Role Enforcement', () => {
+    let createdCreditorId;
+
+    beforeAll(async () => {
+      // Create a creditor as owner
+      const creditor = await request(app)
+        .post(`/api/v1/stations/${testStation.id}/creditors`)
+        .set('Authorization', `Bearer ${ownerUser.token}`)
+        .send({
+          stationId: testStation.id,
+          name: 'Test Creditor',
+          creditLimit: 10000
+        });
+
+      createdCreditorId = creditor.body.creditor.id;
+    });
+
+    test('Employee cannot create creditor', async () => {
+      const response = await request(app)
+        .post(`/api/v1/stations/${testStation.id}/creditors`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({
+          stationId: testStation.id,
+          name: 'Unauthorized Creditor',
+          creditLimit: 10000
+        });
+      expect(response.status).toBe(403);
+    });
+
+    test('Employee cannot update creditor', async () => {
+      // Assume a creditor exists (created by owner/manager in setup)
+      const response = await request(app)
+        .put(`/api/v1/creditors/${createdCreditorId}`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({ creditLimit: 20000 });
+      expect(response.status).toBe(403);
+    });
+
+    test('Employee cannot flag creditor', async () => {
+      const response = await request(app)
+        .post(`/api/v1/creditors/${createdCreditorId}/flag`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({ reason: 'Test flag' });
+      expect(response.status).toBe(403);
+    });
+
+    test('Employee cannot unflag creditor', async () => {
+      const response = await request(app)
+        .post(`/api/v1/creditors/${createdCreditorId}/unflag`)
+        .set('Authorization', `Bearer ${employeeToken}`);
+      expect(response.status).toBe(403);
+    });
+
+    test('Employee cannot record settlement', async () => {
+      const response = await request(app)
+        .post(`/api/v1/stations/${testStation.id}/creditors/${createdCreditorId}/settle`)
+        .set('Authorization', `Bearer ${employeeToken}`)
+        .send({ amount: 1000 });
+      expect(response.status).toBe(403);
+    });
+  });
 });
