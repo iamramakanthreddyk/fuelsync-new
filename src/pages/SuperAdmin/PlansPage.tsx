@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from '@/lib/errorUtils';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import type { Plan } from '@/types/database';
@@ -65,15 +66,10 @@ export default function PlansPage() {
       });
     },
     onError: (error: unknown) => {
-      let message = "Failed to create plan";
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
-      }
+      const message = getErrorMessage(error);
       toast({
         title: "Error",
-        description: message,
+        description: message || 'Failed to create plan',
         variant: "destructive",
       });
     },
@@ -93,15 +89,10 @@ export default function PlansPage() {
       });
     },
     onError: (error: unknown) => {
-      let message = "Failed to update plan";
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
-      }
+      const message = getErrorMessage(error);
       toast({
         title: "Error",
-        description: message,
+        description: message || 'Failed to update plan',
         variant: "destructive",
       });
     },
@@ -122,15 +113,10 @@ export default function PlansPage() {
       });
     },
     onError: (error: unknown) => {
-      let message = "Failed to deactivate plan";
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
-      }
+      const message = getErrorMessage(error);
       toast({
         title: "Error",
-        description: message,
+        description: message || 'Failed to deactivate plan',
         variant: "destructive",
       });
     },

@@ -9,6 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { getErrorMessage } from '@/lib/errorUtils';
 import { apiClient } from "@/lib/api";
 import { useAuth } from '@/hooks/useAuth';
 import type { User, Station, Plan } from '@/types/api';
@@ -89,13 +90,8 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       setStations(stationsRes || []);
       setPlans(plansRes || []);
     } catch (error: unknown) {
-      console.error('Error fetching data:', error);
-      let message = 'Failed to fetch data';
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
-      }
+      const message = getErrorMessage(error);
+      console.error('Error fetching data:', message);
       toast({
         title: "Error",
         description: message,
@@ -167,12 +163,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       resetCreateForm();
       fetchData();
     } catch (error: unknown) {
-      let message = 'Failed to create user';
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
-      }
+      const message = getErrorMessage(error);
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setIsCreating(false);
@@ -221,12 +212,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       setSelectedUser(null);
       fetchData();
     } catch (error: unknown) {
-      let message = 'Failed to update user';
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
-      }
+      const message = getErrorMessage(error);
       toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setIsUpdating(false);
@@ -239,12 +225,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       toast({ title: "Success", description: "User deleted successfully" });
       fetchData();
     } catch (error: unknown) {
-      let message = 'Failed to delete user';
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
-      }
+      const message = getErrorMessage(error);
       toast({ title: "Error", description: message, variant: "destructive" });
     }
   };
@@ -255,12 +236,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       toast({ title: "Success", description: `User ${user.isActive ? 'deactivated' : 'activated'} successfully` });
       fetchData();
     } catch (error: unknown) {
-      let message = 'Failed to update status';
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
-      }
+      const message = getErrorMessage(error);
       toast({ title: "Error", description: message, variant: "destructive" });
     }
   };

@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { apiClient } from "@/lib/api";
+import { getErrorMessage } from '@/lib/errorUtils';
 import { User, Building2, CheckCircle, AlertCircle } from 'lucide-react';
 
 interface OwnerFormData {
@@ -72,13 +73,8 @@ export default function CreateOwnerWizard() {
       });
     },
     onError: (error: unknown) => {
-      console.error('Create owner error:', error);
-      let message = 'Failed to create owner and station';
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
-      }
+      console.error('Create owner error:', getErrorMessage(error));
+      const message = getErrorMessage(error) || 'Failed to create owner and station';
       toast({ 
         title: "Error", 
         description: message, 
@@ -317,7 +313,7 @@ export default function CreateOwnerWizard() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="w-5 h-5" />
-              <p>Error: {createOwnerMutation.error.message}</p>
+              <p>Error: {getErrorMessage(createOwnerMutation.error)}</p>
             </div>
           </CardContent>
         </Card>
