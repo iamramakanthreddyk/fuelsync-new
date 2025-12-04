@@ -574,6 +574,34 @@ exports.updatePump = async (req, res, next) => {
   }
 };
 
+exports.deletePump = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const pump = await Pump.findByPk(id);
+    if (!pump) {
+      return res.status(404).json({ success: false, error: 'Pump not found' });
+    }
+
+    const user = req.user;
+    if (!(await canAccessStation(user, pump.stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // Only managers and above (or owner of station) can delete pumps
+    if (!['super_admin', 'owner', 'manager'].includes(user.role)) {
+      return res.status(403).json({ success: false, error: 'Insufficient permissions to delete pump' });
+    }
+
+    // Delete associated nozzles first
+    await Nozzle.destroy({ where: { pumpId: id } });
+    await pump.destroy();
+
+    res.json({ success: true, message: 'Pump deleted' });
+  } catch (error) {
+    next(error);
+  }
+};
+
 // ============================================
 // NOZZLE CRUD
 // ============================================
@@ -674,6 +702,30 @@ exports.updateNozzle = async (req, res, next) => {
 
     res.json({ success: true, data: nozzle });
 
+  } catch (error) {
+    next(error);
+  }
+};
+
+exports.deleteNozzle = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const nozzle = await Nozzle.findByPk(id, { include: [{ model: Pump, as: 'pump' }] });
+    if (!nozzle) {
+      return res.status(404).json({ success: false, error: 'Nozzle not found' });
+    }
+
+    const user = req.user;
+    if (!(await canAccessStation(user, nozzle.stationId || nozzle.pump.stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    if (!['super_admin', 'owner', 'manager'].includes(user.role)) {
+      return res.status(403).json({ success: false, error: 'Insufficient permissions to delete nozzle' });
+    }
+
+    await nozzle.destroy();
+    res.json({ success: true, message: 'Nozzle deleted' });
   } catch (error) {
     next(error);
   }

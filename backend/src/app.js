@@ -162,6 +162,11 @@ app.use('/api/pumps', pumpsRoutes);
 app.use('/api/nozzles', nozzlesRoutes);
 app.use('/api/fuel-prices', fuelPricesRoutes);
 
+// Mount v1 compatibility for pumps/nozzles/fuel-prices so tests using /api/v1/... work
+app.use('/api/v1/pumps', pumpsRoutes);
+app.use('/api/v1/nozzles', nozzlesRoutes);
+app.use('/api/v1/fuel-prices', fuelPricesRoutes);
+
 // API info with configuration options
 app.get('/api/v1', (req, res) => {
   res.json({

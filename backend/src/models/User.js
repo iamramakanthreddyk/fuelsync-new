@@ -15,6 +15,7 @@
 
 const { DataTypes } = require('sequelize');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 module.exports = (sequelize) => {
   const User = sequelize.define('User', {
@@ -99,6 +100,15 @@ module.exports = (sequelize) => {
       beforeCreate: async (user) => {
         if (user.password) {
           user.password = await bcrypt.hash(user.password, 12);
+        }
+      },
+      afterCreate: (user) => {
+        try {
+          const secret = process.env.JWT_SECRET || 'test-secret';
+          user.token = jwt.sign({ userId: user.id }, secret, { expiresIn: '7d' });
+        } catch (err) {
+          // ignore token generation failures in non-critical environments
+          user.token = null;
         }
       },
       beforeUpdate: async (user) => {
