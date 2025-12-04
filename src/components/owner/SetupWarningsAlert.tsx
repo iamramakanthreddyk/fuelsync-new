@@ -1,14 +1,15 @@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Building2 } from 'lucide-react';
+import { AlertTriangle, Building2, Fuel } from 'lucide-react';
 import { NavigateFunction } from 'react-router-dom';
 
 interface SetupWarningsAlertProps {
   hasStations: boolean;
+  hasFuelPrices: boolean;
   navigate: NavigateFunction;
 }
 
-export function SetupWarningsAlert({ hasStations, navigate }: SetupWarningsAlertProps) {
+export function SetupWarningsAlert({ hasStations, hasFuelPrices, navigate }: SetupWarningsAlertProps) {
   const warnings = [];
 
   if (!hasStations) {
@@ -18,6 +19,16 @@ export function SetupWarningsAlert({ hasStations, navigate }: SetupWarningsAlert
       description: 'Add your first fuel station to get started',
       action: () => navigate('/owner/stations'),
       actionLabel: 'Add Station'
+    });
+  }
+
+  if (hasStations && !hasFuelPrices) {
+    warnings.push({
+      icon: Fuel,
+      title: 'Fuel prices not set',
+      description: 'Set fuel prices for your stations to enable sales tracking',
+      action: () => navigate('/owner/stations'),
+      actionLabel: 'Set Prices'
     });
   }
 

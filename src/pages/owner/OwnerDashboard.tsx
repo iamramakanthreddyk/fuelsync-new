@@ -75,6 +75,28 @@ export default function OwnerDashboard() {
   // Unwrap stations if needed
   const stations: Station[] = stationsResponse?.data ?? extractApiData(stationsResponse, []);
 
+  // Fetch fuel prices to check if they're set
+  const { data: fuelPricesResponse } = useQuery<{
+    success: boolean;
+    data: { current: any[]; history: any[] };
+  } | null>({
+    queryKey: ['fuel-prices'],
+    queryFn: async () => {
+      try {
+        const response = await apiClient.get<{
+          success: boolean;
+          data: { current: any[]; history: any[] };
+        }>('/fuel-prices');
+        return response ?? null;
+      } catch (error) {
+        return null;
+      }
+    },
+    enabled: !!user && stations.length > 0
+  });
+
+  const hasFuelPrices = (fuelPricesResponse?.data?.current?.length ?? 0) > 0;
+
   // Guard: Don't render if not owner
   if (!user || user.role !== 'owner') {
     return null;
@@ -113,7 +135,7 @@ export default function OwnerDashboard() {
       <PlanInfoAlert user={user} stats={{ totalStations: safeStats.totalStations, totalEmployees: safeStats.totalEmployees }} />
 
       {/* Setup Warnings */}
-      <SetupWarningsAlert hasStations={stations.length > 0} navigate={navigate} />
+      <SetupWarningsAlert hasStations={stations.length > 0} hasFuelPrices={hasFuelPrices} navigate={navigate} />
 
       {/* Stats Grid */}
       <StatsGrid stats={stats ?? null} isLoading={isLoading} />
