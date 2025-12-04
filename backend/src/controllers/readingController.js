@@ -89,9 +89,17 @@ exports.createReading = async (req, res, next) => {
       activeShift = await Shift.getActiveShift(userId);
     }
 
-    // Get previous reading
-    console.log(`[DEBUG] Calling getLatestReading for nozzleId=${nozzleId}`);
-    const previousReadingRecord = await NozzleReading.getLatestReading(nozzleId);
+    // Get previous reading - for backdated entries we need the last reading before the provided date
+    console.log(`[DEBUG] Resolving previous reading for nozzleId=${nozzleId}, readingDate=${readingDate}`);
+    // Determine if the provided readingDate is before today (backdated)
+    const todayStr = new Date().toISOString().split('T')[0];
+    const isBackdated = new Date(readingDate + 'T00:00:00Z') < new Date(todayStr + 'T00:00:00Z');
+    let previousReadingRecord;
+    if (isBackdated) {
+      previousReadingRecord = await NozzleReading.getPreviousReading(nozzleId, readingDate);
+    } else {
+      previousReadingRecord = await NozzleReading.getLatestReading(nozzleId);
+    }
     let previousReading = previousReadingRecord?.readingValue || nozzle.initialReading || 0;
     let isInitialReading = !previousReadingRecord;
 
@@ -123,6 +131,28 @@ exports.createReading = async (req, res, next) => {
     // Calculate total amount
     const pricePerLitre = fuelPrice || (isInitialReading ? 100 : 0); // Use default price of 100 for initial readings if no price set
     const totalAmount = litresSold * pricePerLitre;
+
+    // Backdated reading validation based on owner's plan (backdatedDays)
+    try {
+      const stationWithOwner = await Station.findByPk(stationId, {
+        include: [{ model: User, as: 'owner', include: ['plan'] }]
+      });
+      const allowedBackdatedDays = stationWithOwner?.owner?.plan?.backdatedDays ?? 3;
+      const todayStr = new Date().toISOString().split('T')[0];
+      const msPerDay = 24 * 60 * 60 * 1000;
+      const readingDateObj = new Date(readingDate + 'T00:00:00Z');
+      const todayObj = new Date(todayStr + 'T00:00:00Z');
+      const diffDays = Math.floor((todayObj - readingDateObj) / msPerDay);
+      if (diffDays > allowedBackdatedDays) {
+        return res.status(403).json({
+          success: false,
+          error: `Backdated readings older than ${allowedBackdatedDays} days are not allowed`
+        });
+      }
+    } catch (err) {
+      // If plan lookup fails, fall back to default behavior (allow)
+      console.warn('Backdate validation failed, proceeding with default:', err?.message || err);
+    }
 
     // Handle payment amounts - support cash, online, and credit
     let finalCashAmount = 0;
@@ -183,20 +213,24 @@ exports.createReading = async (req, res, next) => {
     await nozzle.updateLastReading(currentValue, readingDate);
 
     // Return with calculated values
+    const readingJson = {
+      ...reading.toJSON(),
+      nozzle: {
+        id: nozzle.id,
+        number: nozzle.nozzleNumber,
+        fuelType: nozzle.fuelType
+      },
+      pump: {
+        id: nozzle.pump.id,
+        name: nozzle.pump.name
+      }
+    };
+
     res.status(201).json({
       success: true,
-      data: {
-        ...reading.toJSON(),
-        nozzle: {
-          id: nozzle.id,
-          number: nozzle.nozzleNumber,
-          fuelType: nozzle.fuelType
-        },
-        pump: {
-          id: nozzle.pump.id,
-          name: nozzle.pump.name
-        }
-      },
+      data: readingJson,
+      // Backwards-compatible alias expected by older tests/clients
+      reading: readingJson,
       message: isInitialReading 
         ? 'Initial reading recorded. This nozzle is now ready for daily entries.'
         : `Sale recorded: ${litresSold}L = ₹${totalAmount.toFixed(2)}`
@@ -590,5 +624,37 @@ exports.getLatestReadingsForNozzles = async (req, res) => {
     res.json(results);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch latest readings' });
+  }
+};
+
+/**
+ * Delete a reading (soft delete or allowed by role)
+ * DELETE /api/v1/readings/:id
+ */
+exports.deleteReading = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const reading = await NozzleReading.findByPk(id);
+    if (!reading) {
+      return res.status(404).json({ success: false, error: 'Reading not found' });
+    }
+    const user = await User.findByPk(req.userId);
+    if (!(await canAccessStation(user, reading.stationId))) {
+      return res.status(403).json({ success: false, error: 'Not authorized to delete this reading' });
+    }
+    // Allow delete only for manager+ or owner/super_admin or the one who entered
+    if (!['super_admin', 'owner', 'manager'].includes(user.role) && String(reading.enteredBy) !== String(user.id)) {
+      return res.status(403).json({ success: false, error: 'Only managers or the original employee can delete this reading' });
+    }
+    // Soft delete if model supports it, else destroy
+    if (typeof reading.destroy === 'function') {
+      await reading.destroy();
+    } else {
+      await reading.update({ isActive: false });
+    }
+    res.json({ success: true, data: reading, reading: reading, message: 'Reading deleted' });
+  } catch (error) {
+    console.error('Delete reading error:', error);
+    next(error);
   }
 };

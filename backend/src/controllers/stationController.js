@@ -580,25 +580,31 @@ exports.updatePump = async (req, res, next) => {
 
 exports.getNozzles = async (req, res, next) => {
   try {
-    const { pumpId } = req.params;
-
-    const pump = await Pump.findByPk(pumpId);
-    if (!pump) {
-      return res.status(404).json({ success: false, error: 'Pump not found' });
-    }
-
+    const { pumpId, stationId } = req.params;
     const user = req.user;
-    // Check station access
-    if (!(await canAccessStation(user, pump.stationId))) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
+
+    let nozzles = [];
+
+    if (pumpId) {
+      const pump = await Pump.findByPk(pumpId);
+      if (!pump) {
+        return res.status(404).json({ success: false, error: 'Pump not found' });
+      }
+      if (!(await canAccessStation(user, pump.stationId))) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+      nozzles = await Nozzle.findAll({ where: { pumpId }, order: [['nozzleNumber', 'ASC']] });
+    } else if (stationId) {
+      // Compatibility: return all nozzles for a station
+      if (!(await canAccessStation(user, stationId))) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+      nozzles = await Nozzle.findAll({ where: { stationId }, order: [['nozzleNumber', 'ASC']] });
+    } else {
+      return res.status(400).json({ success: false, error: 'pumpId or stationId is required' });
     }
 
-    const nozzles = await Nozzle.findAll({
-      where: { pumpId },
-      order: [['nozzleNumber', 'ASC']]
-    });
-
-    res.json({ success: true, data: nozzles });
+    res.json({ success: true, data: nozzles, nozzles });
 
     // Also keep compatibility key
     // (some clients/tests expect `nozzles` at top-level)

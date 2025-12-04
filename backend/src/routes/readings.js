@@ -32,4 +32,7 @@ router.get('/:id', readingController.getReadingById);
 // Update reading (manager+ only, same day)
 router.put('/:id', requireMinRole('manager'), readingController.updateReading);
 
+// Delete reading (manager+ or owner or original employee)
+router.delete('/:id', readingController.deleteReading);
+
 module.exports = router;

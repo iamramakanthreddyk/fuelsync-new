@@ -133,7 +133,7 @@ const createCreditor = async (req, res) => {
       notes,
       createdBy: req.user.id
     });
-    res.status(201).json({ success: true, data: creditor });
+    res.status(201).json({ success: true, data: creditor, creditor });
   } catch (error) {
     console.error('Create creditor error:', error);
     res.status(500).json({ success: false, error: { message: 'Failed to create creditor' } });
