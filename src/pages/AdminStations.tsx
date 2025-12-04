@@ -42,26 +42,70 @@ export default function AdminStations() {
   const { data: stations, isLoading } = useQuery({
     queryKey: ['admin-stations'],
     queryFn: async () => {
-      const data = await apiClient.get<Station[]>('/admin/stations');
-      return data || [];
+      const response = await apiClient.get<any>('/admin/stations');
+      
+      // Extract data from wrapped response { success, data, pagination }
+      if (response && typeof response === 'object') {
+        if ('data' in response && Array.isArray(response.data)) {
+          return response.data;
+        }
+        if (Array.isArray(response)) {
+          return response;
+        }
+      }
+      return [];
     },
   });
 
   // Fetch owners for dropdown
-  const { data: owners } = useQuery({
+  const { data: owners, isLoading: ownersLoading, error: ownersError } = useQuery({
     queryKey: ['owners'],
     queryFn: async () => {
-      const data = await apiClient.get<User[]>('/users?role=owner');
-      return data || [];
+      try {
+        const response = await apiClient.get<any>('/users?role=owner');
+        
+        // Extract data from wrapped response { success, data, pagination }
+        let usersList: User[] = [];
+        
+        if (response && typeof response === 'object') {
+          if ('data' in response && Array.isArray(response.data)) {
+            usersList = response.data;
+          } else if (Array.isArray(response)) {
+            usersList = response;
+          }
+        }
+        
+        // Filter for owner role
+        const owners = usersList.filter((user: User) => user.role === 'owner');
+        return owners;
+      } catch (error) {
+        console.error('Error fetching owners:', error);
+        throw error;
+      }
     },
   });
 
   // Fetch plans for dropdown
-  const { data: plans } = useQuery({
+  const { data: plans, isLoading: plansLoading } = useQuery({
     queryKey: ['plans'],
     queryFn: async () => {
-      const data = await apiClient.get<Plan[]>('/plans');
-      return data || [];
+      try {
+        const response = await apiClient.get<any>('/plans');
+        
+        // Extract data from wrapped response
+        if (response && typeof response === 'object') {
+          if ('data' in response && Array.isArray(response.data)) {
+            return response.data;
+          }
+          if (Array.isArray(response)) {
+            return response;
+          }
+        }
+        return [];
+      } catch (error) {
+        console.error('Error fetching plans:', error);
+        throw error;
+      }
     },
   });
 
@@ -110,7 +154,7 @@ export default function AdminStations() {
   });
 
   // Only superadmin can access this page
-  if (user?.role !== 'superadmin' && user?.role !== 'super_admin') {
+  if (user?.role !== 'super_admin') {
     return (
       <div className="container mx-auto p-6">
         <Card>
@@ -211,26 +255,41 @@ export default function AdminStations() {
               <div>
                 <Label htmlFor="owner">Station Owner</Label>
                 <Select value={newStation.owner_id} onValueChange={(value) => setNewStation(prev => ({ ...prev, owner_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select an owner" />
+                  <SelectTrigger disabled={ownersLoading}>
+                    <SelectValue placeholder={ownersLoading ? "Loading owners..." : "Select an owner"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {owners?.map((owner) => (
+                    {ownersLoading && (
+                      <div className="p-2 text-sm text-muted-foreground">Loading owners...</div>
+                    )}
+                    {!ownersLoading && owners && owners.length === 0 && (
+                      <div className="p-2 text-sm text-muted-foreground">No owners found</div>
+                    )}
+                    {!ownersLoading && owners?.map((owner) => (
                       <SelectItem key={owner.id} value={owner.id.toString()}>
                         {owner.name} ({owner.email})
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
+                {ownersError && (
+                  <p className="text-xs text-red-500 mt-1">Failed to load owners</p>
+                )}
               </div>
               <div>
                 <Label htmlFor="plan">Plan</Label>
                 <Select value={newStation.current_plan_id} onValueChange={(value) => setNewStation(prev => ({ ...prev, current_plan_id: value }))}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select a plan" />
+                  <SelectTrigger disabled={plansLoading}>
+                    <SelectValue placeholder={plansLoading ? "Loading plans..." : "Select a plan"} />
                   </SelectTrigger>
                   <SelectContent>
-                    {plans?.map((plan) => (
+                    {plansLoading && (
+                      <div className="p-2 text-sm text-muted-foreground">Loading plans...</div>
+                    )}
+                    {!plansLoading && plans && plans.length === 0 && (
+                      <div className="p-2 text-sm text-muted-foreground">No plans found</div>
+                    )}
+                    {!plansLoading && plans?.map((plan: any) => (
                       <SelectItem key={plan.id} value={plan.id}>
                         {plan.name} (₹{plan.priceMonthly}/month)
                       </SelectItem>
@@ -247,7 +306,7 @@ export default function AdminStations() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {stations?.map((station) => (
+        {stations?.map((station: any) => (
           <Card key={station.id} className="relative">
             <CardHeader>
               <div className="flex justify-between items-start">

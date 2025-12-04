@@ -51,19 +51,20 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
   const [isUpdating, setIsUpdating] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [editForm, setEditForm] = useState({
+    id: '',
     name: '',
     email: '',
     phone: '',
     role: 'employee' as User['role'],
     stationId: '',
     planId: '',
-    isActive: true
+    isActive: true,
+    newPassword: ''
   });
   
   const { toast } = useToast();
 
-
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, user } = useAuth();
 
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
@@ -182,13 +183,15 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
   const openEditDialog = (user: User) => {
     setSelectedUser(user);
     setEditForm({
+      id: user.id,
       name: user.name,
       email: user.email,
       phone: user.phone || '',
       role: user.role,
       stationId: user.stationId || (user.stations && user.stations[0]?.id) || '',
       planId: user.planId || user.plan?.id || '',
-      isActive: user.isActive
+      isActive: user.isActive,
+      newPassword: ''
     });
     setIsEditOpen(true);
   };
@@ -785,6 +788,40 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                 </Button>
               </div>
             </div>
+              {/* Password reset/change for super admin */}
+              {user && (user.role === 'super_admin' || user.role === 'superadmin') && (
+                <div>
+                  <Label htmlFor="edit-password">Change Password</Label>
+                  <Input
+                    id="edit-password"
+                    type="password"
+                    value={editForm.newPassword || ''}
+                    onChange={(e) => setEditForm({ ...editForm, newPassword: e.target.value })}
+                    placeholder="Enter new password"
+                  />
+                  <Button
+                    type="button"
+                    variant="default"
+                    size="sm"
+                    className="mt-2"
+                    onClick={async () => {
+                      if (!editForm.newPassword || editForm.newPassword.length < 6) {
+                        alert('Password must be at least 6 characters');
+                        return;
+                      }
+                      try {
+                        await apiClient.post(`/users/${editForm.id}/reset-password`, { newPassword: editForm.newPassword });
+                        alert('Password changed successfully');
+                        setEditForm({ ...editForm, newPassword: '' });
+                      } catch (err) {
+                        alert('Failed to change password');
+                      }
+                    }}
+                  >
+                    Change Password
+                  </Button>
+                </div>
+              )}
           </div>
           <DialogFooter className="flex-col sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setIsEditOpen(false)} className="w-full sm:w-auto">

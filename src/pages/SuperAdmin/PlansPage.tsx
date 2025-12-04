@@ -47,8 +47,18 @@ export default function PlansPage() {
   const { data: plansRaw, isLoading, error } = useQuery({
     queryKey: ['plans'],
     queryFn: async () => {
-      const data = await apiClient.get<Plan[]>('/plans');
-      return Array.isArray(data) ? data : [];
+      const response = await apiClient.get<any>('/plans');
+      
+      // Extract data from wrapped response { success, data, pagination }
+      if (response && typeof response === 'object') {
+        if ('data' in response && Array.isArray(response.data)) {
+          return response.data;
+        }
+        if (Array.isArray(response)) {
+          return response;
+        }
+      }
+      return [];
     },
   });
   const plans = Array.isArray(plansRaw) ? plansRaw : [];

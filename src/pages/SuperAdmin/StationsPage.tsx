@@ -57,8 +57,8 @@ export default function StationsPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [stationsRes, stationsErr] = await handleApiCall(() => apiClient.get<Station[]>("/stations"));
-    const [usersRes, usersErr] = await handleApiCall(() => apiClient.get<Owner[]>("/users"));
+    const [stationsRes, stationsErr] = await handleApiCall(() => apiClient.get<any>("/stations"));
+    const [usersRes, usersErr] = await handleApiCall(() => apiClient.get<any>("/users"));
     if (stationsErr || usersErr) {
       toast({
         title: "Error",
@@ -68,9 +68,35 @@ export default function StationsPage() {
       setLoading(false);
       return;
     }
+    
+    // Extract stations from wrapped response { success, data, pagination }
+    let stationsData: Station[] = [];
+    if (stationsRes && typeof stationsRes === 'object') {
+      if ('data' in stationsRes && Array.isArray((stationsRes as any).data)) {
+        stationsData = (stationsRes as any).data;
+      } else if (Array.isArray(stationsRes)) {
+        stationsData = stationsRes;
+      }
+    }
+    
+    // Extract users from wrapped response
+    let usersData: Owner[] = [];
+    if (usersRes && typeof usersRes === 'object') {
+      if ('data' in usersRes && Array.isArray((usersRes as any).data)) {
+        usersData = (usersRes as any).data;
+      } else if (Array.isArray(usersRes)) {
+        usersData = usersRes;
+      }
+    }
+    
+    console.log('✅ Stations:', stationsData);
+    console.log('✅ All Users:', usersData);
+    
     // Defensive: always set to array
-    setStations(Array.isArray(stationsRes) ? stationsRes : []);
-    setOwners(Array.isArray(usersRes) ? usersRes.filter((user: Owner) => user.role === 'owner') : []);
+    setStations(Array.isArray(stationsData) ? stationsData : []);
+    const filteredOwners = Array.isArray(usersData) ? usersData.filter((user: Owner) => user.role === 'owner') : [];
+    console.log('✅ Filtered Owners:', filteredOwners);
+    setOwners(filteredOwners);
     setLoading(false);
   };
 
