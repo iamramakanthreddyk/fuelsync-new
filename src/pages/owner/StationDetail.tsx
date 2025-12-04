@@ -44,7 +44,6 @@ import {
   Fuel,
   Settings,
   DollarSign,
-  Users,
   CreditCard
 } from 'lucide-react';
 
@@ -92,6 +91,11 @@ export default function StationDetail() {
     }
     const maxNozzleNumber = Math.max(...pump.nozzles.map(n => n.nozzleNumber || 0));
     return maxNozzleNumber + 1;
+  };
+
+  // Get default fuel type: default to petrol (allow multiple nozzles of same type)
+  const getDefaultFuelType = (): string => {
+    return 'petrol';
   };
 
   // Log last reading value for selected nozzle
@@ -566,7 +570,7 @@ export default function StationDetail() {
     setSelectedPump(pump);
     setEditPumpForm({
       name: pump.name,
-      status: pump.status,
+      status: (pump.status === 'offline' ? 'inactive' : pump.status) as 'active' | 'inactive' | 'maintenance',
       notes: pump.notes || ''
     });
     setIsEditPumpDialogOpen(true);
@@ -583,7 +587,7 @@ export default function StationDetail() {
   const handleEditNozzle = (nozzle: Nozzle) => {
     setSelectedNozzle(nozzle);
     setEditNozzleForm({
-      status: nozzle.status,
+      status: (nozzle.status === 'offline' ? 'inactive' : nozzle.status) as 'active' | 'inactive' | 'maintenance',
       notes: ''
     });
     setIsEditNozzleDialogOpen(true);
@@ -1169,7 +1173,7 @@ export default function StationDetail() {
         {/* Settings Tab */}
         <TabsContent value="settings" className="space-y-4">
           <h2 className="text-xl font-semibold">Station Settings</h2>
-          <StationSettingsForm stationId={id} />
+          {id && <StationSettingsForm stationId={id} />}
         </TabsContent>
       </Tabs>
 
@@ -1180,7 +1184,7 @@ export default function StationDetail() {
         if (open && selectedPump) {
           setNozzleForm({
             nozzleNumber: getNextNozzleNumber(selectedPump).toString(),
-            fuelType: 'petrol',
+            fuelType: getDefaultFuelType(),
             initialReading: ''
           });
         }
