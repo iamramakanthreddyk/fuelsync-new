@@ -24,7 +24,8 @@ import {
   StationsCard,
   PendingActionsAlert,
   QuickActionsGrid,
-  QuickEntryCardsGrid
+  QuickEntryCardsGrid,
+  SetupWarningsAlert
 } from '@/components/owner';
 
 // Types
@@ -110,6 +111,9 @@ export default function OwnerDashboard() {
 
       {/* Plan Info Alert */}
       <PlanInfoAlert user={user} stats={{ totalStations: safeStats.totalStations, totalEmployees: safeStats.totalEmployees }} />
+
+      {/* Setup Warnings */}
+      <SetupWarningsAlert hasStations={stations.length > 0} navigate={navigate} />
 
       {/* Stats Grid */}
       <StatsGrid stats={stats ?? null} isLoading={isLoading} />
