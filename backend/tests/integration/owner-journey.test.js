@@ -212,6 +212,67 @@ describe('Owner Journey', () => {
     });
   });
 
+    describe('Owner Plan Management', () => {
+      test('Admin updates owner plan', async () => {
+        testReport.totalTests++;
+        testReport.apis.add('PUT /api/users/:id');
+        testReport.coverage.push('Admin updates owner plan');
+
+        // Ensure super admin exists
+        let superAdmin = await User.findOne({ where: { email: 'admin@test.com' } });
+        if (!superAdmin) {
+          superAdmin = await User.create({
+            email: 'admin@test.com',
+            password: 'admin123',
+            name: 'Test Admin',
+            role: 'super_admin',
+            isActive: true
+          });
+        }
+
+        // Create a new plan to update to
+        const newPlan = await Plan.create({
+          name: 'Owner Updated Plan',
+          description: 'Updated plan for owner',
+          maxStations: 5,
+          maxPumpsPerStation: 15,
+          maxNozzlesPerPump: 6,
+          maxEmployees: 30,
+          maxCreditors: 200,
+          backdatedDays: 14,
+          analyticsDays: 60,
+          canExport: true,
+          canTrackExpenses: true,
+          canTrackCredits: true,
+          canViewProfitLoss: true,
+          priceMonthly: 2999,
+          isActive: true
+        });
+
+        // Get admin token
+        const adminLogin = await request(app)
+          .post('/api/v1/auth/login')
+          .send({
+            email: 'admin@test.com',
+            password: 'admin123'
+          });
+        const adminToken = adminLogin.body.data.token;
+
+        // Update owner's plan
+        const response = await request(app)
+          .put(`/api/v1/users/${ownerUser.id}`)
+          .set('Authorization', `Bearer ${adminToken}`)
+          .send({
+            planId: newPlan.id
+          });
+
+        expect(response.status).toBe(200);
+        expect(response.body.success).toBe(true);
+        expect(response.body.data.planId).toBe(newPlan.id);
+        testReport.passed++;
+      });
+    });
+
   describe('2. Station Management', () => {
     test('Get own station details', async () => {
       testReport.totalTests++;

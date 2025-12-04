@@ -236,7 +236,6 @@ exports.createUser = async (req, res, next) => {
     // Get plan for new owner
     let ownerPlanId = null;
     if (roleNormalized === 'owner') {
-      // If super_admin provides a planId, validate and use it
       if (planId && currentRole === 'super_admin') {
         const plan = await Plan.findByPk(planId);
         if (plan) {
@@ -281,7 +280,7 @@ exports.createUser = async (req, res, next) => {
       phone,
       role: roleNormalized,
       stationId: ['manager', 'employee'].includes(roleNormalized) ? stationId : null,
-      planId: ownerPlanId,
+      planId: roleNormalized === 'owner' ? ownerPlanId : null,
       createdBy: currentUser.id
     });
 
@@ -349,7 +348,11 @@ exports.updateUser = async (req, res, next) => {
       isActive: isActive !== undefined ? isActive : user.isActive
     };
 
-    if (user.role === 'owner' && req.user.role === 'super_admin' && planId) {
+    if (user.role === 'owner' && currentUser.role === 'super_admin' && planId) {
+      const plan = await Plan.findByPk(planId);
+      if (!plan) {
+        return res.status(400).json({ success: false, error: 'Invalid planId provided' });
+      }
       updateFields.planId = planId;
     }
 
