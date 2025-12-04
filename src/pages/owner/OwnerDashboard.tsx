@@ -17,7 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { extractApiData } from '@/lib/api-response';
-import { useStations } from '@/hooks/api';
+import { useStations, usePumps } from '@/hooks/api';
 import {
   StatsGrid,
   PlanInfoAlert,
@@ -115,15 +115,17 @@ export default function OwnerDashboard() {
 
   const hasFuelPrices = (fuelPricesResponse?.data?.current?.length ?? 0) > 0;
 
-  // 3. Check if primary station has pumps (stations response includes pumps)
-  const hasPumps = (primaryStation as any)?.pumps?.length > 0;
+  // 3. Fetch pumps for primary station to check if pumps exist AND nozzles are configured
+  // This is more accurate than checking the stations response which may not include nozzle details
+  const { data: pumpsResponse } = usePumps(primaryStation?.id ?? '');
+  
+  const hasPumps = (pumpsResponse?.data?.length ?? 0) > 0;
 
-  // 4. Check if primary station pumps have nozzles (nozzles are included in pumps from the stations response)
-  const hasNozzles = hasPumps && (
-    (primaryStation as any)?.pumps?.some((pump: any) => 
-      Array.isArray(pump.nozzles) && pump.nozzles.length > 0
-    ) ?? false
-  );
+  // 4. Check if any pump has nozzles
+  // Nozzles are returned nested within each pump in the pumps response
+  const hasNozzles = hasPumps && (pumpsResponse?.data?.some((pump: any) => 
+    Array.isArray(pump.nozzles) && pump.nozzles.length > 0
+  ) ?? false);
 
   // Guard: Don't render if not owner
   if (!user || user.role !== 'owner') {

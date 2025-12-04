@@ -229,6 +229,7 @@ export function AppWithQueries() {
                     <Route path="/owner/quick-entry" element={<QuickDataEntry />} />
                     <Route path="/owner/stations" element={<StationsManagement />} />
                     <Route path="/owner/stations/:id" element={<StationDetail />} />
+                    <Route path="/owner/stations/:id/prices" element={<Prices />} />
                     <Route path="/owner/employees" element={<EmployeesManagement />} />
                     <Route path="/owner/reports" element={<OwnerReports />} />
                     <Route path="/owner/analytics" element={<OwnerAnalytics />} />
@@ -281,7 +282,6 @@ export function AppWithQueries() {
                     <Route path="/sales" element={<Sales />} />
                     <Route path="/daily-closure" element={<DailyClosure />} />
                     <Route path="/pumps" element={<Pumps />} />
-                    <Route path="/prices" element={<Prices />} />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/admin/users" element={<AdminUsers />} />
                     <Route path="/admin/stations" element={<AdminStations />} />

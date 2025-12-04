@@ -1,18 +1,18 @@
 
 
 
-import React, { useState, useMemo } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, IndianRupee, Building2 } from "lucide-react";
+import { IndianRupee, Building2 } from "lucide-react";
 import { useFuelPricesData } from "@/hooks/useFuelPricesData";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
-import { useAuth } from "@/hooks/useAuth";
 import { FuelPriceDialog } from "@/components/prices/FuelPriceDialog";
 import { FuelPricesGrid } from '@/components/prices/FuelPricesGrid';
 import { FuelPriceAddButton } from '@/components/prices/FuelPriceAddButton';
-import { apiClient, ApiResponse } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
 import {
   Select,
   SelectContent,
@@ -25,31 +25,36 @@ import {
  * Prices Page - Manage fuel prices per station
  * 
  * Architecture:
- * - Owner can have MULTIPLE stations
+ * - Accessed via `/owner/stations/:id/prices` (station-specific)
+ * - Also accessible via dropdown selector on same page
  * - Each station has its own fuel prices
- * - Page requires station selection
- * - Cannot rely on global currentStation (it's only the first one)
+ * - Shows which station's prices are being managed
  */
 export default function PricesPage() {
+  const { id: routeStationId } = useParams<{ id?: string }>();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [dialogMode, setDialogMode] = useState<"add" | "edit">("add");
   const [selectedFuelType, setSelectedFuelType] = useState<"PETROL" | "DIESEL" | "CNG" | "EV" | undefined>(undefined);
   const [selectedPrice, setSelectedPrice] = useState<string>("");
-  const [editId, setEditId] = useState<number | undefined>(undefined);
   const [selectedStationId, setSelectedStationId] = useState<string>("");
   
   const { toast } = useToast();
-  const { user } = useAuth();
   const queryClient = useQueryClient();
   const { stations, isOwner, isAdmin } = useRoleAccess();
   
-  // Initialize to first station if available
+  // Determine which station to show prices for:
+  // 1. Use route parameter if accessing via /owner/stations/:id/prices
+  // 2. Fall back to user selection if on generic /prices page
+  // 3. Default to first station
   const defaultStationId = useMemo(() => {
+    if (routeStationId) {
+      return routeStationId;
+    }
     return selectedStationId || stations[0]?.id || "";
-  }, [selectedStationId, stations]);
+  }, [routeStationId, selectedStationId, stations]);
   
   // Fetch prices for the SELECTED station (not relying on currentStation)
-  const { data: fuelPrices, isLoading } = useFuelPricesData(defaultStationId);
+  const { data: fuelPrices } = useFuelPricesData(defaultStationId);
   
   // Get the currently selected station details
   const currentStation = useMemo(() => {
@@ -73,19 +78,16 @@ export default function PricesPage() {
     setDialogOpen(true);
     setSelectedFuelType(undefined);
     setSelectedPrice("");
-    setEditId(undefined);
   };
   const openEditDialog = (
     fuelType: string,
-    price: number,
-    id: number
+    price: number
   ) => {
     if (isValidFuelType(fuelType)) {
       setDialogMode("edit");
       setDialogOpen(true);
       setSelectedFuelType(fuelType);
       setSelectedPrice(price.toString());
-      setEditId(id);
     } else {
       return;
     }
@@ -130,7 +132,6 @@ export default function PricesPage() {
         setDialogOpen(false);
         setSelectedFuelType(undefined);
         setSelectedPrice("");
-        setEditId(undefined);
         queryClient.invalidateQueries({ queryKey: ["fuel-prices", defaultStationId] });
       })
       .catch((error: unknown) => {
@@ -172,8 +173,8 @@ export default function PricesPage() {
         </p>
       </div>
 
-      {/* Station Selection - Only show if owner has multiple stations */}
-      {(isOwner || isAdmin) && stations.length > 1 && (
+      {/* Station Selection - Show if accessing from /prices route, hide if from /owner/stations/:id/prices */}
+      {!routeStationId && (isOwner || isAdmin) && stations.length > 1 && (
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-base">Select Station</CardTitle>
@@ -220,18 +221,18 @@ export default function PricesPage() {
         onOpenChange={setDialogOpen}
         fuelTypes={
           dialogMode === "add"
-            ? (missingFuelTypes as ("PETROL" | "DIESEL" | "CNG" | "EV")[])
-            : [(selectedFuelType || "PETROL") as "PETROL" | "DIESEL" | "CNG" | "EV"]
+            ? (missingFuelTypes as string[])
+            : [(selectedFuelType || "PETROL") as string]
         }
         mode={dialogMode}
         initialFuelType={selectedFuelType}
         initialPrice={selectedPrice}
         loading={addEditLoading}
-        onSubmit={handleDialogSubmit}
+        onSubmit={(input) => handleDialogSubmit(input as { fuel_type: "PETROL" | "DIESEL" | "CNG" | "EV"; price_per_litre: string })}
       />
 
       <FuelPricesGrid
-        fuelPrices={fuelPrices}
+        fuelPrices={Array.isArray(fuelPrices) ? (fuelPrices as any) : undefined}
         isOwner={isOwner}
         isAdmin={isAdmin}
         onEdit={openEditDialog}

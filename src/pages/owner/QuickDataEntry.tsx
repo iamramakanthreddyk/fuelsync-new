@@ -76,13 +76,14 @@ export default function QuickDataEntry() {
                 : (initialReading !== null && !isNaN(initialReading)
                   ? initialReading
                   : Number(nozzle.lastReading) || Number(nozzle.initialReading) || 0);
-            console.log(`Pump ${pump.name || pump.pumpNumber}, Nozzle ${nozzle.nozzleNumber}: Last Reading =`, last);
+            
+            // last is used by the component's render logic below
+            void last;
           });
         }
       });
     }
   }, [pumps]);
-  // ...existing code...
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
@@ -104,9 +105,12 @@ export default function QuickDataEntry() {
       });
       // Clear the form
       setReadings({});
-      // Invalidate higher-level queries that depend on readings
+      // Invalidate and refetch pumps data to show latest readings
+      // This ensures the "Last Reading" display updates to reflect the newly saved reading
+      queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
+      queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
+      // Also invalidate related analytics data
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
-      queryClient.invalidateQueries({ queryKey: ['station-pumps', selectedStation] });
     },
     onError: (error: unknown) => {
       let message = 'Failed to save readings';
