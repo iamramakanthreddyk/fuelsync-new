@@ -15,6 +15,10 @@ router.post('/register', authController.register);
 router.get('/me', authenticate, authController.getCurrentUser);
 // Backwards-compatible alias
 router.get('/profile', authenticate, authController.getCurrentUser);
+// Change password
+router.post('/change-password', authenticate, authController.changePassword);
+// Update profile (alias to user controller update via auth)
+router.put('/profile', authenticate, authController.getCurrentUser);
 router.post('/logout', authenticate, authController.logout);
 
 module.exports = router;

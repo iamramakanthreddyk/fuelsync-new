@@ -359,6 +359,8 @@ exports.getReadings = async (req, res, next) => {
     res.json({
       success: true,
       data: rows,
+      // Backwards-compatible alias expected by older tests/clients
+      readings: rows,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

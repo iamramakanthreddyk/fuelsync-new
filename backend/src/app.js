@@ -136,6 +136,32 @@ app.use('/api/v1/activity-logs', activityLogRoutes); // Activity logging
 // Admin-only endpoints (backup, migration, etc.)
 app.use('/api/v1/admin', adminRoutes);
 
+// Backwards-compatible mounts (support older tests/clients using `/api/...` without /v1)
+app.use('/api/auth', authRoutes);
+app.use('/api/users', userRoutes);
+app.use('/api', creditRoutes);
+app.use('/api', expenseRoutes);
+app.use('/api/stations', stationRoutes);
+app.use('/api/readings', readingRoutes);
+app.use('/api/sales', salesRoutes);
+app.use('/api/reports', reportRoutes);
+app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/tanks', tankRoutes);
+app.use('/api/shifts', shiftRoutes);
+app.use('/api/handovers', handoverRoutes);
+app.use('/api/config', configRoutes);
+app.use('/api/plans', planRoutes);
+app.use('/api/activity-logs', activityLogRoutes);
+app.use('/api/admin', adminRoutes);
+// compatibility aliases
+const pumpsRoutes = require('./routes/pumps');
+const nozzlesRoutes = require('./routes/nozzles');
+const fuelPricesRoutes = require('./routes/fuelPrices');
+
+app.use('/api/pumps', pumpsRoutes);
+app.use('/api/nozzles', nozzlesRoutes);
+app.use('/api/fuel-prices', fuelPricesRoutes);
+
 // API info with configuration options
 app.get('/api/v1', (req, res) => {
   res.json({

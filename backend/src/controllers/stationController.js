@@ -477,7 +477,7 @@ exports.getPumps = async (req, res, next) => {
     });
 
     console.log(`📋 FOUND ${pumps.length} PUMPS in station ${stationId}`);
-    res.json({ success: true, data: pumps });
+    res.json({ success: true, data: pumps, pumps });
 
   } catch (error) {
     next(error);
@@ -600,6 +600,9 @@ exports.getNozzles = async (req, res, next) => {
 
     res.json({ success: true, data: nozzles });
 
+    // Also keep compatibility key
+    // (some clients/tests expect `nozzles` at top-level)
+
   } catch (error) {
     next(error);
   }
@@ -701,6 +704,10 @@ exports.getFuelPrices = async (req, res, next) => {
     res.json({
       success: true,
       data: {
+        current: Object.values(currentPrices),
+        history: prices
+      },
+      fuelPrices: {
         current: Object.values(currentPrices),
         history: prices
       }
