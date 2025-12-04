@@ -1,17 +1,26 @@
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertTriangle, Building2, Fuel } from 'lucide-react';
+import { AlertTriangle, Building2, Fuel, Zap, Wrench } from 'lucide-react';
 import { NavigateFunction } from 'react-router-dom';
 
 interface SetupWarningsAlertProps {
   hasStations: boolean;
   hasFuelPrices: boolean;
+  hasPumps: boolean;
+  hasNozzles: boolean;
   navigate: NavigateFunction;
 }
 
-export function SetupWarningsAlert({ hasStations, hasFuelPrices, navigate }: SetupWarningsAlertProps) {
+export function SetupWarningsAlert({ 
+  hasStations, 
+  hasFuelPrices, 
+  hasPumps, 
+  hasNozzles, 
+  navigate 
+}: SetupWarningsAlertProps) {
   const warnings = [];
 
+  // Chain logic: Check in order, stop at first missing item
   if (!hasStations) {
     warnings.push({
       icon: Building2,
@@ -20,15 +29,35 @@ export function SetupWarningsAlert({ hasStations, hasFuelPrices, navigate }: Set
       action: () => navigate('/owner/stations'),
       actionLabel: 'Add Station'
     });
-  }
-
-  if (hasStations && !hasFuelPrices) {
+    // Stop here - can't check other items without stations
+  } else if (!hasFuelPrices) {
+    // Only show if stations exist
     warnings.push({
       icon: Fuel,
       title: 'Fuel prices not set',
       description: 'Set fuel prices for your stations to enable sales tracking',
       action: () => navigate('/owner/stations'),
       actionLabel: 'Set Prices'
+    });
+    // Stop here - can't sell without prices
+  } else if (!hasPumps) {
+    // Only show if prices are set
+    warnings.push({
+      icon: Zap,
+      title: 'No pumps configured',
+      description: 'Add fuel pumps to your stations for dispenser operations',
+      action: () => navigate('/owner/stations'),
+      actionLabel: 'Add Pumps'
+    });
+    // Stop here - can't operate without pumps
+  } else if (!hasNozzles) {
+    // Only show if pumps exist
+    warnings.push({
+      icon: Wrench,
+      title: 'No nozzles configured',
+      description: 'Add nozzles to your pumps to complete station setup',
+      action: () => navigate('/owner/stations'),
+      actionLabel: 'Add Nozzles'
     });
   }
 

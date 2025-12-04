@@ -60,14 +60,27 @@ export default function OwnerDashboard() {
   }, [user, navigate]);
 
   // Fetch dashboard stats
-  const { data: stats, isLoading: statsLoading } = useQuery<DashboardStats | null>({
+  const { data: statsResponse, isLoading: statsLoading } = useQuery<{
+    success: boolean;
+    data: DashboardStats;
+  } | null>({
     queryKey: ['owner-dashboard-stats'],
     queryFn: async () => {
-      const response = await apiClient.get<DashboardStats | null>('/dashboard/owner/stats');
-      return response ?? null;
+      try {
+        const response = await apiClient.get<{
+          success: boolean;
+          data: DashboardStats;
+        }>('/dashboard/owner/stats');
+        return response ?? null;
+      } catch (error) {
+        return null;
+      }
     },
     enabled: !!user
   });
+
+  // Unwrap stats from API response
+  const stats = statsResponse?.data ?? null;
 
   // Fetch station summaries
   const { data: stationsResponse, isLoading: stationsLoading } = useStations();
@@ -75,27 +88,58 @@ export default function OwnerDashboard() {
   // Unwrap stations if needed
   const stations: Station[] = stationsResponse?.data ?? extractApiData(stationsResponse, []);
 
-  // Fetch fuel prices to check if they're set
+  // Setup Warnings Chain:
+  // 1. Check if stations exist
+  const primaryStation = stations?.[0];
+
+  // 2. Fetch fuel prices for primary station (only if station exists)
   const { data: fuelPricesResponse } = useQuery<{
     success: boolean;
     data: { current: any[]; history: any[] };
   } | null>({
-    queryKey: ['fuel-prices'],
+    queryKey: ['fuel-prices', primaryStation?.id],
     queryFn: async () => {
+      if (!primaryStation?.id) return null;
       try {
         const response = await apiClient.get<{
           success: boolean;
           data: { current: any[]; history: any[] };
-        }>('/fuel-prices');
+        }>(`/stations/${primaryStation.id}/prices`);
         return response ?? null;
       } catch (error) {
         return null;
       }
     },
-    enabled: !!user && stations.length > 0
+    enabled: !!user && !!primaryStation?.id
   });
 
   const hasFuelPrices = (fuelPricesResponse?.data?.current?.length ?? 0) > 0;
+
+  // 3. Check if primary station has pumps (stations response includes pumps)
+  const hasPumps = (primaryStation as any)?.pumps?.length > 0;
+
+  // 4. Fetch nozzles for primary station (only if pumps exist)
+  const { data: nozzlesResponse } = useQuery<{
+    success: boolean;
+    data: any[];
+  } | null>({
+    queryKey: ['nozzles', primaryStation?.id],
+    queryFn: async () => {
+      if (!primaryStation?.id) return null;
+      try {
+        const response = await apiClient.get<{
+          success: boolean;
+          data: any[];
+        }>(`/stations/${primaryStation.id}/nozzles`);
+        return response ?? null;
+      } catch (error) {
+        return null;
+      }
+    },
+    enabled: !!user && hasPumps && !!primaryStation?.id
+  });
+
+  const hasNozzles = (nozzlesResponse?.data?.length ?? 0) > 0;
 
   // Guard: Don't render if not owner
   if (!user || user.role !== 'owner') {
@@ -134,8 +178,14 @@ export default function OwnerDashboard() {
       {/* Plan Info Alert */}
       <PlanInfoAlert user={user} stats={{ totalStations: safeStats.totalStations, totalEmployees: safeStats.totalEmployees }} />
 
-      {/* Setup Warnings */}
-      <SetupWarningsAlert hasStations={stations.length > 0} hasFuelPrices={hasFuelPrices} navigate={navigate} />
+      {/* Setup Warnings - Chain: Stations → Prices → Pumps → Nozzles */}
+      <SetupWarningsAlert 
+        hasStations={stations.length > 0} 
+        hasFuelPrices={hasFuelPrices} 
+        hasPumps={hasPumps}
+        hasNozzles={hasNozzles}
+        navigate={navigate} 
+      />
 
       {/* Stats Grid */}
       <StatsGrid stats={stats ?? null} isLoading={isLoading} />
