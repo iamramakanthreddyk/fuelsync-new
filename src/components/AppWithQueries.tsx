@@ -38,7 +38,10 @@ import StationDetail from '@/pages/owner/StationDetail';
 import EmployeesManagement from '@/pages/owner/EmployeesManagement';
 import OwnerReports from '@/pages/owner/Reports';
 import OwnerAnalytics from '@/pages/owner/Analytics';
-import QuickDataEntry from '@/pages/owner/QuickDataEntry';
+import QuickDataEntry from '@/pages/owner/QuickDataEntryEnhanced';
+import SettlementStationSelector from '@/pages/owner/SettlementStationSelector';
+import DailySettlement from '@/pages/owner/DailySettlement';
+import DailySalesReport from '@/pages/owner/DailySalesReport';
 
 // Cash Management pages
 import ShiftManagement from '@/pages/shifts/ShiftManagement';
@@ -227,6 +230,17 @@ export function AppWithQueries() {
                     {/* Owner Routes - New comprehensive UI */}
                     <Route path="/owner/dashboard" element={<OwnerDashboard />} />
                     <Route path="/owner/quick-entry" element={<QuickDataEntry />} />
+                    <Route path="/owner/daily-settlement" element={
+                      <ManagerOrOwnerRoute>
+                        <SettlementStationSelector />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/owner/daily-settlement/:stationId" element={
+                      <ManagerOrOwnerRoute>
+                        <DailySettlement />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/owner/daily-reports" element={<DailySalesReport />} />
                     <Route path="/owner/stations" element={<StationsManagement />} />
                     <Route path="/owner/stations/:id" element={<StationDetail />} />
                     <Route path="/owner/stations/:id/prices" element={<Prices />} />

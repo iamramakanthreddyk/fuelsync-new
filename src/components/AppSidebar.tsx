@@ -26,7 +26,9 @@ import {
   Settings,
   LogOut,
   BarChart3,
-  Zap
+  Zap,
+  Scale3d,
+  LineChart
 } from 'lucide-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -61,6 +63,17 @@ export function AppSidebar() {
       title: "Quick Entry",
       url: "/owner/quick-entry",
       icon: Zap,
+    },
+    {
+      title: "Daily Settlement",
+      url: "/owner/stations",
+      icon: Scale3d,
+      description: "Select station for settlement"
+    },
+    {
+      title: "Daily Reports",
+      url: "/owner/daily-reports",
+      icon: LineChart,
     },
     {
       title: "Stations",
@@ -133,6 +146,8 @@ export function AppSidebar() {
   const iconColorMap: Record<string, string> = {
     Dashboard: 'text-[#2B6EF6]',
     'Quick Entry': 'text-[#0EA5E9]',
+    'Daily Settlement': 'text-[#10B981]',
+    'Daily Reports': 'text-[#8B5CF6]',
     Stations: 'text-[#7C3AED]',
     Employees: 'text-[#F97316]',
     Reports: 'text-[#10B981]',

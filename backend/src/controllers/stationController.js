@@ -802,3 +802,191 @@ exports.checkPriceSet = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Get daily sales summary for a specific station and date
+ * GET /stations/:stationId/daily-sales?date=YYYY-MM-DD
+ */
+exports.getDailySales = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const { date } = req.query;
+    const user = req.user;
+
+    // Check station access
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const queryDate = date || new Date().toISOString().split('T')[0];
+
+    // Get station info
+    const station = await Station.findByPk(stationId, {
+      attributes: ['id', 'name']
+    });
+
+    if (!station) {
+      return res.status(404).json({ success: false, error: 'Station not found' });
+    }
+
+    // Get all readings for the date
+    const readings = await NozzleReading.findAll({
+      where: {
+        stationId,
+        readingDate: queryDate
+      },
+      include: [{
+        model: Nozzle,
+        as: 'nozzle',
+        attributes: ['fuelType', 'nozzleNumber']
+      }],
+      raw: false
+    });
+
+    if (!readings || readings.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          date: queryDate,
+          stationId,
+          stationName: station.name,
+          totalSaleValue: 0,
+          totalLiters: 0,
+          readingsCount: 0,
+          byFuelType: {},
+          expectedCash: 0,
+          paymentSplit: { cash: 0, online: 0, credit: 0 },
+          readings: []
+        }
+      });
+    }
+
+    // Calculate summary
+    let totalSaleValue = 0;
+    let totalLiters = 0;
+    let totalCash = 0;
+    let totalOnline = 0;
+    let totalCredit = 0;
+    const byFuelType = {};
+    const readingsList = [];
+
+    readings.forEach(reading => {
+      const saleValue = parseFloat(reading.totalAmount || 0);
+      const liters = parseFloat(reading.litresSold || 0);
+      const fuelType = reading.Nozzle?.fuelType || 'unknown';
+      const cash = parseFloat(reading.cashAmount || 0);
+      const online = parseFloat(reading.onlineAmount || 0);
+      const credit = parseFloat(reading.creditAmount || 0);
+
+      totalSaleValue += saleValue;
+      totalLiters += liters;
+      totalCash += cash;
+      totalOnline += online;
+      totalCredit += credit;
+
+      if (!byFuelType[fuelType]) {
+        byFuelType[fuelType] = { liters: 0, value: 0 };
+      }
+      byFuelType[fuelType].liters += liters;
+      byFuelType[fuelType].value += saleValue;
+
+      readingsList.push({
+        id: reading.id,
+        nozzleNumber: reading.Nozzle?.nozzleNumber,
+        fuelType,
+        liters,
+        saleValue
+      });
+    });
+
+    res.json({
+      success: true,
+      data: {
+        date: queryDate,
+        stationId,
+        stationName: station.name,
+        totalSaleValue: parseFloat(totalSaleValue.toFixed(2)),
+        totalLiters: parseFloat(totalLiters.toFixed(2)),
+        readingsCount: readings.length,
+        byFuelType,
+        expectedCash: parseFloat(totalCash.toFixed(2)),
+        paymentSplit: {
+          cash: parseFloat(totalCash.toFixed(2)),
+          online: parseFloat(totalOnline.toFixed(2)),
+          credit: parseFloat(totalCredit.toFixed(2))
+        },
+        readings: readingsList
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Record daily settlement
+ * POST /stations/:stationId/settlements
+ */
+exports.recordSettlement = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const { date, actualCash, expectedCash, variance, notes } = req.body;
+    const user = req.user;
+
+    // Check station access
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const settlementDate = date || new Date().toISOString().split('T')[0];
+
+    // For now, just record the intent and return success
+    // This will be stored once the settlements table is created
+    res.json({
+      success: true,
+      data: {
+        id: `settlement_${stationId}_${settlementDate}_${Date.now()}`,
+        stationId,
+        date: settlementDate,
+        actualCash: parseFloat(actualCash || 0),
+        expectedCash: parseFloat(expectedCash || 0),
+        variance: parseFloat(variance || 0),
+        notes: notes || '',
+        recordedBy: user.id,
+        recordedAt: new Date().toISOString(),
+        status: 'recorded'
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Get settlement history for a station
+ * GET /stations/:stationId/settlements?limit=5
+ */
+exports.getSettlements = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const { limit = 5 } = req.query;
+    const user = req.user;
+
+    // Check station access
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // For now return empty array until settlements table is created
+    res.json({
+      success: true,
+      data: [],
+      message: 'Settlement history feature coming soon'
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};

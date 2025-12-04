@@ -519,20 +519,20 @@ export default function StationsManagement() {
                 </div>
 
                 {/* Actions */}
-                <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="flex-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/owner/stations/${station.id}`);
-                    }}
-                  >
-                    <ArrowRight className="w-3 h-3 mr-1.5" />
-                    Manage
-                  </Button>
+                <div className="flex flex-col gap-2 pt-2 border-t">
                   <div className="flex gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/owner/stations/${station.id}`);
+                      }}
+                    >
+                      <ArrowRight className="w-3 h-3 mr-1.5" />
+                      Manage
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
@@ -554,6 +554,17 @@ export default function StationsManagement() {
                       <Trash2 className="w-4 h-4" />
                     </Button>
                   </div>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    className="w-full"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/owner/daily-settlement/${station.id}`);
+                    }}
+                  >
+                    Daily Settlement
+                  </Button>
                 </div>
               </CardContent>
             </Card>

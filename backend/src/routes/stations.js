@@ -104,4 +104,11 @@ router.get('/:stationId/handovers/summary', cashHandoverController.getCashFlowSu
 router.get('/:stationId/handovers/unconfirmed', cashHandoverController.getUnconfirmed);
 router.get('/:stationId/handovers/bank-deposits', requireMinRole('owner'), cashHandoverController.getBankDeposits);
 
+// ============================================
+// DAILY SALES & SETTLEMENTS
+// ============================================
+router.get('/:stationId/daily-sales', stationController.getDailySales);
+router.post('/:stationId/settlements', requireMinRole('manager'), stationController.recordSettlement);
+router.get('/:stationId/settlements', requireMinRole('manager'), stationController.getSettlements);
+
 module.exports = router;

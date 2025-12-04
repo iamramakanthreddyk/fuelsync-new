@@ -379,3 +379,99 @@ exports.getPumpPerformance = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Get daily sales report for today (or specified date)
+ * GET /api/v1/reports/daily-sales?date=YYYY-MM-DD
+ */
+exports.getDailySalesReport = async (req, res, next) => {
+  try {
+    const { date, stationId } = req.query;
+    const user = await User.findByPk(req.userId);
+
+    const queryDate = date || new Date().toISOString().split('T')[0];
+    const stationFilter = await getStationFilter(user, stationId);
+
+    if (stationFilter === null) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Get stations
+    const stations = await Station.findAll({
+      where: stationFilter,
+      attributes: ['id', 'name', 'code']
+    });
+
+    if (stations.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const stationIds = stations.map(s => s.id);
+
+    // Get all readings for the date
+    const readings = await NozzleReading.findAll({
+      attributes: [
+        'stationId',
+        'fuelType',
+        [fn('SUM', col('NozzleReading.total_amount')), 'totalValue'],
+        [fn('SUM', col('NozzleReading.litres_sold')), 'totalLiters'],
+        [fn('COUNT', col('NozzleReading.id')), 'readingsCount']
+      ],
+      where: {
+        stationId: { [Op.in]: stationIds },
+        readingDate: queryDate
+      },
+      group: ['stationId', 'fuelType'],
+      raw: true
+    });
+
+    // Build report with fuel type breakdown
+    const stationMap = new Map(stations.map(s => [s.id, s]));
+    const reportData = {};
+
+    readings.forEach(reading => {
+      const stationId = reading.stationId;
+      if (!reportData[stationId]) {
+        const station = stationMap.get(stationId);
+        reportData[stationId] = {
+          stationId,
+          stationName: station.name,
+          date: queryDate,
+          totalSaleValue: 0,
+          totalLiters: 0,
+          readingsCount: 0,
+          byFuelType: {}
+        };
+      }
+
+      const value = parseFloat(reading.totalValue || 0);
+      const liters = parseFloat(reading.totalLiters || 0);
+      const count = parseInt(reading.readingsCount || 0);
+
+      reportData[stationId].totalSaleValue += value;
+      reportData[stationId].totalLiters += liters;
+      reportData[stationId].readingsCount += count;
+      reportData[stationId].byFuelType[reading.fuelType] = {
+        value,
+        liters,
+        count
+      };
+    });
+
+    // Convert to array and round values
+    const result = Object.values(reportData).map(report => ({
+      ...report,
+      totalSaleValue: parseFloat(report.totalSaleValue.toFixed(2)),
+      totalLiters: parseFloat(report.totalLiters.toFixed(2))
+    }));
+
+    res.json({
+      success: true,
+      data: result
+    });
+
+  } catch (error) {
+    console.error('Daily sales report error:', error);
+    next(error);
+  }
+};

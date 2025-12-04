@@ -13,7 +13,7 @@ const { canAccessStation, verifyNozzleAccess, getAccessibleStationIds } = requir
  */
 exports.createReading = async (req, res, next) => {
   try {
-    const { nozzleId, readingDate, readingValue, cashAmount, onlineAmount, notes } = req.body;
+    const { nozzleId, readingDate, readingValue, cashAmount, onlineAmount, creditAmount, creditorId, notes } = req.body;
     const userId = req.userId;
 
     // Validate required fields
@@ -124,48 +124,36 @@ exports.createReading = async (req, res, next) => {
     const pricePerLitre = fuelPrice || (isInitialReading ? 100 : 0); // Use default price of 100 for initial readings if no price set
     const totalAmount = litresSold * pricePerLitre;
 
-    // Handle payment amounts
+    // Handle payment amounts - support cash, online, and credit
     let finalCashAmount = 0;
     let finalOnlineAmount = 0;
+    let finalCreditAmount = 0;
 
     if (!isInitialReading && totalAmount > 0) {
-      if (cashAmount !== undefined && onlineAmount !== undefined) {
-        // Both provided - validate they sum to total
-        finalCashAmount = parseFloat(cashAmount) || 0;
-        finalOnlineAmount = parseFloat(onlineAmount) || 0;
-        
-        if (Math.abs((finalCashAmount + finalOnlineAmount) - totalAmount) > 0.01) {
-          return res.status(400).json({
-            success: false,
-            error: `Cash (${finalCashAmount}) + Online (${finalOnlineAmount}) must equal Total (${totalAmount})`
-          });
-        }
-      } else if (cashAmount !== undefined) {
-        // Only cash provided - calculate online
-        finalCashAmount = parseFloat(cashAmount) || 0;
-        finalOnlineAmount = totalAmount - finalCashAmount;
-        
-        if (finalOnlineAmount < 0) {
-          return res.status(400).json({
-            success: false,
-            error: `Cash amount (${finalCashAmount}) cannot exceed total (${totalAmount})`
-          });
-        }
-      } else if (onlineAmount !== undefined) {
-        // Only online provided - calculate cash
-        finalOnlineAmount = parseFloat(onlineAmount) || 0;
-        finalCashAmount = totalAmount - finalOnlineAmount;
-        
-        if (finalCashAmount < 0) {
-          return res.status(400).json({
-            success: false,
-            error: `Online amount (${finalOnlineAmount}) cannot exceed total (${totalAmount})`
-          });
-        }
-      } else {
-        // Neither provided - default to 100% cash
-        finalCashAmount = totalAmount;
-        finalOnlineAmount = 0;
+      // Calculate all payment amounts
+      const providedCash = cashAmount !== undefined ? parseFloat(cashAmount) || 0 : 0;
+      const providedOnline = onlineAmount !== undefined ? parseFloat(onlineAmount) || 0 : 0;
+      const providedCredit = creditAmount !== undefined ? parseFloat(creditAmount) || 0 : 0;
+      
+      finalCashAmount = providedCash;
+      finalOnlineAmount = providedOnline;
+      finalCreditAmount = providedCredit;
+
+      // Validate total equals expected amount
+      const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
+      if (Math.abs(totalPayment - totalAmount) > 0.01) {
+        return res.status(400).json({
+          success: false,
+          error: `Payment breakdown (Cash: ${finalCashAmount}, Online: ${finalOnlineAmount}, Credit: ${finalCreditAmount}) must equal total amount (${totalAmount.toFixed(2)})`
+        });
+      }
+
+      // If credit is used, creditor ID must be provided
+      if (finalCreditAmount > 0 && !creditorId) {
+        return res.status(400).json({
+          success: false,
+          error: 'Creditor ID is required when credit payment is used'
+        });
       }
     }
 
@@ -184,6 +172,8 @@ exports.createReading = async (req, res, next) => {
       totalAmount,
       cashAmount: finalCashAmount,
       onlineAmount: finalOnlineAmount,
+      creditAmount: finalCreditAmount,
+      creditorId: creditorId || null,
       isInitialReading,
       notes,
       shiftId: activeShift?.id || null

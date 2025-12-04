@@ -13,6 +13,7 @@ router.use(authenticate);
 
 // Sales reports
 router.get('/sales', requireMinRole('manager'), reportController.getSalesReports);
+router.get('/daily-sales', requireMinRole('manager'), reportController.getDailySalesReport);
 
 // Shift reports
 router.get('/shifts', requireMinRole('manager'), reportController.getShiftReports);

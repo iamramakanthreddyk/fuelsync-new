@@ -4,7 +4,7 @@
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, BarChart3, Zap, ArrowRight, Clock, Banknote, Fuel, CreditCard } from 'lucide-react';
+import { Building2, Users, Zap, ArrowRight, Clock, Banknote, Fuel, CreditCard, TrendingUp, Scale3d } from 'lucide-react';
 import { NavigateFunction } from 'react-router-dom';
 
 interface QuickEntryCardsGridProps {
@@ -32,10 +32,64 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         </CardHeader>
         <CardContent>
           <p className="text-xs sm:text-sm text-muted-foreground">
-            Fast nozzle reading entry for today
+            Fast nozzle reading entry with auto-calculated sales
           </p>
           <div className="mt-3 flex items-center text-xs text-yellow-600 font-medium">
             <span>Enter now</span>
+            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Daily Settlement */}
+      <Card 
+        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-green-500/50 bg-gradient-to-br from-green-50/50 to-transparent dark:from-green-950/20"
+        onClick={() => navigate('/owner/stations')} // Navigate to stations to select one
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/stations')}
+      >
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-green-600 transition-colors">
+            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:scale-110 transition-transform">
+              <Scale3d className="w-5 h-5 text-green-600 dark:text-green-400" />
+            </div>
+            <span>Daily Settlement</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            Finalize daily sales and reconcile cash counts
+          </p>
+          <div className="mt-3 flex items-center text-xs text-green-600 font-medium">
+            <span>Settle today</span>
+            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Daily Reports */}
+      <Card 
+        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-indigo-500/50 bg-gradient-to-br from-indigo-50/50 to-transparent dark:from-indigo-950/20"
+        onClick={() => navigate('/owner/daily-reports')}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/daily-reports')}
+      >
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-indigo-600 transition-colors">
+            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg group-hover:scale-110 transition-transform">
+              <TrendingUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+            </div>
+            <span>Daily Reports</span>
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-xs sm:text-sm text-muted-foreground">
+            View analytics, trends, and sales breakdown
+          </p>
+          <div className="mt-3 flex items-center text-xs text-indigo-600 font-medium">
+            <span>View reports</span>
             <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
           </div>
         </CardContent>
@@ -144,33 +198,6 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
           </p>
           <div className="mt-3 flex items-center text-xs text-primary font-medium">
             <span>View team</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Reports */}
-      <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 bg-gradient-to-br from-indigo-50/50 to-transparent dark:from-indigo-950/20"
-        onClick={() => navigate('/owner/reports')}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/reports')}
-      >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-primary transition-colors">
-            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <BarChart3 className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
-            </div>
-            <span>View Reports</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Sales, profit/loss, and analytics reports
-          </p>
-          <div className="mt-3 flex items-center text-xs text-primary font-medium">
-            <span>See insights</span>
             <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
           </div>
         </CardContent>
