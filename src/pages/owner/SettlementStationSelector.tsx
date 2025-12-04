@@ -17,21 +17,6 @@ import {
   Calendar
 } from 'lucide-react';
 
-interface Station {
-  id: string;
-  name: string;
-  location?: string;
-  status: string;
-}
-
-interface DailySummary {
-  stationId: string;
-  date: string;
-  totalSaleValue: number;
-  readingsCount: number;
-  settlementStatus: 'pending' | 'settled' | 'partial';
-}
-
 export default function SettlementStationSelector() {
   const navigate = useNavigate();
   const { data: stationsResponse } = useStations();
@@ -119,15 +104,7 @@ export default function SettlementStationSelector() {
                         <Building2 className="w-5 h-5 text-primary" />
                         <CardTitle className="text-lg">{station.name}</CardTitle>
                       </div>
-                      {station.location && (
-                        <p className="text-xs text-muted-foreground">{station.location}</p>
-                      )}
                     </div>
-                    <Badge
-                      className={station.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}
-                    >
-                      {station.status}
-                    </Badge>
                   </div>
                 </CardHeader>
 
