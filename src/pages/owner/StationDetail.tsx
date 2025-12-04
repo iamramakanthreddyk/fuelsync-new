@@ -76,6 +76,24 @@ export default function StationDetail() {
   const [selectedPump, setSelectedPump] = useState<Pump | null>(null);
   const [selectedNozzle, setSelectedNozzle] = useState<Nozzle | null>(null);
 
+  // Calculate next available pump number
+  const getNextPumpNumber = (): number => {
+    if (!pumps || !Array.isArray(pumps) || pumps.length === 0) {
+      return 1;
+    }
+    const maxPumpNumber = Math.max(...pumps.map(p => p.pumpNumber || 0));
+    return maxPumpNumber + 1;
+  };
+
+  // Calculate next available nozzle number for a pump
+  const getNextNozzleNumber = (pump: Pump | null): number => {
+    if (!pump || !pump.nozzles || pump.nozzles.length === 0) {
+      return 1;
+    }
+    const maxNozzleNumber = Math.max(...pump.nozzles.map(n => n.nozzleNumber || 0));
+    return maxNozzleNumber + 1;
+  };
+
   // Log last reading value for selected nozzle
   useEffect(() => {
     if (selectedNozzle) {
@@ -680,7 +698,17 @@ export default function StationDetail() {
               >
                 Refresh
               </Button>
-              <Dialog open={isPumpDialogOpen} onOpenChange={setIsPumpDialogOpen}>
+              <Dialog open={isPumpDialogOpen} onOpenChange={(open) => {
+              setIsPumpDialogOpen(open);
+              // Auto-set pump number when dialog opens
+              if (open) {
+                setPumpForm({
+                  pumpNumber: getNextPumpNumber().toString(),
+                  name: `P${getNextPumpNumber()}`,
+                  status: 'active'
+                });
+              }
+            }}>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="w-4 h-4 mr-2" />
@@ -700,6 +728,8 @@ export default function StationDetail() {
                       type="number"
                       value={pumpForm.pumpNumber}
                       onChange={(e) => setPumpForm({ ...pumpForm, pumpNumber: e.target.value })}
+                      readOnly
+                      className="bg-muted cursor-not-allowed"
                     />
                   </div>
                   <div>
@@ -1144,7 +1174,17 @@ export default function StationDetail() {
       </Tabs>
 
       {/* Add Nozzle Dialog */}
-      <Dialog open={isNozzleDialogOpen} onOpenChange={setIsNozzleDialogOpen}>
+      <Dialog open={isNozzleDialogOpen} onOpenChange={(open) => {
+        setIsNozzleDialogOpen(open);
+        // Auto-set nozzle number when dialog opens
+        if (open && selectedPump) {
+          setNozzleForm({
+            nozzleNumber: getNextNozzleNumber(selectedPump).toString(),
+            fuelType: 'petrol',
+            initialReading: ''
+          });
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add Nozzle</DialogTitle>
@@ -1160,6 +1200,8 @@ export default function StationDetail() {
                 type="number"
                 value={nozzleForm.nozzleNumber}
                 onChange={(e) => setNozzleForm({ ...nozzleForm, nozzleNumber: e.target.value })}
+                readOnly
+                className="bg-muted cursor-not-allowed"
               />
             </div>
             <div>

@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, usePumps } from '@/hooks/api';
+import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { safeToFixed } from '@/lib/format-utils';
 import { FuelBadge } from '@/components/FuelBadge';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
@@ -60,6 +61,9 @@ export default function QuickDataEntry() {
   } = usePumps(selectedStation);
 
   const pumps = pumpsResponse?.data;
+
+  // Fetch fuel prices for selected station to validate readings
+  const { data: fuelPrices } = useFuelPricesData(selectedStation);
 
   // Log last reading for all nozzles when pumps data changes
   useEffect(() => {
@@ -139,6 +143,14 @@ export default function QuickDataEntry() {
     }));
   };
 
+  // Helper: Check if a specific fuel type has a price set
+  const hasPriceForFuelType = (fuelType: string): boolean => {
+    if (!Array.isArray(fuelPrices) || fuelPrices.length === 0) {
+      return false;
+    }
+    return fuelPrices.some(p => p.fuel_type.toUpperCase() === fuelType.toUpperCase());
+  };
+
   const handleSubmit = () => {
     const entries = Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0);
     if (entries.length === 0) {
@@ -149,6 +161,24 @@ export default function QuickDataEntry() {
       });
       return;
     }
+
+    // Validate that all entered readings have corresponding fuel prices
+    const nozzlesWithReadings = pumps
+      ?.flatMap(p => p.nozzles || [])
+      .filter(n => entries.some(e => e.nozzleId === n.id)) || [];
+
+    const missingPrices = nozzlesWithReadings.filter(n => !hasPriceForFuelType(n.fuelType));
+
+    if (missingPrices.length > 0) {
+      const missingFuelTypes = [...new Set(missingPrices.map(n => n.fuelType))].join(', ');
+      toast({
+        title: 'Missing Fuel Prices',
+        description: `Cannot enter readings for: ${missingFuelTypes}. Please set prices first.`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
     submitReadingsMutation.mutate(entries);
   };
 
@@ -257,14 +287,25 @@ export default function QuickDataEntry() {
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-3">
-                    {pump.nozzles?.map((nozzle) => (
+                    {pump.nozzles?.map((nozzle) => {
+                      const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
+                      return (
                       <div
                         key={nozzle.id}
-                        className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg bg-muted/30"
+                        className={`flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg ${
+                          !hasFuelPrice 
+                            ? 'bg-red-50 dark:bg-red-950/20 border-red-200' 
+                            : 'bg-muted/30'
+                        }`}
                       >
                         <div className="flex items-center gap-2 min-w-[120px]">
                           <span className="font-semibold text-sm">N{nozzle.nozzleNumber}</span>
                           <FuelBadge fuelType={nozzle.fuelType} showDot />
+                          {!hasFuelPrice && (
+                            <Badge variant="destructive" className="text-xs ml-auto sm:ml-0">
+                              No Price
+                            </Badge>
+                          )}
                         </div>
 
                         <div className="flex-1 grid grid-cols-2 gap-2 sm:gap-3">
@@ -291,13 +332,13 @@ export default function QuickDataEntry() {
                               type="number"
                               step="any"
                               placeholder="Meter reading"
-                              title="Enter the current meter reading from the pump display"
+                              title={hasFuelPrice ? "Enter the current meter reading from the pump display" : `No price set for ${nozzle.fuelType}`}
                               value={readings[nozzle.id]?.readingValue || ''}
                               onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
-                              className="pr-8"
-                              disabled={nozzle.status !== 'active'}
+                              className={`pr-8 ${!hasFuelPrice ? 'border-red-300' : ''}`}
+                              disabled={nozzle.status !== 'active' || !hasFuelPrice}
                             />
-                            {readings[nozzle.id]?.readingValue && (
+                            {readings[nozzle.id]?.readingValue && hasFuelPrice && (
                               <div className="absolute right-2 top-1/2 -translate-y-1/2">
                                 {(() => {
                                   const enteredValue = parseFloat(readings[nozzle.id].readingValue);
@@ -316,7 +357,8 @@ export default function QuickDataEntry() {
                           </div>
                         </div>
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>

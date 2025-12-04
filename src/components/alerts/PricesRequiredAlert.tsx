@@ -29,9 +29,10 @@ export function PricesRequiredAlert({
   onSetPrices
 }: PricesRequiredAlertProps) {
   const navigate = useNavigate();
-  const { hasPrices, missingFuelTypes, warning } = useFuelPricesStatus(stationId);
+  const { hasPrices, missingFuelTypes, warning, isLoading } = useFuelPricesStatus(stationId);
 
-  if (!showIfMissing || hasPrices) {
+  // Don't show alert while loading to avoid false warnings
+  if (isLoading || !showIfMissing || hasPrices) {
     return null;
   }
 

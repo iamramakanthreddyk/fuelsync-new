@@ -34,15 +34,15 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
   const effectiveStation = stationId ? { id: stationId } : currentStation;
 
   const status = useMemo<FuelPricesStatus>(() => {
-    // If still loading, return loading state
+    // If still loading, don't block entry - assume prices will load
     if (isLoading) {
       return {
-        hasPrices: false,
+        hasPrices: true, // Assume true while loading to avoid false warnings
         pricesCount: 0,
         missingFuelTypes: [],
         isLoading: true,
-        warning: 'Loading fuel prices...',
-        canEnterReadings: false
+        warning: null,
+        canEnterReadings: true
       };
     }
 
