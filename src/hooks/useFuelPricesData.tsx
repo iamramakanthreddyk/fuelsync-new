@@ -46,9 +46,10 @@ function transformPrice(price: BackendFuelPrice): FuelPrice {
   };
 }
 
-export function useFuelPricesData() {
+export function useFuelPricesData(overrideStationId?: string) {
   const { currentStation, isAdmin } = useRoleAccess();
-  const stationId = currentStation?.id;
+  // Use provided stationId or fall back to currentStation
+  const stationId = overrideStationId || currentStation?.id;
 
   return useQuery<FuelPrice[]>({
     queryKey: ['fuel-prices', stationId],
@@ -71,7 +72,13 @@ export function useFuelPricesData() {
         // Handles {success, data: {current: [...], history: [...]}}
         const currentPrices = extractNestedData(response, 'current', []);
         
-        if (Array.isArray(currentPrices) && currentPrices.length > 0) {
+        // Ensure we have an array
+        if (!Array.isArray(currentPrices)) {
+          console.warn('Fuel prices response is not an array:', currentPrices);
+          return [];
+        }
+        
+        if (currentPrices.length > 0) {
           return currentPrices.map(transformPrice);
         }
         return [];

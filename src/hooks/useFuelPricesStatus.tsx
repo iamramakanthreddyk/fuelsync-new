@@ -1,8 +1,10 @@
 /**
  * useFuelPricesStatus Hook
  * 
- * Checks if fuel prices are set for the current station
+ * Checks if fuel prices are set for a specific station
  * Used globally to enforce price setup before allowing readings
+ * 
+ * @param stationId - Optional: Check prices for a specific station. If not provided, uses currentStation
  */
 
 import { useMemo } from 'react';
@@ -19,12 +21,17 @@ export interface FuelPricesStatus {
 }
 
 /**
- * Hook to check fuel prices status for the current station
+ * Hook to check fuel prices status for the current station or a specific station
  * Returns info about whether prices are set and any warnings
+ * 
+ * @param stationId - Optional: Specific station ID to check. If not provided, uses currentStation
  */
-export function useFuelPricesStatus(): FuelPricesStatus {
-  const { data: fuelPrices, isLoading } = useFuelPricesData();
+export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
+  const { data: fuelPrices, isLoading } = useFuelPricesData(stationId);
   const { currentStation } = useRoleAccess();
+  
+  // Use provided stationId or fall back to currentStation
+  const effectiveStation = stationId ? { id: stationId } : currentStation;
 
   const status = useMemo<FuelPricesStatus>(() => {
     // If still loading, return loading state
@@ -40,7 +47,7 @@ export function useFuelPricesStatus(): FuelPricesStatus {
     }
 
     // If no station, can't enter readings
-    if (!currentStation) {
+    if (!effectiveStation) {
       return {
         hasPrices: false,
         pricesCount: 0,
@@ -52,11 +59,13 @@ export function useFuelPricesStatus(): FuelPricesStatus {
     }
 
     // Count prices that are set
-    const pricesCount = fuelPrices?.length || 0;
+    // Ensure fuelPrices is an array before accessing it
+    const pricesArray = Array.isArray(fuelPrices) ? fuelPrices : [];
+    const pricesCount = pricesArray.length;
     const hasPrices = pricesCount > 0;
 
     // Get fuel types from prices
-    const setFuelTypes = fuelPrices?.map(p => p.fuel_type.toUpperCase()) || [];
+    const setFuelTypes = pricesArray.map(p => p.fuel_type.toUpperCase()) || [];
     const commonFuelTypes = ['PETROL', 'DIESEL'];
     const missingFuelTypes = commonFuelTypes.filter(ft => !setFuelTypes.includes(ft));
 
@@ -80,7 +89,7 @@ export function useFuelPricesStatus(): FuelPricesStatus {
       warning,
       canEnterReadings
     };
-  }, [fuelPrices, isLoading, currentStation]);
+  }, [fuelPrices, isLoading, effectiveStation]);
 
   return status;
 }

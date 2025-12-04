@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { useFuelPricesStatus } from '@/hooks/useFuelPricesStatus';
 
 interface PricesRequiredAlertProps {
+  stationId?: string;
   showIfMissing?: boolean;
   compact?: boolean;
   onSetPrices?: () => void;
@@ -22,12 +23,13 @@ interface PricesRequiredAlertProps {
  * Can be used to block reading entry or show as warning
  */
 export function PricesRequiredAlert({
+  stationId,
   showIfMissing = true,
   compact = false,
   onSetPrices
 }: PricesRequiredAlertProps) {
   const navigate = useNavigate();
-  const { hasPrices, missingFuelTypes, warning } = useFuelPricesStatus();
+  const { hasPrices, missingFuelTypes, warning } = useFuelPricesStatus(stationId);
 
   if (!showIfMissing || hasPrices) {
     return null;

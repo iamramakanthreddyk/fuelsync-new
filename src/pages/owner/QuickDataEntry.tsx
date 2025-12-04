@@ -23,7 +23,6 @@ import { useStations, usePumps } from '@/hooks/api';
 import { safeToFixed } from '@/lib/format-utils';
 import { FuelBadge } from '@/components/FuelBadge';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
-import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import {
   Zap,
   Building2,
@@ -40,20 +39,6 @@ interface ReadingEntry {
 }
 
 export default function QuickDataEntry() {
-  // Fetch global fuel prices for the selected station
-  const { isLoading: isPricesLoading } = useFuelPricesData();
-
-  // Show loading indicator while prices are loading
-  if (isPricesLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-[200px]">
-        <span className="text-muted-foreground">Loading fuel prices...</span>
-      </div>
-    );
-  }
-
-  // Optionally, you can use fuelPrices in your UI as needed
-
   const [selectedStation, setSelectedStation] = useState<string>('');
   const [readings, setReadings] = useState<Record<string, ReadingEntry>>({});
   const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
@@ -190,8 +175,8 @@ export default function QuickDataEntry() {
         )}
       </div>
 
-      {/* Show alert if prices are not set */}
-      <PricesRequiredAlert showIfMissing={true} compact={true} />
+      {/* Show alert if prices are not set for the SELECTED station */}
+      {selectedStation && <PricesRequiredAlert stationId={selectedStation} showIfMissing={true} compact={true} />}
 
       {/* Station & Date Selection */}
       <Card>

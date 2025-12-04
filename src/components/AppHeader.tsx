@@ -29,7 +29,7 @@ export function AppHeader() {
 
   // Build fuel price object for FuelPriceCard - normalize keys to uppercase
   const fuelPricesObj: Record<string, number> = {};
-  if (fuelPrices) {
+  if (Array.isArray(fuelPrices) && fuelPrices.length > 0) {
     fuelPrices.forEach((price) => {
       if (price.price_per_litre !== undefined && price.price_per_litre !== null) {
         const priceValue = parseFloat(String(price.price_per_litre));

@@ -118,28 +118,12 @@ export default function OwnerDashboard() {
   // 3. Check if primary station has pumps (stations response includes pumps)
   const hasPumps = (primaryStation as any)?.pumps?.length > 0;
 
-  // 4. Fetch nozzles for primary station (only if pumps exist)
-  const { data: nozzlesResponse } = useQuery<{
-    success: boolean;
-    data: any[];
-  } | null>({
-    queryKey: ['nozzles', primaryStation?.id],
-    queryFn: async () => {
-      if (!primaryStation?.id) return null;
-      try {
-        const response = await apiClient.get<{
-          success: boolean;
-          data: any[];
-        }>(`/stations/${primaryStation.id}/nozzles`);
-        return response ?? null;
-      } catch (error) {
-        return null;
-      }
-    },
-    enabled: !!user && hasPumps && !!primaryStation?.id
-  });
-
-  const hasNozzles = (nozzlesResponse?.data?.length ?? 0) > 0;
+  // 4. Check if primary station pumps have nozzles (nozzles are included in pumps from the stations response)
+  const hasNozzles = hasPumps && (
+    (primaryStation as any)?.pumps?.some((pump: any) => 
+      Array.isArray(pump.nozzles) && pump.nozzles.length > 0
+    ) ?? false
+  );
 
   // Guard: Don't render if not owner
   if (!user || user.role !== 'owner') {

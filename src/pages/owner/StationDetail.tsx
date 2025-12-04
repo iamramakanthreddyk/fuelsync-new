@@ -36,6 +36,7 @@ import { apiClient } from '@/lib/api-client';
 import { extractApiArray } from '@/lib/api-response';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { Station } from '@/types/api';
+import { StationSettingsForm } from '@/components/owner/StationSettingsForm';
 import {
   ArrowLeft,
   Plus,
@@ -657,11 +658,6 @@ export default function StationDetail() {
               <span className="hidden sm:inline">Creditors</span>
               <span className="sm:hidden">Creditors</span>
             </TabsTrigger>
-            <TabsTrigger value="employees" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
-              <Users className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">Employees</span>
-              <span className="sm:hidden">Employees</span>
-            </TabsTrigger>
             <TabsTrigger value="settings" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 col-span-2 md:col-span-1">
               <Settings className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">Settings</span>
@@ -1140,37 +1136,10 @@ export default function StationDetail() {
           )}
         </TabsContent>
 
-        {/* Employees Tab */}
-        <TabsContent value="employees" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Station Employees</h2>
-            <Button onClick={() => navigate(`/owner/employees?station=${id}`)}>
-              <Users className="w-4 h-4 mr-2" />
-              Manage Employees
-            </Button>
-          </div>
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Users className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">
-                Employee management will be shown here
-              </p>
-              <Button variant="outline" onClick={() => navigate(`/owner/employees?station=${id}`)}>
-                Go to Employee Management
-              </Button>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         {/* Settings Tab */}
         <TabsContent value="settings" className="space-y-4">
           <h2 className="text-xl font-semibold">Station Settings</h2>
-          <Card>
-            <CardContent className="py-12 text-center">
-              <Settings className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">Station settings will be shown here</p>
-            </CardContent>
-          </Card>
+          <StationSettingsForm stationId={id} />
         </TabsContent>
       </Tabs>
 
