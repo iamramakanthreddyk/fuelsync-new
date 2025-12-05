@@ -34,7 +34,7 @@ AZURE_COMPUTER_VISION_ENDPOINT=
 AZURE_COMPUTER_VISION_KEY=
 
 # Features
-# OCR feature removed; use manual readings or device integration instead
+# OCR feature removed; use manual readings or optional receipt parsing or device integration instead
 ENABLE_FILE_UPLOAD=false
 ```
 

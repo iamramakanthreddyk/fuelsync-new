@@ -1,0 +1,258 @@
+{
+  "generatedAt": "2025-12-05T00:00:00Z",
+  "summary": "API surface discovered from backend route files and controllers (auth, users, stations, pumps, nozzles, readings, fuelPrices)",
+  "endpoints": [
+    {
+      "path": "/api/v1/auth/login",
+      "method": "POST",
+      "auth": "public",
+      "controller": "authController.login",
+      "description": "User login — returns JWT token and user payload",
+      "request": { "body": { "email": "string", "password": "string" } },
+      "response": { "token": "string", "user": { "id": "uuid", "email": "string", "role": "string", "stationId": "uuid|null" } }
+    },
+    {
+      "path": "/api/v1/auth/register",
+      "method": "POST",
+      "auth": "public",
+      "controller": "authController.register",
+      "description": "Register new user (owner by default) — returns token + user",
+      "request": { "body": { "email": "string", "password": "string", "name": "string", "phone?:": "string", "role?:": "string", "stationId?:": "uuid" } },
+      "response": { "token": "string", "user": { "id": "uuid" } }
+    },
+    {
+      "path": "/api/v1/auth/me",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "authController.getCurrentUser",
+      "description": "Get current authenticated user and their stations/plan",
+      "response": { "user": { "id": "uuid", "email": "string", "role": "string", "stations": "array" } }
+    },
+    {
+      "path": "/api/v1/auth/change-password",
+      "method": "POST",
+      "auth": "protected",
+      "controller": "authController.changePassword",
+      "request": { "body": { "currentPassword": "string", "newPassword": "string" } }
+    },
+    {
+      "path": "/api/v1/auth/logout",
+      "method": "POST",
+      "auth": "protected",
+      "controller": "authController.logout",
+      "description": "Stateless logout — client should drop token"
+    },
+    {
+      "path": "/api/v1/users",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "userController.getUsers",
+      "description": "List users with role-based scoping. Query params: role, stationId, isActive, search, page, limit",
+      "response": { "data": "[] of users (password excluded)", "pagination": {} },
+      "models": ["User", "Station", "Plan"]
+    },
+    {
+      "path": "/api/v1/users/:id",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "userController.getUser",
+      "description": "Get single user (permission checked via canAccessUser)",
+      "models": ["User", "Station", "Plan"]
+    },
+    {
+      "path": "/api/v1/users",
+      "method": "POST",
+      "auth": "protected",
+      "middleware": "requireMinRole('manager')",
+      "controller": "userController.createUser",
+      "description": "Create user — creation rules depend on creator role (super_admin->owner, owner->manager/employee, manager->employee)",
+      "request": { "body": { "email": "string", "password": "string", "name": "string", "phone?:": "string", "role": "string", "stationId?:": "uuid", "planId?:": "uuid" } },
+      "models": ["User", "Station", "Plan"]
+    },
+    {
+      "path": "/api/v1/users/:id",
+      "method": "PUT",
+      "auth": "protected",
+      "controller": "userController.updateUser",
+      "description": "Update user (permission checked via canAccessUser). Super_admin can change owner planId",
+      "request": { "body": { "name?:": "string", "phone?:": "string", "stationId?:": "uuid", "isActive?:": "boolean", "planId?:": "uuid" } }
+    },
+    {
+      "path": "/api/v1/users/:id",
+      "method": "DELETE",
+      "auth": "protected",
+      "middleware": "requireMinRole('manager')",
+      "controller": "userController.deactivateUser",
+      "description": "Soft-deactivate user (isActive=false). Cannot deactivate self"
+    },
+    {
+      "path": "/api/v1/users/:id/reset-password",
+      "method": "POST",
+      "auth": "protected",
+      "controller": "userController.resetPassword",
+      "request": { "body": { "newPassword": "string (min 6)" } }
+    },
+    {
+      "path": "/api/v1/stations",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "stationController.getStations",
+      "description": "Get stations scoped by role (super_admin, owner, manager/employee) — includes pumps, owner plan info",
+      "models": ["Station", "Pump", "Nozzle", "Plan", "User"]
+    },
+    {
+      "path": "/api/v1/stations",
+      "method": "POST",
+      "auth": "protected",
+      "middleware": "requireRole(['owner','super_admin']), enforcePlanLimit('station'), validate(stationValidators.create)",
+      "controller": "stationController.createStation",
+      "request": { "body": { "name": "string", "address?:": "string", "city?:": "string", "ownerId?:": "uuid (required if super_admin)" } },
+      "models": ["Station", "User", "Plan"]
+    },
+    {
+      "path": "/api/v1/stations/:id",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "stationController.getStation",
+      "description": "Details for a station (pumps, nozzles, fuelPrices, staff)",
+      "models": ["Station", "Pump", "Nozzle", "FuelPrice", "User", "NozzleReading"]
+    },
+    {
+      "path": "/api/v1/stations/:id",
+      "method": "PUT",
+      "auth": "protected",
+      "middleware": "requireRole(['owner','super_admin'])",
+      "controller": "stationController.updateStation",
+      "request": { "body": { "name?:": "string", "address?:": "string", "phone?:": "string" } }
+    },
+    {
+      "path": "/api/v1/stations/:id/settings",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "stationController.getStationSettings",
+      "description": "Get operational settings for a station",
+      "response": { "settings": { "requireShiftForReadings": "boolean", "alertOnMissedReadings": "boolean", "missedReadingThresholdDays": "int" } }
+    },
+    {
+      "path": "/api/v1/stations/:id/settings",
+      "method": "PUT",
+      "auth": "protected",
+      "middleware": "requireRole(['owner','super_admin'])",
+      "controller": "stationController.updateStationSettings",
+      "request": { "body": { "requireShiftForReadings?:": "boolean", "alertOnMissedReadings?:": "boolean", "missedReadingThresholdDays?:": "int (1-30)" } }
+    },
+    {
+      "path": "/api/v1/stations/:stationId/staff",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "userController.getStationStaff",
+      "description": "List staff for a station with summary counts",
+      "models": ["User"]
+    },
+    {
+      "path": "/api/v1/stations/:stationId/pumps",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "stationController.getPumps",
+      "description": "Get pumps for a station (includes nozzle summary)",
+      "models": ["Pump", "Nozzle"]
+    },
+    {
+      "path": "/api/v1/stations/:stationId/pumps",
+      "method": "POST",
+      "auth": "protected",
+      "middleware": "requireRole(['owner','super_admin']), enforcePlanLimit('pump'), validate(pumpValidators.create)",
+      "controller": "stationController.createPump",
+      "request": { "body": { "pumpNumber": "int", "name?:": "string", "notes?:": "string" } }
+    },
+    {
+      "path": "/api/v1/stations/pumps/:id",
+      "method": "PUT",
+      "auth": "protected",
+      "middleware": "requireRole(['owner','super_admin'])",
+      "controller": "stationController.updatePump",
+      "request": { "body": { "name?:": "string", "status?:": "string", "notes?:": "string" } }
+    },
+    {
+      "path": "/api/v1/nozzles",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "stationController.getNozzles (via nozzles router)",
+      "description": "Query params: pumpId or stationId required",
+      "models": ["Nozzle", "Pump"]
+    },
+    {
+      "path": "/api/v1/nozzles",
+      "method": "POST",
+      "auth": "protected",
+      "middleware": "requireRole(['owner','super_admin']), enforcePlanLimit('nozzle')",
+      "controller": "stationController.createNozzle",
+      "request": { "body": { "pumpId": "uuid", "nozzleNumber": "int", "fuelType": "string", "initialReading?:": "number" } },
+      "models": ["Nozzle", "Pump"]
+    },
+    {
+      "path": "/api/v1/nozzles/:id",
+      "method": "PUT",
+      "auth": "protected",
+      "middleware": "requireRole(['owner','super_admin'])",
+      "controller": "stationController.updateNozzle",
+      "request": { "body": { "fuelType?:": "string", "status?:": "string", "initialReading?:": "number" } }
+    },
+    {
+      "path": "/api/v1/readings",
+      "method": "POST",
+      "auth": "protected",
+      "controller": "readingController.createReading",
+      "description": "Create nozzle reading (core business flow). Validations: nozzle active, access, backdate limits, shift requirement, payment breakdown.",
+      "request": { "body": { "nozzleId": "uuid", "readingDate": "YYYY-MM-DD", "readingValue": "number", "cashAmount?:": "number", "onlineAmount?:": "number", "creditAmount?:": "number", "previousReading?:": "number" } },
+      "models": ["NozzleReading", "Nozzle", "FuelPrice", "Station", "User"]
+    },
+    {
+      "path": "/api/v1/readings/previous/:nozzleId",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "readingController.getPreviousReading",
+      "description": "Fetch previous/latest reading for a nozzle and current price for UI pre-fill",
+      "response": { "previousReading": "number", "currentPrice": "number|null" }
+    },
+    {
+      "path": "/api/v1/readings",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "readingController.getReadings",
+      "description": "Listing of readings filtered by station/pump/nozzle/date range and paginated",
+      "query": { "stationId?:": "uuid", "pumpId?:": "uuid", "nozzleId?:": "uuid", "startDate?:": "YYYY-MM-DD", "endDate?:": "YYYY-MM-DD", "page?:": "int", "limit?:": "int" }
+    },
+    {
+      "path": "/api/v1/readings/today",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "readingController.getTodayReadings",
+      "description": "Get today's readings for current user's scope"
+    },
+    {
+      "path": "/api/v1/stations/:stationId/prices",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "stationController.getFuelPrices",
+      "description": "Get current and history prices for the station",
+      "models": ["FuelPrice"]
+    },
+    {
+      "path": "/api/v1/stations/:stationId/prices",
+      "method": "POST",
+      "auth": "protected",
+      "middleware": "requireMinRole('manager')",
+      "controller": "stationController.setFuelPrice",
+      "request": { "body": { "fuelType": "string", "price": "number", "effectiveFrom?:": "YYYY-MM-DD" } }
+    },
+    {
+      "path": "/api/v1/stations/:stationId/prices/check",
+      "method": "GET",
+      "auth": "protected",
+      "controller": "stationController.checkPriceSet",
+      "query": { "fuelType": "string", "date?:": "YYYY-MM-DD" },
+      "description": "Check whether a price exists for a fuelType on or before date"
+    }
+  ]
+}

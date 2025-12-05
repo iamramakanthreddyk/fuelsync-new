@@ -168,7 +168,7 @@ WHERE
 ORDER BY 
     reading_date, pump_sno, nozzle_id;
 
--- Calculate and insert sales data based on OCR readings
+-- Calculate and insert sales data based on parsed/manual readings
 -- For each nozzle's consecutive readings, calculate the difference and create a sale
 WITH reading_pairs AS (
     SELECT 

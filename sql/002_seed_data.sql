@@ -117,8 +117,7 @@ SELECT
     (random() * 5000 + 500)::decimal(10,2),
     (random() * 50 + 5)::decimal(8,3),
     (ARRAY['Petrol', 'Diesel'])[floor(random() * 2 + 1)],
-    CURRENT_TIMESTAMP - (random() * INTERVAL '30 days'),
-    
+    CURRENT_TIMESTAMP - (random() * INTERVAL '30 days')
 FROM users u
 WHERE u.role IN ('Employee', 'Manager', 'Pump Owner')
 LIMIT 50;

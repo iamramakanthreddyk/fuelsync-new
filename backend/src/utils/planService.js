@@ -98,10 +98,10 @@ function canAddStation(currentCount, planType) {
 }
 
 /**
- * Check if user can upload OCR receipt
- * @param {number} todayCount - OCR uploads today
+ * Check if user can upload receipt for parsing
+ * @param {number} todayCount - receipt parsing uploads today
  * @param {string} planType - Plan type
- * @returns {boolean} Whether more OCR uploads allowed
+ * @returns {boolean} Whether more receipt uploads allowed
  */
 function canUploadManual(todayCount, planType) {
   const plan = getPlanLimits(planType);
