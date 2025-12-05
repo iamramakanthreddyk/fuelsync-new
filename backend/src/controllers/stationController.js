@@ -642,6 +642,25 @@ exports.getNozzles = async (req, res, next) => {
   }
 };
 
+// Get single nozzle by ID
+exports.getNozzle = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const user = req.user;
+
+    const nozzle = await Nozzle.findByPk(id, { include: [{ model: Pump, as: 'pump' }] });
+    if (!nozzle) return res.status(404).json({ success: false, error: 'Nozzle not found' });
+
+    if (!(await canAccessStation(user, nozzle.pump.stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    res.json({ success: true, data: nozzle, nozzle });
+  } catch (err) {
+    next(err);
+  }
+};
+
 exports.createNozzle = async (req, res, next) => {
   try {
     const { pumpId } = req.params;

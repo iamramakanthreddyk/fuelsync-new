@@ -19,13 +19,41 @@ router.get('/', async (req, res, next) => {
 	const { stationId } = req.query;
 	if (!stationId) return res.status(400).json({ success: false, error: 'stationId query parameter is required' });
 
+	// Block employee role explicitly for legacy POST path
+	if (req.user && req.user.role === 'employee') {
+		return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+	}
+
+	req.params.stationId = stationId;
+	return expenseController.getExpenses(req, res, next);
+});
+
+// Compatibility: POST / - record an expense via legacy path (used in some tests)
+router.post('/', async (req, res, next) => {
+	const { stationId } = req.body;
+	if (!stationId) return res.status(400).json({ success: false, error: 'stationId is required in body' });
+
 	const base = req.baseUrl || '';
 	if (base.startsWith('/api/') && !base.startsWith('/api/v1') && req.user && req.user.role === 'employee') {
 		return res.status(403).json({ success: false, error: 'Insufficient permissions' });
 	}
 
 	req.params.stationId = stationId;
-	return expenseController.getExpenses(req, res, next);
+	return expenseController.createExpense(req, res, next);
+});
+
+// Compatibility: POST /expenses (mounted under /api/v1 to accept /api/v1/expenses)
+router.post('/expenses', async (req, res, next) => {
+	const { stationId } = req.body;
+	if (!stationId) return res.status(400).json({ success: false, error: 'stationId is required in body' });
+
+	// Block employee role explicitly for legacy POST path
+	if (req.user && req.user.role === 'employee') {
+		return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+	}
+
+	req.params.stationId = stationId;
+	return expenseController.createExpense(req, res, next);
 });
 
 // Expense routes - manager and above can manage expenses

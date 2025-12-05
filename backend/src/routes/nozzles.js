@@ -41,4 +41,10 @@ router.delete('/:id', requireRole(['owner', 'super_admin']), async (req, res, ne
   return stationController.deleteNozzle ? stationController.deleteNozzle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
 });
 
+// GET /:id - nozzle details (compatibility)
+router.get('/:id', async (req, res, next) => {
+  req.params.id = req.params.id;
+  return stationController.getNozzle ? stationController.getNozzle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
+});
+
 module.exports = router;

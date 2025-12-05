@@ -149,6 +149,11 @@ app.use('/api', expenseRoutes);
 // Provide short legacy mounts used in tests: /api/creditors and /api/expenses
 app.use('/api/creditors', creditRoutes);
 app.use('/api/expenses', expenseRoutes);
+// Provide POST legacy path for creating shifts via /api/shifts (compat)
+app.post('/api/shifts', (req, res, next) => {
+  if (req.user && req.user.role === 'employee') return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+  return shiftRoutes.handle ? shiftRoutes.handle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
+});
 app.use('/api/stations', stationRoutes);
 app.use('/api/readings', readingRoutes);
 app.use('/api/sales', salesRoutes);

@@ -16,11 +16,9 @@ router.use(authenticate);
 // ensure employees receive 403 for manager-only operations. This keeps
 // older-client behaviour consistent with tests that call `/api/...` paths.
 const enforceLegacyManager = (req, res, next) => {
-  const base = req.baseUrl || '';
-  if (base.startsWith('/api/') && !base.startsWith('/api/v1')) {
-    if (req.user && req.user.role === 'employee') {
-      return res.status(403).json({ success: false, error: 'Insufficient permissions' });
-    }
+  // Enforce that employees cannot perform manager-only actions on these endpoints
+  if (req.user && req.user.role === 'employee') {
+    return res.status(403).json({ success: false, error: 'Insufficient permissions' });
   }
   return next();
 };

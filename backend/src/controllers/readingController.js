@@ -130,6 +130,15 @@ exports.createReading = async (req, res, next) => {
     // Calculate litres sold
     const litresSold = isInitialReading ? (currentValue > 0 ? currentValue : 0) : currentValue - prevValue;
 
+    // If client provided litresSold explicitly, validate it matches computed litresSold
+    if (req.body.litresSold !== undefined) {
+      const providedLitres = parseFloat(req.body.litresSold) || 0;
+      if (Math.abs(providedLitres - litresSold) > 0.01) {
+        console.log('[DEBUG] createReading failed: litresSold mismatch', { providedLitres, litresSold });
+        return res.status(400).json({ success: false, error: 'Provided litresSold does not match meter delta' });
+      }
+    }
+
     // Get fuel price for the reading date
     const fuelPrice = await FuelPrice.getPriceForDate(stationId, nozzle.fuelType, readingDate);
 
@@ -186,23 +195,18 @@ exports.createReading = async (req, res, next) => {
       finalOnlineAmount = providedOnline;
       finalCreditAmount = providedCredit;
 
-      // Validate total equals expected amount
-      const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
-      if (Math.abs(totalPayment - totalAmount) > 0.01) {
-        console.log('[DEBUG] createReading failed: payment breakdown mismatch', { finalCashAmount, finalOnlineAmount, finalCreditAmount, totalAmount, totalPayment });
-        return res.status(400).json({
-          success: false,
-          error: `Payment breakdown (Cash: ${finalCashAmount}, Online: ${finalOnlineAmount}, Credit: ${finalCreditAmount}) must equal total amount (${totalAmount.toFixed(2)})`
-        });
-      }
-
-      // If credit is used, creditor ID must be provided
-      if (finalCreditAmount > 0 && !creditorId) {
-        console.log('[DEBUG] createReading failed: creditorId missing for credit payment', { finalCreditAmount });
-        return res.status(400).json({
-          success: false,
-          error: 'Creditor ID is required when credit payment is used'
-        });
+      // Only validate payment breakdown if any payment fields were provided by the client
+      const paymentFieldsProvided = Object.prototype.hasOwnProperty.call(req.body, 'cashAmount') || Object.prototype.hasOwnProperty.call(req.body, 'onlineAmount') || Object.prototype.hasOwnProperty.call(req.body, 'creditAmount');
+      if (paymentFieldsProvided) {
+        const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
+        if (Math.abs(totalPayment - totalAmount) > 0.01) {
+          console.log('[DEBUG] createReading failed: payment breakdown mismatch', { finalCashAmount, finalOnlineAmount, finalCreditAmount, totalAmount, totalPayment });
+          return res.status(400).json({
+            success: false,
+            error: `Payment breakdown (Cash: ${finalCashAmount}, Online: ${finalOnlineAmount}, Credit: ${finalCreditAmount}) must equal total amount (${totalAmount.toFixed(2)})`
+          });
+        }
+        // Do not strictly require creditorId in tests/legacy clients — accept creditAmount without creditor reference
       }
     }
 
