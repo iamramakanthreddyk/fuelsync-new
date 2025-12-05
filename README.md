@@ -3,7 +3,7 @@
 
 ![React](https://img.shields.io/badge/React-18-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0-blue) ![Node.js](https://img.shields.io/badge/Node.js-18-green) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14-blue)
 
-**FuelSync** is a comprehensive fuel station management SaaS platform that simplifies operations through **OCR receipt processing**, **real-time sales tracking**, and **intelligent plan-based access control**.
+**FuelSync** is a comprehensive fuel station management SaaS platform that simplifies operations through **real-time sales tracking**, and **intelligent plan-based access control**.
 
 ---
 
@@ -11,7 +11,7 @@
 
 ### 💡 Core Features
 
-* 📄 **OCR Receipt Processing** – Upload & extract fuel sales using Azure Computer Vision
+* 📄 **Receipt Upload & Processing** – Upload receipts or enter readings manually
 * 💰 **Sales Tracking** – Monitor daily/shift-wise sales & revenue with role-based access
 * ⛽ **Fuel Price Management** – Dynamic pricing per fuel type
 * 🏭 **Pump/Nozzle Configuration** – Map nozzles to fuel types with plan limits
@@ -22,11 +22,11 @@
 
 ### 📋 Plan-Based Access Control
 
-| Plan       | Max Employees | Max Pumps | Max Stations | Max OCR Uploads | Monthly Price              | Features                                      |
+| Plan       | Max Employees | Max Pumps | Max Stations | Monthly Price              | Features                                      |
 | ---------- | ------------- | --------- | ------------ | --------------- | -------------------------- | --------------------------------------------- |
-| Basic      | 2             | 3         | 1            | 10/day          | ₹999 (after 3-month trial) | Core features, limited operations             |
-| Premium    | 5             | 5         | 1            | 50/day          | ₹2,499                     | Advanced analytics, more capacity             |
-| Enterprise | Unlimited     | Unlimited | Unlimited    | Unlimited       | Custom (Arrange call)      | Multi-station, unlimited access, priority support |
+| Basic      | 2             | 3         | 1            | ₹999 (after 3-month trial) | Core features, limited operations             |
+| Premium    | 5             | 5         | 1            | ₹2,499                     | Advanced analytics, more capacity             |
+| Enterprise | Unlimited     | Unlimited | Unlimited    | Custom (Arrange call)      | Multi-station, unlimited access, priority support |
 
 ---
 
@@ -191,11 +191,11 @@ GET    /api/v1/sales/daily/:date # Daily summary
 GET    /api/v1/sales/trends     # Sales trends
 ```
 
-### Uploads & OCR
+### Uploads & Processing
 ```
 GET    /api/v1/uploads          # Get uploads
-POST   /api/v1/uploads          # Upload receipt
-PUT    /api/v1/uploads/:id      # Update OCR data
+POST   /api/v1/uploads          # Upload receipt or manual payload
+PUT    /api/v1/uploads/:id      # Update processed data
 DELETE /api/v1/uploads/:id      # Delete upload
 ```
 
@@ -289,7 +289,7 @@ npm install --production
 ### Environment Setup
 1. Set all environment variables on hosting platform
 2. Configure database connection strings
-3. Set up Azure services for OCR and storage
+3. Set up storage services if you plan to store uploaded receipts
 4. Configure domain and SSL certificates
 
 ---

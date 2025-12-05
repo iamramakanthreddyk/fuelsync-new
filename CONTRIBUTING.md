@@ -6,7 +6,7 @@ Welcome! 🎉 We’re excited that you’re interested in contributing to **Fuel
 
 FuelSync is a **modern fuel station management system** focused on:
 
-* OCR receipt processing
+* Manual meter readings and sales tracking (OCR removed)
 * Sales tracking and analytics
 * Pump & nozzle configuration
 * Fuel price management

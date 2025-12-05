@@ -105,8 +105,8 @@ SELECT
     sale_date + (random() * INTERVAL '24 hours') as created_at
 FROM sample_sales;
 
--- Insert sample uploads for testing
-INSERT INTO uploads (user_id, filename, original_name, file_size, mime_type, status, amount, litres, fuel_type, processed_at, ocr_data)
+-- Insert sample uploads for testing (no OCR data stored)
+INSERT INTO uploads (user_id, filename, original_name, file_size, mime_type, status, amount, litres, fuel_type, processed_at)
 SELECT 
     u.id,
     'receipt_' || generate_random_uuid() || '.jpg',
@@ -118,7 +118,7 @@ SELECT
     (random() * 50 + 5)::decimal(8,3),
     (ARRAY['Petrol', 'Diesel'])[floor(random() * 2 + 1)],
     CURRENT_TIMESTAMP - (random() * INTERVAL '30 days'),
-    '{"amount": 1250.50, "litres": 12.5, "fuelType": "Petrol", "confidence": 0.95}'::jsonb
+    
 FROM users u
 WHERE u.role IN ('Employee', 'Manager', 'Pump Owner')
 LIMIT 50;

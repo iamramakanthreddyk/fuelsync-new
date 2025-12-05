@@ -6,7 +6,6 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- Drop existing tables to recreate with proper structure
 DROP TABLE IF EXISTS sales CASCADE;
-DROP TABLE IF EXISTS ocr_readings CASCADE;
 DROP TABLE IF EXISTS uploads CASCADE;
 DROP TABLE IF EXISTS nozzles CASCADE;
 DROP TABLE IF EXISTS pumps CASCADE;
@@ -138,25 +137,23 @@ CREATE TABLE uploads (
     blob_url TEXT,
     status upload_status DEFAULT 'processing',
     error_message TEXT,
-    ocr_data JSONB,
     processed_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- OCR readings table (normalized nozzle data)
-CREATE TABLE ocr_readings (
+-- Manual readings table (normalized nozzle data)
+CREATE TABLE manual_readings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     upload_id UUID REFERENCES uploads(id) ON DELETE SET NULL,
     station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
     pump_id UUID NOT NULL REFERENCES pumps(id) ON DELETE CASCADE,
     nozzle_id INTEGER NOT NULL,
-    pump_sno TEXT NOT NULL, -- For reference
+    pump_sno TEXT, -- For reference
     fuel_type fuel_type NOT NULL,
     cumulative_volume DECIMAL(12,3) NOT NULL CHECK (cumulative_volume >= 0),
     reading_date DATE NOT NULL,
     reading_time TIME,
-    is_manual_entry BOOLEAN DEFAULT false,
     entered_by UUID NOT NULL REFERENCES users(id),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     
@@ -173,8 +170,8 @@ CREATE TABLE sales (
     station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
     pump_id UUID NOT NULL REFERENCES pumps(id) ON DELETE CASCADE,
     nozzle_id INTEGER NOT NULL,
-    reading_id UUID NOT NULL REFERENCES ocr_readings(id) ON DELETE CASCADE,
-    previous_reading_id UUID REFERENCES ocr_readings(id),
+    reading_id UUID NOT NULL REFERENCES manual_readings(id) ON DELETE CASCADE,
+    previous_reading_id UUID REFERENCES manual_readings(id),
     fuel_type fuel_type NOT NULL,
     litres_sold DECIMAL(10,3) NOT NULL CHECK (litres_sold >= 0),
     price_per_litre DECIMAL(8,2) NOT NULL CHECK (price_per_litre > 0),
@@ -212,8 +209,8 @@ CREATE INDEX idx_pumps_status ON pumps(status);
 CREATE INDEX idx_nozzles_pump_fuel ON nozzles(pump_id, fuel_type);
 CREATE INDEX idx_fuel_prices_station_type ON fuel_prices(station_id, fuel_type, valid_from DESC);
 CREATE INDEX idx_uploads_station_status ON uploads(station_id, status, created_at DESC);
-CREATE INDEX idx_ocr_readings_station_date ON ocr_readings(station_id, reading_date DESC);
-CREATE INDEX idx_ocr_readings_pump_nozzle ON ocr_readings(pump_sno, nozzle_id, reading_date DESC);
+CREATE INDEX idx_manual_readings_station_date ON manual_readings(station_id, reading_date DESC);
+CREATE INDEX idx_manual_readings_pump_nozzle ON manual_readings(pump_sno, nozzle_id, reading_date DESC);
 CREATE INDEX idx_sales_station_date ON sales(station_id, sale_date DESC);
 CREATE INDEX idx_sales_pump_shift ON sales(pump_id, shift, sale_date DESC);
 

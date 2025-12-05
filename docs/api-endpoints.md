@@ -235,7 +235,7 @@ Get sales for a station with filters.
 ```
 
 #### POST /sales-api/manual
-Create a manual sale entry when OCR fails.
+Create a manual sale entry for manual data entry workflows.
 
 **Request Body:**
 ```json
@@ -354,7 +354,7 @@ All endpoints return errors in this format:
 3. **Pumps → Nozzles**: One-to-many via `nozzles.pump_id`
 4. **Sales**: References station, pump, nozzle, and user
 5. **Tender Entries**: Station-specific daily collections
-6. **OCR Readings**: Raw meter readings from pumps
+6. **Readings**: Raw meter readings from pumps (manual or device-entered)
 
 ### Business Rules:
 - Owners: No `station_id`, own stations via `stations.owner_id`

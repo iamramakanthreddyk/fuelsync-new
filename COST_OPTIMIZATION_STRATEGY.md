@@ -24,8 +24,8 @@ This document outlines a comprehensive strategy to:
 1. Database hosting (PostgreSQL)
 2. Compute resources (Backend server)
 3. Frontend hosting
-4. File storage (if using Azure Blob Storage for OCR)
-5. OCR service (Azure Computer Vision)
+4. File storage (if storing uploaded images/documents)
+5. External API services (if used)
 
 ---
 
@@ -91,7 +91,7 @@ This document outlines a comprehensive strategy to:
 ```
 
 **Storage & Optional Services:**
-- **OCR**: Azure Computer Vision - **$1-3/month** (50 free API calls/month, then $1 per 1000 calls)
+-- OCR service removed from architecture; no OCR API costs expected
 - **File Storage**: AWS S3 - **Free tier for first 12 months**, then ~$0.02-0.05/GB
 - **Domain**: Namecheap - **$8.88/year**
 
@@ -180,7 +180,7 @@ Production:
   - Backend:    $5/month (Railway starter)
   - Database:   $10/month (PostgreSQL)
   - Frontend:   $0/month (Vercel free)
-  - OCR/APIs:   $2/month (minimal usage)
+  - External APIs:   $2/month (minimal usage)
 ────────────────────────
 TOTAL:          $25/month
 ```
@@ -193,7 +193,7 @@ Production:
   - Backend:    $10/month (Railway)
   - Database:   $20/month (PostgreSQL 2GB)
   - Frontend:   $5/month (Vercel pro)
-  - OCR/APIs:   $10/month
+  - External APIs:   $10/month
 ────────────────────────
 TOTAL:          $55/month
 ```
@@ -687,7 +687,7 @@ Create a cost tracking spreadsheet:
 | Database | Railway | $10 | 1GB | Increases to $20 at 2GB |
 | Frontend | Vercel | $0 | Free tier | Pro at $20 when needed |
 | Domain | Namecheap | $0.74 | 1 year | Annual cost |
-| OCR API | Azure | $2 | 50+ calls | Per 1000 calls |
+| External API | Azure or other | $2 | 50+ calls | Per 1000 calls |
 | **TOTAL** | | **$17.74/month** | | |
 
 ### 5.2 Cost Optimization Tips

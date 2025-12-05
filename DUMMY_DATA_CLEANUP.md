@@ -35,32 +35,20 @@ if (sales.length === 0) {
 ```
 
 #### 2. Upload Controller (`backend/controllers/uploadController.js`)
-**Location**: Lines with simulated OCR processing
+**Location**: Lines with simulated processing
 **What to Remove**:
-- `setTimeout` simulation of OCR processing
-- Random data generation for amount, litres, fuelType
+- `setTimeout` simulation and random data generation for amount, litres, fuelType
 - Mock processing delays
 
 **How to Replace**:
 ```javascript
-// Remove this:
-setTimeout(async () => {
-  await Upload.update({
-    amount: Math.random() * 5000 + 500, // Remove
-    litres: Math.random() * 50 + 10,   // Remove
-    // ... other mock data
-  });
-}, 3000);
-
-// Replace with:
-const ocrResult = await processReceiptWithAzure(upload.filename);
+// Remove simulated processing and replace with direct manual or device-driven updates
 await Upload.update({
-  amount: ocrResult.amount,
-  litres: ocrResult.litres,
-  fuelType: ocrResult.fuelType,
+  amount: payload.amount,
+  litres: payload.litres,
+  fuelType: payload.fuelType,
   status: 'success',
-  processedAt: new Date(),
-  ocrData: ocrResult
+  processedAt: new Date()
 }, { where: { id: upload.id } });
 ```
 
@@ -165,14 +153,12 @@ The frontend cleanup has been completed. All components fetch data from the back
 
 ### Phase 2: Connect Real Data Sources
 
-1. **Azure OCR Integration**:
-   ```javascript
-   // In uploadController.js
-   const { processOCR } = require('../services/azureService');
-   
-   // Replace dummy processing with:
-   const ocrResult = await processOCR(upload.filename);
-   ```
+1. **Manual Upload Processing**:
+```javascript
+// In uploadController.js: accept manual payload or device integration
+const { amount, litres, fuelType } = payload;
+await Upload.update({ amount, litres, fuelType, status: 'success' }, { where: { id: upload.id } });
+```
 
 2. **Real Sales Calculations**:
    ```javascript
@@ -279,7 +265,7 @@ curl -H "Authorization: Bearer <token>" \
 - [ ] Removed all `Math.random()` data generation
 - [ ] Removed all `setTimeout` simulations
 - [ ] Replaced dummy data with database queries
-- [ ] Connected Azure OCR service
+- [ ] Removed OCR integration (manual-only workflow)
 - [ ] Implemented real price history tracking
 - [ ] Added competitor price management
 

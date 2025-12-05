@@ -3,7 +3,7 @@
 
 ## Overview
 
-The FuelSync API is a RESTful API that provides endpoints for managing fuel station operations, including user authentication, OCR receipt processing, sales tracking, pump management, and reporting.
+The FuelSync API is a RESTful API that provides endpoints for managing fuel station operations, including user authentication, uploads/processing, sales tracking, pump management, and reporting.
 
 **Base URL:** `http://localhost:3000/api`
 
@@ -116,7 +116,7 @@ Get user's uploads with pagination.
       "fuelType": "Petrol",
       "uploadedAt": "2024-06-02T10:30:00Z",
       "processedAt": "2024-06-02T10:31:00Z",
-      "ocrData": {
+      "processedData": {
         "amount": 2450.00,
         "litres": 45.6,
         "fuelType": "Petrol",
@@ -135,7 +135,7 @@ Get user's uploads with pagination.
 ```
 
 ### POST /uploads
-Upload a receipt for OCR processing.
+Upload a receipt or manual data payload for processing.
 
 **Headers:** 
 - `Authorization: Bearer <token>`
@@ -152,7 +152,7 @@ Upload a receipt for OCR processing.
     "id": "uuid",
     "userId": "uuid",
     "filename": "receipt-001.jpg",
-    "status": "processing",
+    "status": "pending",
     "amount": 0,
     "litres": 0,
     "fuelType": "Petrol",
@@ -162,7 +162,7 @@ Upload a receipt for OCR processing.
 ```
 
 ### PUT /uploads/:id
-Update OCR data manually.
+Update processed upload data manually.
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -185,7 +185,7 @@ Update OCR data manually.
     "amount": 2450.00,
     "litres": 45.6,
     "fuelType": "Petrol",
-    "ocrData": {
+    "processedData": {
       "amount": 2450.00,
       "litres": 45.6,
       "fuelType": "Petrol",

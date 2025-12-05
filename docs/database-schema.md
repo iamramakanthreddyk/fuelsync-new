@@ -127,9 +127,9 @@ CREATE TABLE plans (
 ```
 
 **Default Plans:**
-- **Free**: ₹0/month, 2 pumps, 4 nozzles, 2 employees, 10 OCR/month
-- **Basic**: ₹999/month, 5 pumps, 10 nozzles, 5 employees, 50 OCR/month
-- **Premium**: ₹2999/month, 20 pumps, 50 nozzles, 20 employees, 200 OCR/month
+- **Free**: ₹0/month, 2 pumps, 4 nozzles, 2 employees
+- **Basic**: ₹999/month, 5 pumps, 10 nozzles, 5 employees
+- **Premium**: ₹2999/month, 20 pumps, 50 nozzles, 20 employees
 
 ### 8. Station_Plans
 Tracks subscription history for stations.
@@ -177,32 +177,26 @@ CREATE TABLE nozzles (
 );
 ```
 
-### 11. OCR_Readings (Updated Schema)
-Fuel meter readings captured via OCR or manual entry.
+### 11. Manual Readings (Updated Schema)
+Fuel meter readings captured via manual entry (cumulative meter values saved per nozzle).
 
 ```sql
-CREATE TABLE ocr_readings (
+CREATE TABLE manual_readings (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   station_id INT NOT NULL REFERENCES stations(id),
   nozzle_id INT NOT NULL REFERENCES nozzles(id),
-  pump_sno TEXT NOT NULL,
+  pump_sno TEXT,
   reading_date DATE NOT NULL,
-  reading_time TIME NOT NULL,
+  reading_time TIME,
   cumulative_vol NUMERIC(12,2) NOT NULL,
-  source TEXT DEFAULT 'ocr' CHECK (source IN ('ocr', 'manual')),
-  ocr_json JSONB,
   created_by UUID,
   created_at TIMESTAMPTZ DEFAULT now(),
   UNIQUE (nozzle_id, reading_date, reading_time)
 );
 ```
 
-**Key Changes:**
-- Removed `fuel_type`, `litres_sold`, `price_per_litre`, `total_amount`, `cum_sale` columns
-- Added `pump_sno` for reference and validation
-- Added `source` to distinguish between 'ocr' and 'manual' entries
-- Added `ocr_json` to store raw OCR processing results
-- Changed `id` to UUID type
+**Notes:**
+- This project no longer uses OCR processing. All readings are entered manually or via direct device integration. Remove references to `ocr_json`, `reading_source`, and OCR API endpoints.
 
 ### 12. Fuel_Prices
 Current fuel pricing at each station.
@@ -227,7 +221,7 @@ CREATE TABLE sales (
   id SERIAL PRIMARY KEY,
   station_id INT REFERENCES stations(id),
   nozzle_id INT REFERENCES nozzles(id),
-  reading_id INT REFERENCES ocr_readings(id),
+  reading_id INT REFERENCES manual_readings(id),
   delta_volume_l NUMERIC(12,2),
   price_per_litre NUMERIC(8,3),
   total_amount NUMERIC(14,2),
@@ -274,7 +268,7 @@ Monthly usage tracking for plan limits.
 CREATE TABLE plan_usage (
   station_id INT REFERENCES stations(id),
   month DATE,
-  ocr_count INT DEFAULT 0,
+  manual_readings_count INT DEFAULT 0,
   pumps_used INT DEFAULT 0,
   nozzles_used INT DEFAULT 0,
   employees_count INT DEFAULT 0,
@@ -311,33 +305,25 @@ CREATE TABLE user_activity_log (
 CREATE TYPE user_role AS ENUM ('superadmin', 'owner', 'employee');
 CREATE TYPE station_brand AS ENUM ('IOCL', 'BPCL', 'HPCL');
 CREATE TYPE fuel_type AS ENUM ('PETROL', 'DIESEL', 'CNG', 'EV');
-CREATE TYPE reading_source AS ENUM ('ocr', 'manual');
+-- Reading source enum removed; only manual readings are supported.
 CREATE TYPE tender_type AS ENUM ('cash', 'card', 'upi', 'credit');
 ```
 
 ## API Endpoints
 
-### OCR Upload API
-**Endpoint:** `POST /functions/v1/ocr-upload`
-- **Content-Type:** `multipart/form-data`
-- **Parameters:**
-  - `file`: Image file (required)
-  - `pump_sno`: Pump serial number override (optional)
-- **Response:** JSON with OCR results and inserted readings count
-
 ### Manual Reading API
 **Endpoint:** `POST /functions/v1/manual-reading`
 - **Content-Type:** `application/json`
 - **Body:**
-  ```json
-  {
-    "station_id": 1,
-    "nozzle_id": 1,
-    "cumulative_vol": 12345.678,
-    "reading_date": "2023-12-15",
-    "reading_time": "14:30"
-  }
-  ```
+```json
+{
+  "station_id": 1,
+  "nozzle_id": 1,
+  "cumulative_vol": 12345.678,
+  "reading_date": "2023-12-15",
+  "reading_time": "14:30"
+}
+```
 - **Response:** JSON with success status and saved reading data
 
 ## Business Rules & Constraints
@@ -352,10 +338,9 @@ CREATE TYPE tender_type AS ENUM ('cash', 'card', 'upi', 'credit');
 2. **Owner**: Access only to owned stations and their data
 3. **Employee**: Access only to assigned station data
 
-### OCR vs Manual Reading Flow
-1. **OCR Flow**: Image → Azure OCR → Parse nozzle readings → Insert multiple records
-2. **Manual Flow**: Form input → Validate → Insert single record
-3. **Both flows** populate the same `ocr_readings` table with appropriate `source` value
+### Reading Flow
+1. **Manual Flow**: Form input or device integration → Validate → Insert single record into `manual_readings`
+2. Historical and sales calculations are derived from cumulative meter differences between readings
 
 ### Referential Integrity
 - Stations must have valid owner (owner role user)

@@ -69,7 +69,6 @@ CREATE TABLE uploads (
     litres DECIMAL(8,3) NOT NULL DEFAULT 0,
     fuel_type VARCHAR(10) NOT NULL DEFAULT 'Petrol' CHECK (fuel_type IN ('Petrol', 'Diesel')),
     processed_at TIMESTAMP WITH TIME ZONE,
-    ocr_data JSONB,
     error_message TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP

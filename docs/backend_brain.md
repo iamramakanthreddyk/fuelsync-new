@@ -54,7 +54,7 @@ const Pump = require('./MultiTenantPump');        // NOT Pump.js
 const Nozzle = require('./MultiTenantNozzle');    // NOT Nozzle.js
 const FuelPrice = require('./MultiTenantFuelPrice');
 const Sale = require('./MultiTenantSale');
-const OCRReading = require('./MultiTenantOCRReading');
+const ManualReading = require('./MultiTenantManualReading');
 ```
 
 ### Model Relationships
@@ -282,7 +282,7 @@ These are legacy duplicates - the MultiTenant versions should be used:
 - ❌ `/models/Nozzle.js` → Use `MultiTenantNozzle.js`
 - ❌ `/models/FuelPrice.js` → Use `MultiTenantFuelPrice.js`
 - ❌ `/models/Sale.js` → Use `MultiTenantSale.js`
-- ❌ `/models/NozzleReading.js` → Use `MultiTenantOCRReading.js`
+-- ❌ `/models/NozzleReading.js` → Use `MultiTenantManualReading.js`
 - ❌ `/models/multiTenantIndex.js` → Use `index.js`
 
 ---
@@ -338,7 +338,7 @@ All dates stored in UTC. Frontend converts to user's timezone.
 
 1. **Database Migrations** - Create proper Sequelize migrations for new models
 2. **Test Coverage** - Add unit tests for new controllers
-3. **OCR Integration** - Complete Azure Vision integration
+3. **Manual Reading Flow** - Ensure manual reading endpoints and device integrations are complete
 4. **Notifications** - Add email/SMS notifications for low stock, closures
 5. **Reports** - Implement report generation and export
 6. **Frontend Sync** - Update frontend to use new endpoints

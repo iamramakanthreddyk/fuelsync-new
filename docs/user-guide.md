@@ -33,38 +33,35 @@
 
 ---
 
-## 📄 OCR Receipt Processing
+## 📄 Uploads & Manual Processing
 
-### Uploading Receipts
+### Uploading Receipts or Entering Readings
 
 1. **Navigate to Upload Page**
-   - Click "Upload Receipt" from dashboard or sidebar
-   - Or use the quick action button
+   - Click "Upload Receipt" from dashboard or sidebar or use the quick action button
 
-2. **Select Receipt Image**
-   - Click "Choose File" or drag & drop
-   - Supported formats: JPG, PNG, JPEG (Max 10MB)
-   - Ensure receipt is clear and readable
+2. **Select File or Enter Data**
+   - Click "Choose File" or drag & drop a receipt image (optional)
+   - Or use the manual entry form to record meter readings or sale details
+   - Supported file formats: JPG, PNG, JPEG (Max 10MB)
 
-3. **Upload Process**
-   - Click "Upload Receipt"
-   - Wait for processing (usually 10-30 seconds)
-   - Review extracted data for accuracy
+3. **Submit**
+   - Click "Submit" to save the upload or reading
+   - If you provided a file, it will be stored; processing is manual or via device integration
 
 4. **Verify & Edit Data**
-   - Check extracted amount, litres, and fuel type
-   - Edit any incorrect information
-   - Save changes if needed
+   - Confirm amount, litres, and fuel type are correct
+   - Edit any incorrect information and save
 
 ### Upload Status Types
 
-- **🟡 Processing**: OCR is analyzing your receipt
-- **🟢 Success**: Data extracted successfully
+- **🟢 Pending**: Upload received and awaiting manual review or device processing
+- **✅ Processed**: Data confirmed and saved
 - **🔴 Failed**: Upload failed (try again or contact support)
 
 ### Best Practices
 
-✅ **Good Receipt Quality**:
+✅ **Good Receipt Quality** (if uploading images):
 - Clear, well-lit photos
 - All text visible and readable
 - Minimal shadows or glare
@@ -73,7 +70,6 @@
 ❌ **Avoid**:
 - Blurry or dark images
 - Crumpled or damaged receipts
-- Receipts with missing information
 - Multiple receipts in one image
 
 ---
@@ -281,13 +277,9 @@
 
 ### Common Issues
 
-#### Upload Problems
+### Upload Problems
 - **Issue**: Receipt upload fails
 - **Solution**: Check image quality, file size (<10MB), and internet connection
-
-#### OCR Accuracy
-- **Issue**: Incorrect data extraction
-- **Solution**: Manually edit extracted data, ensure receipt quality
 
 #### Login Issues
 - **Issue**: Cannot access account
