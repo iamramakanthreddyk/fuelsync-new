@@ -20,6 +20,15 @@
 #### 3. **validation.js** - Comprehensive Input Validation
 - Pre-built Joi schemas for common entities
 - Validation schemas for readings, stations, users, pumps
+
+---
+
+### Epic: Payments & Reporting (Common)
+- Goal: Centralize payment recording and reporting so Owner and SuperAdmin flows remain consistent.
+- Scope: DB: `payments`, `handovers`, `bank_deposits` → APIs: payments endpoints, handover resolution endpoints → UI: payments forms, owner bank deposit flow, reporting components.
+- Acceptance: payment recording tests, reconciliation checks, owner bank deposit recording test, exports for reports.
+- Status: Not started
+
 - `validateSchema()` - Generic validation middleware
 - Field-level error reporting
 

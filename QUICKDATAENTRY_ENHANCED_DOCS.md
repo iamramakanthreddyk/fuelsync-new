@@ -167,6 +167,16 @@ Success:
 - Cash allocation defaults to full sale value
 - UI guides user through required selections
 
+---
+
+## Epic: Quick Data Entry & Readings (Common)
+- Goal: Provide a single, reliable quick-entry flow for nozzle readings used by employees, managers and owners.
+- Scope: DB: `nozzle_readings`, `fuel_prices` → APIs: readings endpoints (POST/PUT/GET), validation logic → UI: `src/pages/owner/QuickDataEntryEnhanced.tsx`, `src/hooks/useReadingManagement.tsx`, shared components for row/line validation.
+- Access: employees enter readings for their station; managers/owners can view and correct per station; API validates `entered_by` and station ownership.
+- Acceptance: client-side validation matching server (required fields, numeric ranges), debounce/saving UX, audit fields (`entered_by`, timestamps), integration tests for create/update reading.
+- Status: Not started
+
+
 ### Accessibility
 - All inputs properly labeled
 - Clear indication of required fields

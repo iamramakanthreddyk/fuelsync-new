@@ -3,6 +3,28 @@
 ## Overview
 This document provides a comprehensive overview of all Owner UI components that have been implemented for the FuelSync application. The owner interface allows fuel station owners to manage multiple stations, employees, operations, and view detailed reports and analytics.
 
+## Epics & Process Rule (Owners)
+
+- **Rule (Epics-First):** Owner UX gaps and feature work should be added here as Epics before any code change. Use the Epic Template (Epic Name, Goal, Scope DB→API→UI, Access, Acceptance, Status). Linking PRs to the Epic section is mandatory.
+- **Where to record changes:** Add a short status line under each Epic listing the PR number and code files modified.
+
+### Epic: Owner Journey (Stations & Handovers)
+- Goal: Owners can manage stations, employees, handovers, and bank deposits with clear confirmation and dispute flows.
+- Scope: DB: `stations`, `handovers`, `bank_deposits`, `nozzle_readings` → APIs: `/dashboard/owner/*`, `/handovers`, `/handovers/bank-deposit`, `/stations` staff endpoints → UI: `src/pages/owner/*` (dashboard, stations, station detail, employees, reports, analytics).
+- Access: owner-only views filtered by ownership; manager views limited to assigned stations.
+- Acceptance: Owner flow integration tests, UI handover confirmation flow, bank deposit recording tests.
+- Status: Not started
+
+### Epic: Owner Reporting & Analytics
+- Goal: Owners have reliable reports (sales, shifts, pumps) and analytics pages with export options.
+- Scope: DB: aggregated views on `nozzle_readings`, `payments`, `handovers` → APIs: `GET /dashboard/owner/analytics`, `GET /owner/reports` → UI: `src/pages/owner/Reports.tsx`, `src/pages/owner/Analytics.tsx`.
+- Acceptance: Report export tests, analytics correctness checks, loading skeletons implemented.
+- Status: Not started
+
+Add PR references and status updates under each epic as work proceeds.
+
+
+
 ## Tech Stack
 - **Frontend Framework**: React 18 with TypeScript
 - **State Management**: TanStack Query v5 for server state

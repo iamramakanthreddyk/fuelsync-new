@@ -8,8 +8,10 @@
  * - Staff have User.stationId for their assigned station
  */
 
-const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading } = require('../models');
+const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, sequelize } = require('../models');
 const { Op, fn, col } = require('sequelize');
+
+console.log('[INIT] stationController loaded');
 
 // ============================================
 // HELPER: Check if user can access station
@@ -20,6 +22,7 @@ const canAccessStation = async (user, stationId) => {
   if (user.role === 'owner') {
     // Owner can access stations they own
     const station = await Station.findByPk(stationId);
+    console.log(`[AUTH] canAccessStation: user=${user.id} role=${user.role} stationId=${stationId} stationOwner=${station?.ownerId}`);
     return station && station.ownerId === user.id;
   }
   
@@ -166,7 +169,7 @@ exports.createStation = async (req, res, next) => {
     if (!name) {
       return res.status(400).json({ success: false, error: 'Station name is required' });
     }
-
+    
     // Determine the owner
     let stationOwnerId;
     if (user.role === 'super_admin') {
@@ -197,40 +200,75 @@ exports.createStation = async (req, res, next) => {
       return res.status(404).json({ success: false, error: 'Owner not found' });
     }
 
-    // Auto-generate unique station code
-    const ownerStationsCount = await Station.count({ where: { ownerId: stationOwnerId } });
-    const namePrefix = owner.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
-    let stationCode = `${namePrefix}${String(ownerStationsCount + 1).padStart(3, '0')}`;
-    
-    // Ensure uniqueness - if code exists, increment
-    let codeExists = await Station.findOne({ where: { code: stationCode } });
-    let counter = ownerStationsCount + 2;
-    while (codeExists) {
-      stationCode = `${namePrefix}${String(counter).padStart(3, '0')}`;
-      codeExists = await Station.findOne({ where: { code: stationCode } });
-      counter++;
+    // Perform plan limit check and creation in a transaction to avoid races
+    const t = await sequelize.transaction();
+    try {
+      const ownerWithPlan = await User.findByPk(stationOwnerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
+      console.log('[PLANCHECK] createStation ownerId=', stationOwnerId, 'plan=', ownerWithPlan?.plan?.name, 'maxStations=', ownerWithPlan?.plan?.maxStations);
+      const stationCount = await Station.count({ where: { ownerId: stationOwnerId }, transaction: t });
+      console.log('[PLANCHECK] createStation currentStationCount=', stationCount);
+      if (ownerWithPlan && ownerWithPlan.plan && ownerWithPlan.plan.maxStations != null) {
+        if ((stationCount + 1) > ownerWithPlan.plan.maxStations) {
+          console.log('[PLANCHECK] Blocking createStation: limit reached');
+          await t.rollback();
+          return res.status(403).json({
+            success: false,
+            error: `Plan limit reached. Your ${ownerWithPlan.plan.name} plan allows ${ownerWithPlan.plan.maxStations} station(s). You currently have ${stationCount}.`,
+            planLimitExceeded: true
+          });
+        }
+      }
+
+      // Allow client to provide a preferred station code, otherwise auto-generate
+      const ownerStationsCount = stationCount; // already computed in transaction
+      const namePrefix = owner.name.substring(0, 3).toUpperCase().replace(/[^A-Z]/g, 'X');
+      let stationCode = (req.body.code && String(req.body.code).trim()) ? String(req.body.code).trim() : `${namePrefix}${String(ownerStationsCount + 1).padStart(3, '0')}`;
+
+      // Ensure uniqueness only AFTER plan-limit check (within transaction)
+      let codeExists = await Station.findOne({ where: { code: stationCode }, transaction: t });
+      if (codeExists) {
+        // If client explicitly provided a code that already exists, reject
+        if (req.body.code && String(req.body.code).trim() === stationCode) {
+          await t.rollback();
+          return res.status(403).json({
+            success: false,
+            error: 'Provided station code already exists and cannot be used',
+            planLimitExceeded: false
+          });
+        }
+
+        // Otherwise fallback to generating a new unique code
+        let counter = ownerStationsCount + 2;
+        let fallback = `${namePrefix}${String(counter).padStart(3, '0')}`;
+        while (await Station.findOne({ where: { code: fallback }, transaction: t })) {
+          counter++;
+          fallback = `${namePrefix}${String(counter).padStart(3, '0')}`;
+        }
+        stationCode = fallback;
+      }
+
+      console.log('✅ Using station code:', stationCode);
+
+      const station = await Station.create({
+        ownerId: stationOwnerId,
+        name,
+        code: stationCode,
+        address,
+        city,
+        state,
+        pincode,
+        phone,
+        email,
+        gstNumber
+      }, { transaction: t });
+
+      await t.commit();
+      res.status(201).json({ success: true, data: station, message: 'Station created successfully' });
+    } catch (err) {
+      console.error('Error while creating station inside transaction:', err);
+      try { await t.rollback(); } catch (e) { /* ignore */ }
+      return res.status(500).json({ success: false, error: 'Internal server error' });
     }
-
-    console.log('✅ Generated unique station code:', stationCode);
-
-    const station = await Station.create({
-      ownerId: stationOwnerId,
-      name, 
-      code: stationCode,
-      address, 
-      city, 
-      state, 
-      pincode, 
-      phone, 
-      email, 
-      gstNumber
-    });
-
-    res.status(201).json({
-      success: true,
-      data: station,
-      message: 'Station created successfully'
-    });
 
   } catch (error) {
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -485,6 +523,7 @@ exports.getPumps = async (req, res, next) => {
 };
 
 exports.createPump = async (req, res, next) => {
+  const t = await sequelize.transaction();
   try {
     const { stationId } = req.params;
     const { name, pumpNumber, notes } = req.body;
@@ -494,15 +533,14 @@ exports.createPump = async (req, res, next) => {
 
     // Check station access
     if (!(await canAccessStation(user, stationId))) {
+      await t.rollback();
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    // Check if pump already exists (before creation attempt)
-    const existingPump = await Pump.findOne({
-      where: { stationId, pumpNumber }
-    });
-    
+    // Check if pump already exists (within transaction)
+    const existingPump = await Pump.findOne({ where: { stationId, pumpNumber }, transaction: t });
     if (existingPump) {
+      await t.rollback();
       console.log(`⚠️  PUMP ALREADY EXISTS - ID: ${existingPump.id}, Created: ${existingPump.createdAt}`);
       return res.status(409).json({ 
         success: false, 
@@ -516,20 +554,38 @@ exports.createPump = async (req, res, next) => {
       });
     }
 
-    // Plan limits are checked by enforcePlanLimit middleware
+    // Defensive transactional plan check: verify owner's plan allows another pump for this station
+    try {
+      const station = await Station.findByPk(stationId, { transaction: t });
+      const ownerId = station?.ownerId;
+      if (ownerId) {
+        const owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
+        if (owner && owner.plan && owner.plan.maxPumpsPerStation) {
+          const pumpCount = await Pump.count({ where: { stationId }, transaction: t });
+          console.log('[PLANCHECK] createPump pumpCount=', pumpCount, 'planLimit=', owner.plan.maxPumpsPerStation);
+          if ((pumpCount + 1) > owner.plan.maxPumpsPerStation) {
+            await t.rollback();
+            return res.status(403).json({
+              success: false,
+              error: `Plan limit reached. Your ${owner.plan.name} plan allows ${owner.plan.maxPumpsPerStation} pump(s) per station. This station has ${pumpCount}.`,
+              planLimitExceeded: true
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error while checking pump plan limits:', err);
+    }
 
-    const pump = await Pump.create({
-      stationId,
-      name: name || `Pump ${pumpNumber}`,
-      pumpNumber,
-      notes
-    });
+    const pump = await Pump.create({ stationId, name: name || `Pump ${pumpNumber}`, pumpNumber, notes }, { transaction: t });
+    await t.commit();
 
     console.log(`✅ PUMP CREATED - ID: ${pump.id}, Number: ${pump.pumpNumber}`);
     res.status(201).json({ success: true, data: pump });
 
   } catch (error) {
     console.error(`❌ CREATE PUMP ERROR - Station: ${req.params.stationId}, Pump#: ${req.body.pumpNumber}`, error.message);
+    try { await t.rollback(); } catch (e) { /* ignore */ }
     if (error.name === 'SequelizeUniqueConstraintError') {
       // Composite unique constraint on (station_id, pump_number)
       return res.status(409).json({ 
@@ -662,35 +718,50 @@ exports.getNozzle = async (req, res, next) => {
 };
 
 exports.createNozzle = async (req, res, next) => {
+  const t = await sequelize.transaction();
   try {
     const { pumpId } = req.params;
     const { nozzleNumber, fuelType, initialReading, notes } = req.body;
 
-    const pump = await Pump.findByPk(pumpId);
-    if (!pump) {
-      return res.status(404).json({ success: false, error: 'Pump not found' });
-    }
+    const pump = await Pump.findByPk(pumpId, { transaction: t });
+    if (!pump) { await t.rollback(); return res.status(404).json({ success: false, error: 'Pump not found' }); }
 
-    const user = await User.findByPk(req.userId);
+    const user = await User.findByPk(req.userId, { transaction: t });
     // Check station access
-    if (!(await canAccessStation(user, pump.stationId))) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
+    if (!(await canAccessStation(user, pump.stationId))) { await t.rollback(); return res.status(403).json({ success: false, error: 'Access denied' }); }
+
+    // Defensive transactional plan check: ensure pump's owner plan allows another nozzle
+    try {
+      const pumpRecord = await Pump.findByPk(pumpId, { include: [{ model: Station, as: 'station' }], transaction: t });
+      const ownerId = pumpRecord?.station?.ownerId || pumpRecord?.stationId && (await Station.findByPk(pumpRecord.stationId, { transaction: t }))?.ownerId;
+      console.log('[PLANCHECK] createNozzle pumpId=', pumpId, 'ownerId=', ownerId);
+      if (ownerId) {
+        const owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
+        console.log('[PLANCHECK] createNozzle ownerPlan=', owner?.plan?.name, 'maxNozzlesPerPump=', owner?.plan?.maxNozzlesPerPump);
+        if (owner && owner.plan && owner.plan.maxNozzlesPerPump) {
+          const nozzleCount = await Nozzle.count({ where: { pumpId }, transaction: t });
+          console.log('[PLANCHECK] createNozzle nozzleCount=', nozzleCount);
+          if ((nozzleCount + 1) > owner.plan.maxNozzlesPerPump) {
+            await t.rollback();
+            return res.status(403).json({
+              success: false,
+              error: `Plan limit reached. Your ${owner.plan.name} plan allows ${owner.plan.maxNozzlesPerPump} nozzle(s) per pump. This pump has ${nozzleCount}.`,
+              planLimitExceeded: true
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error while checking nozzle plan limits:', err);
     }
 
-    // Plan limits are checked by enforcePlanLimit middleware
-
-    const nozzle = await Nozzle.create({
-      pumpId,
-      stationId: pump.stationId, // Denormalize for faster queries
-      nozzleNumber,
-      fuelType,
-      initialReading: initialReading != null ? initialReading : 0,
-      notes
-    });
+    const nozzle = await Nozzle.create({ pumpId, stationId: pump.stationId, nozzleNumber, fuelType, initialReading: initialReading != null ? initialReading : 0, notes }, { transaction: t });
+    await t.commit();
 
     res.status(201).json({ success: true, data: nozzle });
 
   } catch (error) {
+    try { await t.rollback(); } catch (e) { /* ignore */ }
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({ success: false, error: 'Nozzle number already exists on this pump' });
     }
@@ -810,10 +881,16 @@ exports.setFuelPrice = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'fuelType and price are required' });
     }
 
+    // Validate price is a positive number
+    const numericPrice = parseFloat(price);
+    if (isNaN(numericPrice) || numericPrice <= 0) {
+      return res.status(400).json({ success: false, error: 'price must be a positive number' });
+    }
+
     const fuelPrice = await FuelPrice.create({
       stationId,
       fuelType,
-      price,
+      price: numericPrice,
       effectiveFrom: effectiveFrom || new Date().toISOString().split('T')[0],
       updatedBy: req.userId
     });

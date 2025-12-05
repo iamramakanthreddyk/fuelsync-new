@@ -81,6 +81,29 @@ This folder contains comprehensive guides for maintaining FuelSync efficiently w
 
 ## 🎯 Your Path Forward
 
+## 🧭 Process Rule: Epics‑First Workflow (Must Follow)
+
+- Convert any discovered UX gap into an Epic before implementing a fix.
+- For each Epic: capture Goal, Scope (DB → APIs → UI), Access rules, and Acceptance criteria.
+- Do not create new documentation files. Add or extend sections in existing docs (`docs/feature-users.md`, `OWNER_UI_DOCUMENTATION.md`, `QUICKDATAENTRY_ENHANCED_DOCS.md`, `IMPROVEMENTS.md`, etc.).
+- Track progress by updating the Epic section with status (Not started / In-progress / Done) and link to code files changed.
+- Enforcement: PRs that address UX fixes must reference the Epic section they implement and update the epic status.
+
+### PR Description Template (Use for every PR)
+When opening a PR that implements UI/UX or backend changes, include this short block in the PR description. This enforces traceability to Epics.
+
+```
+Epic: <file and epic heading, e.g. `docs/feature-users.md#user-management-core`>
+Summary: One-line summary of what the PR changes
+Files changed: path/to/file1, path/to/file2
+Acceptance: which acceptance items from the epic this PR satisfies
+Status update: mark epic as In-progress or Done and include PR# once merged
+```
+
+Add the epic reference and update the epic `Status` line in the document when the PR is opened and again when merged.
+
+
+
 ```
 Week 1:
   Read: VISUAL_SUMMARY.md

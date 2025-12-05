@@ -96,6 +96,7 @@ const checkPlanCompliance = async (req, res, next) => {
 const enforcePlanLimit = (resourceType) => {
   return async (req, res, next) => {
     try {
+      console.log(`[PLANCHECK-MW ENTER] resource=${resourceType} path=${req.path} method=${req.method} userId=${req.userId}`);
       const userId = req.userId;
       const user = await User.findByPk(userId, {
         include: [{ model: Plan, as: 'plan' }]
@@ -139,6 +140,13 @@ const enforcePlanLimit = (resourceType) => {
         include: [{ model: Plan, as: 'plan' }]
       });
 
+      // Diagnostic logging for tests
+      try {
+        console.log(`[PLANCHECK-MW] resource=${resourceType} ownerId=${ownerId} ownerPlan=${owner?.plan?.name} maxStations=${owner?.plan?.maxStations} maxPumpsPerStation=${owner?.plan?.maxPumpsPerStation} maxNozzlesPerPump=${owner?.plan?.maxNozzlesPerPump}`);
+      } catch (e) {
+        // ignore
+      }
+
       if (!owner || !owner.plan) {
         console.warn(`Owner ${ownerId} has no plan - allowing creation`);
         return next();
@@ -150,7 +158,8 @@ const enforcePlanLimit = (resourceType) => {
       switch (resourceType) {
         case 'station': {
           const stationCount = await Station.count({ where: { ownerId } });
-          
+          console.log(`[PLANCHECK-MW] stationCount=${stationCount} limit=${plan.maxStations}`);
+
           if (plan.maxStations && stationCount >= plan.maxStations) {
             return res.status(403).json({
               success: false,
@@ -179,7 +188,8 @@ const enforcePlanLimit = (resourceType) => {
           }
 
           const pumpCount = await Pump.count({ where: { stationId } });
-          
+          console.log(`[PLANCHECK-MW] pumpCount=${pumpCount} stationId=${stationId} limit=${plan.maxPumpsPerStation}`);
+
           if (plan.maxPumpsPerStation && pumpCount >= plan.maxPumpsPerStation) {
             return res.status(403).json({
               success: false,
@@ -208,7 +218,8 @@ const enforcePlanLimit = (resourceType) => {
           }
 
           const nozzleCount = await Nozzle.count({ where: { pumpId } });
-          
+          console.log(`[PLANCHECK-MW] nozzleCount=${nozzleCount} pumpId=${pumpId} limit=${plan.maxNozzlesPerPump}`);
+
           if (plan.maxNozzlesPerPump && nozzleCount >= plan.maxNozzlesPerPump) {
             return res.status(403).json({
               success: false,
