@@ -4,10 +4,10 @@
  * Works with the Express backend at localhost:3001
  */
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
-
 import { getStorageItem, setStorageItem, removeStorageItem } from './storage-utils';
 import { convertKeysToCamel, convertKeysToSnake } from './caseUtils';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
 // Token storage keys (without prefix — `storage-utils` will add prefix)
 const TOKEN_KEY = 'token';

@@ -160,21 +160,24 @@ export default function QuickDataEntry() {
       });
     }
 
-    // Auto-set default cash allocation to total sale value
-    if (totalSaleValue > 0 && paymentAllocation.cash === 0 && paymentAllocation.online === 0) {
-      setPaymentAllocation({
-        cash: totalSaleValue,
-        online: 0,
-        credit: 0
-      });
-    }
-
     return {
       totalLiters,
       totalSaleValue,
       byFuelType
     };
   }, [readings, pumps, fuelPrices, paymentAllocation.cash, paymentAllocation.online]);
+
+  // Move default allocation to an effect to avoid side-effects inside useMemo
+  useEffect(() => {
+    if (saleSummary.totalSaleValue > 0 && paymentAllocation.cash === 0 && paymentAllocation.online === 0) {
+      setPaymentAllocation({
+        cash: saleSummary.totalSaleValue,
+        online: 0,
+        credit: 0
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saleSummary.totalSaleValue]);
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
@@ -187,32 +190,63 @@ export default function QuickDataEntry() {
         );
       }
 
-      const promises = data.map(entry =>
-        apiClient.post('/readings', {
-          nozzleId: entry.nozzleId,
-          readingValue: parseFloat(entry.readingValue),
-          readingDate: entry.date,
-          cashAmount: paymentAllocation.cash > 0 ? paymentAllocation.cash : 0,
-          onlineAmount: paymentAllocation.online > 0 ? paymentAllocation.online : 0,
-          creditAmount: paymentAllocation.credit > 0 ? paymentAllocation.credit : 0,
-          creditorId: paymentAllocation.creditorId || null,
-          notes: `Reading entered with cash: ₹${safeToFixed(paymentAllocation.cash, 2)}, online: ₹${safeToFixed(paymentAllocation.online, 2)}, credit: ₹${safeToFixed(paymentAllocation.credit, 2)}`
-        })
-      );
-      
-      // Save readings first
+      // Build per-entry sale values so we can distribute payments proportionally
+      const entriesWithSale = data.map(entry => {
+        const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
+        const enteredValue = parseFloat(entry.readingValue || '0');
+        const lastReading = nozzle?.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
+        const initialReading = nozzle?.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+        const compareValue = lastReading !== null && !isNaN(lastReading)
+          ? lastReading
+          : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
+
+        const litres = Math.max(0, enteredValue - (compareValue || 0));
+        const priceData = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
+        const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
+        const saleValue = litres * price;
+        return { entry, saleValue };
+      });
+
+      const totalSale = entriesWithSale.reduce((s, e) => s + e.saleValue, 0);
+      const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
+
+      const cashRatio = totalSale > 0 ? (paymentAllocation.cash / totalSale) : 0;
+      const onlineRatio = totalSale > 0 ? (paymentAllocation.online / totalSale) : 0;
+      const creditRatio = totalSale > 0 ? (paymentAllocation.credit / totalSale) : 0;
+
+      const promises: Promise<any>[] = [];
+      let allocatedCash = 0, allocatedOnline = 0, allocatedCredit = 0;
+
+      entriesWithSale.forEach((item, idx) => {
+        const isLast = idx === entriesWithSale.length - 1;
+        let cashAmt = round2(item.saleValue * cashRatio);
+        let onlineAmt = round2(item.saleValue * onlineRatio);
+        let creditAmt = round2(item.saleValue * creditRatio);
+
+        if (isLast) {
+          cashAmt = round2(paymentAllocation.cash - allocatedCash);
+          onlineAmt = round2(paymentAllocation.online - allocatedOnline);
+          creditAmt = round2(paymentAllocation.credit - allocatedCredit);
+        }
+
+        allocatedCash = round2(allocatedCash + cashAmt);
+        allocatedOnline = round2(allocatedOnline + onlineAmt);
+        allocatedCredit = round2(allocatedCredit + creditAmt);
+
+        promises.push(apiClient.post('/readings', {
+          nozzleId: item.entry.nozzleId,
+          readingValue: parseFloat(item.entry.readingValue),
+          readingDate: item.entry.date,
+          cashAmount: cashAmt,
+          onlineAmount: onlineAmt,
+          creditAmount: creditAmt,
+          creditorId: creditAmt > 0 ? (paymentAllocation.creditorId || null) : null,
+          notes: `Reading entered with cash: ₹${safeToFixed(cashAmt, 2)}, online: ₹${safeToFixed(onlineAmt, 2)}, credit: ₹${safeToFixed(creditAmt, 2)}`
+        }));
+      });
+
+      // Save readings (backend will create credit transactions when creditorId present)
       const readingsResult = await Promise.all(promises);
-      
-      // If credit amount is allocated, create a credit transaction
-      if (paymentAllocation.credit > 0 && paymentAllocation.creditorId && selectedStation) {
-        await apiClient.post(`/stations/${selectedStation}/credits`, {
-          creditorId: paymentAllocation.creditorId,
-          amount: paymentAllocation.credit,
-          transactionDate: new Date().toISOString().split('T')[0],
-          notes: `Credit sales from readings on ${new Date().toLocaleDateString()}`
-        });
-      }
-      
       return readingsResult;
     },
     onSuccess: () => {
