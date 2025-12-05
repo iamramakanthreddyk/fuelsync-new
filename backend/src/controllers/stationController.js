@@ -226,9 +226,11 @@ exports.createStation = async (req, res, next) => {
 
       // Ensure uniqueness only AFTER plan-limit check (within transaction)
       let codeExists = await Station.findOne({ where: { code: stationCode }, transaction: t });
+      console.log('[PLANCHECK] createStation codeExists=', !!codeExists, 'stationCode=', stationCode, 'clientProvided=', !!req.body.code);
       if (codeExists) {
         // If client explicitly provided a code that already exists, reject
         if (req.body.code && String(req.body.code).trim() === stationCode) {
+          console.log('[PLANCHECK] createStation rejecting: client provided duplicate code=', stationCode);
           await t.rollback();
           return res.status(403).json({
             success: false,
@@ -244,11 +246,13 @@ exports.createStation = async (req, res, next) => {
           counter++;
           fallback = `${namePrefix}${String(counter).padStart(3, '0')}`;
         }
+        console.log('[PLANCHECK] createStation falling back to code=', fallback);
         stationCode = fallback;
       }
 
       console.log('✅ Using station code:', stationCode);
 
+      console.log('[PLANCHECK] createStation creating with code=', stationCode, 'ownerId=', stationOwnerId);
       const station = await Station.create({
         ownerId: stationOwnerId,
         name,
@@ -261,6 +265,14 @@ exports.createStation = async (req, res, next) => {
         email,
         gstNumber
       }, { transaction: t });
+
+      // Post-create verification (still inside transaction)
+      const stationCountPost = await Station.count({ where: { ownerId: stationOwnerId }, transaction: t });
+      if (ownerWithPlan && ownerWithPlan.plan && ownerWithPlan.plan.maxStations != null && stationCountPost > ownerWithPlan.plan.maxStations) {
+        console.log('[PLANCHECK] Rolling back station create: would exceed plan after create', stationCountPost, ownerWithPlan.plan.maxStations);
+        await t.rollback();
+        return res.status(403).json({ success: false, error: 'Plan limit exceeded after creation attempt', planLimitExceeded: true });
+      }
 
       await t.commit();
       res.status(201).json({ success: true, data: station, message: 'Station created successfully' });
@@ -524,6 +536,7 @@ exports.getPumps = async (req, res, next) => {
 
 exports.createPump = async (req, res, next) => {
   const t = await sequelize.transaction();
+  let owner = null; // owner will be resolved inside transactional check
   try {
     const { stationId } = req.params;
     const { name, pumpNumber, notes } = req.body;
@@ -559,7 +572,7 @@ exports.createPump = async (req, res, next) => {
       const station = await Station.findByPk(stationId, { transaction: t });
       const ownerId = station?.ownerId;
       if (ownerId) {
-        const owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
+        owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
         if (owner && owner.plan && owner.plan.maxPumpsPerStation) {
           const pumpCount = await Pump.count({ where: { stationId }, transaction: t });
           console.log('[PLANCHECK] createPump pumpCount=', pumpCount, 'planLimit=', owner.plan.maxPumpsPerStation);
@@ -578,6 +591,15 @@ exports.createPump = async (req, res, next) => {
     }
 
     const pump = await Pump.create({ stationId, name: name || `Pump ${pumpNumber}`, pumpNumber, notes }, { transaction: t });
+
+    // Post-create verification
+    const pumpCountPost = await Pump.count({ where: { stationId }, transaction: t });
+    if (owner && owner.plan && owner.plan.maxPumpsPerStation != null && pumpCountPost > owner.plan.maxPumpsPerStation) {
+      console.log('[PLANCHECK] Rolling back pump create: would exceed plan after create', pumpCountPost, owner.plan.maxPumpsPerStation);
+      await t.rollback();
+      return res.status(403).json({ success: false, error: 'Plan limit exceeded after creation attempt', planLimitExceeded: true });
+    }
+
     await t.commit();
 
     console.log(`✅ PUMP CREATED - ID: ${pump.id}, Number: ${pump.pumpNumber}`);
@@ -719,6 +741,7 @@ exports.getNozzle = async (req, res, next) => {
 
 exports.createNozzle = async (req, res, next) => {
   const t = await sequelize.transaction();
+  let owner = null;
   try {
     const { pumpId } = req.params;
     const { nozzleNumber, fuelType, initialReading, notes } = req.body;
@@ -736,7 +759,7 @@ exports.createNozzle = async (req, res, next) => {
       const ownerId = pumpRecord?.station?.ownerId || pumpRecord?.stationId && (await Station.findByPk(pumpRecord.stationId, { transaction: t }))?.ownerId;
       console.log('[PLANCHECK] createNozzle pumpId=', pumpId, 'ownerId=', ownerId);
       if (ownerId) {
-        const owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
+        owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
         console.log('[PLANCHECK] createNozzle ownerPlan=', owner?.plan?.name, 'maxNozzlesPerPump=', owner?.plan?.maxNozzlesPerPump);
         if (owner && owner.plan && owner.plan.maxNozzlesPerPump) {
           const nozzleCount = await Nozzle.count({ where: { pumpId }, transaction: t });
@@ -756,6 +779,15 @@ exports.createNozzle = async (req, res, next) => {
     }
 
     const nozzle = await Nozzle.create({ pumpId, stationId: pump.stationId, nozzleNumber, fuelType, initialReading: initialReading != null ? initialReading : 0, notes }, { transaction: t });
+
+    // Post-create verification
+    const nozzleCountPost = await Nozzle.count({ where: { pumpId }, transaction: t });
+    if (owner && owner.plan && owner.plan.maxNozzlesPerPump != null && nozzleCountPost > owner.plan.maxNozzlesPerPump) {
+      console.log('[PLANCHECK] Rolling back nozzle create: would exceed plan after create', nozzleCountPost, owner.plan.maxNozzlesPerPump);
+      await t.rollback();
+      return res.status(403).json({ success: false, error: 'Plan limit exceeded after creation attempt', planLimitExceeded: true });
+    }
+
     await t.commit();
 
     res.status(201).json({ success: true, data: nozzle });
