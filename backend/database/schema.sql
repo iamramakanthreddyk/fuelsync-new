@@ -20,6 +20,8 @@ DROP TABLE IF EXISTS plans CASCADE;
 DROP TYPE IF EXISTS user_role CASCADE;
 DROP TYPE IF EXISTS fuel_type CASCADE;
 DROP TYPE IF EXISTS equipment_status CASCADE;
+DROP TYPE IF EXISTS shift_status CASCADE;
+DROP TYPE IF EXISTS credit_transaction_type CASCADE;
 
 -- ============================================
 -- ENUM TYPES
@@ -27,6 +29,8 @@ DROP TYPE IF EXISTS equipment_status CASCADE;
 CREATE TYPE user_role AS ENUM ('super_admin', 'owner', 'manager', 'employee');
 CREATE TYPE fuel_type AS ENUM ('petrol', 'diesel');
 CREATE TYPE equipment_status AS ENUM ('active', 'repair', 'inactive');
+CREATE TYPE shift_status AS ENUM ('active', 'ended', 'cancelled');
+CREATE TYPE credit_transaction_type AS ENUM ('credit', 'settlement', 'adjustment');
 
 -- ============================================
 -- PLANS TABLE
@@ -213,6 +217,107 @@ CREATE INDEX idx_readings_station ON nozzle_readings(station_id);
 CREATE INDEX idx_readings_date ON nozzle_readings(reading_date DESC);
 CREATE INDEX idx_readings_nozzle_date ON nozzle_readings(nozzle_id, reading_date DESC);
 CREATE INDEX idx_readings_station_date ON nozzle_readings(station_id, reading_date DESC);
+
+-- ============================================
+-- CREDITORS & CREDIT TRANSACTIONS
+-- ============================================
+
+CREATE TABLE creditors (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    contact_person VARCHAR(255),
+    phone VARCHAR(50),
+    email VARCHAR(255),
+    address TEXT,
+    business_name VARCHAR(255),
+    gst_number VARCHAR(32),
+    credit_limit DECIMAL(12,2) DEFAULT 0,
+    credit_period_days INTEGER DEFAULT 30,
+    current_balance DECIMAL(12,2) DEFAULT 0,
+    last_transaction_date TIMESTAMP WITH TIME ZONE,
+    last_payment_date TIMESTAMP WITH TIME ZONE,
+    is_flagged BOOLEAN DEFAULT false,
+    is_active BOOLEAN DEFAULT true,
+    notes TEXT,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_creditors_station ON creditors(station_id);
+CREATE INDEX idx_creditors_name ON creditors(name);
+
+CREATE TABLE credit_transactions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
+    creditor_id UUID NOT NULL REFERENCES creditors(id) ON DELETE CASCADE,
+    transaction_type credit_transaction_type NOT NULL,
+    fuel_type fuel_type,
+    litres DECIMAL(12,3),
+    price_per_litre DECIMAL(10,2),
+    amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    vehicle_number VARCHAR(50),
+    reference_number VARCHAR(100),
+    nozzle_reading_id UUID REFERENCES nozzle_readings(id),
+    notes TEXT,
+    entered_by UUID REFERENCES users(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_credit_transactions_creditor ON credit_transactions(creditor_id);
+CREATE INDEX idx_credit_transactions_station ON credit_transactions(station_id);
+
+-- ============================================
+-- SHIFTS & CASH HANDOVERS
+-- ============================================
+
+CREATE TABLE shifts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
+    employee_id UUID REFERENCES users(id),
+    shift_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    start_time TIME NOT NULL,
+    end_time TIME,
+    shift_type VARCHAR(32) DEFAULT 'custom',
+    cash_collected DECIMAL(12,2),
+    online_collected DECIMAL(12,2),
+    expected_cash DECIMAL(12,2),
+    cash_difference DECIMAL(12,2),
+    opening_cash DECIMAL(12,2),
+    manager_id UUID REFERENCES users(id),
+    readings_count INTEGER DEFAULT 0,
+    total_litres_sold DECIMAL(12,2) DEFAULT 0,
+    total_sales_amount DECIMAL(12,2) DEFAULT 0,
+    status shift_status DEFAULT 'active',
+    ended_by UUID REFERENCES users(id),
+    notes TEXT,
+    end_notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_shifts_station ON shifts(station_id);
+CREATE INDEX idx_shifts_employee ON shifts(employee_id);
+CREATE INDEX idx_shifts_status ON shifts(status);
+
+CREATE TABLE cash_handovers (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shift_id UUID REFERENCES shifts(id) ON DELETE CASCADE,
+    station_id UUID NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
+    handed_by UUID REFERENCES users(id),
+    received_by UUID REFERENCES users(id),
+    amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+    status VARCHAR(20) DEFAULT 'pending',
+    notes TEXT,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_cash_handovers_station ON cash_handovers(station_id);
+CREATE INDEX idx_cash_handovers_shift ON cash_handovers(shift_id);
 
 -- ============================================
 -- TRIGGER: Auto-update updated_at
