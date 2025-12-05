@@ -11,7 +11,6 @@ export const CHART_COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d
 export function getSourceBadgeClasses(source?: string) {
   if (!source) return 'bg-gray-100 text-gray-800';
   const s = source.toLowerCase();
-  if (s === 'ocr') return 'bg-blue-100 text-blue-700';
   if (s === 'manual') return 'bg-orange-100 text-orange-700';
   if (s === 'tender') return 'bg-green-100 text-green-700';
   if (s === 'refill') return 'bg-purple-100 text-purple-700';

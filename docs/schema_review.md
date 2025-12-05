@@ -3,13 +3,12 @@
 - **Outcome:** SQL schema is concise and focused on core entities (`plans`, `stations`, `users`, `pumps`, `nozzles`, `fuel_prices`, `nozzle_readings`). Docs are more expansive and describe additional tables/flows that the SQL does not implement.
 
 **Key Findings (gaps / mismatches):**
-- **Ownership model differs:** docs expect `stations.owner_id` and many-to-many `user_stations`. SQL instead links users to a single `station_id` and does not store station owner explicitly.
--- **Missing tables in SQL:** `sales`, `tender_entries`, `daily_closure`, `user_stations`, `pump_assignments`, `nozzle_assignments`, `station_plans`, `plan_usage`, `user_activity_log` — some present in docs but absent in SQL. OCR-specific tables were intentionally removed.
-- **Enum differences:** docs define `user_role` values like 'superadmin' and fuel types including 'CNG'/'EV'; SQL uses 'super_admin' and only 'petrol'/'diesel'. This will cause confusion and incompatibility.
+- **Missing tables in SQL:** `sales`, `tender_entries`, `daily_closure`, `user_stations`, `pump_assignments`, `nozzle_assignments`, `station_plans`, `plan_usage`, `user_activity_log` — some present in docs but absent in SQL.
+- **Fields mismatch:** docs show `stations.owner_id`, `stations.brand`, and other plan fields (`allow_manual_entry`) not in SQL.
 - **Fields mismatch:** docs show `stations.owner_id`, `stations.brand`, and other plan fields (`max_ocr_monthly`, `allow_manual_entry`) not in SQL.
-- **Audit & history tables absent:** no `pump_assignments`, `nozzle_assignments`, or `station_plans` to track history as docs describe.
-- **Payment/tender tracking absent:** `tender_entries` and `daily_closure` missing from SQL; only per-reading `cash_amount`/`online_amount` exist.
-- **Indexes and views:** SQL has well-considered indexes and helpful views (e.g., `current_fuel_prices`, `latest_readings`, `daily_station_summary`). Docs include some overlapping index ideas but not exact matches.
+- Generate SQL migration patches to add `owner_id`, `user_stations`, and other missing audit tables (e.g., `sales`, `tender_entries`).
+- Update `docs/database-schema.md` to match the current SQL (or vice-versa).
+- Produce a visual PNG of the ER diagram (requires external mermaid CLI or online rendering).
 
 **Risks / Consequences:**
 - API and backend code expecting the documented tables/columns will fail or behave incorrectly with the current SQL.

@@ -3,7 +3,7 @@
 export * from './api';
 // Explicitly re-export only non-conflicting types from database
 export type {
-  OCRReading,
+  ManualReading,
   TenderEntry,
   DailyClosure,
   PlanUsage,

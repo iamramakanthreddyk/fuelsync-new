@@ -47,7 +47,7 @@
 - **Plan Limits**: Restricted by chosen plan (Basic/Premium/Enterprise)
 
 ### 👤 Employee
-- **Receipt Upload**: OCR processing for fuel sales receipts
+- **Receipt Upload**: Upload receipts or enter readings manually
 - **Limited Access**: Upload-only interface, no management features
 - **Station Bound**: Access limited to assigned station data
 
@@ -64,7 +64,7 @@
 | **Backend**   | Node.js, Express, Sequelize              |
 | **Database**  | PostgreSQL                               |
 | **Auth**      | JWT, bcryptjs                           |
-| **OCR**       | Azure Computer Vision (planned)          |
+| **Receipt Parsing** | Azure Computer Vision (optional/planned)          |
 | **Storage**   | Azure Blob Storage (planned)            |
 | **PWA**       | Progressive Web App, offline features    |
 
@@ -76,7 +76,7 @@
 
 * Node.js 18+
 * PostgreSQL 14+
-* Azure account (for OCR/Storage - optional for development)
+* Azure account (for optional receipt parsing / storage - optional for development)
 
 ### Installation
 
@@ -220,7 +220,7 @@ GET    /api/v1/prices/comparison # Price comparison
 ## 🔒 Security & Access Control
 
 ### Plan Enforcement
-- **Upload Limits**: Daily OCR upload limits enforced per plan
+-- **Upload Limits**: Daily upload limits enforced per plan
 - **Resource Limits**: Max pumps, employees, stations per plan
 - **Feature Access**: Premium features locked based on plan
 - **API Rate Limiting**: Prevents abuse and ensures fair usage

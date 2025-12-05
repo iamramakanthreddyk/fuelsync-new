@@ -97,18 +97,17 @@ export interface Nozzle {
   updatedAt?: string;
 }
 
-export interface OCRReading {
-  id: number;
-  station_id: number;
-  nozzle_id: number;
-  pump_sno: string;
-  source: 'ocr' | 'manual';
-  reading_date: string;
-  reading_time: string;
-  cumulative_vol: number;
-  image_url: string | null;
-  created_by: string | null; // UUID, FK to users
-  created_at: string;
+export interface ManualReading {
+  id: string;
+  stationId: string;
+  nozzleId: string;
+  pumpSno?: string;
+  readingDate: string;
+  readingTime?: string;
+  cumulativeVol: number;
+  imageUrl?: string | null;
+  createdBy?: string | null; // UUID, FK to users
+  createdAt: string;
 }
 
 export interface FuelPrice {
@@ -156,7 +155,7 @@ export interface DailyClosure {
 export interface PlanUsage {
   station_id: number;
   month: string;
-  ocr_count: number;
+  manual_readings_count: number;
   pumps_used: number;
   nozzles_used: number;
   employees_count: number;

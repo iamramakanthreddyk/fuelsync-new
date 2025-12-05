@@ -242,7 +242,7 @@
 
 ### Notification Settings
 
-- **OCR Processing**: Get notified when receipts are processed
+- **Receipt Processing**: Get notified when receipts or manual readings are processed
 - **Price Alerts**: Notifications for price changes
 - **Maintenance Reminders**: Schedule pump maintenance alerts
 - **Daily Reports**: Automatic daily summary emails
@@ -326,7 +326,7 @@
 4. **Team Training**: Ensure all employees know how to upload receipts
 
 ### Best Practices
-- **Data Quality**: Always verify OCR extracted data
+- **Data Quality**: Always verify parsed or manually-entered data for accuracy
 - **Regular Maintenance**: Keep pump status updated
 - **Plan Optimization**: Monitor usage and upgrade when beneficial
 - **Security**: Use strong passwords and enable 2FA

@@ -124,13 +124,13 @@ export class ApiService {
   }
 
   async getUploads(_stationId: string) {
-    // No OCR uploads in the REST API - return empty for now
+    // No receipt upload index endpoint in the REST API - return empty for now
     return { data: [] };
   }
 
   async uploadReceipt(_file: File, _stationId: string) {
-    // OCR upload not implemented in REST API
-    throw new Error('OCR upload not implemented');
+    // Receipt upload not implemented in REST API
+    throw new Error('Receipt upload not implemented');
   }
 }
 

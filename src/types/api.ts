@@ -454,6 +454,6 @@ export interface Upload {
   fuelType: 'Petrol' | 'Diesel';
   uploadedAt: string;
   processedAt?: string;
-  ocrData?: Record<string, unknown>;
+  processedData?: Record<string, unknown>;
 }
 

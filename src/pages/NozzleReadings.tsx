@@ -158,7 +158,7 @@ export default function NozzleReadings() {
       </Badge>
     ) : (
       <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200">
-        OCR
+        Parsed
       </Badge>
     );
   };
@@ -169,8 +169,8 @@ export default function NozzleReadings() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">Nozzle Readings</h1>
-          <p className="text-muted-foreground mt-1">
-            View and manage fuel nozzle readings from OCR and manual entries.
+            <p className="text-muted-foreground mt-1">
+            View and manage fuel nozzle readings from parsed and manual entries.
           </p>
         </div>
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
@@ -283,7 +283,7 @@ export default function NozzleReadings() {
         <CardHeader>
           <CardTitle>Recent Readings</CardTitle>
           <CardDescription>
-            Latest nozzle readings from OCR processing and manual entries
+            Latest nozzle readings from parsed and manual entries
           </CardDescription>
         </CardHeader>
         <CardContent>

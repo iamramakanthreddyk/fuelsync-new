@@ -9,7 +9,7 @@ const planLimits = {
     maxEmployees: 2,
     maxPumps: 3,
     maxStations: 1,
-    maxOcrUploads: 10, // per day
+    maxManualUploads: 10, // per day
     priceMonthly: 999,
     features: [
       'Core features',
@@ -23,7 +23,7 @@ const planLimits = {
     maxEmployees: 5,
     maxPumps: 5,
     maxStations: 1,
-    maxOcrUploads: 50, // per day
+    maxManualUploads: 50, // per day
     priceMonthly: 2499,
     features: [
       'Advanced analytics',
@@ -38,7 +38,7 @@ const planLimits = {
     maxEmployees: null, // unlimited
     maxPumps: null, // unlimited
     maxStations: null, // unlimited
-    maxOcrUploads: null, // unlimited
+    maxManualUploads: null, // unlimited
     priceMonthly: null, // custom pricing
     features: [
       'Multi-station support',
@@ -103,10 +103,10 @@ function canAddStation(currentCount, planType) {
  * @param {string} planType - Plan type
  * @returns {boolean} Whether more OCR uploads allowed
  */
-function canUploadOcr(todayCount, planType) {
+function canUploadManual(todayCount, planType) {
   const plan = getPlanLimits(planType);
-  if (plan.maxOcrUploads === null) return true; // unlimited
-  return todayCount < plan.maxOcrUploads;
+  if (plan.maxManualUploads === null) return true; // unlimited
+  return todayCount < plan.maxManualUploads;
 }
 
 /**
@@ -122,7 +122,7 @@ function getRemainingAllowance(currentCount, resource, planType) {
     employees: plan.maxEmployees,
     pumps: plan.maxPumps,
     stations: plan.maxStations,
-    ocrUploads: plan.maxOcrUploads
+    manualUploads: plan.maxManualUploads
   };
   
   const max = maxMap[resource];
@@ -168,8 +168,8 @@ function checkPlanLimit(resource) {
         case 'station':
           canAdd = canAddStation(currentCount, planType);
           break;
-        case 'ocrUpload':
-          canAdd = canUploadOcr(currentCount, planType);
+        case 'manualUpload':
+          canAdd = canUploadManual(currentCount, planType);
           break;
         default:
           return next();
@@ -177,12 +177,12 @@ function checkPlanLimit(resource) {
 
       if (!canAdd) {
         const plan = getPlanLimits(planType);
-        return res.status(403).json({
-          success: false,
-          error: `Plan limit reached. Your ${planType} plan allows up to ${plan[`max${resource.charAt(0).toUpperCase() + resource.slice(1)}s`] || plan.maxOcrUploads} ${resource}s.`,
-          planType,
-          upgradeRequired: true
-        });
+            return res.status(403).json({
+              success: false,
+              error: `Plan limit reached. Your ${planType} plan allows up to ${plan[`max${resource.charAt(0).toUpperCase() + resource.slice(1)}s`] || plan.maxManualUploads} ${resource}s.`,
+              planType,
+              upgradeRequired: true
+            });
       }
 
       next();
@@ -212,7 +212,7 @@ module.exports = {
   canAddEmployee,
   canAddPump,
   canAddStation,
-  canUploadOcr,
+  canUploadManual,
   getRemainingAllowance,
   checkPlanLimit,
   getAllPlans,

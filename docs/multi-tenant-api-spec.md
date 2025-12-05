@@ -74,7 +74,7 @@ interface Plan {
   max_pumps: number | null;
   max_nozzles: number | null;
   max_employees: number | null;
-  max_ocr_monthly: number | null;
+  max_manual_monthly: number | null;
   allow_manual_entry: boolean;
   edit_fuel_type: boolean;
   export_reports: boolean;
@@ -301,10 +301,10 @@ Remove an employee from a station.
 
 **Headers:** `Authorization: Bearer <token>`
 
-### OCR Readings
+### Readings
 
-#### GET /api/v1/ocr-readings
-Get OCR readings filtered by user permissions.
+#### GET /api/v1/readings
+Get readings (parsed or manual) filtered by user permissions.
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -341,8 +341,8 @@ Get OCR readings filtered by user permissions.
 }
 ```
 
-#### POST /api/v1/ocr-readings
-Create a new OCR reading.
+#### POST /api/v1/readings
+Create a new reading (manual or parsed).
 
 **Headers:** `Authorization: Bearer <token>`
 
@@ -430,7 +430,7 @@ Get sales summary for dashboard.
 1. **Owner Creation**: When creating an owner, optionally create their first station simultaneously
 2. **Employee Assignment**: Employees can be assigned to multiple stations through user_stations table
 3. **Station Ownership**: Each station has exactly one owner, but owners can have multiple stations
-4. **Plan Limits**: Stations are subject to plan limits (max pumps, employees, OCR readings, etc.)
+4. **Plan Limits**: Stations are subject to plan limits (max pumps, employees, manual readings, etc.)
 5. **Data Isolation**: Complete data isolation between different owners' stations
 6. **Access Control**: Users can only access data for stations they own or are assigned to
 
@@ -486,7 +486,7 @@ POST /api/v1/stations/1/employees
 }
 ```
 
-### 4. Employee Records OCR Reading
+### 4. Employee Records - Readings
 
 ```bash
 POST /api/v1/ocr-readings

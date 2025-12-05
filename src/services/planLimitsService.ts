@@ -4,14 +4,14 @@ export interface PlanLimits {
   maxPumps: number | null;
   maxNozzles: number | null;
   maxEmployees: number | null;
-  maxOcrMonthly: number | null;
+  maxManualReadingsMonthly: number | null;
   allowManualEntry: boolean;
   editFuelType: boolean;
   exportReports: boolean;
 }
 
 export interface PlanUsage {
-  ocrCount: number;
+  manualReadingsCount: number;
   pumpsUsed: number;
   nozzlesUsed: number;
   employeesCount: number;
@@ -51,7 +51,7 @@ export const planLimitsService = {
       }
 
       return {
-        ocrCount: 0,
+        manualReadingsCount: 0,
         pumpsUsed: 0,
         nozzlesUsed: 0,
         employeesCount: 0,
@@ -59,7 +59,7 @@ export const planLimitsService = {
     } catch (error) {
       console.error('Failed to fetch plan usage:', error);
       return {
-        ocrCount: 0,
+        manualReadingsCount: 0,
         pumpsUsed: 0,
         nozzlesUsed: 0,
         employeesCount: 0,
@@ -67,16 +67,16 @@ export const planLimitsService = {
     }
   },
 
-  async checkOCRLimit(stationId: number): Promise<void> {
+  async checkManualReadingsLimit(stationId: number): Promise<void> {
     const [limits, usage] = await Promise.all([
       this.getPlanLimits(stationId),
       this.getCurrentUsage(stationId)
     ]);
 
-    if (limits.maxOcrMonthly && usage.ocrCount >= limits.maxOcrMonthly) {
+    if (limits.maxManualReadingsMonthly && usage.manualReadingsCount >= limits.maxManualReadingsMonthly) {
       throw new PlanLimitsError(
-        `OCR limit exceeded. Current usage: ${usage.ocrCount}/${limits.maxOcrMonthly}`,
-        'OCR_LIMIT_EXCEEDED'
+        `Manual readings limit exceeded. Current usage: ${usage.manualReadingsCount}/${limits.maxManualReadingsMonthly}`,
+        'MANUAL_READINGS_LIMIT_EXCEEDED'
       );
     }
   },
@@ -111,10 +111,10 @@ export const planLimitsService = {
     }
   },
 
-  async incrementOCRUsage(stationId: number): Promise<void> {
-    await this.checkOCRLimit(stationId);
-    
-    await apiClient.post(`/stations/${stationId}/increment-ocr-usage`, {});
+  async incrementManualReadingsUsage(stationId: number): Promise<void> {
+    await this.checkManualReadingsLimit(stationId);
+
+    await apiClient.post(`/stations/${stationId}/increment-manual-readings-usage`, {});
   },
 
   async updatePumpCount(stationId: number): Promise<void> {

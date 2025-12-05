@@ -12,8 +12,8 @@ const Landing = () => {
   const features = [
     {
       icon: <Upload className="h-8 w-8 text-white" />,
-      title: "Smart OCR Processing",
-      description: "Upload fuel receipts and let AI extract data automatically"
+      title: "Easy Uploads & Manual Entry",
+      description: "Upload receipts or enter readings manually for quick processing"
     },
     {
       icon: <BarChart3 className="h-8 w-8 text-white" />,
@@ -38,10 +38,9 @@ const Landing = () => {
       price: "₹999",
       period: "/month",
       trial: "3-month free trial",
-      features: [
+        features: [
         "Up to 2 employees",
         "3 pumps maximum",
-        "5 OCR uploads per day",
         "Basic analytics",
         "Email support"
       ],
@@ -52,10 +51,9 @@ const Landing = () => {
       price: "₹2,499",
       period: "/month",
       trial: "14-day free trial",
-      features: [
+        features: [
         "Up to 5 employees",
         "5 pumps maximum", 
-        "10 OCR uploads per day",
         "Advanced analytics",
         "Priority support",
         "Export reports"

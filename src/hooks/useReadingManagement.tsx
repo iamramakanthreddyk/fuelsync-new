@@ -12,11 +12,11 @@ export interface ManualReadingData {
   reading_time: string;
 }
 
-export interface OCRUploadResult {
+export interface ReceiptUploadResult {
   success: boolean;
   data: {
     readings_inserted: number;
-    ocr_preview: unknown;
+    parsed_preview: unknown;
     readings: unknown[];
   };
 }
@@ -31,13 +31,13 @@ export const useReadingManagement = () => {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const uploadImageForOCR = async (
+  const uploadReceiptForParsing = async (
     file: File,
     pumpSno?: string
-  ): Promise<OCRUploadResult | null> => {
+  ): Promise<ReceiptUploadResult | null> => {
     try {
       setIsLoading(true);
-      console.log('🔍 Starting OCR upload process...');
+      console.log('🔍 Starting receipt upload and parsing process...');
 
       // Check authentication using our custom auth system
       if (!user || !user.id) {
@@ -80,11 +80,11 @@ export const useReadingManagement = () => {
       formData.append("pump_sno", pumpSno);
       formData.append("user_id", user.id.toString());
 
-      // Use REST API endpoint for OCR upload
+      // Use REST API endpoint for receipt upload/parse
       const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
       const token = getToken();
 
-      const response = await fetch(`${API_BASE_URL}/ocr/upload`, {
+      const response = await fetch(`${API_BASE_URL}/readings/upload`, {
         method: 'POST',
         headers: {
           'Authorization': token ? `Bearer ${token}` : '',
@@ -99,10 +99,10 @@ export const useReadingManagement = () => {
 
       const data = await response.json();
 
-      console.log('✅ OCR upload successful:', data);
+      console.log('✅ Receipt upload successful:', data);
 
       toast({
-        title: "OCR Processing Complete",
+        title: "Receipt Processing Complete",
         description: `Successfully processed ${data.data?.inserted || 0} readings`,
       });
 
@@ -110,12 +110,12 @@ export const useReadingManagement = () => {
         success: true,
         data: {
           readings_inserted: data.data?.inserted || 0,
-          ocr_preview: data.data?.ocr,
-          readings: data.data?.ocr?.nozzles || [],
+          parsed_preview: data.data?.parsed || null,
+          readings: data.data?.parsed?.nozzles || [],
         },
       };
     } catch (error: unknown) {
-      console.error("💥 OCR upload error:", error);
+      console.error("💥 Receipt upload error:", error);
       let errorMessage = "An unexpected error occurred";
       if (error && typeof error === 'object' && 'message' in error) {
         errorMessage = (error as { message?: string }).message || errorMessage;
@@ -123,7 +123,7 @@ export const useReadingManagement = () => {
         errorMessage = error;
       }
       toast({
-        title: "OCR Upload Failed",
+        title: "Receipt Processing Failed",
         description: errorMessage,
         variant: "destructive",
       });
@@ -195,7 +195,7 @@ export const useReadingManagement = () => {
 
   return {
     isLoading,
-    uploadImageForOCR,
+    uploadReceiptForParsing,
     submitManualReading,
   };
 };

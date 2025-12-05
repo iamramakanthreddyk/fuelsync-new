@@ -131,7 +131,7 @@ INSERT INTO fuel_prices (station_id, fuel_type, price, valid_from, updated_by) V
 ('550e8400-e29b-41d4-a716-446655440003', 'petrol', 105.75, '2024-06-01 00:00:00+00', '550e8400-e29b-41d4-a716-446655440013'),
 ('550e8400-e29b-41d4-a716-446655440003', 'diesel', 98.50, '2024-06-01 00:00:00+00', '550e8400-e29b-41d4-a716-446655440013');
 
--- Insert sample OCR readings for demonstration (last 7 days)
+-- Insert sample manual/parsed readings for demonstration (last 7 days)
 WITH date_series AS (
     SELECT generate_series(
         CURRENT_DATE - INTERVAL '7 days',
@@ -139,7 +139,7 @@ WITH date_series AS (
         INTERVAL '1 day'
     )::date as reading_date
 )
-INSERT INTO ocr_readings (
+INSERT INTO manual_readings (
     station_id, pump_id, nozzle_id, pump_sno, fuel_type,
     cumulative_volume, reading_date, reading_time, 
     is_manual_entry, entered_by
@@ -183,9 +183,9 @@ WITH reading_pairs AS (
         fp.price as price_per_litre,
         curr.entered_by
     FROM 
-        ocr_readings curr
+    manual_readings curr
     JOIN 
-        ocr_readings prev ON 
+    manual_readings prev ON 
             curr.station_id = prev.station_id AND
             curr.pump_id = prev.pump_id AND
             curr.nozzle_id = prev.nozzle_id AND
@@ -216,5 +216,5 @@ FROM
     reading_pairs;
 
 -- Create an index to speed up future queries
-CREATE INDEX IF NOT EXISTS idx_ocr_readings_pump_date ON ocr_readings(pump_id, reading_date);
+CREATE INDEX IF NOT EXISTS idx_manual_readings_pump_date ON manual_readings(pump_id, reading_date);
 CREATE INDEX IF NOT EXISTS idx_sales_date ON sales(sale_date);

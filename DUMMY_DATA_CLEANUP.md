@@ -140,10 +140,10 @@ The frontend cleanup has been completed. All components fetch data from the back
    ```
 
 2. **Upload Controller Cleanup**:
-   ```bash
-   # Remove OCR simulation
-   grep -n "setTimeout\|Math.random\|simulate" backend/controllers/uploadController.js
-   ```
+  ```bash
+  # Remove receipt parsing simulation
+  grep -n "setTimeout\|Math.random\|simulate" backend/controllers/uploadController.js
+  ```
 
 3. **Price Controller Cleanup**:
    ```bash
@@ -265,7 +265,7 @@ curl -H "Authorization: Bearer <token>" \
 - [ ] Removed all `Math.random()` data generation
 - [ ] Removed all `setTimeout` simulations
 - [ ] Replaced dummy data with database queries
-- [ ] Removed OCR integration (manual-only workflow)
+- [ ] Removed receipt parsing simulation/integration (manual-only workflow)
 - [ ] Implemented real price history tracking
 - [ ] Added competitor price management
 

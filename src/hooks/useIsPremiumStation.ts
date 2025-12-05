@@ -4,7 +4,7 @@ import { planLimitsService } from "@/services/planLimitsService";
 
 /**
  * useIsPremiumStation
- * Returns true if the given stationId is premium (has OCR access)
+ * Returns true if the given stationId is premium (has enhanced manual/parsed readings access)
  */
 export function useIsPremiumStation(stationId?: number) {
   return useQuery({
@@ -12,8 +12,8 @@ export function useIsPremiumStation(stationId?: number) {
     queryFn: async () => {
       if (!stationId) return false;
       const limits = await planLimitsService.getPlanLimits(stationId);
-      // Premium if OCR is not unbounded (i.e. has OCR allowed)
-      return !!limits.maxOcrMonthly;
+      // Premium if manual readings limit is set (indicates enhanced plan features)
+      return !!limits.maxManualReadingsMonthly;
     },
     enabled: !!stationId,
   });

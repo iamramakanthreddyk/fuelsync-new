@@ -143,7 +143,7 @@ packages/shared/src/
 │   ├── auth.ts             # Authentication
 │   ├── sales.ts            # Sales data
 │   ├── stations.ts         # Station management
-│   └── uploads.ts          # OCR uploads
+│   └── uploads.ts          # Receipt uploads
 ├── hooks/
 │   ├── useAuth.ts          # Login/logout
 │   ├── useSales.ts         # Fetch sales

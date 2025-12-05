@@ -3,7 +3,7 @@
 
 ## Overview
 
-FuelSync has been redesigned as a comprehensive multi-tenant fuel station management system. This architecture supports multiple fuel stations with complete data isolation, role-based access control, and scalable OCR-based sales tracking.
+FuelSync has been redesigned as a comprehensive multi-tenant fuel station management system. This architecture supports multiple fuel stations with complete data isolation, role-based access control, and scalable receipt-processing-based sales tracking.
 
 ## Core Concepts
 
@@ -34,9 +34,9 @@ Super Admin
 
 ```mermaid
 graph TD
-    A[Employee uploads image] --> B[OCR extracts readings]
+    A[Employee uploads image or enters reading] --> B[Parse/validate reading data]
     B --> C[Auto-create pump/nozzles if needed]
-    C --> D[Save OCR readings to database]
+    C --> D[Save manual_readings to database]
     D --> E[Calculate sales from cumulative volumes]
     E --> F[Store sales with full traceability]
     F --> G[Update dashboards and reports]
@@ -76,7 +76,7 @@ graph TD
 - `fuel_type`: ENUM (petrol, diesel)
 - `max_flow_rate`: DECIMAL
 
-#### OCR Readings
+#### Manual Readings
 - `id`: UUID primary key
 - `station_id`: Foreign key to stations
 - `pump_id`: Foreign key to pumps
@@ -109,7 +109,7 @@ graph TD
 Sales are calculated using **cumulative volume differences**:
 
 ```typescript
-function calculateSales(currentReading: OCRReading, previousReading: OCRReading) {
+function calculateSales(currentReading: ManualReading, previousReading: ManualReading) {
   const litresSold = currentReading.cumulativeVolume - previousReading.cumulativeVolume;
   const fuelPrice = getFuelPrice(currentReading.stationId, currentReading.fuelType);
   const totalAmount = litresSold * fuelPrice.price;
@@ -122,15 +122,15 @@ function calculateSales(currentReading: OCRReading, previousReading: OCRReading)
 }
 ```
 
-### OCR Processing Flow
+### Receipt Processing / Manual Reading Flow
 
-1. **Image Upload**: Employee uploads receipt image with `pump_sno`
-2. **Azure OCR**: Extract raw text using Computer Vision API
-3. **Custom Parsing**: Extract structured data using `parseOcrText()`
+1. **Image Upload or Manual Entry**: Employee uploads receipt image or enters meter reading with `pump_sno`
+2. **Parse & Validate**: Attempt to parse data from image when available; otherwise use manual entry fields
+3. **Custom Parsing (optional)**: Optionally run text-parsing helpers to extract structured data
 4. **Validation**: Verify pump exists, create if needed
 5. **Deduplication**: Check for existing readings
 6. **Sales Calculation**: Compare with previous readings
-7. **Storage**: Save readings and calculated sales
+7. **Storage**: Save `manual_readings` and calculated sales
 
 ### Auto-Creation Logic
 
@@ -155,7 +155,7 @@ if (!pump) {
   });
 }
 
-// Create nozzles based on OCR findings
+// Create nozzles based on parsed or manual input
 for (const nozzleId of foundNozzleIds) {
   await Nozzle.create({
     pumpId: pump.id,
@@ -177,10 +177,10 @@ for (const nozzleId of foundNozzleIds) {
 - `POST /api/users/employees` - Create employee (Owner only)
 - `PUT /api/users/:id/role` - Update role (Super Admin only)
 
-### OCR & Readings
-- `POST /api/ocr/upload` - Upload receipt for OCR
-- `POST /api/ocr/manual` - Create manual reading
-- `GET /api/ocr/readings` - Get readings (station-filtered)
+### Readings API
+- `POST /api/readings/upload` - Upload receipt or reading
+- `POST /api/readings/manual` - Create manual reading
+- `GET /api/readings` - Get readings (station-filtered)
 
 ### Sales & Reports
 - `GET /api/sales` - Get sales data (station-filtered)
@@ -235,7 +235,7 @@ for (const nozzleId of foundNozzleIds) {
 
 ### Unit Tests
 - Sales calculation logic
-- OCR parsing accuracy
+- Parsing / manual entry validation
 - Station isolation validation
 - Role permission enforcement
 
@@ -270,7 +270,7 @@ for (const nozzleId of foundNozzleIds) {
 ### Database Indexing
 ```sql
 -- Core performance indexes
-CREATE INDEX idx_ocr_readings_station_date ON ocr_readings(station_id, reading_date DESC);
+CREATE INDEX idx_manual_readings_station_date ON manual_readings(station_id, reading_date DESC);
 CREATE INDEX idx_sales_station_date ON sales(station_id, sale_date DESC);
 CREATE INDEX idx_pumps_station_sno ON pumps(station_id, pump_sno);
 CREATE INDEX idx_fuel_prices_lookup ON fuel_prices(station_id, fuel_type, valid_from DESC);

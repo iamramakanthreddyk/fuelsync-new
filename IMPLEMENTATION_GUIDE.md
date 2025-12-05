@@ -55,7 +55,7 @@ JWT_EXPIRES_IN=24h
 CORS_ORIGINS=https://fuelsync-testing.vercel.app,http://localhost:8080
 
 # Features
-ENABLE_OCR=true
+ENABLE_OCR=false
 ENABLE_FILE_UPLOAD=true
 
 # Test Configuration
@@ -89,7 +89,7 @@ JWT_EXPIRES_IN=7d
 CORS_ORIGINS=https://fuelsync.app,https://www.fuelsync.app
 
 # Features
-ENABLE_OCR=true
+ENABLE_OCR=false
 ENABLE_FILE_UPLOAD=true
 
 # Security
@@ -269,7 +269,7 @@ Station: Demo Station
 # 3. Create account with above credentials
 # 4. Login with test user
 # 5. Create test station, pumps, nozzles
-# 6. Test OCR upload, sales tracking, etc.
+# 6. Test receipt upload, sales tracking, etc.
 
 # Data stays in testing DB ✓
 # Production never affected ✓
