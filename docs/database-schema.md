@@ -116,7 +116,7 @@ CREATE TABLE plans (
   max_pumps INT,
   max_nozzles INT,
   max_employees INT,
-  max_ocr_monthly INT,
+  max_manual_monthly INT,
   allow_manual_entry BOOLEAN DEFAULT TRUE,
   edit_fuel_type BOOLEAN DEFAULT TRUE,
   export_reports BOOLEAN DEFAULT FALSE,
@@ -345,7 +345,7 @@ CREATE TYPE tender_type AS ENUM ('cash', 'card', 'upi', 'credit');
 ### Referential Integrity
 - Stations must have valid owner (owner role user)
 - Employees must be assigned to valid station
-- OCR readings must reference valid station and nozzle
+-- Readings must reference valid station and nozzle
 - Sales calculations based on reading deltas
 
 ## Indexes for Performance
@@ -362,10 +362,9 @@ CREATE INDEX idx_stations_owner ON stations(owner_id);
 -- Data filtering by station
 CREATE INDEX idx_pumps_station ON pumps(station_id);
 CREATE INDEX idx_nozzles_pump ON nozzles(pump_id);
-CREATE INDEX idx_ocr_readings_station_date ON ocr_readings(station_id, reading_date);
-CREATE INDEX idx_ocr_readings_nozzle_date ON ocr_readings(nozzle_id, reading_date);
-CREATE INDEX idx_ocr_readings_pump_sno ON ocr_readings(pump_sno);
-CREATE INDEX idx_ocr_readings_source ON ocr_readings(source);
+CREATE INDEX idx_manual_readings_station_date ON manual_readings(station_id, reading_date);
+CREATE INDEX idx_manual_readings_nozzle_date ON manual_readings(nozzle_id, reading_date);
+CREATE INDEX idx_manual_readings_pump_sno ON manual_readings(pump_sno);
 CREATE INDEX idx_sales_station_date ON sales(station_id, created_at);
 CREATE INDEX idx_tender_entries_station_date ON tender_entries(station_id, entry_date);
 CREATE INDEX idx_fuel_prices_station_fuel ON fuel_prices(station_id, fuel_type, valid_from);

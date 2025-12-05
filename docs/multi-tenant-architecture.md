@@ -134,7 +134,7 @@ function calculateSales(currentReading: ManualReading, previousReading: ManualRe
 
 ### Auto-Creation Logic
 
-When OCR finds new pump/nozzle combinations:
+When parsed data or manual entry finds new pump/nozzle combinations:
 
 ```typescript
 // Default fuel type mapping
@@ -283,7 +283,7 @@ CREATE INDEX idx_fuel_prices_lookup ON fuel_prices(station_id, fuel_type, valid_
 - Cache frequently accessed fuel prices
 
 ### Monitoring
-- Track OCR processing times
+- Track receipt processing / parsing times
 - Monitor database query performance
 - Alert on failed uploads or processing errors
 - Dashboard for system health metrics
@@ -299,6 +299,6 @@ CREATE INDEX idx_fuel_prices_lookup ON fuel_prices(station_id, fuel_type, valid_
 
 ### Scaling Considerations
 - Horizontal scaling for high-traffic instances
-- Optimize OCR processing for speed
+- Optimize parsing/processing for speed
 - Consider partitioning for very large datasets
 - CDN for receipt images and assets

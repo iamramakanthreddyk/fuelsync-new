@@ -94,7 +94,7 @@ export const useReadingManagement = () => {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || "OCR processing failed");
+        throw new Error(errorData.error?.message || "Receipt processing failed");
       }
 
       const data = await response.json();

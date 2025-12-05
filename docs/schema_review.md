@@ -5,7 +5,7 @@
 **Key Findings (gaps / mismatches):**
 - **Missing tables in SQL:** `sales`, `tender_entries`, `daily_closure`, `user_stations`, `pump_assignments`, `nozzle_assignments`, `station_plans`, `plan_usage`, `user_activity_log` — some present in docs but absent in SQL.
 - **Fields mismatch:** docs show `stations.owner_id`, `stations.brand`, and other plan fields (`allow_manual_entry`) not in SQL.
-- **Fields mismatch:** docs show `stations.owner_id`, `stations.brand`, and other plan fields (`max_ocr_monthly`, `allow_manual_entry`) not in SQL.
+- **Fields mismatch:** docs show `stations.owner_id`, `stations.brand`, and other plan fields (`max_manual_monthly`, `allow_manual_entry`) not in SQL.
 - Generate SQL migration patches to add `owner_id`, `user_stations`, and other missing audit tables (e.g., `sales`, `tender_entries`).
 - Update `docs/database-schema.md` to match the current SQL (or vice-versa).
 - Produce a visual PNG of the ER diagram (requires external mermaid CLI or online rendering).
@@ -31,7 +31,7 @@
 - Update `docs/database-schema.md` to reflect the exact SQL and include the ER diagram (`docs/ER_diagram.md`).
 
 If you want, I can:
-- Generate SQL migration patches to add `owner_id`, `user_stations`, and `ocr_readings` tables.
+- Generate SQL migration patches to add `owner_id`, `user_stations`, and other missing audit tables (e.g., `sales`, `tender_entries`).
 - Update `docs/database-schema.md` to match the current SQL (or vice-versa).
 - Produce a visual PNG of the ER diagram (requires external mermaid CLI or online rendering).
 

@@ -329,8 +329,8 @@ All dates stored in UTC. Frontend converts to user's timezone.
 | `JWT_EXPIRATION` | ❌ | Token TTL (default: 24h) |
 | `PORT` | ❌ | Server port (default: 3001) |
 | `NODE_ENV` | ❌ | development/production |
-| `AZURE_VISION_KEY` | ❌ | For OCR feature |
-| `AZURE_VISION_ENDPOINT` | ❌ | For OCR feature |
+| `AZURE_VISION_KEY` | ❌ | For optional receipt parsing feature |
+| `AZURE_VISION_ENDPOINT` | ❌ | For optional receipt parsing feature |
 
 ---
 

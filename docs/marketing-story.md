@@ -21,7 +21,7 @@
 ## Feature Showcase (25-50 seconds)
 **Visual**: Quick feature demonstrations
 
-### OCR Upload (25-30s)
+### Receipt Upload (25-30s)
 **Visual**: Phone uploading receipt, data auto-populating
 **Narration**: "Upload receipts with your phone - AI extracts all the data instantly."
 
@@ -88,7 +88,7 @@
 5. **Financial Uncertainty**: "Know your exact profits daily"
 
 ### Unique Value Propositions:
-1. **AI-Powered OCR**: "Upload receipts with your phone - AI does the rest"
+1. **Smart Parsing (optional)**: "Upload receipts with your phone - parsing helpers extract data, or enter readings manually"
 2. **Real-Time Analytics**: "See your business performance as it happens"
 3. **Multi-Station Management**: "Manage multiple locations from one dashboard"
 4. **Plan Flexibility**: "Start small, scale big - plans that grow with you"
@@ -97,7 +97,7 @@
 ## Social Media Snippets
 
 ### LinkedIn (Professional):
-"Fuel station management just got smarter. FuelSync's AI-powered platform helps station owners increase efficiency by 40% while reducing manual work. From OCR receipt processing to real-time analytics - everything you need in one place. 3-month free trial available."
+"Fuel station management just got smarter. FuelSync's platform helps station owners increase efficiency while reducing manual work. Upload receipts or enter readings manually — combined with real-time analytics for complete control. 3-month free trial available."
 
 ### Facebook (Community):
 "Tired of managing your fuel station with pen and paper? 📱 FuelSync makes it easy! Upload receipts with your phone, track sales automatically, and see your profits in real-time. Join hundreds of station owners who've already transformed their business. Free trial available!"
