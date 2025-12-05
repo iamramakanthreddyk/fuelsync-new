@@ -20,6 +20,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   signOut: () => Promise<void>;
   updateUser: (user: User) => void;
+  updateProfile: (data: Partial<User>) => Promise<User>;
 }
 
 // ============================================
@@ -169,6 +170,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStoredUser(updatedUser);
   }, []);
 
+  const updateProfile = useCallback(async (data: Partial<User>) => {
+    if (!user) throw new Error('Not authenticated');
+
+    try {
+      const response = await apiClient.put<{ success: boolean; data: User }>(`/users/${user.id}`, data);
+      const updated = (response as any).data || response;
+      const userWithStations = { ...updated, stations: updated.stations || [] } as User;
+      setUser(userWithStations);
+      setStoredUser(userWithStations);
+      return userWithStations;
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error);
+      console.error('[AUTH] updateProfile error:', msg);
+      throw error;
+    }
+  }, [user]);
+
   // Memoize context value
   const value = useMemo<AuthContextType>(() => ({
     user,
@@ -181,6 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     logout,
     signOut: logout,
     updateUser,
+    updateProfile,
   }), [user, session, loading, isLoggedIn, login, logout, updateUser]);
 
   return (

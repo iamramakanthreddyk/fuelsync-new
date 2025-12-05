@@ -8,11 +8,9 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ApiResponse, ApiError, ApiRequestConfig } from '../models/api.model';
-import { getErrorMessage } from '@/lib/errorUtils';
-import { API_BASE_URL, API_TIMEOUT, HTTP_STATUS } from '../constants/api.constants';
-import { STORAGE_KEYS } from '../constants/app.constants';
-import { getToken, removeToken } from '@/lib/api-client';
+import { ApiResponse, ApiError } from '../models/api.model';
+import { API_BASE_URL } from '../constants/api.constants';
+import { apiClient as libApiClient } from '@/lib/api-client';
 
 // ============================================
 // TYPES
@@ -41,9 +39,6 @@ interface UseApiReturn<T, TParams = void> extends UseApiState<T> {
 // HELPER FUNCTIONS
 // ============================================
 
-const getAuthToken = (): string | null => {
-  return getToken();
-};
 
 const buildUrl = (endpoint: string, params?: Record<string, string | number | boolean | undefined>): string => {
   const url = new URL(`${API_BASE_URL}${endpoint}`, window.location.origin);
@@ -59,102 +54,10 @@ const buildUrl = (endpoint: string, params?: Record<string, string | number | bo
   return url.toString();
 };
 
-const parseError = (error: unknown): ApiError => {
-  const msg = getErrorMessage(error);
-  if (error instanceof Error) {
-    return {
-      message: msg,
-      originalError: error,
-    } as ApiError;
-  }
+// parseError helper kept inline where needed via getErrorMessage
 
-  return { message: msg } as ApiError;
-};
+// Reuse centralized API client from `src/lib/api-client.ts`
 
-// ============================================
-// API CLIENT
-// ============================================
-
-export async function apiClient<T>(
-  endpoint: string,
-  config: ApiRequestConfig = {}
-): Promise<ApiResponse<T>> {
-  const {
-    method = 'GET',
-    headers = {},
-    params,
-    body,
-    timeout = API_TIMEOUT,
-    signal,
-  } = config;
-
-  const url = buildUrl(endpoint, params);
-  const token = getAuthToken();
-
-  const requestHeaders: Record<string, string> = {
-    'Content-Type': 'application/json',
-    ...headers,
-  };
-
-  if (token) {
-    requestHeaders['Authorization'] = `Bearer ${token}`;
-  }
-
-  // Create abort controller for timeout
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeout);
-
-  try {
-    const response = await fetch(url, {
-      method,
-      headers: requestHeaders,
-      body: body ? JSON.stringify(body) : undefined,
-      signal: signal || controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    // Handle non-OK responses
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      
-      const apiError: ApiError = {
-        message: errorData.error || errorData.message || response.statusText,
-        code: errorData.code,
-        status: response.status,
-        statusText: response.statusText,
-        details: errorData.details,
-      };
-
-      // Handle unauthorized - clear token and notify app
-      if (response.status === HTTP_STATUS.UNAUTHORIZED) {
-        removeToken();
-        window.dispatchEvent(new CustomEvent('auth-expired'));
-      }
-
-      throw apiError;
-    }
-
-    const data = await response.json();
-    return data as ApiResponse<T>;
-  } catch (error: unknown) {
-    clearTimeout(timeoutId);
-
-    if (error instanceof DOMException && error.name === 'AbortError') {
-      throw { message: 'Request timed out', code: 'TIMEOUT' } as ApiError;
-    }
-
-    if ((error as ApiError).status) {
-      throw error;
-    }
-
-    throw parseError(error);
-  }
-}
-
-// ============================================
-// USE API HOOK
-// ============================================
 
 export function useApi<T, TParams = void>(
   apiFunction: TParams extends void 
@@ -261,17 +164,17 @@ export function useApi<T, TParams = void>(
 
 export const api = {
   get: <T>(endpoint: string, params?: Record<string, string | number | boolean | undefined>) =>
-    apiClient<T>(endpoint, { method: 'GET', params }),
+    libApiClient.get<T>(buildUrl(endpoint, params)),
 
   post: <T>(endpoint: string, body?: unknown) =>
-    apiClient<T>(endpoint, { method: 'POST', body }),
+    libApiClient.post<T>(endpoint, body),
 
   put: <T>(endpoint: string, body?: unknown) =>
-    apiClient<T>(endpoint, { method: 'PUT', body }),
+    libApiClient.put<T>(endpoint, body),
 
   patch: <T>(endpoint: string, body?: unknown) =>
-    apiClient<T>(endpoint, { method: 'PATCH', body }),
+    libApiClient.patch<T>(endpoint, body),
 
   delete: <T>(endpoint: string) =>
-    apiClient<T>(endpoint, { method: 'DELETE' }),
+    libApiClient.delete<T>(endpoint),
 };

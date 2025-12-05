@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
-import { apiClient, getToken } from '@/lib/api-client';
+import { apiClient } from '@/lib/api-client';
+import type { NozzleReading } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -80,38 +81,25 @@ export const useReadingManagement = () => {
       formData.append("pump_sno", pumpSno);
       formData.append("user_id", user.id.toString());
 
-      // Use REST API endpoint for receipt upload/parse
-      const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
-      const token = getToken();
+      const res = await apiClient.post<ReceiptUploadResult>('/readings/upload', formData);
 
-      const response = await fetch(`${API_BASE_URL}/readings/upload`, {
-        method: 'POST',
-        headers: {
-          'Authorization': token ? `Bearer ${token}` : '',
-        },
-        body: formData,
-      });
+      console.log('✅ Receipt upload successful:', res);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || "Receipt processing failed");
-      }
-
-      const data = await response.json();
-
-      console.log('✅ Receipt upload successful:', data);
+      const inserted = res?.data?.readings_inserted ?? 0;
+      const parsed = res?.data?.parsed_preview ?? null;
+      const readings = Array.isArray(res?.data?.readings) ? res.data.readings : [];
 
       toast({
         title: "Receipt Processing Complete",
-        description: `Successfully processed ${data.data?.inserted || 0} readings`,
+        description: `Successfully processed ${inserted} readings`,
       });
 
       return {
         success: true,
         data: {
-          readings_inserted: data.data?.inserted || 0,
-          parsed_preview: data.data?.parsed || null,
-          readings: data.data?.parsed?.nozzles || [],
+          readings_inserted: inserted,
+          parsed_preview: parsed,
+          readings,
         },
       };
     } catch (error: unknown) {
@@ -160,14 +148,11 @@ export const useReadingManagement = () => {
         user_id: user.id
       };
 
-      const response = await apiClient.post<{ success: boolean; data: unknown }>('/readings/manual', payload);
-      if (!response || typeof response !== 'object' || !('success' in response) || !('data' in response)) {
-        throw new Error('Invalid response from server');
-      }
-      if (!(response as { success: boolean }).success) {
+      const response = await apiClient.post<{ success: boolean; data: NozzleReading }>('/readings/manual', payload);
+      if (!response || typeof response !== 'object' || response.success !== true) {
         throw new Error('Failed to save reading');
       }
-      const data = (response as { data: unknown }).data;
+      const data = response.data;
       console.log('✅ Manual reading saved:', data);
       toast({
         title: "Reading Saved",

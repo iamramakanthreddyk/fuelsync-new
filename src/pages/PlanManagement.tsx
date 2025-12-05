@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { apiClient } from '@/lib/api-client';
 import RequireAdmin from '@/components/auth/RequireAdmin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -28,9 +29,15 @@ function PlanManagement() {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetch('/api/v1/plans')
-      .then(res => res.json())
-      .then(data => setPlans(data.data));
+    (async () => {
+      try {
+        const res = await apiClient.get<{ success: boolean; data: Plan[] }>('/plans');
+        const arr = (res as unknown as { data?: Plan[] })?.data ?? (res as unknown as Plan[]);
+        setPlans(arr as Plan[]);
+      } catch (err) {
+        console.error('Failed to load plans', err);
+      }
+    })();
   }, []);
 
   const handleEdit = (plan: Plan) => {
@@ -59,18 +66,15 @@ function PlanManagement() {
 
   const handleSave = async () => {
     if (!editing) return;
-    const res = await fetch(`/api/v1/plans/${editing}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(editData)
-    });
-    if (res.ok) {
+    try {
+      const updatedRes = await apiClient.put<{ success: boolean; data: Plan }>(`/plans/${editing}`, editData);
+      const updated = (updatedRes as unknown as { data?: Plan })?.data ?? (updatedRes as unknown as Plan);
       toast({ title: 'Plan updated' });
-      const updated = await res.json();
-      setPlans(plans => plans.map(p => p.id === editing ? updated.data : p));
+      setPlans(plans => plans.map(p => p.id === editing ? updated : p));
       setEditing(null);
       setEditData({});
-    } else {
+    } catch (err) {
+      console.error('Plan update failed', err);
       toast({ title: 'Update failed', variant: 'destructive' });
     }
   };

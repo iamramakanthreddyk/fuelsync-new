@@ -3,6 +3,8 @@ import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import { LogOut, User, Building2, Shield } from "lucide-react";
+import { useState } from 'react';
+import { Input } from '@/components/ui/input';
 
 export default function Settings() {
   const { user, logout } = useAuth();
@@ -25,6 +27,30 @@ export default function Settings() {
   };
 
   const currentStation = user?.stations?.[0];
+  const { updateProfile } = useAuth();
+
+  const [editing, setEditing] = useState(false);
+  const [name, setName] = useState(user?.name || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+
+  const startEdit = () => {
+    setName(user?.name || '');
+    setPhone(user?.phone || '');
+    setEditing(true);
+  };
+
+  const cancelEdit = () => setEditing(false);
+
+  const saveEdit = async () => {
+    try {
+      await updateProfile({ name, phone });
+      setEditing(false);
+      toast({ title: 'Profile updated', description: 'Your profile has been saved.' });
+    } catch (err) {
+      console.error('Profile update failed', err);
+      toast({ title: 'Update failed', description: 'Unable to update profile', variant: 'destructive' });
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -47,17 +73,25 @@ export default function Settings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Name:</span>
-              <span className="text-sm">{user?.name || 'Not set'}</span>
+              {!editing ? (
+                <span className="text-sm">{user?.name || 'Not set'}</span>
+              ) : (
+                <Input value={name} onChange={e => setName(e.target.value)} className="w-56" />
+              )}
             </div>
             <div className="flex justify-between">
               <span className="text-sm font-medium">Email:</span>
               <span className="text-sm">{user?.email}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Phone:</span>
-              <span className="text-sm">{user?.phone || 'Not set'}</span>
+              {!editing ? (
+                <span className="text-sm">{user?.phone || 'Not set'}</span>
+              ) : (
+                <Input value={phone} onChange={e => setPhone(e.target.value)} className="w-56" />
+              )}
             </div>
             <div className="flex justify-between">
               <span className="text-sm font-medium">Role:</span>
@@ -65,6 +99,16 @@ export default function Settings() {
                 <Shield className="h-3 w-3" />
                 {user?.role?.replace('_', ' ')}
               </span>
+            </div>
+            <div className="flex gap-2 mt-2">
+              {!editing ? (
+                <Button onClick={startEdit} size="sm">Edit</Button>
+              ) : (
+                <>
+                  <Button onClick={saveEdit} size="sm">Save</Button>
+                  <Button variant="ghost" onClick={cancelEdit} size="sm">Cancel</Button>
+                </>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -88,7 +132,7 @@ export default function Settings() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Brand:</span>
-                  <span className="text-sm">{currentStation.brand}</span>
+                  <span className="text-sm">{currentStation.oilCompany || 'Not set'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm font-medium">Address:</span>

@@ -136,13 +136,16 @@ async function handleResponse<T>(response: Response): Promise<T> {
     if (jsonData && typeof jsonData === 'object' && 'data' in jsonData) {
       try {
         // Convert only the data payload to camelCase to preserve envelope fields like success/message/error
-        (jsonData as any).data = convertKeysToCamel((jsonData as any).data);
+        const dataPayload = (jsonData as Record<string, unknown>)['data'];
+        (jsonData as Record<string, unknown>)['data'] = convertKeysToCamel(dataPayload as object);
       } catch (e) {
-        // fallback: leave data as-is
+        // fallback: leave data as-is (log minor conversion error)
+        // eslint-disable-next-line no-console
+        console.debug('api-client: data conversion to camelCase failed', e);
       }
 
       try {
-        return convertKeysToCamel(jsonData) as T;
+        return convertKeysToCamel(jsonData as object) as T;
       } catch (e) {
         return jsonData as T;
       }
@@ -184,13 +187,19 @@ async function request<T>(
   };
 
   if (data && method !== 'GET') {
-    // Normalize outgoing request body keys to snake_case for backend compatibility
-    try {
-      const snake = convertKeysToSnake(data);
-      const bodyString = JSON.stringify(snake);
-      config.body = bodyString;
-    } catch (e) {
-      config.body = JSON.stringify(data);
+    // Handle FormData separately (file uploads) - do not JSON stringify or convert keys
+    if (data instanceof FormData) {
+      // Let the browser set the Content-Type with boundary
+      config.body = data as unknown as BodyInit;
+    } else {
+      // Normalize outgoing request body keys to snake_case for backend compatibility
+      try {
+        const snake = convertKeysToSnake(data as object);
+        const bodyString = JSON.stringify(snake);
+        config.body = bodyString;
+      } catch (e) {
+        config.body = JSON.stringify(data);
+      }
     }
     
     // Log the request for debugging
@@ -201,11 +210,31 @@ async function request<T>(
       console.log('   Body string:', config.body);
       try {
         console.log('   Parsed body:', JSON.parse(config.body as string));
-      } catch (_) {}
+      } catch (err) {
+        // ignore parse error for debug log
+        // eslint-disable-next-line no-console
+        console.debug('api-client: unable to parse body for debug log', err);
+      }
     }
   }
 
   try {
+    // If body is FormData, remove explicit Content-Type so browser sets multipart boundary
+    if ((config as BodyInit) instanceof FormData || (config as any).body instanceof FormData) {
+      try {
+        // buildHeaders returns a Headers object; delete application/json header if present
+        const hdrs = (config.headers as Headers) || buildHeaders(options?.headers);
+        if (hdrs instanceof Headers) {
+          hdrs.delete('Content-Type');
+        }
+        // attach headers back to config
+        (config as any).headers = hdrs;
+      } catch (err) {
+        // eslint-disable-next-line no-console
+        console.debug('api-client: header adjustment failed', err);
+      }
+    }
+
     const response = await fetch(url, config);
     return await handleResponse<T>(response);
   } catch (error) {
@@ -216,7 +245,7 @@ async function request<T>(
     }
 
     const msg = getErrorMessage(error as unknown);
-    if (error instanceof TypeError && typeof (error as any).message === 'string' && (error as any).message.includes('fetch')) {
+    if (error instanceof TypeError && typeof (error as Error).message === 'string' && (error as Error).message.includes('fetch')) {
       throw new ApiError('Network error - unable to connect to server', 0, 'NETWORK_ERROR');
     }
 

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Card,
   CardContent,
@@ -16,9 +16,10 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
+// Badge not used in this file
 import { useToast } from "@/hooks/use-toast";
-import { Plus, BarChart3, TrendingUp, Filter, ChartBar } from "lucide-react";
+import { apiClient } from '@/lib/api-client';
+import { Plus, ChartBar } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -33,6 +34,7 @@ import { usePumpsData } from "@/hooks/usePumpsData";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useAuth } from "@/hooks/useAuth";
 import { useSalesManagement } from "@/hooks/useSalesManagement";
+import { useActiveShift, usePriceCheck } from '@/hooks/api/index';
 import { SalesCharts } from "@/components/SalesCharts";
 import { SalesFilterBar } from "@/components/SalesFilterBar";
 import { SalesTable } from "@/components/SalesTable";
@@ -41,12 +43,9 @@ import { SalesSummaryCards } from "@/components/SalesSummaryCards";
 import { getFuelColors } from '@/lib/fuelColors';
 
 export default function Sales() {
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState('');
-  const [isToday, setIsToday] = useState(true);
-  const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
-  const [selectedPumpId, setSelectedPumpId] = useState<number | null>(null);
-  const [selectedNozzleId, setSelectedNozzleId] = useState<number | null>(null);
+  const isToday = useState(true)[0];
+  const selectedStationId = useState<number | null>(null)[0];
+  
   const [isAddSaleOpen, setIsAddSaleOpen] = useState(false);
   const [manualEntry, setManualEntry] = useState({
     station_id: '',
@@ -60,10 +59,23 @@ export default function Sales() {
 
   const { toast } = useToast();
   const { user } = useAuth();
-  const { data: sales, isLoading } = useSalesData(isToday ? selectedDate : undefined);
+  const { data: sales, isLoading } = useSalesData(isToday ? new Date().toISOString().split('T')[0] : undefined);
   const { data: pumps } = usePumpsData();
+  // Utility: Given nozzleId, find nozzle (and parent pump) in pumpsData
+  const getNozzle = (nozzleId: number) => {
+    if (!nozzleId || !pumps) return null;
+    for (const pump of pumps) {
+      const nozzle = pump.nozzles?.find((n) => Number(n.id) === nozzleId);
+      if (nozzle) {
+        return { ...nozzle, pump };
+      }
+    }
+    return null;
+  };
   const { currentStation, canAccessAllStations, stations } = useRoleAccess();
   const { createManualEntry } = useSalesManagement();
+  const activeShiftQuery = useActiveShift();
+  
 
   // Debug logging
   useEffect(() => {
@@ -90,17 +102,18 @@ export default function Sales() {
   const [barPumpId, setBarPumpId] = useState<string>("");
   const [barNozzleId, setBarNozzleId] = useState<string>("");
 
-  // Utility: Given nozzleId, find nozzle (and parent pump) in pumpsData
-  const getNozzle = (nozzleId: number) => {
-    if (!nozzleId || !pumps) return null;
-    for (const pump of pumps) {
-      const nozzle = pump.nozzles?.find((n) => n.id === nozzleId);
-      if (nozzle) {
-        return { ...nozzle, pump };
-      }
-    }
-    return null;
-  };
+  // derive stationId and fuelType for price check based on manualEntry selection
+  const stationForPrice = manualEntry.station_id || (currentStation?.id ? String(currentStation.id) : '');
+  const nozzleObjForPrice = typeof manualEntry.nozzle_id === 'string' && manualEntry.nozzle_id !== ''
+    ? getNozzle(parseInt(manualEntry.nozzle_id, 10))
+    : typeof manualEntry.nozzle_id === 'number'
+    ? getNozzle(manualEntry.nozzle_id)
+    : null;
+  const fuelTypeForPrice = nozzleObjForPrice?.fuel_type || '';
+  const priceDate = dateRange?.start ? new Date(dateRange.start).toISOString().split('T')[0] : new Date().toISOString().split('T')[0];
+  const priceCheckQuery = usePriceCheck(stationForPrice, fuelTypeForPrice, priceDate);
+
+  
 
   // Filter logic using actual Sale structure with fuel_type directly available
   const filteredSales = sales?.filter(sale => {
@@ -156,8 +169,7 @@ export default function Sales() {
   const nozzlesList = pumpsList
     .find(p => p.id?.toString() === barPumpId)?.nozzles || [];
 
-  const todayTotal = filteredSales.reduce((sum, sale) => sum + (sale.total_amount || 0), 0);
-  const todayVolume = filteredSales.reduce((sum, sale) => sum + (sale.delta_volume_l || 0), 0);
+  
 
   // Type correction for ID comparisons
   const selectedStationIdParsed =
@@ -167,27 +179,17 @@ export default function Sales() {
       ? manualEntry.station_id
       : undefined;
 
-  const selectedPumpIdParsed =
-    manualEntry.pump_id && typeof manualEntry.pump_id === "string"
-      ? parseInt(manualEntry.pump_id, 10)
-      : manualEntry.pump_id
-      ? manualEntry.pump_id
-      : undefined;
-
   // Fix: Ensure availablePumps uses correct number type
   const availablePumps = pumps?.filter(
     (pump) =>
       !manualEntry.station_id ||
-      pump.station_id === selectedStationIdParsed
+      pump.stationId === selectedStationIdParsed
   ) || [];
 
   // Fix: Ensure availableNozzles uses correct number type
+  const manualPumpIdString = manualEntry.pump_id ? String(manualEntry.pump_id) : '';
   const availableNozzles =
-    availablePumps.find((pump) => pump.id === (
-      typeof manualEntry.pump_id === "string"
-        ? parseInt(manualEntry.pump_id, 10)
-        : manualEntry.pump_id
-    ))?.nozzles || [];
+    availablePumps.find((pump) => String(pump.id) === manualPumpIdString)?.nozzles || [];
 
   const handleManualEntry = async () => {
     if (!manualEntry.station_id || !manualEntry.nozzle_id || !manualEntry.cumulative_volume) {
@@ -199,19 +201,81 @@ export default function Sales() {
       return;
     }
 
+    // Parse values
+    const stationIdNum = parseInt(manualEntry.station_id, 10);
+    const nozzleIdNum = typeof manualEntry.nozzle_id === 'string' ? parseInt(manualEntry.nozzle_id, 10) : manualEntry.nozzle_id;
+    const cumulativeVolume = parseFloat(manualEntry.cumulative_volume);
+
+    // Validate numeric parsing
+    if (Number.isNaN(stationIdNum) || Number.isNaN(nozzleIdNum) || Number.isNaN(cumulativeVolume)) {
+      toast({ title: 'Invalid values', description: 'Please enter valid numeric values', variant: 'destructive' });
+      return;
+    }
+
+    // 1) Fetch previous reading for the nozzle and ensure cumulative_volume > previousReading
+    try {
+      // Ensure an active shift exists (backend requires shift for many plans)
+      const activeShift = activeShiftQuery.data?.data || (activeShiftQuery.data as any) || null;
+      if (!activeShift) {
+        toast({ title: 'No active shift', description: 'Please start a shift before recording readings.', variant: 'destructive' });
+        return;
+      }
+
+      // Enforce plan backdate limit if available via user.plan
+      const planLimitDays = (user as any)?.plan?.backdate_limit_days || (user as any)?.plan?.backdateLimit || null;
+      if (planLimitDays !== null && planLimitDays !== undefined) {
+        const today = new Date();
+        const selectedDate = new Date(); // manual entries assume today; if you support date input, use that value
+        const diffDays = Math.floor((today.getTime() - selectedDate.getTime()) / (1000 * 60 * 60 * 24));
+        if (diffDays > Number(planLimitDays)) {
+          toast({ title: 'Backdate limit exceeded', description: `Your plan allows backdating only up to ${planLimitDays} days.`, variant: 'destructive' });
+          return;
+        }
+      }
+
+      const prevRes = await apiClient.get(`/readings/nozzles/${nozzleIdNum}/previous`);
+      // response may be envelope { success, data } or bare object
+      const prevData = (prevRes as any).data || prevRes;
+      const prevValue = Number(prevData.previousReading ?? prevData.previous_reading ?? 0);
+
+      if (!Number.isFinite(prevValue)) {
+        // treat missing previous as 0
+      }
+
+      if (cumulativeVolume <= prevValue) {
+        toast({ title: 'Invalid reading', description: `Cumulative volume must be greater than previous reading (${prevValue})`, variant: 'destructive' });
+        return;
+      }
+
+      // 2) Verify a price exists for the nozzle's fuel type and date using cached hook
+      if (!fuelTypeForPrice) {
+        toast({ title: 'Nozzle data missing', description: 'Unable to determine fuel type for selected nozzle', variant: 'destructive' });
+        return;
+      }
+
+      // If the query hasn't run yet, try refetching to ensure up-to-date info
+      let priceDataObj = priceCheckQuery.data?.data || (priceCheckQuery.data as any);
+      if (!priceDataObj) {
+        const ref = await priceCheckQuery.refetch();
+        priceDataObj = (ref.data as any)?.data || ref.data;
+      }
+
+      const priceSet = !!(priceDataObj?.priceSet || priceDataObj?.price || priceDataObj?.price_set);
+      if (!priceSet) {
+        toast({ title: 'Price not set', description: 'Price for selected fuel/date is not set. Please set the fuel price before recording readings.', variant: 'destructive' });
+        return;
+      }
+    } catch (err: unknown) {
+      console.error('Validation check failed', err);
+      toast({ title: 'Validation failed', description: 'Could not verify previous reading or price. Try again.', variant: 'destructive' });
+      return;
+    }
+
     try {
       await createManualEntry.mutateAsync({
-        station_id: parseInt(manualEntry.station_id),
-        // Ensure nozzle_id is always passed as a number
-        nozzle_id:
-          typeof manualEntry.nozzle_id === "string"
-            ? Number.isNaN(parseInt(manualEntry.nozzle_id, 10))
-              ? 0
-              : parseInt(manualEntry.nozzle_id, 10)
-            : typeof manualEntry.nozzle_id === "number"
-            ? manualEntry.nozzle_id
-            : 0,
-        cumulative_volume: parseFloat(manualEntry.cumulative_volume),
+        station_id: stationIdNum,
+        nozzle_id: nozzleIdNum,
+        cumulative_volume: cumulativeVolume,
         user_id: typeof user?.id === "string" ? user.id : "",
       });
 
@@ -233,13 +297,7 @@ export default function Sales() {
     }
   };
 
-  const handleDateFilter = (filterType: 'today' | 'range') => {
-    setIsToday(filterType === 'today');
-    if (filterType === 'today') {
-      setSelectedDate(new Date().toISOString().split('T')[0]);
-      setEndDate('');
-    }
-  };
+  
 
   if (!currentStation && !canAccessAllStations) {
     return (
@@ -437,7 +495,7 @@ export default function Sales() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <SalesCharts salesData={filteredSales} isLoading={isLoading} />
+              <SalesCharts salesData={filteredSales as any} isLoading={isLoading} />
             </CardContent>
           </Card>
         </TabsContent>
@@ -446,7 +504,7 @@ export default function Sales() {
           {/* Sales Table */}
           <div className="bg-background rounded-lg shadow-sm p-2">
             <SalesTable
-              sales={pagedSales}
+              sales={pagedSales as any}
               loading={isLoading}
               page={page}
               pageSize={pageSize}
@@ -460,24 +518,4 @@ export default function Sales() {
   );
 }
 
-// Lucide Icon SVG symbol sprite injection for inlined icons (for currencies, droplet, transactions)
-const _LucideSVGSprite = () => (
-  <svg style={{ display: 'none' }}>
-    <symbol id="lucide-indian-rupee" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path d="M6 3h12M6 8.5h12M9 3l5.5 8a4.5 4.5 0 1 1-4.86 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-    </symbol>
-    <symbol id="lucide-droplet" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <path d="M12 2.1l.01 0C12 2.1 18 8.41 18 13.5A6 6 0 0 1 6 13.5c0-5.09 6-11.4 6-11.4Z" />
-      <path d="M12 22a4 4 0 0 0 4-4" />
-    </symbol>
-    <symbol id="lucide-list" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-      <line x1="8" x2="21" y1="6" y2="6" />
-      <line x1="8" x2="21" y1="12" y2="12" />
-      <line x1="8" x2="21" y1="18" y2="18" />
-      <line x1="3" x2="3" y1="6" y2="6" />
-      <line x1="3" x2="3" y1="12" y2="12" />
-      <line x1="3" x2="3" y1="18" y2="18" />
-    </symbol>
-  </svg>
-);
-// Render this sprite in your app root (e.g., in App.tsx) to make the symbols available everywhere.
+// (SVG sprite helper removed - not used)
