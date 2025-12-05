@@ -15,7 +15,7 @@
 
 const request = require('supertest');
 const app = require('../../src/app');
-const { sequelize, User, Plan, Station, Pump, Nozzle, Shift } = require('../../src/models');
+const { sequelize, User, Plan, Station, Pump, Nozzle, Shift, Creditor } = require('../../src/models');
 const bcrypt = require('bcryptjs');
 
 describe('Manager Journey', () => {
@@ -121,6 +121,16 @@ describe('Manager Journey', () => {
       status: 'active',
       initialReading: 1000
     });
+
+    // Create a test creditor so readings with creditAmount can reference a valid creditor
+    const testCreditor = await Creditor.create({
+      stationId: testStation.id,
+      name: 'Manager Test Creditor',
+      creditLimit: 20000,
+      currentBalance: 0,
+      isActive: true
+    });
+    createdCreditorId = testCreditor.id;
   });
 
   afterAll(async () => {
@@ -351,7 +361,8 @@ describe('Manager Journey', () => {
           totalAmount: 52500,
           cashAmount: 35000,
           onlineAmount: 15000,
-          creditAmount: 2500
+          creditAmount: 2500,
+          creditorId: createdCreditorId
         });
 
       expect(response.status).toBe(201);
