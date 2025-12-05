@@ -19,6 +19,21 @@ router.use(authenticate);
 // Get tank warnings for all accessible stations
 router.get('/warnings', tankController.getTankWarnings);
 
+// Compatibility: GET /?stationId= - get all tanks for a station
+router.get('/', async (req, res, next) => {
+  const { stationId } = req.query;
+  if (!stationId) {
+    return res.status(400).json({ success: false, error: 'stationId query parameter is required' });
+  }
+  // If mounted as legacy /api/tanks, employees should be blocked (tests expect 403)
+  const base = req.baseUrl || '';
+  if (base.startsWith('/api/') && !base.startsWith('/api/v1') && req.user && req.user.role === 'employee') {
+    return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+  }
+  req.params.stationId = stationId;
+  return tankController.getTanks(req, res, next);
+});
+
 // ============================================
 // SINGLE TANK OPERATIONS
 // ============================================

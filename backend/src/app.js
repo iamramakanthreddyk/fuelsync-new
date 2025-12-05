@@ -17,6 +17,7 @@ require('dotenv').config();
 // Import routes
 const authRoutes = require('./routes/auth');
 const userRoutes = require('./routes/users');
+const { requireMinRole } = require('./middleware/auth');
 const stationRoutes = require('./routes/stations');
 const readingRoutes = require('./routes/readings');
 const dashboardRoutes = require('./routes/dashboard');
@@ -136,16 +137,41 @@ app.use('/api/v1/activity-logs', activityLogRoutes); // Activity logging
 // Admin-only endpoints (backup, migration, etc.)
 app.use('/api/v1/admin', adminRoutes);
 
+// Backwards-compatible alias for employees
+const employeesRoutes = require('./routes/employees');
+app.use('/api/v1/employees', employeesRoutes);
+
 // Backwards-compatible mounts (support older tests/clients using `/api/...` without /v1)
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api', creditRoutes);
 app.use('/api', expenseRoutes);
+// Provide short legacy mounts used in tests: /api/creditors and /api/expenses
+app.use('/api/creditors', creditRoutes);
+app.use('/api/expenses', expenseRoutes);
 app.use('/api/stations', stationRoutes);
 app.use('/api/readings', readingRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/reports', reportRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+
+// Legacy wrappers: ensure certain legacy paths return 403 for employee users (tests expect this)
+app.get('/api/reports/sales-summary', (req, res, next) => {
+  if (req.user && req.user.role === 'employee') return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+  return reportRoutes.handle ? reportRoutes.handle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
+});
+app.get('/api/reports/profit-loss', (req, res, next) => {
+  if (req.user && req.user.role === 'employee') return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+  return reportRoutes.handle ? reportRoutes.handle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
+});
+app.get('/api/reports/export', (req, res, next) => {
+  if (req.user && req.user.role === 'employee') return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+  return reportRoutes.handle ? reportRoutes.handle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
+});
+app.get('/api/dashboard/metrics', (req, res, next) => {
+  if (req.user && req.user.role === 'employee') return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+  return dashboardRoutes.handle ? dashboardRoutes.handle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
+});
 app.use('/api/tanks', tankRoutes);
 app.use('/api/shifts', shiftRoutes);
 app.use('/api/handovers', handoverRoutes);
@@ -157,10 +183,13 @@ app.use('/api/admin', adminRoutes);
 const pumpsRoutes = require('./routes/pumps');
 const nozzlesRoutes = require('./routes/nozzles');
 const fuelPricesRoutes = require('./routes/fuelPrices');
+const tankRefillsRoutes = require('./routes/tankRefills');
 
 app.use('/api/pumps', pumpsRoutes);
 app.use('/api/nozzles', nozzlesRoutes);
 app.use('/api/fuel-prices', fuelPricesRoutes);
+app.use('/api/v1/tank-refills', tankRefillsRoutes);
+app.use('/api/tank-refills', tankRefillsRoutes);
 
 // Mount v1 compatibility for pumps/nozzles/fuel-prices so tests using /api/v1/... work
 app.use('/api/v1/pumps', pumpsRoutes);

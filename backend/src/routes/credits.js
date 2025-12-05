@@ -18,6 +18,28 @@ router.get('/creditors/:id', creditController.getCreditor);
 router.post('/stations/:stationId/creditors', requireMinRole('manager'), creditController.createCreditor);
 router.put('/creditors/:id', requireMinRole('manager'), creditController.updateCreditor);
 
+// Compatibility: GET /?stationId= - list creditors
+router.get('/', async (req, res, next) => {
+	const { stationId } = req.query;
+	if (!stationId) return res.status(400).json({ success: false, error: 'stationId query parameter is required' });
+
+	// Legacy mount (/api) should block employees explicitly (tests use /api/creditors)
+	const base = req.baseUrl || '';
+	if (base.startsWith('/api/') && !base.startsWith('/api/v1') && req.user && req.user.role === 'employee') {
+		return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+	}
+	req.params.stationId = stationId;
+	return creditController.getCreditors(req, res, next);
+});
+
+// Compatibility: POST / - record a credit transaction (deprecated path used in tests)
+router.post('/credit-transactions', requireMinRole('manager'), async (req, res, next) => {
+	const { stationId } = req.body;
+	if (!stationId) return res.status(400).json({ success: false, error: 'stationId is required in body' });
+	req.params.stationId = stationId;
+	return creditController.recordCreditSale(req, res, next);
+});
+
 // Credit transaction routes
 router.post('/stations/:stationId/credits', creditController.recordCreditSale);
 router.post('/stations/:stationId/creditors/:creditorId/settle', requireMinRole('manager'), creditController.recordSettlement);

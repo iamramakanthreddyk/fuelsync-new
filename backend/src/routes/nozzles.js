@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authenticate } = require('../middleware/auth');
+const { authenticate, requireRole } = require('../middleware/auth');
 const stationController = require('../controllers/stationController');
 
 router.use(authenticate);
@@ -19,7 +19,8 @@ router.get('/', async (req, res, next) => {
 });
 
 // POST / - create nozzle (compatibility) - expects pumpId in body or query
-router.post('/', async (req, res, next) => {
+// Only owner/super_admin may create nozzles
+router.post('/', requireRole(['owner', 'super_admin']), async (req, res, next) => {
   const { pumpId } = req.body;
   if (!pumpId) {
     return res.status(400).json({ success: false, error: 'pumpId is required in body' });
@@ -29,12 +30,14 @@ router.post('/', async (req, res, next) => {
 });
 
 // PUT /:id - update nozzle
-router.put('/:id', async (req, res, next) => {
+// Only owner/super_admin may update nozzles
+router.put('/:id', requireRole(['owner', 'super_admin']), async (req, res, next) => {
   return stationController.updateNozzle(req, res, next);
 });
 
 // DELETE /:id - delete nozzle (compatibility)
-router.delete('/:id', async (req, res, next) => {
+// Only owner/super_admin may delete nozzles
+router.delete('/:id', requireRole(['owner', 'super_admin']), async (req, res, next) => {
   return stationController.deleteNozzle ? stationController.deleteNozzle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
 });
 

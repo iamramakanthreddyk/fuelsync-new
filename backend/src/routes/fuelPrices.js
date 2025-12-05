@@ -15,4 +15,15 @@ router.get('/', async (req, res, next) => {
   return stationController.getFuelPrices(req, res, next);
 });
 
+// POST / - set fuel price (compatibility)
+const { requireMinRole } = require('../middleware/auth');
+router.post('/', requireMinRole('manager'), async (req, res, next) => {
+  const { stationId } = req.body;
+  if (!stationId) {
+    return res.status(400).json({ success: false, error: 'stationId is required in body' });
+  }
+  req.params.stationId = stationId;
+  return stationController.setFuelPrice(req, res, next);
+});
+
 module.exports = router;

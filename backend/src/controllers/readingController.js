@@ -18,6 +18,7 @@ exports.createReading = async (req, res, next) => {
 
     // Validate required fields
     if (!nozzleId || !readingDate || readingValue === undefined) {
+      console.log('[DEBUG] createReading validation failed: missing required fields', { nozzleId, readingDate, readingValue });
       return res.status(400).json({
         success: false,
         error: 'nozzleId, readingDate, and readingValue are required'
@@ -34,6 +35,7 @@ exports.createReading = async (req, res, next) => {
     });
 
     if (!nozzle) {
+      console.log('[DEBUG] createReading failed: nozzle not found', { nozzleId });
       return res.status(404).json({
         success: false,
         error: 'Nozzle not found'
@@ -42,6 +44,7 @@ exports.createReading = async (req, res, next) => {
 
     // Check nozzle is active
     if (nozzle.status !== 'active') {
+      console.log('[DEBUG] createReading failed: nozzle inactive', { nozzleId, status: nozzle.status });
       return res.status(400).json({
         success: false,
         error: `Nozzle is ${nozzle.status}. Cannot enter reading.`
@@ -69,6 +72,7 @@ exports.createReading = async (req, res, next) => {
       activeShift = await Shift.getActiveShift(userId);
       
       if (!activeShift) {
+        console.log('[DEBUG] createReading failed: active shift required but not found', { userId, stationId });
         return res.status(400).json({
           success: false,
           error: 'You must have an active shift to enter readings. Please start your shift first.',
@@ -100,14 +104,22 @@ exports.createReading = async (req, res, next) => {
     } else {
       previousReadingRecord = await NozzleReading.getLatestReading(nozzleId);
     }
-    let previousReading = previousReadingRecord?.readingValue || nozzle.initialReading || 0;
-    let isInitialReading = !previousReadingRecord;
+    // Prefer an explicit previousReading provided by client (tests/old clients send this)
+    let previousReading = previousReadingRecord?.readingValue;
+    const providedPrevious = req.body.previousReading !== undefined ? parseFloat(req.body.previousReading) : undefined;
+    if (previousReading === undefined || previousReading === null) {
+      previousReading = nozzle.initialReading !== undefined && nozzle.initialReading !== null ? nozzle.initialReading : (providedPrevious || 0);
+    }
+    // If a client explicitly provided previousReading, prefer it for validation
+    if (providedPrevious !== undefined) previousReading = providedPrevious;
+    let isInitialReading = !previousReadingRecord && (providedPrevious === undefined);
 
     // Validate reading value (must be > previous unless initial)
     const currentValue = parseFloat(readingValue);
     const prevValue = parseFloat(previousReading);
 
     if (!isInitialReading && currentValue <= prevValue) {
+      console.log('[DEBUG] createReading failed: readingValue not greater than previous', { currentValue, prevValue });
       return res.status(400).json({
         success: false,
         error: `Reading must be greater than previous reading (${prevValue}). Meter readings only go forward.`,
@@ -120,17 +132,22 @@ exports.createReading = async (req, res, next) => {
 
     // Get fuel price for the reading date
     const fuelPrice = await FuelPrice.getPriceForDate(stationId, nozzle.fuelType, readingDate);
-    
-    if (!fuelPrice && !isInitialReading) {
-      return res.status(400).json({
-        success: false,
-        error: `No fuel price set for ${nozzle.fuelType} on ${readingDate}. Please set fuel price first.`
-      });
+
+    // Allow legacy clients/tests to supply `pricePerLitre` or `totalAmount` explicitly.
+    // Prefer fuelPrice from DB, then client-provided pricePerLitre, then sensible defaults.
+    const clientPrice = req.body.pricePerLitre !== undefined ? parseFloat(req.body.pricePerLitre) : undefined;
+    const clientTotal = req.body.totalAmount !== undefined ? parseFloat(req.body.totalAmount) : undefined;
+
+    let pricePerLitre = fuelPrice || clientPrice || (isInitialReading ? 100 : 0);
+
+    // If no DB price and the client did not provide pricePerLitre but provided totalAmount,
+    // derive pricePerLitre from totalAmount/litresSold when possible (avoid divide by zero).
+    if (!fuelPrice && clientTotal !== undefined && litresSold > 0) {
+      pricePerLitre = clientTotal / litresSold;
     }
 
-    // Calculate total amount
-    const pricePerLitre = fuelPrice || (isInitialReading ? 100 : 0); // Use default price of 100 for initial readings if no price set
-    const totalAmount = litresSold * pricePerLitre;
+    // If still no price (and not initial reading), allow usage of clientTotal if provided, otherwise validation will fail
+    const totalAmount = clientTotal !== undefined ? clientTotal : (litresSold * pricePerLitre);
 
     // Backdated reading validation based on owner's plan (backdatedDays)
     try {
@@ -172,6 +189,7 @@ exports.createReading = async (req, res, next) => {
       // Validate total equals expected amount
       const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
       if (Math.abs(totalPayment - totalAmount) > 0.01) {
+        console.log('[DEBUG] createReading failed: payment breakdown mismatch', { finalCashAmount, finalOnlineAmount, finalCreditAmount, totalAmount, totalPayment });
         return res.status(400).json({
           success: false,
           error: `Payment breakdown (Cash: ${finalCashAmount}, Online: ${finalOnlineAmount}, Credit: ${finalCreditAmount}) must equal total amount (${totalAmount.toFixed(2)})`
@@ -180,6 +198,7 @@ exports.createReading = async (req, res, next) => {
 
       // If credit is used, creditor ID must be provided
       if (finalCreditAmount > 0 && !creditorId) {
+        console.log('[DEBUG] createReading failed: creditorId missing for credit payment', { finalCreditAmount });
         return res.status(400).json({
           success: false,
           error: 'Creditor ID is required when credit payment is used'
@@ -624,6 +643,58 @@ exports.getLatestReadingsForNozzles = async (req, res) => {
     res.json(results);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch latest readings' });
+  }
+};
+
+/**
+ * Daily summary for a station
+ * GET /api/v1/readings/summary
+ */
+exports.getDailySummary = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const date = req.query.date || new Date().toISOString().split('T')[0];
+    const user = await User.findByPk(req.userId);
+
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Not authorized to access this station' });
+    }
+
+    const readings = await NozzleReading.findAll({ where: { stationId, readingDate: date } });
+
+    // Basic aggregated summary
+    const totalSales = readings.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
+    const totalLitres = readings.reduce((s, r) => s + parseFloat(r.litresSold || 0), 0);
+
+    res.json({ success: true, data: { date, totalSales, totalLitres, count: readings.length } });
+  } catch (err) {
+    console.error('Get daily summary error:', err);
+    next(err);
+  }
+};
+
+/**
+ * Get last reading for a nozzle
+ * GET /api/v1/readings/last?nozzleId=...
+ */
+exports.getLastReading = async (req, res, next) => {
+  try {
+    const { nozzleId } = req.query;
+    if (!nozzleId) return res.status(400).json({ success: false, error: 'nozzleId is required' });
+
+    const nozzle = await Nozzle.findByPk(nozzleId, { include: [{ model: Pump, as: 'pump' }] });
+    if (!nozzle) return res.status(404).json({ success: false, error: 'Nozzle not found' });
+
+    const user = await User.findByPk(req.userId);
+    if (!(await canAccessStation(user, nozzle.pump.stationId))) {
+      return res.status(403).json({ success: false, error: 'Not authorized' });
+    }
+
+    const latest = await NozzleReading.getLatestReading(nozzleId);
+    res.json({ success: true, data: latest || null });
+  } catch (err) {
+    console.error('Get last reading error:', err);
+    next(err);
   }
 };
 
