@@ -34,7 +34,7 @@ Super Admin
 
 ```mermaid
 graph TD
-    A[Employee uploads image or enters reading] --> B[Parse/validate reading data]
+A[Employee uploads receipt image or enters reading] --> B[Parse/validate reading data]
     B --> C[Auto-create pump/nozzles if needed]
     C --> D[Save manual_readings to database]
     D --> E[Calculate sales from cumulative volumes]
@@ -125,7 +125,7 @@ function calculateSales(currentReading: ManualReading, previousReading: ManualRe
 ### Receipt Processing / Manual Reading Flow
 
 1. **Image Upload or Manual Entry**: Employee uploads receipt image or enters meter reading with `pump_sno`
-2. **Parse & Validate**: Attempt to parse data from image when available; otherwise use manual entry fields
+2. **Parse & Validate**: Attempt to parse structured data from uploaded receipt when available; otherwise use manual entry fields
 3. **Custom Parsing (optional)**: Optionally run text-parsing helpers to extract structured data
 4. **Validation**: Verify pump exists, create if needed
 5. **Deduplication**: Check for existing readings
@@ -147,9 +147,9 @@ const fuelTypeMap = {
 
 // Create pump if it doesn't exist
 if (!pump) {
-  pump = await Pump.create({
+- Full receipt-parsing / manual-entry-to-sales pipeline
     stationId,
-    pumpSno: extractedData.pump_sno,
+- Invalid parsed receipt data
     name: `Pump ${extractedData.pump_sno}`,
     status: 'active'
   });

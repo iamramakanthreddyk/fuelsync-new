@@ -489,7 +489,7 @@ POST /api/v1/stations/1/employees
 ### 4. Employee Records - Readings
 
 ```bash
-POST /api/v1/ocr-readings
+POST /api/v1/readings/upload
 {
   "nozzle_id": 1,
   "source": "manual",

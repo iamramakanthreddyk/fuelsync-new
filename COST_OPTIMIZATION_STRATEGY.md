@@ -1,11 +1,6 @@
 # FuelSync: Cost Optimization & Maintenance Strategy
-
-## Executive Summary
-
-This document outlines a comprehensive strategy to:
-- ✅ **Minimize infrastructure costs** while maintaining production reliability
-- ✅ **Preserve test user data** in isolated environments
-- ✅ **Enable continuous development** without disrupting production
+- OCR service removed from architecture; use manual readings or optional receipt parsing; no OCR API costs expected
+  # Track receipt parsing API calls or parsing failures
 - ✅ **Expand to mobile & Windows apps** using code-sharing techniques
 - ✅ **Scale efficiently** as the user base grows
 

@@ -29,7 +29,7 @@ JWT_EXPIRES_IN=24h
 CORS_ORIGINS=http://localhost:8080,http://localhost:3000
 
 # Features
-ENABLE_OCR=false
+ENABLE_RECEIPT_PARSING=false
 ENABLE_FILE_UPLOAD=false
 ```
 
@@ -55,7 +55,7 @@ JWT_EXPIRES_IN=24h
 CORS_ORIGINS=https://fuelsync-testing.vercel.app,http://localhost:8080
 
 # Features
-ENABLE_OCR=false
+ENABLE_RECEIPT_PARSING=false
 ENABLE_FILE_UPLOAD=true
 
 # Test Configuration
@@ -89,7 +89,7 @@ JWT_EXPIRES_IN=7d
 CORS_ORIGINS=https://fuelsync.app,https://www.fuelsync.app
 
 # Features
-ENABLE_OCR=false
+ENABLE_RECEIPT_PARSING=false
 ENABLE_FILE_UPLOAD=true
 
 # Security
