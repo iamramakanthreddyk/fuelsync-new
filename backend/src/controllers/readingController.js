@@ -210,30 +210,78 @@ exports.createReading = async (req, res, next) => {
       }
     }
 
-    // Create the reading
-    const reading = await NozzleReading.create({
-      nozzleId,
-      stationId,
-      pumpId: nozzle.pumpId,
-      fuelType: nozzle.fuelType,
-      enteredBy: userId,
-      readingDate,
-      readingValue: currentValue,
-      previousReading: prevValue,
-      litresSold,
-      pricePerLitre,
-      totalAmount,
-      cashAmount: finalCashAmount,
-      onlineAmount: finalOnlineAmount,
-      creditAmount: finalCreditAmount,
-      creditorId: creditorId || null,
-      isInitialReading,
-      notes,
-      shiftId: activeShift?.id || null
-    });
-    
-    // Update nozzle's lastReading cache
-    await nozzle.updateLastReading(currentValue, readingDate);
+    // Create the reading and optionally record credit transaction atomically
+    const t = await sequelize.transaction();
+    let reading;
+    try {
+      reading = await NozzleReading.create({
+        nozzleId,
+        stationId,
+        pumpId: nozzle.pumpId,
+        fuelType: nozzle.fuelType,
+        enteredBy: userId,
+        readingDate,
+        readingValue: currentValue,
+        previousReading: prevValue,
+        litresSold,
+        pricePerLitre,
+        totalAmount,
+        cashAmount: finalCashAmount,
+        onlineAmount: finalOnlineAmount,
+        creditAmount: finalCreditAmount,
+        creditorId: creditorId || null,
+        isInitialReading,
+        notes,
+        shiftId: activeShift?.id || null
+      }, { transaction: t });
+
+      // If a credit was recorded as part of this reading, create a CreditTransaction
+      if (finalCreditAmount > 0) {
+        const { CreditTransaction, Creditor } = require('../models');
+
+        // Support legacy clients/tests that may send `creditAmount` without a `creditorId`.
+        // If `creditorId` is provided, create a CreditTransaction and update the creditor balance.
+        // Otherwise, store the creditAmount on the reading only and log a warning.
+        if (creditorId) {
+          await CreditTransaction.create({
+          stationId,
+          creditorId,
+          transactionType: 'credit',
+          fuelType: nozzle.fuelType,
+          litres: litresSold,
+          pricePerLitre,
+          amount: finalCreditAmount,
+          transactionDate: readingDate,
+          vehicleNumber: null,
+          referenceNumber: null,
+          notes: `Credit from reading ${reading.id}`,
+          nozzleReadingId: reading.id,
+          enteredBy: userId
+          }, { transaction: t });
+
+          const findOptions = { transaction: t };
+          if (sequelize.getDialect() !== 'sqlite') findOptions.lock = t.LOCK.UPDATE;
+          const creditor = await Creditor.findByPk(creditorId, findOptions);
+          if (!creditor) throw new Error('Creditor not found');
+          await creditor.update({ currentBalance: parseFloat(creditor.currentBalance || 0) + parseFloat(finalCreditAmount) }, { transaction: t });
+        } else {
+          console.warn(`[WARN] Reading recorded with creditAmount=${finalCreditAmount} but no creditorId provided. CreditTransaction not created.`);
+        }
+      }
+
+      // Update nozzle's lastReading cache
+      try {
+        await nozzle.updateLastReading(currentValue, readingDate, { transaction: t });
+      } catch (e) {
+        // Fallback if model method doesn't accept transaction
+        try { await nozzle.updateLastReading(currentValue, readingDate); } catch (_) {}
+      }
+
+      await t.commit();
+    } catch (err) {
+      await t.rollback();
+      throw err;
+    }
 
     // Return with calculated values
     const readingJson = {

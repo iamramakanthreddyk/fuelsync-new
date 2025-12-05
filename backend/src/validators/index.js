@@ -135,6 +135,8 @@ const readingValidators = {
     readingValue: Joi.number().min(0).required(),
     cashAmount: Joi.number().min(0).optional(),
     onlineAmount: Joi.number().min(0).optional(),
+    creditAmount: Joi.number().min(0).optional(),
+    creditorId: optionalUuid.when('creditAmount', { is: Joi.number().greater(0), then: Joi.required(), otherwise: Joi.optional() }),
     notes: Joi.string().max(500).optional()
   }),
 

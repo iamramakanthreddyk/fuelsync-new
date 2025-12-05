@@ -898,6 +898,9 @@ describe('Manager Journey', () => {
           creditLimit: 15000
         });
       expect([201, 403]).toContain(response.status); // 201 if permitted, 403 if not
+      if (response.status === 201 && response.body && response.body.data && response.body.data.id) {
+        createdCreditorId = response.body.data.id;
+      }
     });
 
     test('Manager can update creditor', async () => {

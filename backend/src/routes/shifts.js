@@ -7,7 +7,7 @@ const express = require('express');
 const router = express.Router();
 const shiftController = require('../controllers/shiftController');
 const { authenticate, requireMinRole } = require('../middleware/auth');
-const { validate, shiftValidators, validateIntId } = require('../validators');
+const { validate, shiftValidators, validateId } = require('../validators');
 
 // All routes require authentication
 router.use(authenticate);
@@ -45,11 +45,11 @@ router.post('/',
 router.get('/active', shiftController.getActiveShift);
 
 // Get single shift
-router.get('/:id', validateIntId(), shiftController.getShift);
+router.get('/:id', validateId(), shiftController.getShift);
 
 // End a shift
 router.post('/:id/end',
-  validateIntId(),
+  validateId(),
   validate(shiftValidators.end),
   shiftController.endShift
 );
@@ -57,7 +57,7 @@ router.post('/:id/end',
 // Compatibility: accept PUT for ending shift as well
 router.put('/:id/end',
   enforceLegacyManager,
-  validateIntId(),
+  validateId(),
   validate(shiftValidators.end),
   shiftController.endShift
 );
@@ -65,7 +65,7 @@ router.put('/:id/end',
 // Cancel a shift (manager+)
 router.post('/:id/cancel',
   requireMinRole('manager'),
-  validateIntId(),
+  validateId(),
   shiftController.cancelShift
 );
 
