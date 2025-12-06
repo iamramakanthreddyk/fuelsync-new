@@ -75,15 +75,6 @@ export default function StationDetail() {
   const [selectedPump, setSelectedPump] = useState<Pump | null>(null);
   const [selectedNozzle, setSelectedNozzle] = useState<Nozzle | null>(null);
 
-  // Calculate next available pump number
-  const getNextPumpNumber = (): number => {
-    if (!pumps || !Array.isArray(pumps) || pumps.length === 0) {
-      return 1;
-    }
-    const maxPumpNumber = Math.max(...pumps.map(p => p.pumpNumber || 0));
-    return maxPumpNumber + 1;
-  };
-
   // Calculate next available nozzle number for a pump
   const getNextNozzleNumber = (pump: Pump | null): number => {
     if (!pump || !pump.nozzles || pump.nozzles.length === 0) {
@@ -273,7 +264,7 @@ export default function StationDetail() {
 
   // Create pump mutation
   const createPumpMutation = useMutation({
-    mutationFn: async (data: { pumpNumber: number; name: string; status: string }) => {
+    mutationFn: async (data: { name: string; status: string }) => {
       const response = await apiClient.post(`/stations/${id}/pumps`, data);
       return response;
     },
@@ -529,20 +520,17 @@ export default function StationDetail() {
   });
 
   const handleCreatePump = () => {
-    // ⭐ CLIENT-SIDE VALIDATION: Check for duplicate pump number
-    const newPumpNumber = parseInt(pumpForm.pumpNumber);
-    const isDuplicatePump = pumps?.some(p => p.pumpNumber === newPumpNumber);
-    if (isDuplicatePump) {
+    if (!pumpForm.name) {
       toast({
-        title: 'Duplicate Pump Number',
-        description: `Pump number ${newPumpNumber} already exists. Please use a different number.`,
+        title: 'Missing Information',
+        description: 'Please fill in pump name',
         variant: 'destructive'
       });
       return;
     }
 
+    // Backend auto-generates pump number
     createPumpMutation.mutate({
-      pumpNumber: newPumpNumber,
       name: pumpForm.name,
       status: pumpForm.status
     });
@@ -729,11 +717,11 @@ export default function StationDetail() {
               </Button>
               <Dialog open={isPumpDialogOpen} onOpenChange={(open) => {
               setIsPumpDialogOpen(open);
-              // Auto-set pump number when dialog opens
+              // Reset form when dialog opens
               if (open) {
                 setPumpForm({
-                  pumpNumber: getNextPumpNumber().toString(),
-                  name: `P${getNextPumpNumber()}`,
+                  pumpNumber: '',
+                  name: '',
                   status: 'active'
                 });
               }
@@ -751,22 +739,12 @@ export default function StationDetail() {
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="pumpNumber">Pump Number *</Label>
-                    <Input
-                      id="pumpNumber"
-                      type="number"
-                      value={pumpForm.pumpNumber}
-                      onChange={(e) => setPumpForm({ ...pumpForm, pumpNumber: e.target.value })}
-                        // Allow manual entry
-                    />
-                  </div>
-                  <div>
                     <Label htmlFor="pumpName">Pump Name *</Label>
                     <Input
                       id="pumpName"
                       value={pumpForm.name}
                       onChange={(e) => setPumpForm({ ...pumpForm, name: e.target.value })}
-                      placeholder="Pump A"
+                      placeholder="e.g., Main Pump"
                     />
                   </div>
                   <div>
@@ -792,7 +770,7 @@ export default function StationDetail() {
                   </Button>
                   <Button 
                     onClick={handleCreatePump}
-                    disabled={!pumpForm.pumpNumber || !pumpForm.name || createPumpMutation.isPending}
+                    disabled={!pumpForm.name || createPumpMutation.isPending}
                   >
                     {createPumpMutation.isPending ? 'Creating...' : 'Create Pump'}
                   </Button>

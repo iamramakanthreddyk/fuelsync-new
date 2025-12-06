@@ -236,21 +236,12 @@ const OwnerDashboard = () => {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="pumpSno">Pump Serial Number</Label>
-                <Input
-                  id="pumpSno"
-                  value={newPump.pumpSno}
-                  onChange={(e) => setNewPump(prev => ({ ...prev, pumpSno: e.target.value }))}
-                  placeholder="e.g., P001"
-                />
-              </div>
-              <div>
                 <Label htmlFor="pumpName">Pump Name</Label>
                 <Input
                   id="pumpName"
                   value={newPump.name}
                   onChange={(e) => setNewPump(prev => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g., Main Pump 1"
+                  placeholder="e.g., Main Pump"
                 />
               </div>
               <div className="flex gap-2">
