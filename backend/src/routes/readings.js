@@ -21,7 +21,8 @@ router.get('/latest', readingController.getLatestReadingsForNozzles);
 router.get('/today', readingController.getTodayReadings);
 
 // Create new reading (all authenticated users)
-router.post('/', readingController.createReading);
+const { validateReadingCreate } = require('../utils/validation');
+router.post('/', validateReadingCreate, readingController.createReading);
 
 // Get readings list (filtered by role)
 router.get('/', readingController.getReadings);

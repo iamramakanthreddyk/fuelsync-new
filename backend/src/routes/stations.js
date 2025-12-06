@@ -52,6 +52,7 @@ router.get('/:stationId/staff', userController.getStationStaff);
 // PUMPS (nested under stations)
 // ============================================
 router.get('/:stationId/pumps', stationController.getPumps);
+router.get('/:stationId/pumps/debug/diagnostics', stationController.getStationDiagnostics);
 router.post('/:stationId/pumps', 
   requireRole(['owner', 'super_admin']),
   validate(pumpValidators.create), // Validate pump creation

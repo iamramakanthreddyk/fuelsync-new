@@ -64,7 +64,83 @@ export function AppHeader() {
               </div>
             )}
           </div>
-          {/* Notification Bell Mobile */}
+          {/* Notification Bell Mobile - moved to far right */}
+          <div className="flex items-center justify-end">
+            <div className="relative">
+              <button
+                className="relative p-2 rounded-full hover:bg-muted transition"
+                onClick={() => setShowDropdown((v) => !v)}
+                aria-label="Notifications"
+              >
+                <Bell className="w-6 h-6 text-foreground" />
+                {unreadCount > 0 && (
+                  <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+              {showDropdown && (
+                <div className="absolute right-0 mt-2 w-80 bg-white border rounded-lg shadow-lg z-50">
+                  <div className="p-3 border-b font-semibold">Notifications</div>
+                  <div className="max-h-80 overflow-y-auto">
+                    {notifications.length === 0 ? (
+                      <div className="p-4 text-muted-foreground text-center">No notifications</div>
+                    ) : (
+                      notifications.map((n) => (
+                        <div key={n.id} className={`p-3 border-b last:border-b-0 flex gap-2 items-start ${n.read ? 'bg-muted/30' : ''}`}>
+                          <span className={`w-2 h-2 rounded-full mt-2 ${n.type === 'error' ? 'bg-red-500' : n.type === 'warning' ? 'bg-yellow-500' : n.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
+                          <div className="flex-1">
+                            <div className="font-medium text-sm">{n.message}</div>
+                            <div className="text-xs text-muted-foreground">{n.createdAt.toLocaleString()}</div>
+                            {n.link && (
+                              <a href={n.link} className="text-xs text-blue-600 underline">View</a>
+                            )}
+                          </div>
+                          {!n.read && (
+                            <button
+                              className="ml-2 text-xs text-primary underline"
+                              onClick={() => { notificationService.markRead(n.id); setShowDropdown(false); }}
+                            >Mark read</button>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                  <div className="p-2 text-right">
+                    <button className="text-xs text-muted-foreground underline" onClick={() => { notificationService.clearAll(); setShowDropdown(false); }}>Clear all</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        // Example usage: Trigger a notification from anywhere in your app
+        // notificationService.push('success', 'Your action was successful!');
+        
+        {/* Fuel Prices on mobile - only show for users with station access */}
+        {currentStation && (
+          <div className="flex justify-center px-2 pb-1">
+            <FuelPriceCard prices={fuelPricesObj} isLoading={isPricesLoading} />
+          </div>
+        )}
+      </div>
+      {/* Desktop Header */}
+      <div className="hidden md:flex items-center h-16 w-full px-6 justify-between">
+        <div className="flex items-center gap-3">
+          <FuelSyncLogo size={28} variant="alt" />
+          {currentStation ? (
+            <span className="text-lg font-semibold text-foreground">{currentStation.name}</span>
+          ) : (
+            <span className="text-lg font-bold text-foreground tracking-wide">FuelSync</span>
+          )}
+        </div>
+        <div className="flex items-center gap-6">
+          <div className="text-sm text-muted-foreground hidden lg:flex items-center">
+            {user?.name && (
+              <span>Welcome back, <strong className="text-foreground ml-1">{user.name}</strong> 👋</span>
+            )}
+          </div>
+          {/* Notification Bell - moved to far right */}
           <div className="relative">
             <button
               className="relative p-2 rounded-full hover:bg-muted transition"
@@ -111,76 +187,6 @@ export function AppHeader() {
               </div>
             )}
           </div>
-        </div>
-        
-        {/* Fuel Prices on mobile - only show for users with station access */}
-        {currentStation && (
-          <div className="flex justify-center px-2 pb-1">
-            <FuelPriceCard prices={fuelPricesObj} isLoading={isPricesLoading} />
-          </div>
-        )}
-      </div>
-      {/* Desktop Header */}
-      <div className="hidden md:flex items-center h-16 w-full px-6 justify-between">
-        <div className="flex items-center gap-3">
-          <FuelSyncLogo size={28} variant="alt" />
-          {currentStation ? (
-            <span className="text-lg font-semibold text-foreground">{currentStation.name}</span>
-          ) : (
-            <span className="text-lg font-bold text-foreground tracking-wide">FuelSync</span>
-          )}
-        </div>
-        {/* Notification Bell */}
-        <div className="relative">
-          <button
-            className="relative p-2 rounded-full hover:bg-muted transition"
-            onClick={() => setShowDropdown((v) => !v)}
-            aria-label="Notifications"
-          >
-            <Bell className="w-6 h-6 text-foreground" />
-            {unreadCount > 0 && (
-              <span className="absolute top-0 right-0 w-4 h-4 bg-red-500 text-white text-xs rounded-full flex items-center justify-center">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-          {showDropdown && (
-            <div className="absolute right-0 mt-2 w-80 bg-white border rounded-lg shadow-lg z-50">
-              <div className="p-3 border-b font-semibold">Notifications</div>
-              <div className="max-h-80 overflow-y-auto">
-                {notifications.length === 0 ? (
-                  <div className="p-4 text-muted-foreground text-center">No notifications</div>
-                ) : (
-                  notifications.map((n) => (
-                    <div key={n.id} className={`p-3 border-b last:border-b-0 flex gap-2 items-start ${n.read ? 'bg-muted/30' : ''}`}>
-                      <span className={`w-2 h-2 rounded-full mt-2 ${n.type === 'error' ? 'bg-red-500' : n.type === 'warning' ? 'bg-yellow-500' : n.type === 'success' ? 'bg-green-500' : 'bg-blue-500'}`}></span>
-                      <div className="flex-1">
-                        <div className="font-medium text-sm">{n.message}</div>
-                        <div className="text-xs text-muted-foreground">{n.createdAt.toLocaleString()}</div>
-                        {n.link && (
-                          <a href={n.link} className="text-xs text-blue-600 underline">View</a>
-                        )}
-                      </div>
-                      {!n.read && (
-                        <button
-                          className="ml-2 text-xs text-primary underline"
-                          onClick={() => { notificationService.markRead(n.id); setShowDropdown(false); }}
-                        >Mark read</button>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-              <div className="p-2 text-right">
-                <button className="text-xs text-muted-foreground underline" onClick={() => { notificationService.clearAll(); setShowDropdown(false); }}>Clear all</button>
-              </div>
-            </div>
-          )}
-        </div>
-        <div className="text-sm text-muted-foreground hidden lg:flex items-center">
-          {user?.name && (
-            <span>Welcome back, <strong className="text-foreground ml-1">{user.name}</strong> 👋</span>
-          )}
         </div>
       </div>
     </header>

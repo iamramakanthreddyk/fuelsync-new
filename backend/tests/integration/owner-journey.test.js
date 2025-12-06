@@ -621,6 +621,28 @@ describe('Owner Journey', () => {
       expect(response.body.data.status).toBe('inactive');
       testReport.passed++;
     });
+
+    test('Create nozzle with duplicate number - Edge Case', async () => {
+      testReport.totalTests++;
+      testReport.edgeCases.push('Create nozzle with duplicate nozzle number');
+      
+      // Try to create another nozzle #1 on createdPump (nozzle #1 already exists from first test)
+      const response = await request(app)
+        .post(`/api/v1/stations/pumps/${createdPump.id}/nozzles`)
+        .set('Authorization', `Bearer ${ownerToken}`)
+        .send({
+          nozzleNumber: 1, // Duplicate - first nozzle already has #1
+          fuelType: 'diesel',
+          status: 'active',
+          initialReading: 0
+        });
+
+      console.log('📋 Duplicate nozzle response:', response.status, response.body);
+      expect(response.status).toBe(409);
+      expect(response.body.success).toBe(false);
+      expect(response.body.error).toContain('already exists');
+      testReport.passed++;
+    });
   });
 
   describe('5. Employee Management', () => {

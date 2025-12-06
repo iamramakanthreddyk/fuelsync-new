@@ -529,8 +529,20 @@ export default function StationDetail() {
   });
 
   const handleCreatePump = () => {
+    // ⭐ CLIENT-SIDE VALIDATION: Check for duplicate pump number
+    const newPumpNumber = parseInt(pumpForm.pumpNumber);
+    const isDuplicatePump = pumps?.some(p => p.pumpNumber === newPumpNumber);
+    if (isDuplicatePump) {
+      toast({
+        title: 'Duplicate Pump Number',
+        description: `Pump number ${newPumpNumber} already exists. Please use a different number.`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
     createPumpMutation.mutate({
-      pumpNumber: parseInt(pumpForm.pumpNumber),
+      pumpNumber: newPumpNumber,
       name: pumpForm.name,
       status: pumpForm.status
     });
@@ -538,10 +550,23 @@ export default function StationDetail() {
 
   const handleCreateNozzle = () => {
     if (!selectedPump) return;
+
+    // ⭐ CLIENT-SIDE VALIDATION: Check for duplicate nozzle number on this pump
+    const newNozzleNumber = parseInt(nozzleForm.nozzleNumber);
+    const isDuplicateNozzle = selectedPump.nozzles?.some(n => n.nozzleNumber === newNozzleNumber);
+    if (isDuplicateNozzle) {
+      toast({
+        title: 'Duplicate Nozzle Number',
+        description: `Nozzle number ${newNozzleNumber} already exists on pump ${selectedPump.pumpNumber}. Please use a different number.`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
     createNozzleMutation.mutate({
       pumpId: selectedPump.id,
       data: {
-        nozzleNumber: parseInt(nozzleForm.nozzleNumber),
+        nozzleNumber: newNozzleNumber,
         fuelType: nozzleForm.fuelType,
         initialReading: parseFloat(nozzleForm.initialReading)
       }
@@ -732,8 +757,7 @@ export default function StationDetail() {
                       type="number"
                       value={pumpForm.pumpNumber}
                       onChange={(e) => setPumpForm({ ...pumpForm, pumpNumber: e.target.value })}
-                      readOnly
-                      className="bg-muted cursor-not-allowed"
+                        // Allow manual entry
                     />
                   </div>
                   <div>
@@ -1204,8 +1228,7 @@ export default function StationDetail() {
                 type="number"
                 value={nozzleForm.nozzleNumber}
                 onChange={(e) => setNozzleForm({ ...nozzleForm, nozzleNumber: e.target.value })}
-                readOnly
-                className="bg-muted cursor-not-allowed"
+                 // Allow manual entry
               />
             </div>
             <div>

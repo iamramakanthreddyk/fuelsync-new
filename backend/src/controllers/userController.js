@@ -381,6 +381,11 @@ exports.deactivateUser = async (req, res, next) => {
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
+        
+          // Prevent deactivation of superadmin
+          if (user.role === 'super_admin' && isActive === false) {
+            return res.status(403).json({ success: false, error: 'Superadmin cannot be deactivated.' });
+          }
     }
 
     // Can't deactivate yourself

@@ -17,17 +17,37 @@ console.log('[INIT] stationController loaded');
 // HELPER: Check if user can access station
 // ============================================
 const canAccessStation = async (user, stationId) => {
-  if (user.role === 'super_admin') return true;
+  console.log(`🔐 canAccessStation check - userId: ${user?.id}, role: ${user?.role}, stationId: ${stationId}`);
+  
+  if (user.role === 'super_admin') {
+    console.log(`✅ super_admin can access any station`);
+    return true;
+  }
   
   if (user.role === 'owner') {
     // Owner can access stations they own
     const station = await Station.findByPk(stationId);
-    console.log(`[AUTH] canAccessStation: user=${user.id} role=${user.role} stationId=${stationId} stationOwner=${station?.ownerId}`);
-    return station && station.ownerId === user.id;
+    console.log(`🔍 Station lookup - Found: ${!!station}, Owner: ${station?.ownerId}, UserID: ${user.id}, Match: ${station?.ownerId === user.id}`);
+    
+    if (!station) {
+      console.log(`❌ Station ${stationId} not found`);
+      return false;
+    }
+    
+    const isOwner = station.ownerId === user.id;
+    if (!isOwner) {
+      console.log(`❌ User ${user.id} is not owner of station ${stationId}. Station owner: ${station.ownerId}`);
+    } else {
+      console.log(`✅ User ${user.id} is owner of station ${stationId}`);
+    }
+    
+    return isOwner;
   }
   
   // Manager/Employee can only access their assigned station
-  return user.stationId === stationId;
+  const canAccess = user.stationId === stationId;
+  console.log(`🔍 Manager/Employee check - userStationId: ${user.stationId}, requestStationId: ${stationId}, canAccess: ${canAccess}`);
+  return canAccess;
 };
 
 // ============================================
@@ -509,12 +529,40 @@ exports.getPumps = async (req, res, next) => {
     const { stationId } = req.params;
     const user = req.user;
 
-    console.log(`📋 GET PUMPS - Station: ${stationId}, User: ${user.id}`);
+    console.log(`📋 GET PUMPS - Station: ${stationId}, User: ${user?.id}, Role: ${user?.role}, UserId from req: ${req.userId}`);
+    console.log(`📋 Full user object:`, { id: user?.id, role: user?.role, stationId: user?.stationId });
 
     // Check station access using helper
-    if (!(await canAccessStation(user, stationId))) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
+    const hasAccess = await canAccessStation(user, stationId);
+    console.log(`📋 canAccessStation result:`, hasAccess);
+    
+    if (!hasAccess) {
+      // Get the station to provide better error info
+      const station = await Station.findByPk(stationId);
+      console.log(`❌ ACCESS DENIED for user ${user?.id} to station ${stationId}. Station exists: ${!!station}, StationOwner: ${station?.ownerId}`);
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Access denied',
+        details: {
+          userRole: user?.role,
+          userId: user?.id,
+          userStationId: user?.stationId,
+          requestedStationId: stationId,
+          stationExists: !!station,
+          stationOwnerId: station?.ownerId
+        }
+      });
     }
+
+    // ⭐ DEBUG: Get ALL pumps first to see what's in DB
+    const allPumpsRaw = await Pump.findAll({
+      where: { stationId },
+      raw: true
+    });
+    console.log(`📊 ALL PUMPS IN DB FOR STATION (raw): ${allPumpsRaw.length}`);
+    allPumpsRaw.forEach(p => {
+      console.log(`  - Pump: ID=${p.id}, Number=${p.pump_number}, Name=${p.name}, Status=${p.status}, Created=${p.created_at}`);
+    });
 
     const pumps = await Pump.findAll({
       where: { stationId },
@@ -527,7 +575,7 @@ exports.getPumps = async (req, res, next) => {
     });
 
     console.log(`📋 FOUND ${pumps.length} PUMPS in station ${stationId}`);
-    res.json({ success: true, data: pumps, pumps });
+    res.json({ success: true, data: pumps, pumps, debugAllPumpsInDb: allPumpsRaw });
 
   } catch (error) {
     next(error);
@@ -542,7 +590,9 @@ exports.createPump = async (req, res, next) => {
     const { name, pumpNumber, notes } = req.body;
     const user = req.user;
 
-    console.log(`🔧 CREATE PUMP - Station: ${stationId}, Pump#: ${pumpNumber}, User: ${user.id}`);
+    // Normalize pumpNumber to integer
+    const normalizedPumpNumber = parseInt(pumpNumber, 10);
+    console.log(`🔧 CREATE PUMP - Station: ${stationId}, Pump#: ${normalizedPumpNumber} (input: ${pumpNumber}), User: ${user.id}`);
 
     // Check station access
     if (!(await canAccessStation(user, stationId))) {
@@ -550,20 +600,32 @@ exports.createPump = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    // Check if pump already exists (within transaction)
-    const existingPump = await Pump.findOne({ where: { stationId, pumpNumber }, transaction: t });
+    // ⭐ CHECK FOR DUPLICATE PUMP NUMBER BEFORE ATTEMPTING CREATE
+    console.log(`🔎 Checking for duplicate pump - stationId: ${stationId}, pumpNumber: ${normalizedPumpNumber}`);
+    const existingPump = await Pump.findOne({ where: { stationId, pumpNumber: normalizedPumpNumber }, transaction: t });
     if (existingPump) {
+      console.log(`⚠️  PUMP ALREADY EXISTS - ID: ${existingPump.id}, Name: ${existingPump.name}, Status: ${existingPump.status}, Created: ${existingPump.createdAt}, Updated: ${existingPump.updatedAt}`);
+      
+      // Also check what getPumps would return
+      const allPumpsInStation = await Pump.findAll({ where: { stationId }, transaction: t });
+      console.log(`📊 Total pumps in station (from findAll): ${allPumpsInStation.length}`);
+      allPumpsInStation.forEach(p => {
+        console.log(`  - Pump: ID=${p.id}, Number=${p.pumpNumber}, Name=${p.name}, Status=${p.status}`);
+      });
+      
       await t.rollback();
-      console.log(`⚠️  PUMP ALREADY EXISTS - ID: ${existingPump.id}, Created: ${existingPump.createdAt}`);
       return res.status(409).json({ 
         success: false, 
-        error: `Pump number ${pumpNumber} already exists in this station (ID: ${existingPump.id})`,
+        error: `Pump number ${normalizedPumpNumber} already exists in this station (ID: ${existingPump.id})`,
         existingPump: {
           id: existingPump.id,
           pumpNumber: existingPump.pumpNumber,
           name: existingPump.name,
-          createdAt: existingPump.createdAt
-        }
+          status: existingPump.status,
+          createdAt: existingPump.createdAt,
+          updatedAt: existingPump.updatedAt
+        },
+        allPumpsInStation: allPumpsInStation.map(p => ({ id: p.id, number: p.pumpNumber, name: p.name, status: p.status }))
       });
     }
 
@@ -590,7 +652,7 @@ exports.createPump = async (req, res, next) => {
       console.error('Error while checking pump plan limits:', err);
     }
 
-    const pump = await Pump.create({ stationId, name: name || `Pump ${pumpNumber}`, pumpNumber, notes }, { transaction: t });
+    const pump = await Pump.create({ stationId, name: name || `Pump ${normalizedPumpNumber}`, pumpNumber: normalizedPumpNumber, notes }, { transaction: t });
 
     // Post-create verification
     const pumpCountPost = await Pump.count({ where: { stationId }, transaction: t });
@@ -612,7 +674,7 @@ exports.createPump = async (req, res, next) => {
       // Composite unique constraint on (station_id, pump_number)
       return res.status(409).json({ 
         success: false, 
-        error: `Pump number ${req.body.pumpNumber} already exists in this station` 
+        error: `Pump number ${parseInt(req.body.pumpNumber, 10)} already exists in this station` 
       });
     }
     next(error);
@@ -746,12 +808,43 @@ exports.createNozzle = async (req, res, next) => {
     const { pumpId } = req.params;
     const { nozzleNumber, fuelType, initialReading, notes } = req.body;
 
+    console.log(`🔍 Creating nozzle - pumpId: ${pumpId}, nozzleNumber: ${nozzleNumber} (type: ${typeof nozzleNumber}), fuelType: ${fuelType}`);
+
     const pump = await Pump.findByPk(pumpId, { transaction: t });
     if (!pump) { await t.rollback(); return res.status(404).json({ success: false, error: 'Pump not found' }); }
 
     const user = await User.findByPk(req.userId, { transaction: t });
     // Check station access
     if (!(await canAccessStation(user, pump.stationId))) { await t.rollback(); return res.status(403).json({ success: false, error: 'Access denied' }); }
+
+    // ⭐ CHECK FOR DUPLICATE NOZZLE NUMBER BEFORE ATTEMPTING CREATE
+    // Ensure nozzleNumber is an integer
+    const normalizedNozzleNumber = parseInt(nozzleNumber, 10);
+    console.log(`🔎 Checking for duplicate - pumpId: ${pumpId}, nozzleNumber: ${normalizedNozzleNumber}`);
+    
+    const existingNozzle = await Nozzle.findOne({ 
+      where: { 
+        pumpId, 
+        nozzleNumber: normalizedNozzleNumber 
+      }, 
+      transaction: t 
+    });
+    
+    console.log(`📊 findOne result: ${existingNozzle ? 'FOUND' : 'NOT FOUND'}`);
+    if (existingNozzle) {
+      await t.rollback();
+      console.log(`⚠️  NOZZLE ALREADY EXISTS - ID: ${existingNozzle.id}, Nozzle#: ${existingNozzle.nozzleNumber}, Pump#: ${pumpId}`);
+      return res.status(409).json({ 
+        success: false, 
+        error: `Nozzle number ${normalizedNozzleNumber} already exists on this pump (ID: ${existingNozzle.id})`,
+        existingNozzle: {
+          id: existingNozzle.id,
+          nozzleNumber: existingNozzle.nozzleNumber,
+          fuelType: existingNozzle.fuelType,
+          createdAt: existingNozzle.createdAt
+        }
+      });
+    }
 
     // Defensive transactional plan check: ensure pump's owner plan allows another nozzle
     try {
@@ -778,7 +871,7 @@ exports.createNozzle = async (req, res, next) => {
       console.error('Error while checking nozzle plan limits:', err);
     }
 
-    const nozzle = await Nozzle.create({ pumpId, stationId: pump.stationId, nozzleNumber, fuelType, initialReading: initialReading != null ? initialReading : 0, notes }, { transaction: t });
+    const nozzle = await Nozzle.create({ pumpId, stationId: pump.stationId, nozzleNumber: normalizedNozzleNumber, fuelType, initialReading: initialReading != null ? initialReading : 0, notes }, { transaction: t });
 
     // Post-create verification
     const nozzleCountPost = await Nozzle.count({ where: { pumpId }, transaction: t });
@@ -790,10 +883,12 @@ exports.createNozzle = async (req, res, next) => {
 
     await t.commit();
 
+    console.log(`✅ NOZZLE CREATED - ID: ${nozzle.id}, Number: ${nozzle.nozzleNumber}, Pump: ${pumpId}`);
     res.status(201).json({ success: true, data: nozzle });
 
   } catch (error) {
     try { await t.rollback(); } catch (e) { /* ignore */ }
+    console.error(`❌ createNozzle error:`, error.message, 'name:', error.name);
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({ success: false, error: 'Nozzle number already exists on this pump' });
     }
@@ -1180,6 +1275,75 @@ exports.getSettlements = async (req, res, next) => {
     });
 
   } catch (error) {
+    next(error);
+  }
+};
+
+// ⭐ DIAGNOSTIC: Show raw database state for debugging orphaned records
+exports.getStationDiagnostics = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const user = req.user;
+
+    // Check station access
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // Query using raw sequelize to bypass any ORM transformations
+    const sequelize = Pump.sequelize;
+    
+    // Get all pumps with raw query
+    const rawPumps = await sequelize.query(
+      `SELECT * FROM pumps WHERE station_id = :stationId ORDER BY pump_number ASC`,
+      { 
+        replacements: { stationId },
+        type: sequelize.QueryTypes.SELECT 
+      }
+    );
+
+    // Get all nozzles for these pumps
+    let rawNozzles = [];
+    if (rawPumps.length > 0) {
+      const pumpIds = rawPumps.map(p => p.id).join("','");
+      rawNozzles = await sequelize.query(
+        `SELECT * FROM nozzles WHERE pump_id IN ('${pumpIds}') ORDER BY pump_id, nozzle_number ASC`,
+        { type: sequelize.QueryTypes.SELECT }
+      );
+    }
+
+    // Get using ORM for comparison
+    const ormPumps = await Pump.findAll({
+      where: { stationId },
+      include: [{ model: Nozzle, as: 'nozzles' }],
+      order: [['pumpNumber', 'ASC']],
+      raw: true,
+      subQuery: false
+    });
+
+    res.json({
+      success: true,
+      station: { id: stationId },
+      rawQuery: {
+        pumpCount: rawPumps.length,
+        pumps: rawPumps,
+        nozzleCount: rawNozzles.length,
+        nozzles: rawNozzles
+      },
+      ormQuery: {
+        pumpCount: ormPumps.length,
+        pumps: ormPumps
+      },
+      discrepancy: {
+        pumpCountMatch: rawPumps.length === ormPumps.length,
+        message: rawPumps.length === ormPumps.length ? 
+          'Raw and ORM query return same pump count' : 
+          `MISMATCH: Raw has ${rawPumps.length} pumps but ORM has ${ormPumps.length}`
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Diagnostic error:', error);
     next(error);
   }
 };

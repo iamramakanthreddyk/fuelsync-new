@@ -79,15 +79,6 @@ exports.createReading = async (req, res, next) => {
           requiresShift: true
         });
       }
-      
-      // Verify shift is for the same station
-      if (String(activeShift.stationId) !== String(stationId)) {
-        return res.status(400).json({
-          success: false,
-          error: 'Your active shift is for a different station',
-          requiresShift: true
-        });
-      }
     } else {
       // Even if not required, try to get active shift to link it
       activeShift = await Shift.getActiveShift(userId);

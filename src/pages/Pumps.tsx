@@ -113,6 +113,19 @@ export default function Pumps() {
       });
       return;
     }
+
+    // ⭐ CLIENT-SIDE VALIDATION: Check for duplicate pump number
+    const pumpNumber = parseInt(newPump.pump_sno.replace(/\D/g, '') || '0') || 1;
+    const isDuplicatePump = pumps?.some(p => p.pumpNumber === pumpNumber);
+    if (isDuplicatePump) {
+      toast({
+        title: "Duplicate Pump Number",
+        description: `Pump number ${pumpNumber} already exists. Please use a different number.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     addPumpMutation.mutate(newPump);
   };
 
@@ -125,8 +138,22 @@ export default function Pumps() {
       });
       return;
     }
+
+    // ⭐ CLIENT-SIDE VALIDATION: Check for duplicate nozzle number on this pump
+    const nozzleNumber = parseInt(newNozzle.nozzle_number);
+    const selectedPump = pumps?.find(p => p.id === selectedPumpId);
+    const isDuplicateNozzle = selectedPump?.nozzles?.some(n => n.nozzleNumber === nozzleNumber);
+    if (isDuplicateNozzle) {
+      toast({
+        title: "Duplicate Nozzle Number",
+        description: `Nozzle number ${nozzleNumber} already exists on this pump. Please use a different number.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
     addNozzleMutation.mutate({
-      nozzle_number: parseInt(newNozzle.nozzle_number),
+      nozzle_number: nozzleNumber,
       fuel_type: newNozzle.fuel_type,
       pump_id: selectedPumpId
     });

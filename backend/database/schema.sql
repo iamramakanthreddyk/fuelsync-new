@@ -51,6 +51,7 @@ CREATE TABLE plans (
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    ,deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 -- ============================================
@@ -70,6 +71,7 @@ CREATE TABLE stations (
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+    ,deleted_at TIMESTAMP WITH TIME ZONE
 );
 
 -- ============================================
@@ -89,7 +91,7 @@ CREATE TABLE users (
     last_login_at TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    
+       deleted_at TIMESTAMP WITH TIME ZONE,
     -- Constraints: employees/managers must have a station
     CONSTRAINT chk_station_required CHECK (
         role IN ('super_admin', 'owner') OR station_id IS NOT NULL
@@ -231,6 +233,7 @@ CREATE TABLE creditors (
     email VARCHAR(255),
     address TEXT,
     business_name VARCHAR(255),
+    ,deleted_at TIMESTAMP WITH TIME ZONE
     gst_number VARCHAR(32),
     credit_limit DECIMAL(12,2) DEFAULT 0,
     credit_period_days INTEGER DEFAULT 30,
