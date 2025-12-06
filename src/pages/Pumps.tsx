@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,8 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
-import { apiClient, ApiResponse } from "@/lib/api-client";
-import { Plus, Settings, Fuel, Gauge, ClipboardEdit } from "lucide-react";
+import { apiClient } from "@/lib/api-client";
+import { Plus, Fuel, Gauge, ClipboardEdit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { usePumpsData } from "@/hooks/usePumpsData";
 import { useRoleAccess } from "@/hooks/useRoleAccess";

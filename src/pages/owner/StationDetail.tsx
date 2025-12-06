@@ -75,15 +75,6 @@ export default function StationDetail() {
   const [selectedPump, setSelectedPump] = useState<Pump | null>(null);
   const [selectedNozzle, setSelectedNozzle] = useState<Nozzle | null>(null);
 
-  // Calculate next available nozzle number for a pump
-  const getNextNozzleNumber = (pump: Pump | null): number => {
-    if (!pump || !pump.nozzles || pump.nozzles.length === 0) {
-      return 1;
-    }
-    const maxNozzleNumber = Math.max(...pump.nozzles.map(n => n.nozzleNumber || 0));
-    return maxNozzleNumber + 1;
-  };
-
   // Get default fuel type: default to petrol (allow multiple nozzles of same type)
   const getDefaultFuelType = (): string => {
     return 'petrol';
@@ -120,7 +111,6 @@ export default function StationDetail() {
   });
 
   const [nozzleForm, setNozzleForm] = useState({
-    nozzleNumber: '',
     fuelType: 'petrol',
     initialReading: ''
   });
@@ -300,7 +290,7 @@ export default function StationDetail() {
 
   // Create nozzle mutation
   const createNozzleMutation = useMutation({
-    mutationFn: async ({ pumpId, data }: { pumpId: string; data: { nozzleNumber: number; fuelType: string; initialReading: number } }) => {
+    mutationFn: async ({ pumpId, data }: { pumpId: string; data: { fuelType: string; initialReading: number } }) => {
       const response = await apiClient.post(`/stations/pumps/${pumpId}/nozzles`, data);
       return response;
     },
@@ -308,7 +298,7 @@ export default function StationDetail() {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
       toast({ title: 'Success', description: 'Nozzle created successfully', variant: 'success' });
       setIsNozzleDialogOpen(false);
-      setNozzleForm({ nozzleNumber: '', fuelType: 'petrol', initialReading: '' });
+      setNozzleForm({ fuelType: 'petrol', initialReading: '' });
       setSelectedPump(null);
     },
     onError: (error: unknown) => {
@@ -539,22 +529,10 @@ export default function StationDetail() {
   const handleCreateNozzle = () => {
     if (!selectedPump) return;
 
-    // ⭐ CLIENT-SIDE VALIDATION: Check for duplicate nozzle number on this pump
-    const newNozzleNumber = parseInt(nozzleForm.nozzleNumber);
-    const isDuplicateNozzle = selectedPump.nozzles?.some(n => n.nozzleNumber === newNozzleNumber);
-    if (isDuplicateNozzle) {
-      toast({
-        title: 'Duplicate Nozzle Number',
-        description: `Nozzle number ${newNozzleNumber} already exists on pump ${selectedPump.pumpNumber}. Please use a different number.`,
-        variant: 'destructive'
-      });
-      return;
-    }
-
+    // Backend auto-generates nozzle number
     createNozzleMutation.mutate({
       pumpId: selectedPump.id,
       data: {
-        nozzleNumber: newNozzleNumber,
         fuelType: nozzleForm.fuelType,
         initialReading: parseFloat(nozzleForm.initialReading)
       }
@@ -1182,10 +1160,9 @@ export default function StationDetail() {
       {/* Add Nozzle Dialog */}
       <Dialog open={isNozzleDialogOpen} onOpenChange={(open) => {
         setIsNozzleDialogOpen(open);
-        // Auto-set nozzle number when dialog opens
-        if (open && selectedPump) {
+        // Reset form when dialog opens
+        if (open) {
           setNozzleForm({
-            nozzleNumber: getNextNozzleNumber(selectedPump).toString(),
             fuelType: getDefaultFuelType(),
             initialReading: ''
           });
@@ -1199,16 +1176,6 @@ export default function StationDetail() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="nozzleNumber">Nozzle Number *</Label>
-              <Input
-                id="nozzleNumber"
-                type="number"
-                value={nozzleForm.nozzleNumber}
-                onChange={(e) => setNozzleForm({ ...nozzleForm, nozzleNumber: e.target.value })}
-                 // Allow manual entry
-              />
-            </div>
             <div>
               <Label htmlFor="nozzleFuelType">Fuel Type *</Label>
               <Select
@@ -1243,7 +1210,7 @@ export default function StationDetail() {
             </Button>
             <Button 
               onClick={handleCreateNozzle}
-              disabled={!nozzleForm.nozzleNumber || !nozzleForm.initialReading || createNozzleMutation.isPending}
+              disabled={!nozzleForm.initialReading || createNozzleMutation.isPending}
             >
               {createNozzleMutation.isPending ? 'Creating...' : 'Create Nozzle'}
             </Button>

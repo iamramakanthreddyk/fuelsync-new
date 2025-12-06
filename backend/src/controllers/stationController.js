@@ -587,14 +587,17 @@ exports.createPump = async (req, res, next) => {
     }
 
     // Auto-generate pump number - get max pump number in station and add 1
-    const maxPump = await Pump.findOne({
-      where: { stationId },
-      attributes: [[sequelize.fn('MAX', sequelize.col('pumpNumber')), 'maxNumber']],
-      raw: true,
-      transaction: t
-    });
-    const nextPumpNumber = (maxPump?.maxNumber || 0) + 1;
-    console.log(`🔧 Auto-generated pump number: ${nextPumpNumber}`);
+    // Use raw query to ensure we get the correct MAX value
+    const maxPumpResult = await sequelize.query(
+      'SELECT COALESCE(MAX(pump_number), 0) as maxNumber FROM pumps WHERE station_id = ?',
+      {
+        replacements: [stationId],
+        type: sequelize.QueryTypes.SELECT,
+        transaction: t
+      }
+    );
+    const nextPumpNumber = (maxPumpResult[0]?.maxNumber || 0) + 1;
+    console.log(`🔧 Auto-generated pump number: ${nextPumpNumber}, maxResult:`, maxPumpResult);
 
     // Defensive transactional plan check: verify owner's plan allows another pump for this station
     try {
@@ -792,14 +795,17 @@ exports.createNozzle = async (req, res, next) => {
     if (!(await canAccessStation(user, pump.stationId))) { await t.rollback(); return res.status(403).json({ success: false, error: 'Access denied' }); }
 
     // Auto-generate nozzle number - get max nozzle number for this pump and add 1
-    const maxNozzle = await Nozzle.findOne({
-      where: { pumpId },
-      attributes: [[sequelize.fn('MAX', sequelize.col('nozzleNumber')), 'maxNumber']],
-      raw: true,
-      transaction: t
-    });
-    const nextNozzleNumber = (maxNozzle?.maxNumber || 0) + 1;
-    console.log(`🔍 Auto-generated nozzle number: ${nextNozzleNumber}`);
+    // Use raw query to ensure we get the correct MAX value
+    const maxNozzleResult = await sequelize.query(
+      'SELECT COALESCE(MAX(nozzle_number), 0) as maxNumber FROM nozzles WHERE pump_id = ?',
+      {
+        replacements: [pumpId],
+        type: sequelize.QueryTypes.SELECT,
+        transaction: t
+      }
+    );
+    const nextNozzleNumber = (maxNozzleResult[0]?.maxNumber || 0) + 1;
+    console.log(`🔍 Auto-generated nozzle number: ${nextNozzleNumber}, maxResult:`, maxNozzleResult);
 
     // Defensive transactional plan check: ensure pump's owner plan allows another nozzle
     try {
