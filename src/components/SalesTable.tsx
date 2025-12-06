@@ -78,7 +78,7 @@ export function SalesTable({
                   </div>
 
                   <div className="flex justify-between items-center text-xs text-muted-foreground gap-2">
-                    <Badge variant="outline" className={getSourceBadgeClasses(sourceLabel)} size="sm">
+                    <Badge variant="outline" className={getSourceBadgeClasses(sourceLabel)}>
                       {sourceLabel}
                     </Badge>
                     <div className="truncate text-right">

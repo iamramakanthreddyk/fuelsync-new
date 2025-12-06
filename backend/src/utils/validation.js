@@ -49,6 +49,7 @@ const readingSchemas = {
     onlineAmount: commonSchemas.nonNegativeNumber.optional(),
     creditAmount: commonSchemas.nonNegativeNumber.optional(),
     creditorId: commonSchemas.id.optional(),
+    paymentType: Joi.string().valid('cash', 'digital', 'online', 'credit').optional(),
     notes: Joi.string().max(500).optional().messages({
       'string.max': 'Notes must be less than 500 characters'
     })

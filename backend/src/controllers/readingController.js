@@ -13,7 +13,7 @@ const { canAccessStation, verifyNozzleAccess, getAccessibleStationIds } = requir
  */
 exports.createReading = async (req, res, next) => {
   try {
-    const { nozzleId, readingDate, readingValue, cashAmount, onlineAmount, creditAmount, creditorId, notes } = req.body;
+    const { nozzleId, readingDate, readingValue, cashAmount, onlineAmount, creditAmount, creditorId, notes, paymentType } = req.body;
     const userId = req.userId;
 
     // Validate required fields
@@ -177,19 +177,53 @@ exports.createReading = async (req, res, next) => {
     let finalCreditAmount = 0;
 
     if (!isInitialReading && totalAmount > 0) {
-      // Calculate all payment amounts
-      const providedCash = cashAmount !== undefined ? parseFloat(cashAmount) || 0 : 0;
-      const providedOnline = onlineAmount !== undefined ? parseFloat(onlineAmount) || 0 : 0;
-      const providedCredit = creditAmount !== undefined ? parseFloat(creditAmount) || 0 : 0;
+      // Check if detailed payment amounts were provided
+      const hasDetailedAmounts = cashAmount !== undefined || onlineAmount !== undefined || creditAmount !== undefined;
       
-      finalCashAmount = providedCash;
-      finalOnlineAmount = providedOnline;
-      finalCreditAmount = providedCredit;
+      if (hasDetailedAmounts) {
+        // Use the detailed amounts provided
+        const providedCash = cashAmount !== undefined ? parseFloat(cashAmount) || 0 : 0;
+        const providedOnline = onlineAmount !== undefined ? parseFloat(onlineAmount) || 0 : 0;
+        const providedCredit = creditAmount !== undefined ? parseFloat(creditAmount) || 0 : 0;
+        
+        finalCashAmount = providedCash;
+        finalOnlineAmount = providedOnline;
+        finalCreditAmount = providedCredit;
+      } else if (paymentType) {
+        // Convert simple paymentType to amounts
+        switch (paymentType) {
+          case 'cash':
+            finalCashAmount = totalAmount;
+            finalOnlineAmount = 0;
+            finalCreditAmount = 0;
+            break;
+          case 'digital':
+          case 'online':
+            finalCashAmount = 0;
+            finalOnlineAmount = totalAmount;
+            finalCreditAmount = 0;
+            break;
+          case 'credit':
+            finalCashAmount = 0;
+            finalOnlineAmount = 0;
+            finalCreditAmount = totalAmount;
+            break;
+          default:
+            // Default to cash if paymentType is unrecognized
+            finalCashAmount = totalAmount;
+            finalOnlineAmount = 0;
+            finalCreditAmount = 0;
+        }
+      } else {
+        // No payment information provided - default entire amount to cash for backward compatibility
+        finalCashAmount = totalAmount;
+        finalOnlineAmount = 0;
+        finalCreditAmount = 0;
+      }
 
-      // Only validate payment breakdown if any payment fields were provided by the client
-      const paymentFieldsProvided = Object.prototype.hasOwnProperty.call(req.body, 'cashAmount') || Object.prototype.hasOwnProperty.call(req.body, 'onlineAmount') || Object.prototype.hasOwnProperty.call(req.body, 'creditAmount');
-      
-      if (paymentFieldsProvided) {
+      // Only validate payment breakdown if detailed payment amounts were explicitly provided by the client
+      // (not when using paymentType or defaulting to cash)
+      if (hasDetailedAmounts) {
         const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
         if (Math.abs(totalPayment - totalAmount) > 0.01) {
           console.log('[DEBUG] createReading failed: payment breakdown mismatch', { finalCashAmount, finalOnlineAmount, finalCreditAmount, totalAmount, totalPayment });

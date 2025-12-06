@@ -1163,18 +1163,16 @@ exports.getDailySales = async (req, res, next) => {
       let credit = parseFloat(reading.creditAmount || 0);
 
       console.log(`[DEBUG] Reading ${reading.id}: totalAmount=${reading.totalAmount}, cashAmount=${reading.cashAmount}, onlineAmount=${reading.onlineAmount}, creditAmount=${reading.creditAmount}`);
+      console.log(`[DEBUG] Reading ${reading.id}: cashAmount type=${typeof reading.cashAmount}, value=${reading.cashAmount}`);
 
       // Handle legacy readings where payment amounts weren't set or are null - default to cash
-      const hasPaymentData = (reading.cashAmount !== null && reading.cashAmount !== undefined) ||
-                            (reading.onlineAmount !== null && reading.onlineAmount !== undefined) ||
-                            (reading.creditAmount !== null && reading.creditAmount !== undefined);
+      const cashIsZeroOrNull = reading.cashAmount === null || reading.cashAmount === undefined || parseFloat(reading.cashAmount || 0) === 0;
+      const onlineIsZeroOrNull = reading.onlineAmount === null || reading.onlineAmount === undefined || parseFloat(reading.onlineAmount || 0) === 0;
+      const creditIsZeroOrNull = reading.creditAmount === null || reading.creditAmount === undefined || parseFloat(reading.creditAmount || 0) === 0;
       
-      if (!hasPaymentData && saleValue > 0) {
+      if (cashIsZeroOrNull && onlineIsZeroOrNull && creditIsZeroOrNull && saleValue > 0) {
         cash = saleValue;
-        console.log(`[DEBUG] Defaulting reading ${reading.id} to cash: ₹${cash} (no payment data found)`);
-      } else if (cash === 0 && online === 0 && credit === 0 && saleValue > 0) {
-        cash = saleValue;
-        console.log(`[DEBUG] Defaulting reading ${reading.id} to cash: ₹${cash} (all payments are zero)`);
+        console.log(`[DEBUG] Defaulting reading ${reading.id} to cash: ₹${cash} (all payments are zero/null)`);
       }
 
       console.log(`[DEBUG] Final payment breakdown for reading ${reading.id}: cash=${cash}, online=${online}, credit=${credit}`);
