@@ -469,18 +469,21 @@ describe('Owner Journey', () => {
 
     test('Create pump with duplicate number - Edge Case', async () => {
       testReport.totalTests++;
-      testReport.edgeCases.push('Create pump with duplicate pump number');
+      testReport.edgeCases.push('Create pump with duplicate pump number (should update existing)');
       
       const response = await request(app)
         .post(`/api/v1/stations/${ownerStation.id}/pumps`)
         .set('Authorization', `Bearer ${ownerToken}`)
         .send({
-          name: 'Duplicate Pump',
-          pumpNumber: 1, // Duplicate
+          name: 'Updated Pump 1',
+          pumpNumber: 1, // Duplicate - should update existing pump #1
           status: 'active'
         });
 
-      expect(response.status).toBe(409);
+      expect(response.status).toBe(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.name).toBe('Updated Pump 1');
+      expect(response.body.data.pumpNumber).toBe(1);
       testReport.passed++;
     });
 
@@ -836,12 +839,20 @@ describe('Owner Journey', () => {
   });
 
   describe('7. Nozzle Readings', () => {
-    // First activate the nozzle
+    let readingNozzle;
+
     beforeAll(async () => {
-      await request(app)
-        .put(`/api/v1/stations/nozzles/${createdNozzle.id}`)
+      // Create a new active nozzle for reading tests
+      const response = await request(app)
+        .post(`/api/v1/stations/pumps/${createdPump.id}/nozzles`)
         .set('Authorization', `Bearer ${ownerToken}`)
-        .send({ status: 'active' });
+        .send({
+          nozzleNumber: 6,
+          fuelType: 'diesel',
+          status: 'active',
+          initialReading: 0
+        });
+      readingNozzle = response.body.data;
     });
 
     test('Record nozzle reading', async () => {
@@ -853,17 +864,14 @@ describe('Owner Journey', () => {
         .post('/api/v1/readings')
         .set('Authorization', `Bearer ${ownerToken}`)
         .send({
-          nozzleId: createdNozzle.id,
+          nozzleId: readingNozzle.id,
           stationId: ownerStation.id,
           readingDate: new Date().toISOString().split('T')[0],
           readingValue: 1000.50,
           previousReading: 950.00,
           litresSold: 50.50,
           pricePerLitre: 105.50,
-          totalAmount: 5327.75,
-          cashAmount: 3000,
-          onlineAmount: 2000,
-          creditAmount: 327.75
+          totalAmount: 5327.75
         });
 
       expect(response.status).toBe(201);

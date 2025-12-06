@@ -39,8 +39,16 @@ const readingSchemas = {
   create: Joi.object({
     nozzleId: commonSchemas.id.required(),
     stationId: commonSchemas.id.required(),
-    currentReading: commonSchemas.positiveNumber.required(),
+    readingValue: commonSchemas.positiveNumber.required(),
     readingDate: commonSchemas.date.optional(),
+    previousReading: commonSchemas.nonNegativeNumber.optional(),
+    litresSold: commonSchemas.nonNegativeNumber.optional(),
+    pricePerLitre: commonSchemas.nonNegativeNumber.optional(),
+    totalAmount: commonSchemas.nonNegativeNumber.optional(),
+    cashAmount: commonSchemas.nonNegativeNumber.optional(),
+    onlineAmount: commonSchemas.nonNegativeNumber.optional(),
+    creditAmount: commonSchemas.nonNegativeNumber.optional(),
+    creditorId: commonSchemas.id.optional(),
     notes: Joi.string().max(500).optional().messages({
       'string.max': 'Notes must be less than 500 characters'
     })

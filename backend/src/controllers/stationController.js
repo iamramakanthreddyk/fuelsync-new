@@ -575,7 +575,7 @@ exports.createPump = async (req, res, next) => {
   let owner = null;
   try {
     const { stationId } = req.params;
-    const { name, notes } = req.body;
+    const { name, notes, pumpNumber } = req.body;
     const user = req.user;
 
     console.log(`🔧 CREATE PUMP - Station: ${stationId}, User: ${user.id}`);
@@ -586,47 +586,69 @@ exports.createPump = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    // Auto-generate pump number - get max pump number in station and add 1
-    // Use raw query to ensure we get the correct MAX value
-    const maxPumpResult = await sequelize.query(
-      'SELECT COALESCE(MAX(pump_number), 0) as maxNumber FROM pumps WHERE station_id = ?',
-      {
-        replacements: [stationId],
-        type: sequelize.QueryTypes.SELECT,
-        transaction: t
-      }
-    );
-    const nextPumpNumber = (maxPumpResult[0]?.maxNumber || 0) + 1;
-    console.log(`🔧 Auto-generated pump number: ${nextPumpNumber}, maxResult:`, maxPumpResult);
-
-    // Defensive transactional plan check: verify owner's plan allows another pump for this station
-    try {
-      const station = await Station.findByPk(stationId, { transaction: t });
-      const ownerId = station?.ownerId;
-      if (ownerId) {
-        owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
-        if (owner && owner.plan && owner.plan.maxPumpsPerStation) {
-          const pumpCount = await Pump.count({ where: { stationId }, transaction: t });
-          console.log('[PLANCHECK] createPump pumpCount=', pumpCount, 'planLimit=', owner.plan.maxPumpsPerStation);
-          if ((pumpCount + 1) > owner.plan.maxPumpsPerStation) {
-            await t.rollback();
-            return res.status(403).json({
-              success: false,
-              error: `Plan limit reached. Your ${owner.plan.name} plan allows ${owner.plan.maxPumpsPerStation} pump(s) per station. This station has ${pumpCount}.`,
-              planLimitExceeded: true
-            });
-          }
+    let finalPumpNumber = pumpNumber;
+    if (!finalPumpNumber) {
+      // Auto-generate pump number - get max pump number in station and add 1
+      // Use raw query to ensure we get the correct MAX value
+      const maxPumpResult = await sequelize.query(
+        'SELECT COALESCE(MAX(pump_number), 0) as maxNumber FROM pumps WHERE station_id = ?',
+        {
+          replacements: [stationId],
+          type: sequelize.QueryTypes.SELECT,
+          transaction: t
         }
-      }
-    } catch (err) {
-      console.error('Error while checking pump plan limits:', err);
+      );
+      finalPumpNumber = (maxPumpResult[0]?.maxNumber || 0) + 1;
+      console.log(`🔧 Auto-generated pump number: ${finalPumpNumber}, maxResult:`, maxPumpResult);
+    } else {
+      console.log(`🔧 Using provided pump number: ${finalPumpNumber}`);
     }
 
-    // Create pump with auto-generated pump number
-    const pump = await Pump.create({ 
+    // Check if pump with this number already exists
+    const existingPump = await Pump.findOne({ where: { stationId, pumpNumber: finalPumpNumber }, transaction: t });
+    
+    // Defensive transactional plan check: verify owner's plan allows another pump for this station (only for creation)
+    if (!existingPump) {
+      try {
+        const station = await Station.findByPk(stationId, { transaction: t });
+        const ownerId = station?.ownerId;
+        if (ownerId) {
+          owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
+          if (owner && owner.plan && owner.plan.maxPumpsPerStation) {
+            const pumpCount = await Pump.count({ where: { stationId }, transaction: t });
+            console.log('[PLANCHECK] createPump pumpCount=', pumpCount, 'planLimit=', owner.plan.maxPumpsPerStation);
+            if ((pumpCount + 1) > owner.plan.maxPumpsPerStation) {
+              await t.rollback();
+              return res.status(403).json({
+                success: false,
+                error: `Plan limit reached. Your ${owner.plan.name} plan allows ${owner.plan.maxPumpsPerStation} pump(s) per station. This station has ${pumpCount}.`,
+                planLimitExceeded: true
+              });
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Error while checking pump plan limits:', err);
+      }
+    }
+
+    if (existingPump) {
+      // Update existing pump instead of creating new
+      await existingPump.update({ 
+        name: name || `Pump ${finalPumpNumber}`, 
+        notes 
+      }, { transaction: t });
+      
+      await t.commit();
+      console.log(`✅ PUMP UPDATED - ID: ${existingPump.id}, Number: ${existingPump.pumpNumber}, Name: ${existingPump.name}`);
+      return res.status(200).json({ success: true, data: existingPump, message: 'Pump updated successfully' });
+    }
+
+    // Create pump with pump number
+    const newPump = await Pump.create({ 
       stationId, 
-      name: name || `Pump ${nextPumpNumber}`, 
-      pumpNumber: nextPumpNumber, 
+      name: name || `Pump ${finalPumpNumber}`, 
+      pumpNumber: finalPumpNumber, 
       notes 
     }, { transaction: t });
 
@@ -640,8 +662,8 @@ exports.createPump = async (req, res, next) => {
 
     await t.commit();
 
-    console.log(`✅ PUMP CREATED - ID: ${pump.id}, Number: ${pump.pumpNumber}, Name: ${pump.name}`);
-    res.status(201).json({ success: true, data: pump });
+    console.log(`✅ PUMP CREATED - ID: ${newPump.id}, Number: ${newPump.pumpNumber}, Name: ${newPump.name}`);
+    res.status(201).json({ success: true, data: newPump });
 
   } catch (error) {
     console.error(`❌ CREATE PUMP ERROR - Station: ${req.params.stationId}`, error.message);
@@ -783,7 +805,7 @@ exports.createNozzle = async (req, res, next) => {
   let owner = null;
   try {
     const { pumpId } = req.params;
-    const { fuelType, initialReading, notes } = req.body;
+    const { fuelType, initialReading, notes, nozzleNumber } = req.body;
 
     console.log(`🔍 Creating nozzle - pumpId: ${pumpId}, fuelType: ${fuelType}`);
 
@@ -794,18 +816,23 @@ exports.createNozzle = async (req, res, next) => {
     // Check station access
     if (!(await canAccessStation(user, pump.stationId))) { await t.rollback(); return res.status(403).json({ success: false, error: 'Access denied' }); }
 
-    // Auto-generate nozzle number - get max nozzle number for this pump and add 1
-    // Use raw query to ensure we get the correct MAX value
-    const maxNozzleResult = await sequelize.query(
-      'SELECT COALESCE(MAX(nozzle_number), 0) as maxNumber FROM nozzles WHERE pump_id = ?',
-      {
-        replacements: [pumpId],
-        type: sequelize.QueryTypes.SELECT,
-        transaction: t
-      }
-    );
-    const nextNozzleNumber = (maxNozzleResult[0]?.maxNumber || 0) + 1;
-    console.log(`🔍 Auto-generated nozzle number: ${nextNozzleNumber}, maxResult:`, maxNozzleResult);
+    let finalNozzleNumber = nozzleNumber;
+    if (!finalNozzleNumber) {
+      // Auto-generate nozzle number - get max nozzle number for this pump and add 1
+      // Use raw query to ensure we get the correct MAX value
+      const maxNozzleResult = await sequelize.query(
+        'SELECT COALESCE(MAX(nozzle_number), 0) as maxNumber FROM nozzles WHERE pump_id = ?',
+        {
+          replacements: [pumpId],
+          type: sequelize.QueryTypes.SELECT,
+          transaction: t
+        }
+      );
+      finalNozzleNumber = (maxNozzleResult[0]?.maxNumber || 0) + 1;
+      console.log(`🔍 Auto-generated nozzle number: ${finalNozzleNumber}, maxResult:`, maxNozzleResult);
+    } else {
+      console.log(`🔍 Using provided nozzle number: ${finalNozzleNumber}`);
+    }
 
     // Defensive transactional plan check: ensure pump's owner plan allows another nozzle
     try {
@@ -832,11 +859,11 @@ exports.createNozzle = async (req, res, next) => {
       console.error('Error while checking nozzle plan limits:', err);
     }
 
-    // Create nozzle with auto-generated nozzle number
+    // Create nozzle with nozzle number
     const nozzle = await Nozzle.create({ 
       pumpId, 
       stationId: pump.stationId, 
-      nozzleNumber: nextNozzleNumber, 
+      nozzleNumber: finalNozzleNumber, 
       fuelType, 
       initialReading: initialReading != null ? initialReading : 0, 
       notes 
@@ -859,7 +886,7 @@ exports.createNozzle = async (req, res, next) => {
     try { await t.rollback(); } catch (e) { /* ignore */ }
     console.error(`❌ createNozzle error:`, error.message, 'name:', error.name);
     if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({ success: false, error: 'Failed to create nozzle - duplicate number' });
+      return res.status(409).json({ success: false, error: 'Nozzle with this number already exists for this pump' });
     }
     next(error);
   }
