@@ -21,12 +21,10 @@ export default function Pumps() {
   const [isAddNozzleOpen, setIsAddNozzleOpen] = useState(false);
   const [selectedPumpId, setSelectedPumpId] = useState<string | null>(null);
   const [newPump, setNewPump] = useState({
-    pump_sno: '',
     name: '',
     is_active: true
   });
   const [newNozzle, setNewNozzle] = useState({
-    nozzle_number: '',
     fuel_type: 'PETROL' as 'PETROL' | 'DIESEL' | 'CNG' | 'EV'
   });
 
@@ -40,7 +38,6 @@ export default function Pumps() {
     mutationFn: async (pumpData: typeof newPump) => {
       if (!currentStation?.id) throw new Error('No station selected');
       return await apiClient.post<{ success: boolean; data: unknown }>(`/stations/${currentStation.id}/pumps`, {
-        pumpNumber: parseInt(pumpData.pump_sno.replace(/\D/g, '') || '0') || 1,
         name: pumpData.name,
         status: pumpData.is_active ? 'active' : 'inactive'
       });
@@ -48,7 +45,7 @@ export default function Pumps() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pumps'] });
       setIsAddPumpOpen(false);
-      setNewPump({ pump_sno: '', name: '', is_active: true });
+      setNewPump({ name: '', is_active: true });
       toast({
         title: "Success",
         description: "Pump added successfully",
@@ -71,19 +68,17 @@ export default function Pumps() {
 
   // Add nozzle mutation - uses /stations/pumps/:pumpId/nozzles
   const addNozzleMutation = useMutation({
-    mutationFn: async (nozzleData: { nozzle_number: number; fuel_type: 'PETROL' | 'DIESEL' | 'CNG' | 'EV'; pump_id: string }) => {
+    mutationFn: async (nozzleData: { fuel_type: 'PETROL' | 'DIESEL' | 'CNG' | 'EV'; pump_id: string }) => {
       return await apiClient.post<{ success: boolean; data: unknown }>(`/stations/pumps/${nozzleData.pump_id}/nozzles`, {
-        nozzleNumber: nozzleData.nozzle_number,
         fuelType: nozzleData.fuel_type.toLowerCase() as 'petrol' | 'diesel',
-        initialReading: 0, // Required by backend
-        status: 'active'
+        initialReading: 0
       });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pumps'] });
       setIsAddNozzleOpen(false);
       setSelectedPumpId(null);
-      setNewNozzle({ nozzle_number: '', fuel_type: 'PETROL' });
+      setNewNozzle({ fuel_type: 'PETROL' });
       toast({
         title: "Success",
         description: "Nozzle added successfully",
@@ -105,62 +100,34 @@ export default function Pumps() {
   });
 
   const handleAddPump = () => {
-    if (!newPump.pump_sno || !newPump.name) {
+    if (!newPump.name) {
       toast({
         title: "Missing Information",
-        description: "Please fill in pump serial number and name",
+        description: "Please fill in pump name",
         variant: "destructive",
       });
       return;
     }
 
-    // ⭐ CLIENT-SIDE VALIDATION: Check for duplicate pump number
-    const pumpNumber = parseInt(newPump.pump_sno.replace(/\D/g, '') || '0') || 1;
-    const isDuplicatePump = pumps?.some(p => p.pumpNumber === pumpNumber);
-    if (isDuplicatePump) {
-      toast({
-        title: "Duplicate Pump Number",
-        description: `Pump number ${pumpNumber} already exists. Please use a different number.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
+    // Backend auto-generates pump number and handles validation
     addPumpMutation.mutate(newPump);
   };
 
   const handleAddNozzle = () => {
-    if (!newNozzle.nozzle_number || !selectedPumpId) {
+    if (!selectedPumpId) {
       toast({
         title: "Missing Information",
-        description: "Please fill in nozzle number",
+        description: "Please select a pump",
         variant: "destructive",
       });
       return;
     }
 
-    // ⭐ CLIENT-SIDE VALIDATION: Check for duplicate nozzle number on this pump
-    const nozzleNumber = parseInt(newNozzle.nozzle_number);
-    const selectedPump = pumps?.find(p => p.id === selectedPumpId);
-    const isDuplicateNozzle = selectedPump?.nozzles?.some(n => n.nozzleNumber === nozzleNumber);
-    if (isDuplicateNozzle) {
-      toast({
-        title: "Duplicate Nozzle Number",
-        description: `Nozzle number ${nozzleNumber} already exists on this pump. Please use a different number.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
+    // Backend auto-generates nozzle number
     addNozzleMutation.mutate({
-      nozzle_number: nozzleNumber,
       fuel_type: newNozzle.fuel_type,
       pump_id: selectedPumpId
     });
-  };
-
-  const getStatusColor = (status: boolean) => {
-    return status ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800';
   };
 
   if (!currentStation && !isAdmin) {
@@ -218,15 +185,6 @@ export default function Pumps() {
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="pump_sno">Pump Serial Number</Label>
-                  <Input
-                    id="pump_sno"
-                    value={newPump.pump_sno}
-                    onChange={(e) => setNewPump(prev => ({ ...prev, pump_sno: e.target.value }))}
-                    placeholder="e.g., P001"
-                  />
-                </div>
-                <div>
                   <Label htmlFor="name">Pump Name</Label>
                   <Input
                     id="name"
@@ -256,11 +214,11 @@ export default function Pumps() {
                     {pump.name}
                   </CardTitle>
                   <CardDescription>
-                    Serial: {pump.pump_sno}
+                    Pump #{pump.pumpNumber}
                   </CardDescription>
                 </div>
-                <Badge className={getStatusColor(pump.is_active)}>
-                  {pump.is_active ? 'Active' : 'Inactive'}
+                <Badge className={pump.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                  {pump.status === 'active' ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
             </CardHeader>
@@ -288,16 +246,6 @@ export default function Pumps() {
                           </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
-                          <div>
-                            <Label htmlFor="nozzle_number">Nozzle Number</Label>
-                            <Input
-                              id="nozzle_number"
-                              type="number"
-                              value={newNozzle.nozzle_number}
-                              onChange={(e) => setNewNozzle(prev => ({ ...prev, nozzle_number: e.target.value }))}
-                              placeholder="e.g., 1"
-                            />
-                          </div>
                           <div>
                             <Label htmlFor="fuel_type">Fuel Type</Label>
                             <Select value={newNozzle.fuel_type} onValueChange={(value: 'PETROL' | 'DIESEL' | 'CNG' | 'EV') => setNewNozzle(prev => ({ ...prev, fuel_type: value }))}>
@@ -331,8 +279,8 @@ export default function Pumps() {
                           <Badge className={getFuelBadgeClasses(nozzle.fuel_type)}>
                             {nozzle.fuel_type}
                           </Badge>
-                          <Badge variant="outline" className={getStatusColor(nozzle.is_active)}>
-                            {nozzle.is_active ? 'Active' : 'Inactive'}
+                          <Badge variant="outline" className={nozzle.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                            {nozzle.status === 'active' ? 'Active' : 'Inactive'}
                           </Badge>
                         </div>
                         {nozzle.lastReading && (

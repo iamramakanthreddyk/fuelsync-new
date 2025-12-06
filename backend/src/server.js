@@ -40,7 +40,9 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   
   try {
     console.log('📝 [BACKGROUND] Syncing database...');
-    const syncSuccess = await syncDatabase({ force: false, alter: true });
+    // IMPORTANT: Use force:false, alter:false to prevent recreating tables
+    // Tables are fixed manually now - just validate connection
+    const syncSuccess = await syncDatabase({ force: false, alter: false });
     console.log('📝 [BACKGROUND] Sync result:', syncSuccess);
     
     // Always try to seed - tables might exist even if sync "failed"
