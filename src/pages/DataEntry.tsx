@@ -218,6 +218,7 @@ export default function DataEntry() {
       
       // Map to backend expected format with payment breakdown
       const payload = {
+        stationId: selectedStation || userStations[0]?.id,
         nozzleId: data.nozzle_id,
         readingDate: data.reading_date,
         readingValue: data.cumulative_vol,

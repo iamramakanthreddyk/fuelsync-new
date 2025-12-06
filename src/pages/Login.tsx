@@ -1,5 +1,6 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,8 +14,23 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const { login } = useAuth();
+  const { login, user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Redirect after successful login when user state is updated
+  useEffect(() => {
+    if (user?.role) {
+      const normalizedRole = typeof user.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
+      if (normalizedRole === 'superadmin' || normalizedRole === 'super_admin') {
+        navigate('/superadmin/users', { replace: true });
+      } else if (user.role === 'owner') {
+        navigate('/owner/dashboard', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,6 +50,7 @@ export default function Login() {
         description: "Welcome back!",
         variant: "success",
       });
+      // Navigation will be handled by useEffect when user state updates
     } catch (error: unknown) {
       console.error('Login error:', error);
       let message = "Invalid credentials. Please check your email and password.";

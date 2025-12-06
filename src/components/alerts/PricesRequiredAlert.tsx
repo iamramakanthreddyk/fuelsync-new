@@ -31,8 +31,8 @@ export function PricesRequiredAlert({
   const navigate = useNavigate();
   const { hasPrices, missingFuelTypes, warning, isLoading } = useFuelPricesStatus(stationId);
 
-  // Don't show alert while loading to avoid false warnings
-  if (isLoading || !showIfMissing || hasPrices) {
+  // Don't show alert while loading or if no station is selected
+  if (isLoading || !showIfMissing || hasPrices || !stationId) {
     return null;
   }
 
@@ -40,9 +40,12 @@ export function PricesRequiredAlert({
     return (
       <Alert variant="destructive" className="mb-4">
         <AlertCircle className="h-4 w-4" />
-        <AlertTitle>Prices Required</AlertTitle>
+        <AlertTitle>Fuel Prices Required</AlertTitle>
         <AlertDescription className="flex items-center justify-between gap-4">
-          <span>{warning || 'Set fuel prices before entering readings'}</span>
+          <span>
+            {warning || 'Fuel prices must be set before entering readings'}
+            {stationId && <span className="block text-xs mt-1 opacity-75">Station ID: {stationId}</span>}
+          </span>
           <Button 
             size="sm" 
             variant="outline"

@@ -296,6 +296,11 @@ export function AppWithQueries() {
                     <Route path="/sales" element={<Sales />} />
                     <Route path="/daily-closure" element={<DailyClosure />} />
                     <Route path="/pumps" element={<Pumps />} />
+                    <Route path="/prices" element={
+                      <ManagerOrOwnerRoute>
+                        <Prices />
+                      </ManagerOrOwnerRoute>
+                    } />
                     <Route path="/reports" element={<Reports />} />
                     <Route path="/admin/users" element={<AdminUsers />} />
                     <Route path="/admin/stations" element={<AdminStations />} />

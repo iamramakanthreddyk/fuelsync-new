@@ -160,24 +160,35 @@ export default function QuickDataEntry() {
       });
     }
 
+    console.log('Sale summary calculated:', { totalLiters, totalSaleValue, byFuelType, readingsCount: Object.keys(readings).length });
+
     return {
       totalLiters,
       totalSaleValue,
       byFuelType
     };
-  }, [readings, pumps, fuelPrices, paymentAllocation.cash, paymentAllocation.online]);
+  }, [readings, pumps, fuelPrices]);
 
   // Move default allocation to an effect to avoid side-effects inside useMemo
   useEffect(() => {
-    if (saleSummary.totalSaleValue > 0 && paymentAllocation.cash === 0 && paymentAllocation.online === 0) {
-      setPaymentAllocation({
-        cash: saleSummary.totalSaleValue,
-        online: 0,
-        credit: 0
-      });
+    console.log('Payment allocation effect:', {
+      totalSaleValue: saleSummary.totalSaleValue,
+      currentAllocation: paymentAllocation
+    });
+    if (saleSummary.totalSaleValue > 0) {
+      // Always adjust cash to make up the difference: total - online - credit
+      const allocated = paymentAllocation.online + paymentAllocation.credit;
+      const newCash = Math.max(0, saleSummary.totalSaleValue - allocated);
+      if (newCash !== paymentAllocation.cash) {
+        console.log('Adjusting cash to balance payments:', { oldCash: paymentAllocation.cash, newCash, allocated, total: saleSummary.totalSaleValue });
+        setPaymentAllocation(prev => ({
+          ...prev,
+          cash: newCash
+        }));
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saleSummary.totalSaleValue]);
+  }, [saleSummary.totalSaleValue, paymentAllocation.online, paymentAllocation.credit]);
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
@@ -233,16 +244,31 @@ export default function QuickDataEntry() {
         allocatedOnline = round2(allocatedOnline + onlineAmt);
         allocatedCredit = round2(allocatedCredit + creditAmt);
 
-        promises.push(apiClient.post('/readings', {
+        const readingData: any = {
+          stationId: selectedStation,
           nozzleId: item.entry.nozzleId,
           readingValue: parseFloat(item.entry.readingValue),
           readingDate: item.entry.date,
           cashAmount: cashAmt,
           onlineAmount: onlineAmt,
           creditAmount: creditAmt,
-          creditorId: creditAmt > 0 ? (paymentAllocation.creditorId || null) : null,
           notes: `Reading entered with cash: ₹${safeToFixed(cashAmt, 2)}, online: ₹${safeToFixed(onlineAmt, 2)}, credit: ₹${safeToFixed(creditAmt, 2)}`
-        }));
+        };
+
+        // Only include creditorId if there's credit amount and a valid creditor selected
+        if (creditAmt > 0 && paymentAllocation.creditorId && paymentAllocation.creditorId.trim()) {
+          readingData.creditorId = paymentAllocation.creditorId;
+        }
+
+        // Validate required fields
+        if (!readingData.stationId) {
+          throw new Error('Station ID is required');
+        }
+        if (!readingData.nozzleId) {
+          throw new Error('Nozzle ID is required');
+        }
+
+        promises.push(apiClient.post('/readings', readingData));
       });
 
       // Save readings (backend will create credit transactions when creditorId present)
@@ -502,23 +528,7 @@ export default function QuickDataEntry() {
                           const price = getPrice(nozzle.fuelType);
                           const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
 
-                          // Show calculation only if reading is entered
-                          if (reading?.readingValue && enteredValue > compareValue && hasFuelPrice) {
-                            return (
-                              <div key={nozzle.id} className="bg-green-50 p-2 rounded border border-green-200">
-                                <ReadingSaleCalculation
-                                  nozzleNumber={nozzle.nozzleNumber}
-                                  fuelType={nozzle.fuelType}
-                                  lastReading={compareValue}
-                                  enteredReading={enteredValue}
-                                  fuelPrice={price}
-                                  status={nozzle.status}
-                                />
-                              </div>
-                            );
-                          }
-
-                          // Show input field
+                          // Always show input field
                           return (
                             <div key={nozzle.id} className="border rounded-lg p-2.5 bg-white">
                               <div className="flex items-center justify-between mb-1.5">
@@ -548,6 +558,19 @@ export default function QuickDataEntry() {
                               </div>
                               {!hasFuelPrice && (
                                 <p className="text-xs text-red-600 mt-1">No price set</p>
+                              )}
+                              {/* Show calculation below input if reading is valid */}
+                              {reading?.readingValue && enteredValue > compareValue && hasFuelPrice && (
+                                <div className="mt-2 pt-2 border-t border-gray-200">
+                                  <ReadingSaleCalculation
+                                    nozzleNumber={nozzle.nozzleNumber}
+                                    fuelType={nozzle.fuelType}
+                                    lastReading={compareValue}
+                                    enteredReading={enteredValue}
+                                    fuelPrice={price}
+                                    status={nozzle.status}
+                                  />
+                                </div>
                               )}
                             </div>
                           );

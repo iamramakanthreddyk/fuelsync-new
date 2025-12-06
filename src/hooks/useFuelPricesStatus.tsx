@@ -34,6 +34,17 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
   const effectiveStation = stationId ? { id: stationId } : currentStation;
 
   const status = useMemo<FuelPricesStatus>(() => {
+    // Debug logging
+    console.log('useFuelPricesStatus Debug:', {
+      stationId,
+      effectiveStation: effectiveStation?.id,
+      isLoading,
+      fuelPrices,
+      fuelPricesType: typeof fuelPrices,
+      fuelPricesIsArray: Array.isArray(fuelPrices),
+      fuelPricesLength: Array.isArray(fuelPrices) ? fuelPrices.length : 'N/A'
+    });
+
     // If still loading, don't block entry - assume prices will load
     if (isLoading) {
       return {
@@ -63,6 +74,13 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
     const pricesArray = Array.isArray(fuelPrices) ? fuelPrices : [];
     const pricesCount = pricesArray.length;
     const hasPrices = pricesCount > 0;
+
+    console.log('useFuelPricesStatus Prices Analysis:', {
+      pricesArray,
+      pricesCount,
+      hasPrices,
+      firstPrice: pricesArray[0] || null
+    });
 
     // Get fuel types from prices
     const setFuelTypes = pricesArray.map(p => p.fuel_type.toUpperCase()) || [];

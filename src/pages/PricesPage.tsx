@@ -42,6 +42,22 @@ export default function PricesPage() {
   const queryClient = useQueryClient();
   const { stations, isOwner, isAdmin } = useRoleAccess();
   
+  // Show loading if stations are not loaded yet
+  if (!stations || stations.length === 0) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+              <p className="text-muted-foreground">Loading stations...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+  
   // Determine which station to show prices for:
   // 1. Use route parameter if accessing via /owner/stations/:id/prices
   // 2. Fall back to user selection if on generic /prices page
@@ -54,7 +70,7 @@ export default function PricesPage() {
   }, [routeStationId, selectedStationId, stations]);
   
   // Fetch prices for the SELECTED station (not relying on currentStation)
-  const { data: fuelPrices } = useFuelPricesData(defaultStationId);
+  const { data: fuelPrices, isLoading: pricesLoading, error: pricesError } = useFuelPricesData(defaultStationId);
   
   // Get the currently selected station details
   const currentStation = useMemo(() => {
@@ -81,7 +97,8 @@ export default function PricesPage() {
   };
   const openEditDialog = (
     fuelType: string,
-    price: number
+    price: number,
+    id: number | string
   ) => {
     if (isValidFuelType(fuelType)) {
       setDialogMode("edit");
@@ -164,7 +181,22 @@ export default function PricesPage() {
     );
   }
 
-  return (
+  if (pricesError) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <div className="text-center text-red-600">
+              <p className="font-medium">Error loading fuel prices</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                {pricesError instanceof Error ? pricesError.message : 'Unknown error occurred'}
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }  return (
     <div className="container mx-auto p-6 space-y-6">
       <div>
         <h1 className="text-3xl font-bold">Fuel Prices</h1>

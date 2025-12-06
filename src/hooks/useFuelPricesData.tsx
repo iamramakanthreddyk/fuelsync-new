@@ -68,19 +68,37 @@ export function useFuelPricesData(overrideStationId?: string) {
         // apiClient.get returns the full response: {success, data}
         const response = await apiClient.get<ApiResponse<{ current: BackendFuelPrice[], history: BackendFuelPrice[] }>>(url);
 
-        // Extract nested 'current' array from the wrapped response
-        // Handles {success, data: {current: [...], history: [...]}}
-        const currentPrices = extractNestedData(response, 'current', []);
+        // Extract current prices from the API response
+        // Handle the specific structure: {success, data: {current: [...]}, fuelPrices: {current: [...]}}
+        let currentPrices: BackendFuelPrice[] = [];
         
-        // Ensure we have an array
-        if (!Array.isArray(currentPrices)) {
-          console.warn('Fuel prices response is not an array:', currentPrices);
-          return [];
+        // The apiClient returns the wrapped response: {success, data, ...}
+        // For fuel prices, data contains {current: [...], history: [...]}
+        if (response && typeof response === 'object' && 'data' in response) {
+          const data = response.data;
+          if (data && typeof data === 'object' && 'current' in data && Array.isArray(data.current)) {
+            currentPrices = data.current;
+          }
         }
+        
+        // Fallback: check if response has fuelPrices directly
+        if (currentPrices.length === 0 && response && typeof response === 'object' && 'fuelPrices' in response) {
+          const fuelPrices = response.fuelPrices;
+          if (fuelPrices && typeof fuelPrices === 'object' && 'current' in fuelPrices && Array.isArray(fuelPrices.current)) {
+            currentPrices = fuelPrices.current;
+          }
+        }
+        
+        // Debug logging
+        console.log('Fuel prices API response for station', stationId, ':', response);
+        console.log('Extracted currentPrices:', currentPrices);
         
         if (currentPrices.length > 0) {
-          return currentPrices.map(transformPrice);
+          const transformed = currentPrices.map(transformPrice);
+          console.log('Transformed fuel prices for station', stationId, ':', transformed);
+          return transformed;
         }
+        console.log('No fuel prices found for station', stationId);
         return [];
       } catch (error) {
         console.error('Failed to fetch fuel prices:', error);
@@ -88,6 +106,7 @@ export function useFuelPricesData(overrideStationId?: string) {
       }
     },
     enabled: !!stationId || isAdmin,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 0, // Force refetch to debug
+    gcTime: 1000 * 60 * 5, // 5 minutes
   });
 }

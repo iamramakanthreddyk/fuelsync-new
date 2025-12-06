@@ -10,18 +10,18 @@ import { safeToFixed } from '@/lib/format-utils';
 export interface FuelPricesGridProps {
   fuelPrices:
     | Array<{
-        id: number;
-        station_id: number;
+        id: number | string;
+        station_id: string;
         fuel_type: "PETROL" | "DIESEL" | "CNG" | "EV";
         price_per_litre: number;
         valid_from: string;
-        created_by: number;
+        created_by?: number | string;
         created_at: string;
       }>
     | undefined;
   isOwner: boolean;
   isAdmin: boolean;
-  onEdit: (fuelType: string, price: number, id: number) => void;
+  onEdit: (fuelType: string, price: number, id: number | string) => void;
 }
 
 export const FuelPricesGrid: React.FC<FuelPricesGridProps> = ({
