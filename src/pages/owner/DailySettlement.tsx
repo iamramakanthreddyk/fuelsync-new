@@ -241,29 +241,37 @@ export default function DailySettlement() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="p-4 bg-white rounded-lg border">
-                  <div className="text-sm text-muted-foreground mb-1">Total Liters</div>
-                  <div className="text-2xl font-bold text-blue-600">
-                    {safeToFixed(dailySales.totalLiters, 2)} L
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+                <div className="p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                  <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Liters</div>
+                  <div className="text-lg md:text-xl lg:text-2xl font-bold text-blue-600 break-all md:break-normal">
+                    {dailySales.totalLiters >= 1000
+                      ? `${(dailySales.totalLiters / 1000).toFixed(1)}K L`
+                      : `${safeToFixed(dailySales.totalLiters, 2)} L`}
                   </div>
                 </div>
-                <div className="p-4 bg-white rounded-lg border">
-                  <div className="text-sm text-muted-foreground mb-1">Total Sale Value</div>
-                  <div className="text-2xl font-bold text-green-600">
-                    ₹{safeToFixed(dailySales.totalSaleValue, 2)}
+                <div className="p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                  <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Sale Value</div>
+                  <div className="text-lg md:text-xl lg:text-2xl font-bold text-green-600 break-all md:break-normal">
+                    ₹{dailySales.totalSaleValue >= 100000
+                      ? `${(dailySales.totalSaleValue / 100000).toFixed(1)}L`
+                      : safeToFixed(dailySales.totalSaleValue, 2)}
                   </div>
                 </div>
-                <div className="p-4 bg-white rounded-lg border">
-                  <div className="text-sm text-muted-foreground mb-1">Readings</div>
-                  <div className="text-2xl font-bold text-purple-600">
-                    {dailySales.readings.length}
+                <div className="p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                  <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Readings</div>
+                  <div className="text-lg md:text-xl lg:text-2xl font-bold text-purple-600 break-all md:break-normal">
+                    {dailySales.readings.length >= 1000
+                      ? `${(dailySales.readings.length / 1000).toFixed(1)}K`
+                      : dailySales.readings.length.toLocaleString()}
                   </div>
                 </div>
-                <div className="p-4 bg-white rounded-lg border">
-                  <div className="text-sm text-muted-foreground mb-1">Expected Cash</div>
-                  <div className="text-2xl font-bold text-orange-600">
-                    ₹{safeToFixed(dailySales.expectedCash, 2)}
+                <div className="p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                  <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Expected Cash</div>
+                  <div className="text-lg md:text-xl lg:text-2xl font-bold text-orange-600 break-all md:break-normal">
+                    ₹{dailySales.expectedCash >= 100000
+                      ? `${(dailySales.expectedCash / 100000).toFixed(1)}L`
+                      : safeToFixed(dailySales.expectedCash, 2)}
                   </div>
                 </div>
               </div>
@@ -293,23 +301,29 @@ export default function DailySettlement() {
               )}
 
               {/* Payment Breakdown */}
-              <div className="grid grid-cols-3 gap-3 mt-4 pt-4 border-t">
-                <div className="p-3 bg-white rounded-lg border-2 border-green-200">
-                  <div className="text-xs text-muted-foreground mb-1">Cash</div>
-                  <div className="font-bold text-green-600">
-                    ₹{safeToFixed(dailySales.paymentSplit.cash, 2)}
+              <div className="grid grid-cols-3 gap-2 md:gap-3 mt-4 pt-4 border-t">
+                <div className="p-2 md:p-3 bg-white rounded-lg border-2 border-green-200 overflow-hidden">
+                  <div className="text-xs text-muted-foreground mb-1 truncate">Cash</div>
+                  <div className="text-sm md:text-base font-bold text-green-600 break-all md:break-normal">
+                    ₹{dailySales.paymentSplit.cash >= 100000
+                      ? `${(dailySales.paymentSplit.cash / 100000).toFixed(1)}L`
+                      : safeToFixed(dailySales.paymentSplit.cash, 2)}
                   </div>
                 </div>
-                <div className="p-3 bg-white rounded-lg border-2 border-blue-200">
-                  <div className="text-xs text-muted-foreground mb-1">Online</div>
-                  <div className="font-bold text-blue-600">
-                    ₹{safeToFixed(dailySales.paymentSplit.online, 2)}
+                <div className="p-2 md:p-3 bg-white rounded-lg border-2 border-blue-200 overflow-hidden">
+                  <div className="text-xs text-muted-foreground mb-1 truncate">Online</div>
+                  <div className="text-sm md:text-base font-bold text-blue-600 break-all md:break-normal">
+                    ₹{dailySales.paymentSplit.online >= 100000
+                      ? `${(dailySales.paymentSplit.online / 100000).toFixed(1)}L`
+                      : safeToFixed(dailySales.paymentSplit.online, 2)}
                   </div>
                 </div>
-                <div className="p-3 bg-white rounded-lg border-2 border-orange-200">
-                  <div className="text-xs text-muted-foreground mb-1">Credit</div>
-                  <div className="font-bold text-orange-600">
-                    ₹{safeToFixed(dailySales.paymentSplit.credit, 2)}
+                <div className="p-2 md:p-3 bg-white rounded-lg border-2 border-orange-200 overflow-hidden">
+                  <div className="text-xs text-muted-foreground mb-1 truncate">Credit</div>
+                  <div className="text-sm md:text-base font-bold text-orange-600 break-all md:break-normal">
+                    ₹{dailySales.paymentSplit.credit >= 100000
+                      ? `${(dailySales.paymentSplit.credit / 100000).toFixed(1)}L`
+                      : safeToFixed(dailySales.paymentSplit.credit, 2)}
                   </div>
                 </div>
               </div>
@@ -328,18 +342,20 @@ export default function DailySettlement() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <Label className="text-sm font-semibold">Expected Cash</Label>
-                  <div className="text-3xl font-bold text-blue-600 mt-2">
-                    ₹{safeToFixed(dailySales.expectedCash, 2)}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="overflow-hidden">
+                  <Label className="text-sm font-semibold truncate">Expected Cash</Label>
+                  <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-2 break-all md:break-normal">
+                    ₹{dailySales.expectedCash >= 100000
+                      ? `${(dailySales.expectedCash / 100000).toFixed(1)}L`
+                      : safeToFixed(dailySales.expectedCash, 2)}
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-xs text-muted-foreground mt-2 truncate">
                     Based on today's cash sales entries
                   </p>
                 </div>
-                <div>
-                  <Label htmlFor="actual-cash" className="text-sm font-semibold">
+                <div className="overflow-hidden">
+                  <Label htmlFor="actual-cash" className="text-sm font-semibold truncate">
                     Actual Cash Collected
                   </Label>
                   <Input
@@ -348,10 +364,10 @@ export default function DailySettlement() {
                     step="0.01"
                     value={actualCash}
                     onChange={(e) => setActualCash(parseFloat(e.target.value) || 0)}
-                    className="mt-2 border-green-300 focus:border-green-500 text-lg font-bold"
+                    className="mt-2 border-green-300 focus:border-green-500 text-base md:text-lg font-bold"
                     placeholder="Enter the cash in your register"
                   />
-                  <p className="text-xs text-muted-foreground mt-2">
+                  <p className="text-xs text-muted-foreground mt-2 truncate">
                     Physical cash from pump/register
                   </p>
                 </div>
@@ -382,13 +398,13 @@ export default function DailySettlement() {
                         </>
                       )}
                     </span>
-                    <div className={`text-2xl font-bold ${
+                    <div className={`text-lg md:text-xl lg:text-2xl font-bold ${
                       actualCash > dailySales.expectedCash
                         ? 'text-green-600'
                         : actualCash < dailySales.expectedCash
                         ? 'text-red-600'
                         : 'text-green-600'
-                    }`}>
+                    } break-all md:break-normal`}>
                       {actualCash > dailySales.expectedCash ? '+' : ''}₹{safeToFixed(actualCash - dailySales.expectedCash, 2)}
                     </div>
                   </div>
@@ -431,20 +447,24 @@ export default function DailySettlement() {
               <CardContent>
                 <div className="space-y-3">
                   {previousSettlements.slice(0, 5).map((settlement: SettlementRecord) => (
-                    <div key={settlement.id} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border">
-                      <div>
-                        <div className="font-semibold text-sm">
+                    <div key={settlement.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-muted/50 rounded-lg border gap-2">
+                      <div className="overflow-hidden">
+                        <div className="font-semibold text-sm truncate">
                           {new Date(settlement.date).toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
                             year: '2-digit'
                           })}
                         </div>
-                        <div className="text-xs text-muted-foreground">
-                          Expected: ₹{safeToFixed(settlement.expectedCash, 2)} | Actual: ₹{safeToFixed(settlement.actualCash, 2)}
+                        <div className="text-xs text-muted-foreground truncate">
+                          Expected: ₹{settlement.expectedCash >= 100000
+                            ? `${(settlement.expectedCash / 100000).toFixed(1)}L`
+                            : safeToFixed(settlement.expectedCash, 2)} | Actual: ₹{settlement.actualCash >= 100000
+                            ? `${(settlement.actualCash / 100000).toFixed(1)}L`
+                            : safeToFixed(settlement.actualCash, 2)}
                         </div>
                       </div>
-                      <div className={`text-sm font-bold ${
+                      <div className={`text-sm font-bold break-all md:break-normal ${
                         settlement.variance >= 0 ? 'text-green-600' : 'text-red-600'
                       }`}>
                         {settlement.variance >= 0 ? '+' : ''}₹{safeToFixed(settlement.variance, 2)}

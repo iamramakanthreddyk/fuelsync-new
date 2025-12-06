@@ -106,8 +106,8 @@ export function SaleValueSummary({
           <div className="space-y-2">
             {/* Cash */}
             <div>
-              <Label htmlFor="cash-amount" className="text-xs font-semibold">
-                Cash {paymentAllocation.cash > 0 && `₹${safeToFixed(paymentAllocation.cash, 2)}`}
+              <Label htmlFor="cash-amount" className="text-xs font-semibold flex items-center justify-between">
+                <span>Cash {paymentAllocation.cash > 0 && `₹${paymentAllocation.cash >= 1000 ? `${(paymentAllocation.cash / 1000).toFixed(1)}K` : safeToFixed(paymentAllocation.cash, 2)}`}</span>
               </Label>
               <Input
                 id="cash-amount"
@@ -125,8 +125,8 @@ export function SaleValueSummary({
 
             {/* Online */}
             <div>
-              <Label htmlFor="online-amount" className="text-xs font-semibold">
-                Online {paymentAllocation.online > 0 && `₹${safeToFixed(paymentAllocation.online, 2)}`}
+              <Label htmlFor="online-amount" className="text-xs font-semibold flex items-center justify-between">
+                <span>Online {paymentAllocation.online > 0 && `₹${paymentAllocation.online >= 1000 ? `${(paymentAllocation.online / 1000).toFixed(1)}K` : safeToFixed(paymentAllocation.online, 2)}`}</span>
               </Label>
               <Input
                 id="online-amount"
@@ -164,8 +164,8 @@ export function SaleValueSummary({
                     ) : (
                       creditors.map(creditor => (
                         <SelectItem key={creditor.id} value={creditor.id}>
-                          <span className="text-xs">
-                            {creditor.name} - ₹{safeToFixed(creditor.currentBalance, 0)}/₹{safeToFixed(creditor.creditLimit, 0)}
+                          <span className="text-xs truncate block">
+                            {creditor.name} - ₹{creditor.currentBalance >= 1000 ? `${(creditor.currentBalance / 1000).toFixed(1)}K` : creditor.currentBalance}/₹{creditor.creditLimit >= 1000 ? `${(creditor.creditLimit / 1000).toFixed(1)}K` : creditor.creditLimit}
                           </span>
                         </SelectItem>
                       ))
@@ -176,8 +176,8 @@ export function SaleValueSummary({
 
               {paymentAllocation.creditorId && (
                 <div>
-                  <Label htmlFor="credit-amount" className="text-xs font-semibold">
-                    Credit {paymentAllocation.credit > 0 && `₹${safeToFixed(paymentAllocation.credit, 2)}`}
+                  <Label htmlFor="credit-amount" className="text-xs font-semibold flex items-center justify-between">
+                    <span>Credit {paymentAllocation.credit > 0 && `₹${paymentAllocation.credit >= 1000 ? `${(paymentAllocation.credit / 1000).toFixed(1)}K` : safeToFixed(paymentAllocation.credit, 2)}`}</span>
                   </Label>
                   <Input
                     id="credit-amount"
@@ -201,13 +201,13 @@ export function SaleValueSummary({
         </div>
 
         {/* Balance Status */}
-        <div className={`p-2.5 rounded border-2 ${isBalanced ? 'bg-green-50 border-green-300' : 'bg-yellow-50 border-yellow-300'}`}>
-          <div className="flex items-center justify-between">
+        <div className={`p-2 md:p-2.5 rounded border-2 ${isBalanced ? 'bg-green-50 border-green-300' : 'bg-yellow-50 border-yellow-300'}`}>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0">
             <span className={`text-xs font-semibold ${isBalanced ? 'text-green-700' : 'text-yellow-700'}`}>
               {isBalanced ? '✓ Balanced' : `⚠ ${safeToFixed(remaining, 2)}`}
             </span>
-            <div className="text-xs font-bold text-gray-600">
-              {safeToFixed(allocated, 0)} / {safeToFixed(summary.totalSaleValue, 0)}
+            <div className="text-xs font-bold text-gray-600 break-all sm:break-normal text-right sm:text-left">
+              {allocated >= 1000 ? `${(allocated / 1000).toFixed(1)}K` : allocated} / {summary.totalSaleValue >= 1000 ? `${(summary.totalSaleValue / 1000).toFixed(1)}K` : summary.totalSaleValue}
             </div>
           </div>
         </div>

@@ -188,7 +188,8 @@ exports.createReading = async (req, res, next) => {
 
       // Only validate payment breakdown if any payment fields were provided by the client
       const paymentFieldsProvided = Object.prototype.hasOwnProperty.call(req.body, 'cashAmount') || Object.prototype.hasOwnProperty.call(req.body, 'onlineAmount') || Object.prototype.hasOwnProperty.call(req.body, 'creditAmount');
-        if (paymentFieldsProvided) {
+      
+      if (paymentFieldsProvided) {
         const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
         if (Math.abs(totalPayment - totalAmount) > 0.01) {
           console.log('[DEBUG] createReading failed: payment breakdown mismatch', { finalCashAmount, finalOnlineAmount, finalCreditAmount, totalAmount, totalPayment });
@@ -197,13 +198,19 @@ exports.createReading = async (req, res, next) => {
             error: `Payment breakdown (Cash: ${finalCashAmount}, Online: ${finalOnlineAmount}, Credit: ${finalCreditAmount}) must equal total amount (${totalAmount.toFixed(2)})`
           });
         }
-          // Enforce that if there is a credit amount provided, a creditorId must be present
-          if (finalCreditAmount > 0 && !creditorId) {
-            return res.status(400).json({
-              success: false,
-              error: 'creditorId is required when creditAmount is greater than 0'
-            });
-          }
+      } else {
+        // No payment fields provided - default entire amount to cash for backward compatibility
+        finalCashAmount = totalAmount;
+        finalOnlineAmount = 0;
+        finalCreditAmount = 0;
+      }
+
+      // Enforce that if there is a credit amount provided, a creditorId must be present
+      if (finalCreditAmount > 0 && !creditorId) {
+        return res.status(400).json({
+          success: false,
+          error: 'creditorId is required when creditAmount is greater than 0'
+        });
       }
     }
 

@@ -142,44 +142,50 @@ export default function DailySalesReport() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground mb-1">Total Sale Value</div>
-            <div className="text-3xl font-bold text-green-600">
-              ₹{safeToFixed(report.totalSaleValue, 2)}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+        <Card className="overflow-hidden">
+          <CardContent className="p-4 md:p-6">
+            <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Sale Value</div>
+            <div className="text-xl md:text-2xl lg:text-3xl font-bold text-green-600 break-all md:break-normal">
+              ₹{report.totalSaleValue >= 100000 
+                ? `${(report.totalSaleValue / 100000).toFixed(1)}L`
+                : safeToFixed(report.totalSaleValue, 2)}
             </div>
-            <div className="text-xs text-muted-foreground mt-2">Today's revenue</div>
+            <div className="text-xs text-muted-foreground mt-2 truncate">Today's revenue</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground mb-1">Total Liters</div>
-            <div className="text-3xl font-bold text-blue-600">
-              {safeToFixed(report.totalLiters, 2)} L
+        <Card className="overflow-hidden">
+          <CardContent className="p-4 md:p-6">
+            <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Liters</div>
+            <div className="text-xl md:text-2xl lg:text-3xl font-bold text-blue-600 break-all md:break-normal">
+              {report.totalLiters >= 1000 
+                ? `${(report.totalLiters / 1000).toFixed(1)}K L`
+                : `${safeToFixed(report.totalLiters, 2)} L`}
             </div>
-            <div className="text-xs text-muted-foreground mt-2">Fuel dispensed</div>
+            <div className="text-xs text-muted-foreground mt-2 truncate">Fuel dispensed</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground mb-1">Avg Price</div>
-            <div className="text-3xl font-bold text-purple-600">
+        <Card className="overflow-hidden">
+          <CardContent className="p-4 md:p-6">
+            <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Avg Price</div>
+            <div className="text-xl md:text-2xl lg:text-3xl font-bold text-purple-600 break-all md:break-normal">
               ₹{safeToFixed(avgPrice, 2)}/L
             </div>
-            <div className="text-xs text-muted-foreground mt-2">Weighted average</div>
+            <div className="text-xs text-muted-foreground mt-2 truncate">Weighted average</div>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-sm text-muted-foreground mb-1">Readings</div>
-            <div className="text-3xl font-bold text-orange-600">
-              {report.readingsCount}
+        <Card className="overflow-hidden">
+          <CardContent className="p-4 md:p-6">
+            <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Readings</div>
+            <div className="text-xl md:text-2xl lg:text-3xl font-bold text-orange-600 break-all md:break-normal">
+              {report.readingsCount >= 1000 
+                ? `${(report.readingsCount / 1000).toFixed(1)}K`
+                : report.readingsCount.toLocaleString()}
             </div>
-            <div className="text-xs text-muted-foreground mt-2">Total entries</div>
+            <div className="text-xs text-muted-foreground mt-2 truncate">Total entries</div>
           </CardContent>
         </Card>
       </div>

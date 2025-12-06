@@ -592,21 +592,27 @@ export default function QuickDataEntry() {
                 <>
                   {/* Quick Summary Card */}
                   <Card className="border-2 border-green-200 bg-green-50">
-                    <CardContent className="p-4 space-y-3">
+                    <CardContent className="p-3 md:p-4 space-y-3">
                       <div>
                         <p className="text-xs text-muted-foreground">Total Sale Value</p>
-                        <p className="text-2xl font-bold text-green-600">
-                          ₹{safeToFixed(saleSummary.totalSaleValue, 2)}
+                        <p className="text-xl md:text-2xl font-bold text-green-600 break-all md:break-normal">
+                          ₹{saleSummary.totalSaleValue >= 100000 
+                            ? `${(saleSummary.totalSaleValue / 100000).toFixed(1)}L`
+                            : safeToFixed(saleSummary.totalSaleValue, 2)}
                         </p>
                       </div>
-                      <div className="flex gap-3">
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">Liters</p>
-                          <p className="text-lg font-semibold">{safeToFixed(saleSummary.totalLiters, 1)}</p>
+                      <div className="flex gap-2 md:gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground truncate">Liters</p>
+                          <p className="text-base md:text-lg font-semibold truncate">
+                            {saleSummary.totalLiters >= 1000 
+                              ? `${(saleSummary.totalLiters / 1000).toFixed(1)}K`
+                              : safeToFixed(saleSummary.totalLiters, 1)}
+                          </p>
                         </div>
-                        <div className="flex-1">
-                          <p className="text-xs text-muted-foreground">Readings</p>
-                          <p className="text-lg font-semibold">{pendingCount}/{totalNozzles}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs text-muted-foreground truncate">Readings</p>
+                          <p className="text-base md:text-lg font-semibold truncate">{pendingCount}/{totalNozzles}</p>
                         </div>
                       </div>
                     </CardContent>

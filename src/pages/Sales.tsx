@@ -326,26 +326,26 @@ export default function Sales() {
   }
 
   return (
-    <div className="container mx-auto p-2 md:p-6 max-w-7xl flex flex-col gap-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+    <div className="container mx-auto p-2 md:p-4 lg:p-6 max-w-7xl flex flex-col gap-4 md:gap-6">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold">Sales Management</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Sales Management</h1>
+          <p className="text-sm md:text-base text-muted-foreground">
             Track and manage sales {currentStation ? `for ${currentStation.name}` : 'across all stations'}
           </p>
         </div>
 
         <Dialog open={isAddSaleOpen} onOpenChange={setIsAddSaleOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full md:w-auto shadow-sm">
+            <Button className="w-full sm:w-auto shadow-sm text-sm md:text-base">
               <Plus className="w-4 h-4 mr-2" />
               Manual Entry
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="max-w-md mx-4">
             <DialogHeader>
-              <DialogTitle>Manual Sales Entry</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg">Manual Sales Entry</DialogTitle>
+              <DialogDescription className="text-sm">
                 Select Station → Pump → Nozzle → Enter cumulative volume for automatic calculation
               </DialogDescription>
             </DialogHeader>
@@ -465,14 +465,14 @@ export default function Sales() {
         onNozzleIdChange={val => setBarNozzleId(val === "all" ? "" : val)}
         pumps={pumpsList}
         nozzles={nozzlesList}
-        isMobile={false}
+        isMobile={true}
       />
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-3 lg:w-[400px]">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="charts">Charts</TabsTrigger>
-          <TabsTrigger value="transactions">Transactions</TabsTrigger>
+      <Tabs defaultValue="overview" className="space-y-4 md:space-y-6">
+        <TabsList className="grid w-full grid-cols-3 h-auto p-1">
+          <TabsTrigger value="overview" className="text-xs md:text-sm py-2">Overview</TabsTrigger>
+          <TabsTrigger value="charts" className="text-xs md:text-sm py-2">Charts</TabsTrigger>
+          <TabsTrigger value="transactions" className="text-xs md:text-sm py-2">Transactions</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview" className="space-y-6">
