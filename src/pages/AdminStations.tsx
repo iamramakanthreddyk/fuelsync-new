@@ -199,28 +199,29 @@ export default function AdminStations() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-3xl font-bold">Station Management</h1>
-          <p className="text-muted-foreground">Manage fuel stations across the system</p>
+    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
+      {/* Header Section */}
+      <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
+        <div className="space-y-1">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Station Management</h1>
+          <p className="text-muted-foreground text-sm md:text-base">Manage fuel stations across the system</p>
         </div>
-        
+
         <Dialog open={isAddStationOpen} onOpenChange={setIsAddStationOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto shadow-sm">
               <Plus className="w-4 h-4 mr-2" />
               Add Station
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-md">
+          <DialogContent className="w-[95vw] max-w-md mx-4">
             <DialogHeader>
               <DialogTitle>Add New Station</DialogTitle>
               <DialogDescription>
                 Create a new fuel station in the system
               </DialogDescription>
             </DialogHeader>
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto">
               <div>
                 <Label htmlFor="name">Station Name</Label>
                 <Input
@@ -305,56 +306,63 @@ export default function AdminStations() {
         </Dialog>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {stations?.map((station: any) => (
-          <Card key={station.id} className="relative">
-            <CardHeader>
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Building2 className="w-5 h-5" />
-                    {station.name}
+          <Card key={station.id} className="relative hover:shadow-lg transition-all duration-200 border-0 shadow-sm bg-card/50 backdrop-blur-sm">
+            <CardHeader className="pb-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                <div className="flex-1 min-w-0 space-y-2">
+                  <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Building2 className="w-5 h-5 flex-shrink-0" />
+                    </div>
+                    <span className="truncate">{station.name}</span>
                   </CardTitle>
-                  <CardDescription className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3" />
-                    {station.address}
+                  <CardDescription className="flex items-start gap-2">
+                    <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                    <span className="text-xs truncate">{station.address}</span>
                   </CardDescription>
                 </div>
-                <Badge className={getBrandColor((station as any).brand || 'IOCL')}>
+                <Badge className={`${getBrandColor((station as any).brand || 'IOCL')} self-start text-xs font-medium`}>
                   {(station as any).brand || 'IOCL'}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="text-sm">
-                <div className="text-muted-foreground">Owner:</div>
-                <div>{(station.owner && station.owner.name) || 'Unknown'}</div>
-                <div className="text-xs text-muted-foreground">{(station.owner && station.owner.email) || ''}</div>
+              {/* Owner Info */}
+              <div className="p-3 rounded-lg bg-muted/30 space-y-1">
+                <div className="text-xs font-medium text-muted-foreground">Owner:</div>
+                <div className="font-medium truncate text-sm">{(station.owner && station.owner.name) || 'Unknown'}</div>
+                {(station.owner && station.owner.email) && (
+                  <div className="text-xs text-muted-foreground truncate">{station.owner.email}</div>
+                )}
               </div>
-              
-              <div className="text-sm">
-                <div className="text-muted-foreground">Plan:</div>
-                <div className="flex items-center gap-2">
-                  <span>{(station.plan && station.plan.name) || 'No Plan'}</span>
+
+              {/* Plan Info */}
+              <div className="p-3 rounded-lg bg-muted/30 space-y-1">
+                <div className="text-xs font-medium text-muted-foreground">Plan:</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-medium text-sm">{(station.plan && station.plan.name) || 'No Plan'}</span>
                   {station.plan?.priceMonthly && (
-                    <Badge variant="outline">
+                    <Badge variant="outline" className="text-xs">
                       ₹{station.plan.priceMonthly}/mo
                     </Badge>
                   )}
                 </div>
               </div>
-              
-              <div className="text-sm text-muted-foreground">
+
+              <div className="text-xs text-muted-foreground border-t pt-3">
                 Created: {new Date(station.createdAt).toLocaleDateString()}
               </div>
-              
-              <div className="flex gap-2">
-                <Button variant="outline" size="sm">
-                  <Fuel className="w-3 h-3 mr-1" />
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
+                <Button variant="outline" size="sm" className="flex-1 hover:bg-primary/5">
+                  <Fuel className="w-4 h-4 mr-2" />
                   View Pumps
                 </Button>
-                <Button variant="outline" size="sm">
-                  <Users className="w-3 h-3 mr-1" />
+                <Button variant="outline" size="sm" className="flex-1 hover:bg-primary/5">
+                  <Users className="w-4 h-4 mr-2" />
                   Employees
                 </Button>
               </div>

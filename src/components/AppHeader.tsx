@@ -114,8 +114,6 @@ export function AppHeader() {
             </div>
           </div>
         </div>
-        // Example usage: Trigger a notification from anywhere in your app
-        // notificationService.push('success', 'Your action was successful!');
         
         {/* Fuel Prices on mobile - only show for users with station access */}
         {currentStation && (

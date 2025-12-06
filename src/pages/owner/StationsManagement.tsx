@@ -79,7 +79,7 @@ interface StationFormProps {
 
 const StationFormContent = ({ formData, onChange }: StationFormProps) => (
   <div className="grid gap-4">
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <Label htmlFor="name">Station Name *</Label>
         <Input
@@ -115,7 +115,7 @@ const StationFormContent = ({ formData, onChange }: StationFormProps) => (
       />
     </div>
 
-    <div className="grid grid-cols-3 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
       <div>
         <Label htmlFor="city">City</Label>
         <Input
@@ -148,7 +148,7 @@ const StationFormContent = ({ formData, onChange }: StationFormProps) => (
       </div>
     </div>
 
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
         <Label htmlFor="phone">Phone</Label>
         <Input
@@ -376,21 +376,21 @@ export default function StationsManagement() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div className="flex-1 min-w-0">
-          <h1 className="text-2xl md:text-3xl font-bold">Stations Management</h1>
+      <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-1">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Stations Management</h1>
           <p className="text-muted-foreground text-sm md:text-base">Manage your fuel stations</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={handleAddDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto">
+            <Button className="w-full sm:w-auto shadow-sm">
               <Plus className="w-4 h-4 mr-2" />
               Add Station
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="w-[95vw] max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Station</DialogTitle>
               <DialogDescription>
@@ -398,13 +398,14 @@ export default function StationsManagement() {
               </DialogDescription>
             </DialogHeader>
             <StationFormContent formData={formData} onChange={setFormData} />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => handleAddDialogOpenChange(false)}>
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => handleAddDialogOpenChange(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
-              <Button 
-                onClick={handleCreate} 
+              <Button
+                onClick={handleCreate}
                 disabled={createMutation.isPending || !formData.name}
+                className="w-full sm:w-auto"
               >
                 {createMutation.isPending ? 'Creating...' : 'Create Station'}
               </Button>
@@ -425,42 +426,46 @@ export default function StationsManagement() {
       ) : Array.isArray(stations) && stations.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {(Array.isArray(stations) ? stations : []).map((station) => (
-            <Card 
-              key={station.id} 
-              className="hover:shadow-lg transition-all hover:scale-[1.02] cursor-pointer"
+            <Card
+              key={station.id}
+              className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer border-0 shadow-sm bg-card/50 backdrop-blur-sm"
               onClick={() => navigate(`/owner/stations/${station.id}`)}
             >
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+              <CardHeader className="pb-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0 flex-1">
+                    <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
                       <Building2 className="w-5 h-5 text-primary" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <CardTitle className="text-base truncate">{station.name}</CardTitle>
+                      <CardTitle className="text-lg font-semibold truncate">{station.name}</CardTitle>
                       {station.code && (
-                        <CardDescription className="text-xs">Code: {station.code}</CardDescription>
+                        <CardDescription className="text-sm">Code: {station.code}</CardDescription>
                       )}
                     </div>
                   </div>
-                  <Badge 
+                  <Badge
                     variant={station.isActive ? 'default' : 'secondary'}
-                    className="flex-shrink-0 ml-2"
+                    className={`flex-shrink-0 text-xs font-medium ${
+                      station.isActive
+                        ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                        : 'bg-gray-100 text-gray-800 hover:bg-gray-100'
+                    }`}
                   >
                     {station.isActive ? 'Active' : 'Inactive'}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3" onClick={(e) => e.stopPropagation()}>
+              <CardContent className="space-y-4" onClick={(e) => e.stopPropagation()}>
                 {/* Today's Sales - Prominent */}
                 {station.todaySales !== undefined && station.todaySales !== null && (
-                  <div className="bg-gradient-to-r from-green-50 to-transparent p-3 rounded-lg border border-green-200">
+                  <div className="bg-gradient-to-r from-green-50 to-transparent p-4 rounded-lg border border-green-200">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         <TrendingUp className="w-4 h-4 text-green-600" />
-                        <span className="text-xs text-muted-foreground">Today's Sales</span>
+                        <span className="text-sm font-medium text-green-800">Today's Sales</span>
                       </div>
-                      <span className="text-lg font-bold text-green-700">
+                      <span className="text-xl font-bold text-green-700">
                         ₹{station.todaySales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                       </span>
                     </div>
@@ -468,27 +473,27 @@ export default function StationsManagement() {
                 )}
 
                 {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-muted/50 p-2 rounded-lg">
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                      <Fuel className="w-3 h-3" />
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-muted/50 p-3 rounded-lg">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                      <Fuel className="w-4 h-4" />
                       <span>Pumps</span>
                     </div>
-                    <div className="font-semibold">
+                    <div className="font-semibold text-lg">
                       {station.activePumps}/{station.pumpCount}
-                      <span className="text-xs text-muted-foreground ml-1">active</span>
+                      <span className="text-xs text-muted-foreground ml-1 block">active</span>
                     </div>
                   </div>
 
                   {station.lastReading && (
-                    <div className="bg-muted/50 p-2 rounded-lg">
-                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-1">
-                        <Clock className="w-3 h-3" />
+                    <div className="bg-muted/50 p-3 rounded-lg">
+                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                        <Clock className="w-4 h-4" />
                         <span>Last Entry</span>
                       </div>
-                      <div className="text-xs font-medium">
-                        {new Date(station.lastReading).toLocaleDateString('en-IN', { 
-                          month: 'short', 
+                      <div className="text-sm font-medium">
+                        {new Date(station.lastReading).toLocaleDateString('en-IN', {
+                          month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit'
@@ -500,37 +505,37 @@ export default function StationsManagement() {
 
                 {/* Location */}
                 {(station.city || station.address) && (
-                  <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                    <MapPin className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                    <div className="line-clamp-2 min-w-0">
-                      {station.city && <span>{station.city}{station.state && `, ${station.state}`}</span>}
+                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm text-muted-foreground leading-relaxed">
+                        {station.city && <span>{station.city}{station.state && `, ${station.state}`}</span>}
+                      </span>
                     </div>
                   </div>
                 )}
 
                 {/* Contact */}
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  {station.phone && (
-                    <div className="flex items-center gap-1.5">
-                      <Phone className="w-3 h-3" />
-                      <span>{station.phone}</span>
-                    </div>
-                  )}
-                </div>
+                {station.phone && (
+                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
+                    <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-sm text-muted-foreground">{station.phone}</span>
+                  </div>
+                )}
 
                 {/* Actions */}
-                <div className="flex flex-col gap-2 pt-2 border-t">
+                <div className="space-y-2 pt-3 border-t">
                   <div className="flex gap-2">
                     <Button
                       variant="default"
                       size="sm"
-                      className="flex-1"
+                      className="flex-1 hover:bg-primary/90"
                       onClick={(e) => {
                         e.stopPropagation();
                         navigate(`/owner/stations/${station.id}`);
                       }}
                     >
-                      <ArrowRight className="w-3 h-3 mr-1.5" />
+                      <ArrowRight className="w-4 h-4 mr-2" />
                       Manage
                     </Button>
                     <Button
@@ -540,6 +545,7 @@ export default function StationsManagement() {
                         e.stopPropagation();
                         handleEdit(station);
                       }}
+                      className="hover:bg-primary/5"
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
@@ -550,6 +556,7 @@ export default function StationsManagement() {
                         e.stopPropagation();
                         setDeleteStationId(station.id);
                       }}
+                      className="hover:bg-destructive/90"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -557,7 +564,7 @@ export default function StationsManagement() {
                   <Button
                     variant="secondary"
                     size="sm"
-                    className="w-full"
+                    className="w-full hover:bg-secondary/80"
                     onClick={(e) => {
                       e.stopPropagation();
                       navigate(`/owner/daily-settlement/${station.id}`);
@@ -574,13 +581,15 @@ export default function StationsManagement() {
         <Card>
           <CardContent className="py-8 md:py-12">
             <div className="text-center space-y-4">
-              <Building2 className="w-12 h-12 md:w-16 md:h-16 mx-auto text-muted-foreground" />
-              <div>
-                <h3 className="text-lg font-semibold mb-2">No Stations Yet</h3>
-                <p className="text-muted-foreground mb-4 text-sm md:text-base">
+              <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto">
+                <Building2 className="w-12 h-12 md:w-16 md:h-16 text-muted-foreground" />
+              </div>
+              <div className="space-y-2">
+                <h3 className="text-lg md:text-xl font-semibold">No Stations Yet</h3>
+                <p className="text-muted-foreground text-sm md:text-base max-w-sm mx-auto">
                   Get started by adding your first fuel station
                 </p>
-                <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto">
+                <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto mt-4">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Station
                 </Button>
@@ -592,7 +601,7 @@ export default function StationsManagement() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={handleEditDialogOpenChange}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="w-[95vw] max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Edit Station</DialogTitle>
             <DialogDescription>
@@ -600,13 +609,14 @@ export default function StationsManagement() {
             </DialogDescription>
           </DialogHeader>
           <StationFormContent formData={formData} onChange={setFormData} />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => handleEditDialogOpenChange(false)}>
+          <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+            <Button variant="outline" onClick={() => handleEditDialogOpenChange(false)} className="w-full sm:w-auto">
               Cancel
             </Button>
-            <Button 
-              onClick={handleUpdate} 
+            <Button
+              onClick={handleUpdate}
               disabled={updateMutation.isPending || !formData.name}
+              className="w-full sm:w-auto"
             >
               {updateMutation.isPending ? 'Updating...' : 'Update Station'}
             </Button>

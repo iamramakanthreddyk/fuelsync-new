@@ -179,22 +179,23 @@ export default function MyStations() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold">My Stations</h1>
-          <p className="text-muted-foreground">Manage your fuel stations</p>
+    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
+      {/* Header Section */}
+      <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
+        <div className="space-y-1">
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight">My Stations</h1>
+          <p className="text-muted-foreground text-sm md:text-base">Manage your fuel stations</p>
         </div>
-        
+
         {/* Add Station Dialog */}
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="w-full sm:w-auto shadow-sm">
               <Plus className="w-4 h-4 mr-2" />
               Add Station
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[95vw] max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Add New Station</DialogTitle>
               <DialogDescription>
@@ -299,7 +300,7 @@ export default function MyStations() {
 
         {/* Edit Station Dialog */}
         <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="w-[95vw] max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Station</DialogTitle>
               <DialogDescription>
@@ -404,73 +405,98 @@ export default function MyStations() {
       </div>
 
       {/* Stations Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {stations?.map((station) => (
-          <Card key={station.id} className="hover:shadow-md transition-shadow">
-            <CardHeader className="pb-2">
-              <div className="flex justify-between items-start">
-                <div>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Building2 className="w-5 h-5 text-primary" />
-                    {station.name}
+          <Card key={station.id} className="hover:shadow-lg transition-all duration-200 border-0 shadow-sm bg-card/50 backdrop-blur-sm">
+            <CardHeader className="pb-4">
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">
+                <div className="flex-1 min-w-0 space-y-2">
+                  <CardTitle className="flex items-center gap-3 text-lg font-semibold">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Building2 className="w-5 h-5 text-primary" />
+                    </div>
+                    <span className="truncate">{station.name}</span>
                   </CardTitle>
                   {station.code && (
-                    <Badge variant="outline" className="mt-1">{station.code}</Badge>
+                    <Badge variant="outline" className="w-fit text-xs font-medium">
+                      {station.code}
+                    </Badge>
                   )}
                 </div>
-                <Badge variant={station.isActive ? "default" : "secondary"}>
+                <Badge
+                  variant={station.isActive ? "default" : "secondary"}
+                  className={`self-start text-xs font-medium ${
+                    station.isActive
+                      ? 'bg-green-100 text-green-800 hover:bg-green-100'
+                      : 'bg-gray-100 text-gray-800 hover:bg-gray-100'
+                  }`}
+                >
                   {station.isActive ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
+              {/* Address Section */}
               {station.address && (
-                <div className="flex items-start gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5" />
-                  <span className="text-muted-foreground">
-                    {station.address}
-                    {station.city && `, ${station.city}`}
-                    {station.state && `, ${station.state}`}
-                    {station.pincode && ` - ${station.pincode}`}
-                  </span>
+                <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
+                  <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm text-muted-foreground leading-relaxed">
+                      {station.address}
+                      {station.city && `, ${station.city}`}
+                      {station.state && `, ${station.state}`}
+                      {station.pincode && ` - ${station.pincode}`}
+                    </span>
+                  </div>
                 </div>
               )}
-              {station.phone && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Phone className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{station.phone}</span>
-                </div>
-              )}
-              {station.email && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Mail className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">{station.email}</span>
-                </div>
-              )}
-              {station.pumps && station.pumps.length > 0 && (
-                <div className="flex items-center gap-2 text-sm">
-                  <Fuel className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-muted-foreground">
-                    {station.pumps.length} pump{station.pumps.length !== 1 ? 's' : ''}
-                  </span>
-                </div>
-              )}
-              <div className="flex gap-2 pt-2">
-                <Button variant="outline" size="sm" className="flex-1" asChild>
+
+              {/* Contact Info */}
+              <div className="grid grid-cols-1 gap-2">
+                {station.phone && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-muted-foreground truncate">{station.phone}</span>
+                  </div>
+                )}
+                {station.email && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-muted-foreground truncate">{station.email}</span>
+                  </div>
+                )}
+                {station.pumps && station.pumps.length > 0 && (
+                  <div className="flex items-center gap-3 text-sm">
+                    <Fuel className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="text-muted-foreground">
+                      {station.pumps.length} pump{station.pumps.length !== 1 ? 's' : ''}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row gap-2 pt-2 border-t">
+                <Button variant="outline" size="sm" className="flex-1 hover:bg-primary/5" asChild>
                   <a href={`/pumps?stationId=${station.id}`}>
-                    <Fuel className="w-3 h-3 mr-1" />
+                    <Fuel className="w-4 h-4 mr-2" />
                     Pumps
                   </a>
                 </Button>
-                <Button variant="outline" size="sm" className="flex-1" asChild>
+                <Button variant="outline" size="sm" className="flex-1 hover:bg-primary/5" asChild>
                   <a href={`/staff?stationId=${station.id}`}>
-                    <Users className="w-3 h-3 mr-1" />
+                    <Users className="w-4 h-4 mr-2" />
                     Staff
                   </a>
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => openEditDialog(station)}>
-                  <Edit className="w-3 h-3 mr-1" />
-                  Edit
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => openEditDialog(station)}
+                  className="sm:flex-initial hover:bg-primary/5"
+                >
+                  <Edit className="w-4 h-4 mr-2" />
+                  <span className="hidden sm:inline">Edit</span>
                 </Button>
               </div>
             </CardContent>
