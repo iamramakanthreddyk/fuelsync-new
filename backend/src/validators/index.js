@@ -94,8 +94,9 @@ const stationValidators = {
 const pumpValidators = {
   create: Joi.object({
     name: Joi.string().min(1).max(50).required(),
-    pumpNumber: Joi.number().integer().min(1).required(),
-    status: Joi.string().valid('active', 'maintenance', 'inactive').default('active')
+    pumpNumber: Joi.number().integer().min(1).optional(),
+    status: Joi.string().valid('active', 'maintenance', 'inactive').default('active'),
+    notes: Joi.string().max(500).optional()
   }),
 
   update: Joi.object({
@@ -111,10 +112,11 @@ const pumpValidators = {
 
 const nozzleValidators = {
   create: Joi.object({
-    nozzleNumber: Joi.number().integer().min(1).required(),
+    nozzleNumber: Joi.number().integer().min(1).optional(),
     fuelType: Joi.string().valid(...FUEL_TYPE_VALUES).required(),
     initialReading: Joi.number().min(0).default(0),
-    status: Joi.string().valid('active', 'maintenance', 'inactive').default('active')
+    status: Joi.string().valid('active', 'maintenance', 'inactive').default('active'),
+    notes: Joi.string().max(500).optional()
   }),
 
   update: Joi.object({
