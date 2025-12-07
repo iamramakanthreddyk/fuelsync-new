@@ -57,30 +57,43 @@ let corsOrigins = true; // Default to allow all in development
 
 if (!isDevelopment) {
   // In production, only allow specific origins
-  const envOrigins = (process.env.CORS_ORIGINS || 'https://fuelsync-new.vercel.app')
+  const envOrigins = (process.env.CORS_ORIGINS || 'https://fuelsync-new.vercel.app,https://fuelsync-new.vercel.app/')
     .split(',')
     .map(origin => origin.trim())
     .filter(origin => origin.length > 0);
   
-  corsOrigins = envOrigins.length > 0 ? envOrigins : ['https://fuelsync-new.vercel.app'];
+  corsOrigins = envOrigins.length > 0 ? envOrigins : ['https://fuelsync-new.vercel.app', 'https://fuelsync-new.vercel.app/'];
 }
 
 console.log('🔓 CORS Enabled for:', isDevelopment ? 'ALL (development)' : corsOrigins);
 
 // CORS origin validation function
 const corsOriginValidator = (origin, callback) => {
+  console.log('🔍 CORS Check - Origin:', origin, 'Development:', isDevelopment);
+  
   if (isDevelopment) {
     // Allow all origins in development
     callback(null, true);
   } else if (!origin) {
     // Allow requests with no origin (like mobile apps, Postman, curl)
     callback(null, true);
-  } else if (Array.isArray(corsOrigins) && corsOrigins.includes(origin)) {
-    callback(null, true);
-  } else if (corsOrigins === true) {
-    callback(null, true);
   } else {
-    callback(new Error('Not allowed by CORS'));
+    // Normalize origins (remove trailing slashes)
+    const normalizedOrigin = origin.replace(/\/$/, '');
+    const normalizedCorsOrigins = Array.isArray(corsOrigins) 
+      ? corsOrigins.map(o => o.replace(/\/$/, ''))
+      : corsOrigins;
+    
+    console.log('🔍 CORS Check - Normalized Origin:', normalizedOrigin, 'Allowed:', normalizedCorsOrigins);
+    
+    if (Array.isArray(normalizedCorsOrigins) && normalizedCorsOrigins.includes(normalizedOrigin)) {
+      callback(null, true);
+    } else if (normalizedCorsOrigins === true) {
+      callback(null, true);
+    } else {
+      console.log('❌ CORS Rejected - Origin not allowed:', normalizedOrigin);
+      callback(new Error('Not allowed by CORS'));
+    }
   }
 };
 
