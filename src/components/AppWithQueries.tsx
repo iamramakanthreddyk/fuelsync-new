@@ -162,10 +162,24 @@ function SuperAdminGuard({ children }: { children: React.ReactNode }) {
 }
 
 function ManagerOrOwnerRoute({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
-  if (!user || (user.role !== 'manager' && user.role !== 'owner')) {
+  const { user, loading } = useAuth();
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-lg">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (user.role !== 'manager' && user.role !== 'owner') {
     return <Navigate to="/dashboard" replace />;
   }
+
   return <>{children}</>;
 }
 
@@ -316,6 +330,8 @@ function AppContent() {
                     <Route path="/upload" element={<DataEntry />} />
                     
                     <Route path="/" element={<RoleBasedRedirect />} />
+                    {/* Catch-all route for unknown paths - redirects based on auth status */}
+                    <Route path="*" element={<RoleBasedRedirect />} />
                   </Routes>
                 </AppLayout>
               </ProtectedRoute>
