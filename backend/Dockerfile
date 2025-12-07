@@ -7,14 +7,24 @@ RUN apk add --no-cache dumb-init
 # Set working directory
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Copy package files from backend directory
+COPY backend/package*.json ./
 
 # Install dependencies
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy source code
-COPY . .
+# Copy backend source code
+COPY backend/src ./src
+COPY backend/config ./config
+COPY backend/database ./database
+COPY backend/models ./models
+COPY backend/routes ./routes
+COPY backend/middleware ./middleware
+COPY backend/controllers ./controllers
+COPY backend/validators ./validators
+COPY backend/utils ./utils
+COPY backend/scripts ./scripts
+COPY backend/data ./data
 
 # Create data directory for SQLite (if needed)
 RUN mkdir -p data
@@ -35,7 +45,7 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Start the application with proper signal handling and initialization
-# The backend/src/server.js now handles:
+# The src/server.js now handles:
 # 1. Database connection validation
 # 2. Schema verification
 # 3. Automatic migrations
