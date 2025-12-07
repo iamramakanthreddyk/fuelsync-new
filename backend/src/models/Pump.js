@@ -4,6 +4,7 @@
  */
 
 const { DataTypes } = require('sequelize');
+const { PUMP_STATUS } = require('../config/constants');
 
 module.exports = (sequelize) => {
   const Pump = sequelize.define('Pump', {
@@ -31,9 +32,9 @@ module.exports = (sequelize) => {
       field: 'pump_number'
     },
     status: {
-      type: DataTypes.ENUM('active', 'repair', 'inactive'),
+      type: DataTypes.ENUM(...Object.values(PUMP_STATUS)),
       allowNull: false,
-      defaultValue: 'active'
+      defaultValue: PUMP_STATUS.ACTIVE
     },
     notes: {
       type: DataTypes.TEXT
