@@ -48,7 +48,8 @@ app.set('trust proxy', 1);
 // MIDDLEWARE
 // ============================================
 
-// CORS - Must be before helmet to handle preflight requests
+// CRITICAL: CORS must be first, before ANY other middleware
+// This ensures preflight requests can succeed immediately
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
 // Build CORS origins list
@@ -66,69 +67,57 @@ if (!isDevelopment) {
 
 console.log('🔓 CORS Enabled for:', isDevelopment ? 'ALL (development)' : corsOrigins);
 
-// Apply CORS with explicit preflight handling
-app.use(cors({
+// Simple CORS configuration - allow all methods and headers
+const corsOptions = {
   origin: corsOrigins,
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id', 'Accept'],
+  optionsSuccessStatus: 200, // Ensure 200 for successful OPTIONS
   maxAge: 86400 // 24 hours
-}));
+};
 
-// Explicit preflight handler (ensures OPTIONS always returns 200)
-app.options('*', cors({
-  origin: corsOrigins,
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id']
-}));
+// Apply CORS middleware FIRST
+app.use(cors(corsOptions));
 
-// Security headers - configure for development
-// IMPORTANT: Disable policies that interfere with cross-origin requests
+// Handle preflight separately (just in case)
+app.options('*', (req, res) => {
+  res.header('Access-Control-Allow-Origin', corsOptions.origin === true ? req.get('origin') : corsOptions.origin);
+  res.header('Access-Control-Allow-Credentials', 'true');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-tenant-id, Accept');
+  res.sendStatus(200);
+});
+
+// Trust Railway/Heroku proxy for correct client IP
+app.set('trust proxy', 1);
+
+// Security headers - but SAFE for CORS
 app.use(helmet({
   crossOriginResourcePolicy: false,
   crossOriginOpenerPolicy: false,
-  contentSecurityPolicy: isDevelopment ? false : {
-    directives: {
-      defaultSrc: ["'self'"],
-      connectSrc: ["'self'", 'https://fuelsync-new.vercel.app']
-    }
-  }
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false // Disable in production if it causes issues
 }));
 
-// Rate limiting - skip OPTIONS preflight requests
+// Rate limiting - skip OPTIONS preflight requests AND anything to /health
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDevelopment ? 1000 : 100, // Higher limit in development
+  max: isDevelopment ? 10000 : 100, // Very high limit in development
   message: { success: false, error: 'Too many requests, please try again later.' },
-  skip: (req) => req.method === 'OPTIONS' // Don't rate limit preflight requests
+  skip: (req) => req.method === 'OPTIONS' || req.path === '/health' || req.path === '/health/config'
 });
 app.use('/api/', limiter);
 
 // Request logging
 if (process.env.NODE_ENV !== 'test') {
-  app.use(morgan('dev'));
+  app.use(morgan('combined'));
 }
 
-// Add debugging middleware for CORS issues
+// Debug logging for all requests
 app.use((req, res, next) => {
-  if (req.method === 'OPTIONS') {
-    console.log('📍 [CORS] OPTIONS preflight request:', req.path);
-  }
+  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
   next();
-});
-
-// Wrap all middleware in try-catch to prevent uncaught exceptions from crashing
-app.use((req, res, next) => {
-  try {
-    next();
-  } catch (error) {
-    console.error('❌ [MIDDLEWARE] Uncaught error:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Internal server error'
-    });
-  }
 });
 
 // Body parsing
