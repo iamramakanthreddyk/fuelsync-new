@@ -59,6 +59,7 @@ const stationValidators = {
   create: Joi.object({
     name: Joi.string().min(2).max(100).required(),
     ownerId: optionalUuid, // Required for super_admin, ignored for owners (they use their own ID)
+    currentPlanId: optionalUuid, // Optional: owner's current plan ID for validation
     code: Joi.string().max(20).optional(),
     address: Joi.string().max(255).optional(),
     city: Joi.string().max(100).optional(),

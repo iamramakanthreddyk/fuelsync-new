@@ -173,7 +173,7 @@ exports.createStation = async (req, res, next) => {
     console.log('🔍 Request body keys:', Object.keys(req.body));
     console.log('🔍 Request body entries:', Object.entries(req.body));
     
-    const { name, address, city, state, pincode, phone, email, gstNumber, ownerId } = req.body;
+    const { name, address, city, state, pincode, phone, email, gstNumber, ownerId, currentPlanId } = req.body;
     const user = await User.findByPk(req.userId, { include: [{ model: Plan, as: 'plan' }] });
 
     console.log('🔍 Station creation request:');
@@ -225,6 +225,17 @@ exports.createStation = async (req, res, next) => {
     try {
       const ownerWithPlan = await User.findByPk(stationOwnerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
       console.log('[PLANCHECK] createStation ownerId=', stationOwnerId, 'plan=', ownerWithPlan?.plan?.name, 'maxStations=', ownerWithPlan?.plan?.maxStations);
+      
+      // Validate that the currentPlanId matches the owner's actual plan
+      if (currentPlanId && ownerWithPlan?.planId !== currentPlanId) {
+        console.log('[PLANCHECK] Plan ID mismatch: owner has', ownerWithPlan?.planId, 'but client sent', currentPlanId);
+        await t.rollback();
+        return res.status(400).json({
+          success: false,
+          error: 'Plan validation failed. Owner\'s current plan does not match the provided plan ID.'
+        });
+      }
+      
       const stationCount = await Station.count({ where: { ownerId: stationOwnerId }, transaction: t });
       console.log('[PLANCHECK] createStation currentStationCount=', stationCount);
       if (ownerWithPlan && ownerWithPlan.plan && ownerWithPlan.plan.maxStations != null) {

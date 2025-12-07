@@ -117,8 +117,7 @@ export default function AdminStations() {
         name: stationData.name,
         address: stationData.address,
         ownerId: stationData.owner_id,
-        // Note: currentPlanId is not used by backend for station creation
-        // Plan limits are checked against the owner's plan
+        currentPlanId: selectedOwnerData?.plan?.id, // Send owner's current plan ID for validation
       });
     },
     onSuccess: () => {
@@ -190,7 +189,7 @@ export default function AdminStations() {
     }
     
     // Plan limit validation
-    if (selectedOwnerData?.plan?.maxStations != null) {
+    if (selectedOwnerData && selectedOwnerData.plan?.maxStations != null) {
       const currentCount = selectedOwnerData.stationCount || 0;
       if (currentCount + 1 > selectedOwnerData.plan.maxStations) {
         errors.push(`Plan limit exceeded. ${selectedOwnerData.plan.name} plan allows ${selectedOwnerData.plan.maxStations} station(s). Currently has ${currentCount}.`);
@@ -301,8 +300,8 @@ export default function AdminStations() {
                   </div>
                 )}
               </div>
-              <Button onClick={handleAddStation} disabled={addStationMutation.isPending} className="w-full">
-                {addStationMutation.isPending ? 'Creating...' : 'Create Station'}
+              <Button onClick={handleAddStation} disabled={addStationMutation.isPending || !selectedOwnerData} className="w-full">
+                {addStationMutation.isPending ? 'Creating...' : !selectedOwnerData ? 'Loading owner data...' : 'Create Station'}
               </Button>
             </div>
           </DialogContent>
