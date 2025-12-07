@@ -40,6 +40,17 @@ exports.login = async (req, res, next) => {
       });
     }
 
+    // Validate JWT_SECRET before proceeding
+    try {
+      getJwtSecret();
+    } catch (jwtError) {
+      console.error('❌ [AUTH] JWT_SECRET not configured:', jwtError.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error: JWT_SECRET not set. Contact admin.'
+      });
+    }
+
     // Find user
     const user = await User.findOne({
       where: { email: email.toLowerCase(), isActive: true },

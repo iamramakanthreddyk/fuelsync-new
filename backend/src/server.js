@@ -14,6 +14,21 @@
 
 console.log('🚀 [SERVER] Node process starting...\n');
 
+// Validate critical environment variables BEFORE loading app
+console.log('🔍 [SERVER] Validating critical environment variables...');
+const requiredEnvVars = ['JWT_SECRET'];
+const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+
+if (missingVars.length > 0) {
+  console.error('\n❌ [SERVER] FATAL: Missing required environment variables:');
+  missingVars.forEach(v => console.error(`   - ${v}`));
+  console.error('\n⚠️  [SERVER] Without these variables, the server will crash on first request!');
+  console.error('   Add these to your Railway environment variables and redeploy.\n');
+  
+  // Don't exit immediately - let app start but warn
+  console.warn('   ⏳ Continuing... (but server will crash on first auth request)\n');
+}
+
 const app = require('./app');
 const { initializeDatabase } = require('./database/init');
 

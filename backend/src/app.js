@@ -114,6 +114,20 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Diagnostic endpoint to help identify configuration issues
+app.get('/health/config', (req, res) => {
+  const config = {
+    status: 'ok',
+    nodeEnv: process.env.NODE_ENV || 'development',
+    jwtSecretSet: !!process.env.JWT_SECRET,
+    databaseUrlSet: !!process.env.DATABASE_URL,
+    corsOriginsSet: !!process.env.CORS_ORIGINS,
+    timestamp: new Date().toISOString()
+  };
+  
+  res.json(config);
+});
+
 // API routes
 // NOTE: Order matters! More specific routes should come first
 // Credit and expense routes have paths like /stations/:stationId/credits
