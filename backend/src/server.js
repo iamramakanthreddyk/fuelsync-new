@@ -23,6 +23,8 @@ const PORT = process.env.PORT || 3001;
  * Main entry point
  */
 async function startServer() {
+  let server = null;
+  
   try {
     console.log('🚀 [SERVER] Initializing database...\n');
     
@@ -32,7 +34,7 @@ async function startServer() {
     // Step 6: Start Express server AFTER database is ready
     console.log('🌍 [SERVER] Starting Express server...\n');
     
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`
 ╔════════════════════════════════════════════════════════════╗
 ║                                                            ║
@@ -51,6 +53,8 @@ async function startServer() {
 Test health: GET http://localhost:${PORT}/health
 API docs: GET http://localhost:${PORT}/api/v1
       `);
+      
+      process.env.SERVER_STARTED = 'true';
     });
     
     // Error handling
@@ -64,25 +68,33 @@ API docs: GET http://localhost:${PORT}/api/v1
     });
     
     // Graceful shutdown
-    process.on('SIGTERM', () => {
-      console.log('\n⏹️  [SERVER] SIGTERM received, shutting down gracefully...');
-      server.close(() => {
-        console.log('✅ [SERVER] Server closed');
+    const shutdownHandler = (signal) => {
+      console.log(`\n⏹️  [SERVER] ${signal} received, shutting down gracefully...`);
+      
+      if (server) {
+        server.close(() => {
+          console.log('✅ [SERVER] Server closed');
+          process.exit(0);
+        });
+      } else {
         process.exit(0);
-      });
-    });
+      }
+      
+      // Force exit after 10 seconds
+      setTimeout(() => {
+        console.error('❌ [SERVER] Forced shutdown after 10s');
+        process.exit(1);
+      }, 10000);
+    };
     
-    process.on('SIGINT', () => {
-      console.log('\n⏹️  [SERVER] SIGINT received, shutting down gracefully...');
-      server.close(() => {
-        console.log('✅ [SERVER] Server closed');
-        process.exit(0);
-      });
-    });
+    process.on('SIGTERM', () => shutdownHandler('SIGTERM'));
+    process.on('SIGINT', () => shutdownHandler('SIGINT'));
     
     // Periodic heartbeat (proves process is alive)
     setInterval(() => {
-      console.log(`📍 [HEARTBEAT] ${new Date().toISOString()}`);
+      if (process.env.SERVER_STARTED) {
+        console.log(`📍 [HEARTBEAT] ${new Date().toISOString()}`);
+      }
     }, 60000);
     
   } catch (error) {
@@ -98,51 +110,22 @@ API docs: GET http://localhost:${PORT}/api/v1
 process.on('unhandledRejection', (reason, promise) => {
   console.error('❌ [SERVER] Unhandled Rejection at:', promise);
   console.error('Reason:', reason);
+  
+  if (!process.env.SERVER_STARTED) {
+    process.exit(1);
+  }
 });
 
 process.on('uncaughtException', (error) => {
   console.error('❌ [SERVER] Uncaught Exception:', error);
-  // Only exit on startup errors, not runtime errors
+  
   if (!process.env.SERVER_STARTED) {
     process.exit(1);
   }
 });
 
 // Start server
-startServer().then(() => {
-  process.env.SERVER_STARTED = 'true';
-}).catch((error) => {
+startServer().catch((error) => {
   console.error('❌ [SERVER] Failed to start:', error.message);
   process.exit(1);
-});
-
-
-server.on('error', (error) => {
-  console.error('❌ [SERVER] Server error:', error.message);
-  console.error(error.stack);
-});
-
-// Keep-alive: periodically log to show process is alive
-setInterval(() => {
-  console.log('📍 [KEEPALIVE]', new Date().toISOString());
-}, 60000); // Every 60 seconds
-
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('⏹️  [SERVER] SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    console.log('✅ [SERVER] Server closed');
-    process.exit(0);
-  });
-});
-
-// Handle errors without exiting
-process.on('unhandledRejection', (reason) => {
-  console.error('❌ [SERVER] Unhandled Rejection:', reason);
-  // Don't exit - keep server running
-});
-
-process.on('uncaughtException', (error) => {
-  console.error('❌ [SERVER] Uncaught Exception:', error);
-  // Don't exit - keep server running
 });
