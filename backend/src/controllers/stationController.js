@@ -615,6 +615,31 @@ exports.createPump = async (req, res, next) => {
     t = await sequelize.transaction();
     console.log(`🔧 Transaction started for pump creation`);
 
+    // Check station access
+    if (!(await canAccessStation(user, stationId))) {
+      await t.rollback();
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // Only check plan limits when creating new pump (not updating)
+    const station = await Station.findByPk(stationId, { transaction: t });
+    const ownerId = station?.ownerId;
+    if (ownerId) {
+      const owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
+      if (owner && owner.plan && owner.plan.maxPumpsPerStation) {
+        const pumpCount = await Pump.count({ where: { stationId }, transaction: t });
+        console.log('[PLANCHECK] createPump pumpCount=', pumpCount, 'planLimit=', owner.plan.maxPumpsPerStation);
+        if ((pumpCount + 1) > owner.plan.maxPumpsPerStation) {
+          await t.rollback();
+          return res.status(403).json({
+            success: false,
+            error: `Plan limit reached. Your ${owner.plan.name} plan allows ${owner.plan.maxPumpsPerStation} pump(s) per station. This station has ${pumpCount}.`,
+            planLimitExceeded: true
+          });
+        }
+      }
+    }
+
     // Declare finalPumpNumber variable
     let finalPumpNumber = null;
     let pump = null;
