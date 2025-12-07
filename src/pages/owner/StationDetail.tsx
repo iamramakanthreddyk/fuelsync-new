@@ -9,6 +9,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toFixedNumber } from '@/lib/numberFormat';
 import { formatDateISO, formatDateLocal, formatDateTimeLocal } from '@/lib/dateFormat';
+import { safeToFixed } from '@/lib/format-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -840,12 +841,15 @@ export default function StationDetail() {
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-green-600">
-                          {(pump.nozzles && Array.isArray(pump.nozzles))
-                            ? pump.nozzles.reduce((total: number, n: any) => {
-                                const lastReading = n.lastReading != null ? n.lastReading : n.initialReading;
-                                return total + (lastReading || 0);
-                              }, 0).toFixed(1)
-                            : '0.0'}
+                          {safeToFixed(
+                            (pump.nozzles && Array.isArray(pump.nozzles))
+                              ? pump.nozzles.reduce((total: number, n: any) => {
+                                  const lastReading = n.lastReading != null ? n.lastReading : n.initialReading;
+                                  return total + (lastReading || 0);
+                                }, 0)
+                              : 0,
+                            1
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">Total Reading</div>
                       </div>
