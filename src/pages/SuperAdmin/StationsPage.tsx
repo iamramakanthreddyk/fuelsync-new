@@ -10,8 +10,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { apiClient } from "@/lib/api";
-import { handleApiCall } from "@/lib/handleApiCall";
+import { getStatusBadgeClasses } from '@/lib/badgeColors';
 import { getUserMessage, getValidationErrors } from "@/lib/error-utils";
+import { handleApiCall } from "@/lib/handleApiCall";
 import { Station } from '@/types/api';
 import { Building2, Plus, Search, Edit, Trash2 } from "lucide-react";
 
@@ -466,9 +467,10 @@ export default function StationsPage() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <Badge variant={station.isActive ? 'default' : 'destructive'}>
+                      <Badge className={getStatusBadgeClasses(station.isActive ? 'active' : 'inactive')}>
                         {station.isActive ? 'Active' : 'Inactive'}
                       </Badge>
+                      {/* Debug: {JSON.stringify({ isActive: station.isActive, name: station.name })} */}
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-2">
