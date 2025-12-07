@@ -283,9 +283,13 @@ export default function Pumps() {
                             {nozzle.status === 'active' ? 'Active' : 'Inactive'}
                           </Badge>
                         </div>
-                        {nozzle.lastReading && (
+                        {nozzle.lastReading ? (
                           <div className="text-xs text-muted-foreground ml-6">
                             Last: {nozzle.lastReading.toLocaleString()} L
+                          </div>
+                        ) : (
+                          <div className="text-xs text-muted-foreground ml-6">
+                            Initial: {nozzle.initialReading?.toLocaleString() || 0} L
                           </div>
                         )}
                       </div>

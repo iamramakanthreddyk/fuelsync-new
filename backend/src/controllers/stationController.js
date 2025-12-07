@@ -825,24 +825,6 @@ exports.createNozzle = async (req, res, next) => {
     // Check station access
     if (!(await canAccessStation(user, pump.stationId))) { await t.rollback(); return res.status(403).json({ success: false, error: 'Access denied' }); }
 
-    let finalNozzleNumber = nozzleNumber;
-    if (!finalNozzleNumber) {
-      // Auto-generate nozzle number - get max nozzle number for this pump and add 1
-      // Use raw query to ensure we get the correct MAX value
-      const maxNozzleResult = await sequelize.query(
-        'SELECT COALESCE(MAX(nozzle_number), 0) as maxNumber FROM nozzles WHERE pump_id = ?',
-        {
-          replacements: [pumpId],
-          type: sequelize.QueryTypes.SELECT,
-          transaction: t
-        }
-      );
-      finalNozzleNumber = (maxNozzleResult[0]?.maxNumber || 0) + 1;
-      console.log(`🔍 Auto-generated nozzle number: ${finalNozzleNumber}, maxResult:`, maxNozzleResult);
-    } else {
-      console.log(`🔍 Using provided nozzle number: ${finalNozzleNumber}`);
-    }
-
     // Defensive transactional plan check: ensure pump's owner plan allows another nozzle
     try {
       const pumpRecord = await Pump.findByPk(pumpId, { include: [{ model: Station, as: 'station' }], transaction: t });
@@ -868,15 +850,57 @@ exports.createNozzle = async (req, res, next) => {
       console.error('Error while checking nozzle plan limits:', err);
     }
 
-    // Create nozzle with nozzle number
-    const nozzle = await Nozzle.create({ 
-      pumpId, 
-      stationId: pump.stationId, 
-      nozzleNumber: finalNozzleNumber, 
-      fuelType, 
-      initialReading: initialReading != null ? initialReading : 0, 
-      notes 
-    }, { transaction: t });
+    let finalNozzleNumber = nozzleNumber;
+    let nozzle = null;
+    if (!finalNozzleNumber) {
+      // Auto-generate nozzle number - find the next available number for this pump
+      let nozzleNumberToTry = 1;
+      let nozzleCreated = false;
+      const maxAttempts = 50; // Reasonable limit
+      let attempts = 0;
+
+      while (!nozzleCreated && attempts < maxAttempts) {
+        try {
+          // Try to create nozzle with this number
+          nozzle = await Nozzle.create({
+            pumpId,
+            stationId: pump.stationId,
+            nozzleNumber: nozzleNumberToTry,
+            fuelType,
+            initialReading: initialReading != null ? initialReading : 0,
+            notes
+          }, { transaction: t });
+
+          nozzleCreated = true;
+          finalNozzleNumber = nozzleNumberToTry;
+          console.log(`🔍 Auto-generated nozzle number: ${finalNozzleNumber}`);
+          break; // Exit the loop since we succeeded
+        } catch (error) {
+          if (error.name === 'SequelizeUniqueConstraintError') {
+            nozzleNumberToTry++;
+            attempts++;
+          } else {
+            throw error;
+          }
+        }
+      }
+
+      if (!nozzleCreated) {
+        await t.rollback();
+        return res.status(500).json({ success: false, error: 'Could not generate unique nozzle number' });
+      }
+    } else {
+      console.log(`🔍 Using provided nozzle number: ${finalNozzleNumber}`);
+      // Create nozzle with provided number
+      nozzle = await Nozzle.create({
+        pumpId,
+        stationId: pump.stationId,
+        nozzleNumber: finalNozzleNumber,
+        fuelType,
+        initialReading: initialReading != null ? initialReading : 0,
+        notes
+      }, { transaction: t });
+    }
 
     // Post-create verification
     const nozzleCountPost = await Nozzle.count({ where: { pumpId }, transaction: t });
