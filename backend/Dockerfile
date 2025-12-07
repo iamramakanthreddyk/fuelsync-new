@@ -13,7 +13,7 @@ COPY backend/package*.json ./
 # Install dependencies
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy backend source code
+# Copy backend source code (only directories that exist)
 COPY backend/src ./src
 COPY backend/config ./config
 COPY backend/database ./database
@@ -24,7 +24,6 @@ COPY backend/controllers ./controllers
 COPY backend/validators ./validators
 COPY backend/utils ./utils
 COPY backend/scripts ./scripts
-COPY backend/data ./data
 
 # Create data directory for SQLite (if needed)
 RUN mkdir -p data
