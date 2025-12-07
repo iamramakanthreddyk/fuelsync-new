@@ -89,6 +89,7 @@ exports.login = async (req, res, next) => {
     // Generate token
     const token = generateToken(user.id, user.role);
 
+    // Build user payload with stations
     const userPayload = {
       id: user.id,
       email: user.email,
@@ -102,8 +103,34 @@ exports.login = async (req, res, next) => {
       plan: user.plan ? {
         name: user.plan.name,
         canExport: user.plan.canExport
-      } : null
+      } : null,
+      stations: [] // Initialize stations array
     };
+
+    // For owners, fetch their owned stations
+    if ((user.role || '').toLowerCase() === 'owner') {
+      const ownedStations = await Station.findAll({
+        where: { ownerId: user.id },
+        attributes: ['id', 'name', 'code', 'address', 'city', 'state']
+      });
+      userPayload.stations = ownedStations.map(s => ({
+        id: s.id,
+        name: s.name,
+        code: s.code,
+        address: s.address,
+        city: s.city,
+        brand: 'FuelSync' // Default brand
+      }));
+    } else if (user.station) {
+      // For manager/employee, include their assigned station in stations array
+      userPayload.stations = [{
+        id: user.station.id,
+        name: user.station.name,
+        code: user.station.code,
+        address: user.station.address,
+        brand: 'FuelSync'
+      }];
+    }
 
     // Return clean response structure
     res.json({

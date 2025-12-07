@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { AlertCircle, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useFuelPricesStatus } from '@/hooks/useFuelPricesStatus';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 
 interface PricesRequiredAlertProps {
   stationId?: string;
@@ -30,6 +31,10 @@ export function PricesRequiredAlert({
 }: PricesRequiredAlertProps) {
   const navigate = useNavigate();
   const { hasPrices, missingFuelTypes, warning, isLoading } = useFuelPricesStatus(stationId);
+  const { stations } = useRoleAccess();
+  
+  // Find station name from stationId
+  const stationName = stationId ? stations.find(s => s.id === stationId)?.name : null;
 
   // Don't show alert while loading or if no station is selected
   if (isLoading || !showIfMissing || hasPrices || !stationId) {
@@ -44,7 +49,7 @@ export function PricesRequiredAlert({
         <AlertDescription className="flex items-center justify-between gap-4">
           <span>
             {warning || 'Fuel prices must be set before entering readings'}
-            {stationId && <span className="block text-xs mt-1 opacity-75">Station ID: {stationId}</span>}
+            {stationName && <span className="block text-xs mt-1 opacity-75">Station: {stationName}</span>}
           </span>
           <Button 
             size="sm" 
