@@ -915,20 +915,18 @@ exports.getNozzle = async (req, res, next) => {
 };
 
 exports.createNozzle = async (req, res, next) => {
-  const t = await sequelize.transaction();
-  let owner = null;
   try {
     const { pumpId } = req.params;
     const { fuelType, initialReading, notes, nozzleNumber } = req.body;
 
     console.log(`🔍 Creating nozzle - pumpId: ${pumpId}, fuelType: ${fuelType}`);
 
-    const pump = await Pump.findByPk(pumpId, { transaction: t });
-    if (!pump) { await t.rollback(); return res.status(404).json({ success: false, error: 'Pump not found' }); }
+    const pump = await Pump.findByPk(pumpId);
+    if (!pump) { return res.status(404).json({ success: false, error: 'Pump not found' }); }
 
-    const user = await User.findByPk(req.userId, { transaction: t });
+    const user = await User.findByPk(req.userId);
     // Check station access
-    if (!(await canAccessStation(user, pump.stationId))) { await t.rollback(); return res.status(403).json({ success: false, error: 'Access denied' }); }
+    if (!(await canAccessStation(user, pump.stationId))) { return res.status(403).json({ success: false, error: 'Access denied' }); }
 
     let finalNozzleNumber = nozzleNumber;
     let nozzle = null;
@@ -949,7 +947,7 @@ exports.createNozzle = async (req, res, next) => {
             fuelType,
             initialReading: initialReading != null ? initialReading : 0,
             notes
-          }, { transaction: t });
+          });
 
           nozzleCreated = true;
           finalNozzleNumber = nozzleNumberToTry;
@@ -979,20 +977,17 @@ exports.createNozzle = async (req, res, next) => {
         fuelType,
         initialReading: initialReading != null ? initialReading : 0,
         notes
-      }, { transaction: t });
+      });
     }
 
     // Post-create verification
-    const nozzleCountPost = await Nozzle.count({ where: { pumpId }, transaction: t });
+    const nozzleCountPost = await Nozzle.count({ where: { pumpId } });
     // Note: Plan limit check is done in middleware, so no need to verify here
-
-    await t.commit();
 
     console.log(`✅ NOZZLE CREATED - ID: ${nozzle.id}, Number: ${nozzle.nozzleNumber}, Pump: ${pumpId}`);
     res.status(201).json({ success: true, data: nozzle });
 
   } catch (error) {
-    try { await t.rollback(); } catch (e) { /* ignore */ }
     console.error(`❌ createNozzle error:`, error.message, 'name:', error.name);
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({ success: false, error: 'Nozzle with this number already exists for this pump' });
