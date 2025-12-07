@@ -208,7 +208,7 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
     );
   }
 
-  if (!fuelPrices || fuelPrices.length === 0) {
+  if (!fuelPrices || !Array.isArray(fuelPrices) || fuelPrices.length === 0) {
     return (
       <div className="bg-muted/50 p-3 rounded-lg">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
@@ -257,9 +257,9 @@ export default function StationsManagement() {
   const {
     data: stationsResponse,
     isLoading
-  } = useStations() as { data?: ApiResponse<Station[]> | undefined; isLoading: boolean };
+  } = useStations();
 
-  const stations = stationsResponse?.data ?? [];
+  const stations = stationsResponse?.success ? stationsResponse.data : [];
 
   // Create station mutation
   const createMutation = useMutation({
