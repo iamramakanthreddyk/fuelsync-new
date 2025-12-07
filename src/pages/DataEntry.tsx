@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 import { FuelType, FuelTypeEnum } from '@/core/enums';
@@ -26,7 +26,6 @@ import type { PaymentSplitData } from '@/components/readings';
 import { Checkbox } from '@/components/ui/checkbox';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
-import { usePumpNozzles } from "@/hooks/usePumpNozzles";
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 
 
@@ -61,7 +60,6 @@ export default function DataEntry() {
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
 
   // Manual states
-  const [manualPump, setManualPump] = useState<string | null>(null);
   const [manualNozzle, setManualNozzle] = useState<string | null>(null);
   const [previousReading, setPreviousReading] = useState<number | null>(null);
   const [loadingPreviousReading, setLoadingPreviousReading] = useState(false);
@@ -82,13 +80,30 @@ export default function DataEntry() {
 
   // Derived dropdown options, use the userStations list from useRoleAccess
   const { data: pumps = [], isLoading: pumpsLoading, error: pumpsError } = useStationPumps(selectedStation || userStations[0]?.id);
-  const { data: manualNozzles = [], isLoading: nozzlesLoading, error: nozzlesError } = usePumpNozzles(manualPump ?? undefined);
   
-  // Get selected nozzle details for fuel type and price (MUST be after manualNozzles is defined)
+  // Get all nozzles for the selected station (for simplified manual entry)
+  const { data: allNozzles = [] } = useQuery({
+    queryKey: ['all-nozzles', selectedStation || userStations[0]?.id],
+    queryFn: async () => {
+      const stationId = selectedStation || userStations[0]?.id;
+      if (!stationId) return [];
+      
+      try {
+        const response = await apiClient.get(`/stations/${stationId}/nozzles`);
+        return Array.isArray(response) ? response : (response as any)?.data || [];
+      } catch (error) {
+        console.error('Failed to fetch all nozzles:', error);
+        return [];
+      }
+    },
+    enabled: !!(selectedStation || userStations[0]?.id)
+  });
+  
+  // Get selected nozzle details for fuel type and price (MUST be after allNozzles is defined)
   const selectedNozzleData = useMemo(() => {
-    if (!manualNozzle || !manualNozzles?.length) return null;
-    return manualNozzles.find((n: { id: string }) => n.id === manualNozzle);
-  }, [manualNozzle, manualNozzles]);
+    if (!manualNozzle || !allNozzles?.length) return null;
+    return allNozzles.find((n: any) => n.id === manualNozzle);
+  }, [manualNozzle, allNozzles]);
   
   // Get fuel price for selected nozzle
   const currentFuelPrice = useMemo(() => {
@@ -126,12 +141,10 @@ export default function DataEntry() {
       pumps,
       pumpsLoading,
       pumpsError,
-      manualPump,
-      manualNozzles,
-      nozzlesLoading,
-      nozzlesError
+      manualNozzle,
+      allNozzles
     });
-  }, [userStations, selectedStation, pumps, pumpsLoading, pumpsError, manualPump, manualNozzles, nozzlesLoading, nozzlesError]);
+  }, [userStations, selectedStation, pumps, pumpsLoading, pumpsError, manualNozzle, allNozzles]);
 
 
 
@@ -202,15 +215,26 @@ export default function DataEntry() {
     try {
       setIsSubmitting(true);
       
-      // Validate payment split
-      if (saleCalculation.saleValue > 0 && !paymentSplit?.isBalanced) {
+      // Validate required fields
+      if (!data.station_id) {
+        toast.error('Please select a station');
+        return;
+      }
+      
+      if (!data.nozzle_id) {
+        toast.error('Please select a nozzle');
+        return;
+      }
+      
+      // Validate payment split only if payment details are being recorded
+      if (showCreditOption && saleCalculation.saleValue > 0 && !paymentSplit?.isBalanced) {
         toast.error('Please ensure payment amounts balance with sale value');
         return;
       }
       
       // Map to backend expected format with payment breakdown
       const payload = {
-        stationId: selectedStation || userStations[0]?.id,
+        stationId: data.station_id,
         nozzleId: data.nozzle_id,
         readingDate: data.reading_date,
         readingValue: data.cumulative_vol,
@@ -261,7 +285,6 @@ export default function DataEntry() {
       }
 
       resetManual();
-      setManualPump(null);
       setManualNozzle(null);
       setPreviousReading(null);
       setCurrentReadingValue(0);
@@ -340,17 +363,10 @@ export default function DataEntry() {
     }
   }, [userStations, selectedStation]);
 
-  // Reset pumps when station changes
+  // Reset when station changes
   useEffect(() => {
-    // setSelectedPump(null); // removed unused state
-    setManualPump(null);
     setManualNozzle(null);
   }, [selectedStation]);
-
-  // Manual nozzle reset when pump changes
-  useEffect(() => {
-    setManualNozzle(null);
-  }, [manualPump]);
 
   // Sync manualNozzle with form field
   useEffect(() => {
@@ -445,13 +461,16 @@ export default function DataEntry() {
                 Manual Reading
               </h3>
               <form onSubmit={handleSubmitManual(onSubmitManual)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Station */}
                   <div className="space-y-2">
                     <Label>Station</Label>
                     <Select
                       value={selectedStation ?? ''}
-                      onValueChange={value => setSelectedStation(value)}
+                      onValueChange={value => {
+                        setSelectedStation(value);
+                        setManualValue('station_id', value);
+                      }}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select station" />
@@ -463,55 +482,29 @@ export default function DataEntry() {
                       </SelectContent>
                     </Select>
                   </div>
-                  {/* Pump */}
+                  {/* Nozzle - Direct selection from all nozzles */}
                   <div className="space-y-2">
-                    <Label>Pump {pumpsLoading && '(Loading...)'}</Label>
-                    <Select
-                      value={manualPump ?? ''}
-                      onValueChange={value => {
-                        console.log('🔧 Pump selected:', value, typeof value);
-                        setManualPump(value);
-                      }}
-                      disabled={!pumps.length || pumpsLoading}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder={pumps.length ? "Select pump" : "No pumps available"} />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {pumps.map(p => {
-                          console.log('🔍 Pump option:', p.id, p.name);
-                          return (
-                            <SelectItem key={p.id} value={p.id}>
-                              {p.name || `Pump ${p.pumpNumber}`}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  {/* Nozzle */}
-                  <div className="space-y-2">
-                    <Label>Nozzle {nozzlesLoading && '(Loading...)'}</Label>
+                    <Label>Nozzle</Label>
                     <Select
                       value={manualNozzle ?? ''}
                       onValueChange={value => {
                         console.log('🔧 Nozzle selected:', value, typeof value);
                         setManualNozzle(value);
                       }}
-                      disabled={!manualNozzles.length || nozzlesLoading}
+                      disabled={!allNozzles.length}
                     >
                       <SelectTrigger>
-                        <SelectValue placeholder={manualNozzles.length ? "Select nozzle" : "Select pump first"} />
+                        <SelectValue placeholder={allNozzles.length ? "Select nozzle" : "Select station first"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {manualNozzles.map(nz => {
-                          console.log('🔍 Nozzle option:', nz.id, nz.nozzleNumber);
+                        {allNozzles.map((nz: any) => {
+                          console.log('🔍 All nozzle option:', nz.id, nz.nozzleNumber);
                           const colors = getFuelColors(nz.fuelType);
                           return (
                             <SelectItem key={nz.id} value={nz.id}>
                               <div className="flex items-center gap-2">
                                 <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                                <span>Nozzle {nz.nozzleNumber} - {nz.fuelType}</span>
+                                <span>Pump {nz.pump?.pumpNumber || nz.pumpNumber || '?'} - Nozzle {nz.nozzleNumber} - {nz.fuelType}</span>
                               </div>
                             </SelectItem>
                           );
@@ -534,16 +527,12 @@ export default function DataEntry() {
                       id="manual-volume"
                       type="number"
                       step="0.01"
-                      min={previousReading || 0}
-                      placeholder={previousReading ? `Enter value > ${safeToFixed(previousReading)}` : 'Enter cumulative volume'}
+                      min="0"
+                      placeholder="Enter cumulative volume"
                       {...registerManual('cumulative_vol', { 
                         required: 'Volume is required', 
                         valueAsNumber: true,
-                        min: {
-                          value: previousReading || 0,
-                          message: `Must be greater than previous reading (${safeToFixed(previousReading) || 0})`
-                        },
-                        onChange: (e) => setCurrentReadingValue(parseFloat(e.target.value) || 0)
+                        min: { value: 0, message: 'Volume must be positive' }
                       })}
                     />
                     {manualErrors.cumulative_vol && (
@@ -585,30 +574,32 @@ export default function DataEntry() {
                   />
                 )}
                 
-                {/* Payment Split (only show when we have a valid sale) */}
+                {/* Optional Payment Split */}
                 {saleCalculation.isValid && saleCalculation.saleValue > 0 && (
                   <div className="space-y-3 mt-4">
                     <div className="flex items-center gap-2">
                       <Checkbox
-                        id="show-credit"
+                        id="show-payment"
                         checked={showCreditOption}
                         onCheckedChange={(checked) => setShowCreditOption(!!checked)}
                       />
-                      <Label htmlFor="show-credit" className="text-sm text-muted-foreground cursor-pointer">
-                        Include credit sale option
+                      <Label htmlFor="show-payment" className="text-sm text-muted-foreground cursor-pointer">
+                        Record payment details (optional)
                       </Label>
                     </div>
                     
-                    <PaymentSplit
-                      totalAmount={saleCalculation.saleValue}
-                      onPaymentChange={setPaymentSplit}
-                      showCredit={showCreditOption}
-                    />
+                    {showCreditOption && (
+                      <PaymentSplit
+                        totalAmount={saleCalculation.saleValue}
+                        onPaymentChange={setPaymentSplit}
+                        showCredit={true}
+                      />
+                    )}
                   </div>
                 )}
                 
                 <Button 
-                  disabled={isSubmitting || (saleCalculation.saleValue > 0 && !paymentSplit?.isBalanced)} 
+                  disabled={isSubmitting} 
                   className="w-full text-base py-2"
                 >
                   {isSubmitting ? 'Submitting...' : 'Add Manual Reading'}
