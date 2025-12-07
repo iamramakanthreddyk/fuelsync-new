@@ -14,7 +14,7 @@ import { getStatusBadgeClasses } from '@/lib/badgeColors';
 import { getUserMessage, getValidationErrors } from "@/lib/error-utils";
 import { handleApiCall } from "@/lib/handleApiCall";
 import { Station } from '@/types/api';
-import { Building2, Plus, Search, Edit, Trash2 } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Fuel } from "lucide-react";
 
 interface Owner {
   id: string;
@@ -231,9 +231,14 @@ export default function StationsPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Stations Management</h1>
-          <p className="text-muted-foreground">Manage all fuel stations. Note: Plans are assigned to Owners, not stations.</p>
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-10 h-10 bg-primary rounded-lg">
+            <Fuel className="h-6 w-6 text-primary-foreground" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold">FuelSync</h1>
+            <p className="text-muted-foreground">Stations Management</p>
+          </div>
         </div>
         <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
           <DialogTrigger asChild>
@@ -387,10 +392,7 @@ export default function StationsPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            All Stations
-          </CardTitle>
+          <CardTitle>All Stations</CardTitle>
           <CardDescription>
             Total stations: {stations.length}
           </CardDescription>
