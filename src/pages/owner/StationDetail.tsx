@@ -142,7 +142,7 @@ export default function StationDetail() {
   });
 
   const [priceForm, setPriceForm] = useState({
-    fuelType: 'petrol',
+    fuelType: FuelTypeEnum.PETROL as FuelType,
     price: '',
     effectiveFrom: formatDateISO(new Date())
   });
@@ -308,7 +308,7 @@ export default function StationDetail() {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
       toast({ title: 'Success', description: 'Nozzle created successfully', variant: 'success' });
       setIsNozzleDialogOpen(false);
-      setNozzleForm({ fuelType: 'petrol', initialReading: '' });
+      setNozzleForm({ fuelType: getDefaultFuelType(), initialReading: '' });
       setSelectedPump(null);
     },
     onError: (error: unknown) => {
@@ -345,7 +345,7 @@ export default function StationDetail() {
       queryClient.invalidateQueries({ queryKey: ['station-prices', id] });
       toast({ title: 'Success', description: 'Price updated successfully', variant: 'success' });
       setIsPriceDialogOpen(false);
-      setPriceForm({ fuelType: 'petrol', price: '', effectiveFrom: formatDateISO(new Date()) });
+      setPriceForm({ fuelType: FuelTypeEnum.PETROL, price: '', effectiveFrom: formatDateISO(new Date()) });
     },
     onError: (error: unknown) => {
       let message = 'Failed to update price';
@@ -571,7 +571,7 @@ export default function StationDetail() {
     setSelectedPump(pump);
     setEditPumpForm({
       name: pump.name,
-      status: (pump.status === 'offline' ? 'inactive' : pump.status) as 'active' | 'inactive' | 'maintenance',
+      status: (pump.status === 'offline' ? EquipmentStatusEnum.INACTIVE : pump.status as EquipmentStatus),
       notes: pump.notes || ''
     });
     setIsEditPumpDialogOpen(true);
@@ -588,7 +588,7 @@ export default function StationDetail() {
   const handleEditNozzle = (nozzle: Nozzle) => {
     setSelectedNozzle(nozzle);
     setEditNozzleForm({
-      status: (nozzle.status === 'offline' ? 'inactive' : nozzle.status) as 'active' | 'inactive' | 'maintenance',
+      status: (nozzle.status === 'offline' ? EquipmentStatusEnum.INACTIVE : nozzle.status as EquipmentStatus),
       notes: ''
     });
     setIsEditNozzleDialogOpen(true);
@@ -813,7 +813,7 @@ export default function StationDetail() {
                         </CardDescription>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
-                        <Badge variant={pump.status === 'active' ? 'default' : 'secondary'}>
+                        <Badge variant={pump.status === EquipmentStatusEnum.ACTIVE ? 'default' : 'secondary'}>
                           {pump.status}
                         </Badge>
                         <Button
@@ -832,7 +832,7 @@ export default function StationDetail() {
                     <div className="grid grid-cols-2 gap-3 p-2 bg-muted/30 rounded-lg">
                       <div className="text-center">
                         <div className="text-2xl font-bold text-primary">
-                          {pump.nozzles?.filter((n: any) => n.status === 'active').length || 0}
+                          {pump.nozzles?.filter((n: any) => n.status === EquipmentStatusEnum.ACTIVE).length || 0}
                         </div>
                         <div className="text-xs text-muted-foreground">Active Nozzles</div>
                       </div>
@@ -890,7 +890,7 @@ export default function StationDetail() {
 
                               <div className="flex items-center gap-1 ml-2">
                                 <Badge
-                                  variant={nozzle.status === 'active' ? 'outline' : 'secondary'}
+                                  variant={nozzle.status === EquipmentStatusEnum.ACTIVE ? 'outline' : 'secondary'}
                                   className="text-xs px-2 py-0.5"
                                 >
                                   {nozzle.status}
@@ -1337,9 +1337,9 @@ export default function StationDetail() {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value={EquipmentStatusEnum.ACTIVE}>Active</SelectItem>
+                  <SelectItem value={EquipmentStatusEnum.INACTIVE}>Inactive</SelectItem>
+                  <SelectItem value={EquipmentStatusEnum.MAINTENANCE}>Maintenance</SelectItem>
                 </SelectContent>
               </Select>
             </div>
