@@ -26,7 +26,7 @@ import type { PaymentSplitData } from '@/components/readings';
 import { Checkbox } from '@/components/ui/checkbox';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
-import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { useRoleAccess, StationAccess } from '@/hooks/useRoleAccess';
 
 
 interface ManualEntryData {
@@ -76,16 +76,37 @@ export default function DataEntry() {
   const queryClient = useQueryClient();
 
   // Use role access to strictly scope stations to the user (owner/employee)
-  const { stations: userStations } = useRoleAccess();
+  const { stations: userStations, canAccessAllStations } = useRoleAccess();
 
-  // Derived dropdown options, use the userStations list from useRoleAccess
-  const { data: pumps = [], isLoading: pumpsLoading, error: pumpsError } = useStationPumps(selectedStation || userStations[0]?.id);
+  // Fetch all stations for admins
+  const { data: allStations = [] } = useQuery({
+    queryKey: ['all-stations'],
+    queryFn: async () => {
+      const response = await apiClient.get<any>('/api/v1/stations');
+      if (response && typeof response === 'object') {
+        if ('data' in response && Array.isArray(response.data)) {
+          return response.data as StationAccess[];
+        }
+        if (Array.isArray(response)) {
+          return response as StationAccess[];
+        }
+      }
+      return [];
+    },
+    enabled: canAccessAllStations
+  });
+
+  // Use allStations for admins, userStations for others
+  const availableStations = canAccessAllStations ? allStations : userStations;
+
+  // Derived dropdown options, use the availableStations list
+  const { data: pumps = [], isLoading: pumpsLoading, error: pumpsError } = useStationPumps(selectedStation || availableStations[0]?.id);
   
   // Get all nozzles for the selected station (for simplified manual entry)
   const { data: allNozzles = [] } = useQuery({
-    queryKey: ['all-nozzles', selectedStation || userStations[0]?.id],
+    queryKey: ['all-nozzles', selectedStation || availableStations[0]?.id],
     queryFn: async () => {
-      const stationId = selectedStation || userStations[0]?.id;
+      const stationId = selectedStation || availableStations[0]?.id;
       if (!stationId) return [];
       
       try {
@@ -96,7 +117,7 @@ export default function DataEntry() {
         return [];
       }
     },
-    enabled: !!(selectedStation || userStations[0]?.id)
+    enabled: !!(selectedStation || availableStations[0]?.id)
   });
   
   // Get selected nozzle details for fuel type and price (MUST be after allNozzles is defined)
@@ -135,16 +156,16 @@ export default function DataEntry() {
   // Debug logging
   React.useEffect(() => {
     console.log('🔍 DataEntry Debug:', {
-      userStations,
+      availableStations,
       selectedStation,
-      stationForQuery: selectedStation || userStations[0]?.id,
+      stationForQuery: selectedStation || availableStations[0]?.id,
       pumps,
       pumpsLoading,
       pumpsError,
       manualNozzle,
       allNozzles
     });
-  }, [userStations, selectedStation, pumps, pumpsLoading, pumpsError, manualNozzle, allNozzles]);
+  }, [availableStations, selectedStation, pumps, pumpsLoading, pumpsError, manualNozzle, allNozzles]);
 
 
 
@@ -160,7 +181,7 @@ export default function DataEntry() {
     // watch: watchManual
   } = useForm<ManualEntryData>({
     defaultValues: {
-      station_id: userStations[0]?.id || '',
+      station_id: availableStations[0]?.id || '',
       nozzle_id: '',
       cumulative_vol: 0,
       reading_date: format(new Date(), 'yyyy-MM-dd'),
@@ -177,7 +198,7 @@ export default function DataEntry() {
     watch: watchTender
   } = useForm<TenderEntryData>({
     defaultValues: {
-      station_id: userStations[0]?.id || '',
+      station_id: availableStations[0]?.id || '',
       entry_date: format(new Date(), 'yyyy-MM-dd'),
       type: PaymentMethodEnum.CASH,
       payer: '',
@@ -194,8 +215,8 @@ export default function DataEntry() {
     watch: watchRefill
   } = useForm<RefillData>({
     defaultValues: {
-      station_id: userStations[0]?.id || '',
-      fuel_type: FuelTypeEnum.PETROL,
+      station_id: availableStations[0]?.id || '',
+      fuel_type: FuelTypeEnum.DIESEL,
       quantity_l: 0,
       filled_at: format(new Date(), 'yyyy-MM-dd'),
     }
@@ -203,12 +224,12 @@ export default function DataEntry() {
 
   useEffect(() => {
     // sync forms when stations are ready
-    if (userStations.length > 0) {
-      setManualValue('station_id', userStations[0].id);
-      setTenderValue('station_id', userStations[0].id);
-      setRefillValue('station_id', userStations[0].id);
+    if (availableStations.length > 0) {
+      setManualValue('station_id', availableStations[0].id);
+      setTenderValue('station_id', availableStations[0].id);
+      setRefillValue('station_id', availableStations[0].id);
     }
-  }, [userStations, setManualValue, setTenderValue, setRefillValue]);
+  }, [availableStations, setManualValue, setTenderValue, setRefillValue]);
 
   // -- Manual entry handlers --
   const onSubmitManual = async (data: ManualEntryData) => {
@@ -357,11 +378,11 @@ export default function DataEntry() {
 
   // Set default station & reset-dependent dropdowns
   useEffect(() => {
-    if (userStations.length > 0 && !selectedStation) {
-      console.log('🎯 Setting default station:', userStations[0]);
-      setSelectedStation(userStations[0].id);
+    if (availableStations.length > 0 && !selectedStation) {
+      console.log('🎯 Setting default station:', availableStations[0]);
+      setSelectedStation(availableStations[0].id);
     }
-  }, [userStations, selectedStation]);
+  }, [availableStations, selectedStation]);
 
   // Reset when station changes
   useEffect(() => {
@@ -423,8 +444,8 @@ export default function DataEntry() {
               Data Entry <span className="text-fuel-orange text-lg">•</span>
             </div>
             <div className="mt-1 text-muted-foreground text-base">
-              {userStations.length === 1 
-                ? `Add readings, tenders, or tank refills for ${userStations[0].name}`
+              {availableStations.length === 1 
+                ? `Add readings, tenders, or tank refills for ${availableStations[0].name}`
                 : 'Add readings, tenders, or tank refills quickly.'
               }
             </div>
@@ -476,7 +497,7 @@ export default function DataEntry() {
                         <SelectValue placeholder="Select station" />
                       </SelectTrigger>
                       <SelectContent>
-                        {userStations.map(stn =>
+                        {availableStations.map(stn =>
                           <SelectItem key={stn.id} value={stn.id}>{stn.name}</SelectItem>
                         )}
                       </SelectContent>
@@ -626,7 +647,7 @@ export default function DataEntry() {
                         <SelectValue placeholder="Select station" />
                       </SelectTrigger>
                       <SelectContent>
-                        {userStations.map((station) => (
+                        {availableStations.map((station) => (
                           <SelectItem key={station.id} value={station.id}>
                             {station.name}
                           </SelectItem>
@@ -713,7 +734,7 @@ export default function DataEntry() {
                         <SelectValue placeholder="Select station" />
                       </SelectTrigger>
                       <SelectContent>
-                        {userStations.map((station) => (
+                        {availableStations.map((station) => (
                           <SelectItem key={station.id} value={station.id}>
                             {station.name}
                           </SelectItem>
