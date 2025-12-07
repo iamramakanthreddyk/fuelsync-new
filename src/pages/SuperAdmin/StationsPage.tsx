@@ -222,11 +222,13 @@ export default function StationsPage() {
     setIsEditOpen(true);
   };
 
-  const filteredStations = (Array.isArray(stations) ? stations : []).filter(station => 
-    station.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    station.city?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    station.owner?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredStations = (Array.isArray(stations) ? stations : []).filter(station => {
+    const searchLower = searchTerm.toLowerCase();
+    const nameMatch = station.name?.toLowerCase().includes(searchLower);
+    const cityMatch = station.city?.toLowerCase().includes(searchLower);
+    const ownerMatch = station.owner?.name?.toLowerCase().includes(searchLower);
+    return nameMatch || cityMatch || ownerMatch;
+  });
 
   return (
     <div className="space-y-6">
@@ -283,10 +285,10 @@ export default function StationsPage() {
                     <SelectValue placeholder="Select owner" />
                   </SelectTrigger>
                   <SelectContent>
-                    {owners.length === 0 && (
+                    {(Array.isArray(owners) ? owners : []).length === 0 && (
                       <div className="p-2 text-sm text-muted-foreground">No owners found</div>
                     )}
-                    {owners.map((owner) => (
+                    {(Array.isArray(owners) ? owners : []).map((owner) => (
                       <SelectItem key={owner.id} value={owner.id}>
                         <div className="flex flex-col">
                           <span>{owner.name} ({owner.email})</span>
@@ -436,7 +438,7 @@ export default function StationsPage() {
                   <TableRow key={station.id}>
                     <TableCell>
                       <div>
-                        <div className="font-medium">{station.name}</div>
+                        <div className="font-medium">{station.name || 'Unnamed Station'}</div>
                         {station.code && (
                           <div className="text-xs text-muted-foreground">{station.code}</div>
                         )}

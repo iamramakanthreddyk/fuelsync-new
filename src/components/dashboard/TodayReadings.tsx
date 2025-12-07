@@ -7,9 +7,11 @@ import { safeToFixed } from '@/lib/format-utils';
 import { useAuth } from '@/hooks/useAuth';
 import { FuelType } from '@/core/enums';
 
-interface TodayReadingsProps {}
+interface TodayReadingsProps {
+  className?: string;
+}
 
-export function TodayReadings({}: TodayReadingsProps) {
+export function TodayReadings({ className }: TodayReadingsProps) {
   const { user } = useAuth();
   const [readings, setReadings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);

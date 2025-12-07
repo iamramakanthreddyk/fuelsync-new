@@ -37,11 +37,42 @@ export default function PricesPage() {
   const [selectedFuelType, setSelectedFuelType] = useState<"PETROL" | "DIESEL" | "CNG" | "EV" | undefined>(undefined);
   const [selectedPrice, setSelectedPrice] = useState<string>("");
   const [selectedStationId, setSelectedStationId] = useState<string>("");
+  const [addEditLoading, setAddEditLoading] = useState(false);
   
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { stations, isOwner, isAdmin } = useRoleAccess();
   
+  // Determine which station to show prices for:
+  // 1. Use route parameter if accessing via /owner/stations/:id/prices
+  // 2. Fall back to user selection if on generic /prices page
+  // 3. Default to first station
+  const defaultStationId = useMemo(() => {
+    if (routeStationId) {
+      return routeStationId;
+    }
+    return selectedStationId || stations[0]?.id || "";
+  }, [routeStationId, selectedStationId, stations]);
+  
+  // Fetch prices for the SELECTED station (not relying on currentStation)
+  const { data: fuelPrices, isLoading: pricesLoading, error: pricesError } = useFuelPricesData(defaultStationId);
+  
+  // Get the currently selected station details
+  const currentStation = useMemo(() => {
+    return stations.find(s => s.id === defaultStationId) || stations[0];
+  }, [defaultStationId, stations]);
+
+  const ALL_FUEL_TYPES: ("PETROL" | "DIESEL" | "CNG" | "EV")[] = ["PETROL", "DIESEL", "CNG", "EV"];
+  // Ensure fuelPrices is an array before calling map
+  const presentFuelTypes = Array.isArray(fuelPrices) ? fuelPrices.map(p => p.fuel_type) : [];
+  const missingFuelTypes = ALL_FUEL_TYPES.filter(
+    ft => !presentFuelTypes.includes(ft)
+  );
+
+  function isValidFuelType(ft: string): ft is "PETROL" | "DIESEL" | "CNG" | "EV" {
+    return ["PETROL", "DIESEL", "CNG", "EV"].includes(ft);
+  }
+
   // Show loading if stations are not loaded yet
   if (!stations || stations.length === 0) {
     return (
@@ -70,37 +101,6 @@ export default function PricesPage() {
         </Card>
       </div>
     );
-  }
-  
-  // Determine which station to show prices for:
-  // 1. Use route parameter if accessing via /owner/stations/:id/prices
-  // 2. Fall back to user selection if on generic /prices page
-  // 3. Default to first station
-  const defaultStationId = useMemo(() => {
-    if (routeStationId) {
-      return routeStationId;
-    }
-    return selectedStationId || stations[0]?.id || "";
-  }, [routeStationId, selectedStationId, stations]);
-  
-  // Fetch prices for the SELECTED station (not relying on currentStation)
-  const { data: fuelPrices, isLoading: pricesLoading, error: pricesError } = useFuelPricesData(defaultStationId);
-  
-  // Get the currently selected station details
-  const currentStation = useMemo(() => {
-    return stations.find(s => s.id === defaultStationId) || stations[0];
-  }, [defaultStationId, stations]);
-
-  const ALL_FUEL_TYPES: ("PETROL" | "DIESEL" | "CNG" | "EV")[] = ["PETROL", "DIESEL", "CNG", "EV"];
-  // Ensure fuelPrices is an array before calling map
-  const presentFuelTypes = Array.isArray(fuelPrices) ? fuelPrices.map(p => p.fuel_type) : [];
-  const missingFuelTypes = ALL_FUEL_TYPES.filter(
-    ft => !presentFuelTypes.includes(ft)
-  );
-
-  const [addEditLoading, setAddEditLoading] = useState(false);
-  function isValidFuelType(ft: string): ft is "PETROL" | "DIESEL" | "CNG" | "EV" {
-    return ["PETROL", "DIESEL", "CNG", "EV"].includes(ft);
   }
 
   const openAddDialog = () => {
