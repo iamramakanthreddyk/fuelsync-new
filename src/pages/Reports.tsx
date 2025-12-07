@@ -21,16 +21,25 @@ import { toCsv, downloadCsv } from '@/lib/csv';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { safeToFixed } from '@/lib/format-utils';
+import { useStations } from '@/hooks/api';
 // charts are not used in this page yet
 
 export default function Reports() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportType, setReportType] = useState('daily');
+  const [selectedStation, setSelectedStation] = useState<string>('all');
   const { user } = useAuth();
   const { toast } = useToast();
 
-  const currentStation = user?.stations?.[0];
+  // Fetch stations
+  const { data: stationsResponse } = useStations();
+  const stations = stationsResponse?.data;
+
+  // Determine current station based on selection
+  const currentStation = selectedStation === 'all' 
+    ? user?.stations?.[0] 
+    : stations?.find(s => s.id === selectedStation);
 
   // Use central hook for reports
   const { data: reportResponse, isLoading } = useReports(currentStation?.id, startDate, endDate, reportType as ReportType, !!currentStation);
@@ -73,7 +82,7 @@ export default function Reports() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
               <Label htmlFor="startDate">Start Date</Label>
               <Input
@@ -93,6 +102,22 @@ export default function Reports() {
               />
             </div>
             <div>
+              <Label htmlFor="station">Station</Label>
+              <Select value={selectedStation} onValueChange={setSelectedStation}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Stations</SelectItem>
+                  {(Array.isArray(stations) ? stations : []).map((station) => (
+                    <SelectItem key={station.id} value={station.id}>
+                      {station.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
               <Label htmlFor="reportType">Report Type</Label>
               <Select value={reportType} onValueChange={setReportType}>
                 <SelectTrigger>
@@ -106,11 +131,11 @@ export default function Reports() {
                 </SelectContent>
               </Select>
             </div>
-                  <div className="flex items-end">
-                    <Button onClick={handleExport} className="w-full">
-                      Export Report
-                    </Button>
-                  </div>
+            <div className="flex items-end">
+              <Button onClick={handleExport} className="w-full">
+                Export Report
+              </Button>
+            </div>
           </div>
         </CardContent>
       </Card>
