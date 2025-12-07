@@ -289,7 +289,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         [col('pump.id'), 'pumpId'],
         [col('pump.name'), 'pumpName'],
         [col('pump.pump_number'), 'pumpNumber'],
-        [col('pump->station.name'), 'stationName'],
+        [fn('MAX', col('pump->station.name')), 'stationName'], // Use MAX to get station name
         [fn('SUM', col('NozzleReading.total_amount')), 'totalSales'],
         [fn('SUM', col('NozzleReading.litres_sold')), 'totalQuantity'],
         [fn('COUNT', col('NozzleReading.id')), 'transactions']
@@ -317,7 +317,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         ],
         litresSold: { [Op.gt]: 0 }
       },
-      group: ['pump.id', 'pump.name', 'pump.pump_number', 'pump->station.name'],
+      group: ['pump.id', 'pump.name', 'pump.pump_number'], // Remove station name from GROUP BY
       raw: true
     });
 
