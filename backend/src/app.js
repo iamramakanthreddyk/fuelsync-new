@@ -67,9 +67,25 @@ if (!isDevelopment) {
 
 console.log('🔓 CORS Enabled for:', isDevelopment ? 'ALL (development)' : corsOrigins);
 
-// Simple CORS configuration - allow all methods and headers
+// CORS origin validation function
+const corsOriginValidator = (origin, callback) => {
+  if (isDevelopment) {
+    // Allow all origins in development
+    callback(null, true);
+  } else if (!origin) {
+    // Allow requests with no origin (like mobile apps, Postman, curl)
+    callback(null, true);
+  } else if (Array.isArray(corsOrigins) && corsOrigins.includes(origin)) {
+    callback(null, true);
+  } else if (corsOrigins === true) {
+    callback(null, true);
+  } else {
+    callback(new Error('Not allowed by CORS'));
+  }
+};
+
 const corsOptions = {
-  origin: corsOrigins,
+  origin: corsOriginValidator,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS', 'HEAD'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id', 'Accept'],
@@ -77,20 +93,8 @@ const corsOptions = {
   maxAge: 86400 // 24 hours
 };
 
-// Apply CORS middleware FIRST
+// Apply CORS middleware FIRST - this handles OPTIONS automatically
 app.use(cors(corsOptions));
-
-// Handle preflight separately (just in case)
-app.options('*', (req, res) => {
-  res.header('Access-Control-Allow-Origin', corsOptions.origin === true ? req.get('origin') : corsOptions.origin);
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS, HEAD');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, x-tenant-id, Accept');
-  res.sendStatus(200);
-});
-
-// Trust Railway/Heroku proxy for correct client IP
-app.set('trust proxy', 1);
 
 // Security headers - but SAFE for CORS
 app.use(helmet({
