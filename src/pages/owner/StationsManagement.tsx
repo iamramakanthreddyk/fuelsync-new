@@ -33,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, queryKeys } from '@/hooks/api';
 import { useFuelPricesData } from '@/hooks/useFuelPricesData';
+import { safeToFixed } from '@/lib/format-utils';
 import { Station } from '@/types/api';
 import type { ApiResponse } from '@/lib/api-client';
 import { 
@@ -232,7 +233,7 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
               {price.fuel_type}
             </div>
             <div className="text-sm font-semibold text-green-700">
-              ₹{price.price_per_litre.toFixed(2)}
+              ₹{safeToFixed(price.price_per_litre, 2)}
             </div>
           </div>
         ))}
