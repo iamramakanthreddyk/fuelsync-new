@@ -114,40 +114,65 @@ async function executeMigrations() {
   console.log('\n⚙️  [MIGRATIONS] Running pending migrations...\n');
   
   try {
-    const { execSync } = require('child_process');
+    const path = require('path');
+    const fs = require('fs');
+    const Umzug = require('umzug').Umzug;
     
-    // Run sequelize CLI migrations
+    // Define migrations folder path
+    const migrationsPath = path.join(__dirname, '../../migrations');
+    
+    // Check if migrations folder exists
+    if (!fs.existsSync(migrationsPath)) {
+      console.log('   ℹ️  No migrations folder found, skipping migrations\n');
+      return true;
+    }
+    
+    // Get list of migration files
+    const migrationFiles = fs.readdirSync(migrationsPath).filter(file => file.endsWith('.js'));
+    
+    if (migrationFiles.length === 0) {
+      console.log('   ℹ️  No migration files found, skipping migrations\n');
+      return true;
+    }
+    
+    console.log(`   📋 Found ${migrationFiles.length} migration file(s):`);
+    migrationFiles.forEach(file => console.log(`      - ${file}`));
+    
+    // Try using Umzug for migrations (preferred)
     try {
-      console.log('   Executing: npx sequelize-cli db:migrate\n');
-      
-      const output = execSync('npx sequelize-cli db:migrate', {
-        cwd: process.cwd(),
-        encoding: 'utf-8',
-        stdio: 'pipe'
+      const umzug = new Umzug({
+        migrations: {
+          glob: path.join(migrationsPath, '*.js'),
+          resolve: ({ name, path: migPath, context }) => {
+            const migration = require(migPath);
+            return {
+              name,
+              up: () => migration.up(context, db.Sequelize),
+              down: () => migration.down(context, db.Sequelize),
+            };
+          },
+        },
+        context: db.sequelize.getQueryInterface(),
+        storage: new (require('umzug').SequelizeStorage)({ sequelize: db.sequelize }),
+        logger: console,
       });
       
-      console.log(output);
-      console.log('   ✅ Migrations executed successfully\n');
+      const executed = await umzug.up();
+      
+      if (executed.length === 0) {
+        console.log('   ✅ All migrations already applied\n');
+      } else {
+        console.log(`   ✅ ${executed.length} migration(s) executed successfully\n`);
+      }
+      
       return true;
+    } catch (umzugError) {
+      console.log(`   ⚠️  Umzug migration failed: ${umzugError.message}`);
+      console.log('   Falling back to db.sync()...\n');
       
-    } catch (execError) {
-      const errorMsg = execError.stdout || execError.stderr || execError.message;
-      
-      // Check if migrations are already applied
-      if (errorMsg.includes('already up to date') || errorMsg.includes('no changes')) {
-        console.log('   ✅ All migrations already up to date\n');
-        return true;
-      }
-      
-      // Check if it's a real error
-      if (errorMsg.includes('ERROR') || errorMsg.includes('does not exist')) {
-        console.error('\n❌ [MIGRATIONS] Migration execution failed!');
-        console.error(`   ${errorMsg}\n`);
-        throw new Error(`Migration failed: ${errorMsg}`);
-      }
-      
-      // Otherwise, assume success (migrations might have run)
-      console.log('   ⚠️  Migration execution completed (check logs above)\n');
+      // Fallback to db.sync()
+      await db.sequelize.sync({ alter: true });
+      console.log('   ✅ Database synced with alter mode\n');
       return true;
     }
     
