@@ -51,12 +51,14 @@ import {
 import {
   type FuelType,
   type EquipmentStatus,
+  type PaymentMethod,
   FuelTypeEnum,
-  EquipmentStatusEnum
+  EquipmentStatusEnum,
+  PaymentMethodEnum
 } from '@/core/enums';
 
 // Define reading payment types (subset of PaymentMethod used for readings)
-type ReadingPaymentType = 'cash' | 'digital' | 'credit';
+type ReadingPaymentType = PaymentMethod;
 
 interface Creditor {
   id: string;
@@ -138,7 +140,7 @@ export default function StationDetail() {
     nozzleId: '',
     readingValue: '',
     readingDate: formatDateISO(new Date()),
-    paymentType: 'cash' as ReadingPaymentType
+    paymentType: PaymentMethodEnum.CASH as PaymentMethod
   });
 
   const [priceForm, setPriceForm] = useState({
@@ -492,7 +494,7 @@ export default function StationDetail() {
       queryClient.invalidateQueries({ queryKey: ['analytics'] });
       toast({ title: 'Success', description: 'Reading added successfully', variant: 'success' });
       setIsReadingDialogOpen(false);
-      setReadingForm({ nozzleId: '', readingValue: '', readingDate: formatDateISO(new Date()), paymentType: 'cash' });
+      setReadingForm({ nozzleId: '', readingValue: '', readingDate: formatDateISO(new Date()), paymentType: PaymentMethodEnum.CASH as PaymentMethod });
       setSelectedNozzle(null);
     },
     onError: (error: unknown) => {
@@ -608,7 +610,7 @@ export default function StationDetail() {
       nozzleId: nozzle.id,
       readingValue: '',
       readingDate: formatDateISO(new Date()),
-      paymentType: 'cash'
+      paymentType: PaymentMethodEnum.CASH as PaymentMethod
     });
     setIsReadingDialogOpen(true);
   };
@@ -1406,15 +1408,15 @@ export default function StationDetail() {
               <Label htmlFor="paymentType">Payment Type *</Label>
               <Select
                 value={readingForm.paymentType}
-                onValueChange={(value) => setReadingForm({ ...readingForm, paymentType: value as ReadingPaymentType })}
+                onValueChange={(value) => setReadingForm({ ...readingForm, paymentType: value as PaymentMethod })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="cash">Cash</SelectItem>
-                  <SelectItem value="digital">Digital</SelectItem>
-                  <SelectItem value="credit">Credit</SelectItem>
+                  <SelectItem value={PaymentMethodEnum.CASH}>Cash</SelectItem>
+                  <SelectItem value={PaymentMethodEnum.UPI}>Digital</SelectItem>
+                  <SelectItem value={PaymentMethodEnum.CREDIT}>Credit</SelectItem>
                 </SelectContent>
               </Select>
             </div>

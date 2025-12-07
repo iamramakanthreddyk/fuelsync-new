@@ -5,6 +5,7 @@
 
 import { Badge } from '@/components/ui/badge';
 import { safeToFixed } from '@/lib/format-utils';
+import { EquipmentStatusEnum } from '@/core/enums';
 
 interface SaleCalculationProps {
   nozzleNumber: number;
@@ -12,7 +13,7 @@ interface SaleCalculationProps {
   lastReading: number;
   enteredReading: number;
   fuelPrice: number;
-  status?: 'active' | 'inactive' | 'maintenance' | 'offline';
+  status?: EquipmentStatusEnum;
 }
 
 export function ReadingSaleCalculation({
@@ -21,11 +22,11 @@ export function ReadingSaleCalculation({
   lastReading,
   enteredReading,
   fuelPrice,
-  status = 'active'
+  status = EquipmentStatusEnum.ACTIVE
 }: SaleCalculationProps) {
   const litersDispensed = Math.max(0, enteredReading - lastReading);
   const saleValue = litersDispensed * fuelPrice;
-  const isValid = enteredReading > lastReading && status === 'active';
+  const isValid = enteredReading > lastReading && status === EquipmentStatusEnum.ACTIVE;
 
   return (
     <div className="p-3 bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg">

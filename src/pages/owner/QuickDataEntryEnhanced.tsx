@@ -25,6 +25,7 @@ import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { ReadingSaleCalculation } from '@/components/owner/ReadingSaleCalculation';
 import { SaleValueSummary } from '@/components/owner/SaleValueSummary';
+import { EquipmentStatusEnum, PaymentMethodEnum } from '@/core/enums';
 import {
   Zap,
   Building2,
@@ -312,7 +313,7 @@ export default function QuickDataEntry() {
         nozzleId,
         readingValue: value,
         date: readingDate,
-        paymentType: 'cash'
+        paymentType: PaymentMethodEnum.CASH
       }
     }));
   };
@@ -336,7 +337,7 @@ export default function QuickDataEntry() {
     const allFuelTypes = new Set<string>();
     pumps.forEach(pump => {
       pump.nozzles?.forEach(nozzle => {
-        if (nozzle.status === 'active') {
+        if (nozzle.status === EquipmentStatusEnum.ACTIVE) {
           allFuelTypes.add(nozzle.fuelType.toUpperCase());
         }
       });
@@ -547,7 +548,7 @@ export default function QuickDataEntry() {
                                   placeholder="0.00"
                                   value={reading?.readingValue || ''}
                                   onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
-                                  disabled={nozzle.status !== 'active' || !hasFuelPrice}
+                                  disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
                                   className={`text-sm h-8 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
                                 />
                                 {reading?.readingValue && enteredValue > compareValue && (
@@ -568,7 +569,7 @@ export default function QuickDataEntry() {
                                     lastReading={compareValue}
                                     enteredReading={enteredValue}
                                     fuelPrice={price}
-                                    status={nozzle.status}
+                                    status={nozzle.status as EquipmentStatusEnum}
                                   />
                                 </div>
                               )}

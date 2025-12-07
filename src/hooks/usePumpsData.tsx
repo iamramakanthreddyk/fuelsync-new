@@ -10,6 +10,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import { extractApiArray } from "@/lib/api-response";
 import { useRoleAccess } from "./useRoleAccess";
+import { EquipmentStatusEnum, FuelTypeEnum } from "@/core/enums";
 import type { Pump as PumpType, Nozzle as NozzleType } from '@/types/api';
 
 // Backend pump format
@@ -18,7 +19,7 @@ interface BackendPump {
   stationId: string;
   pumpNumber: number;
   name: string;
-  status: 'active' | 'inactive' | 'maintenance';
+  status: EquipmentStatusEnum;
   notes?: string;
   createdAt: string;
   updatedAt: string;
@@ -30,8 +31,8 @@ interface BackendNozzle {
   pumpId: string;
   stationId: string;
   nozzleNumber: number;
-  fuelType: 'petrol' | 'diesel';
-  status: 'active' | 'inactive' | 'maintenance';
+  fuelType: FuelTypeEnum;
+  status: EquipmentStatusEnum;
   initialReading: number;
   lastReading?: number;
   lastReadingDate?: string;

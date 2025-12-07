@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
-import { FuelType, FuelTypeEnum } from '@/core/enums';
+import { FuelType, FuelTypeEnum, PaymentMethod, PaymentMethodEnum } from '@/core/enums';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -40,7 +40,7 @@ interface ManualEntryData {
 interface TenderEntryData {
   station_id: string;
   entry_date: string;
-  type: 'cash' | 'card' | 'upi' | 'credit';
+  type: PaymentMethod;
   payer: string;
   amount: string;
 }
@@ -179,7 +179,7 @@ export default function DataEntry() {
     defaultValues: {
       station_id: userStations[0]?.id || '',
       entry_date: format(new Date(), 'yyyy-MM-dd'),
-      type: 'cash',
+      type: PaymentMethodEnum.CASH,
       payer: '',
       amount: ''
     }
@@ -649,16 +649,16 @@ export default function DataEntry() {
                     <Label htmlFor="tender-type">Payment Type</Label>
                     <Select 
                       value={watchTender('type') || ''} 
-                      onValueChange={value => setTenderValue('type', value as 'cash' | 'card' | 'upi' | 'credit')}
+                      onValueChange={value => setTenderValue('type', value as PaymentMethod)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select payment type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="cash">Cash</SelectItem>
-                        <SelectItem value="card">Card</SelectItem>
-                        <SelectItem value="upi">UPI</SelectItem>
-                        <SelectItem value="credit">Credit</SelectItem>
+                        <SelectItem value={PaymentMethodEnum.CASH}>Cash</SelectItem>
+                        <SelectItem value={PaymentMethodEnum.CARD}>Card</SelectItem>
+                        <SelectItem value={PaymentMethodEnum.UPI}>UPI</SelectItem>
+                        <SelectItem value={PaymentMethodEnum.CREDIT}>Credit</SelectItem>
                       </SelectContent>
                     </Select>
                     {tenderErrors.type && (

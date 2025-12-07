@@ -56,7 +56,7 @@ export default function NozzleReadings() {
         cumulative_volume: 0,
         reading_date: new Date().toISOString().split('T')[0],
         reading_time: new Date().toTimeString().slice(0, 5),
-        fuel_type: 'Petrol' as 'Petrol' | 'Diesel'
+        fuel_type: FuelTypeEnum.PETROL
       });
       toast({
         title: "Success",
@@ -77,7 +77,7 @@ export default function NozzleReadings() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { cumulative_volume: number; fuel_type: 'Petrol' | 'Diesel' } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { cumulative_volume: number; fuel_type: FuelType } }) =>
       apiService.updateNozzleReading(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nozzle-readings'] });
@@ -138,7 +138,7 @@ export default function NozzleReadings() {
         id: editingReading.id,
         data: {
           cumulative_volume: editingReading.cumulativeVolume,
-          fuel_type: editingReading.fuelType as 'Petrol' | 'Diesel'
+          fuel_type: editingReading.fuelType as FuelType
         }
       });
     }
@@ -303,7 +303,7 @@ export default function NozzleReadings() {
               {readings.map((reading) => (
                 <div key={reading.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex items-center gap-4">
-                    <span className="text-2xl">{reading.fuelType === 'Petrol' ? '⛽' : '🚛'}</span>
+                    <span className="text-2xl">{reading.fuelType === FuelTypeEnum.PETROL ? '⛽' : '🚛'}</span>
                     <div>
                       <p className="font-medium">
                         {reading.pumpSno} - Nozzle {reading.nozzleId}
@@ -334,7 +334,7 @@ export default function NozzleReadings() {
                             userId: reading.userId,
                             pumpSno: reading.pumpSno,
                             nozzleId: reading.nozzleId,
-                            fuelType: reading.fuelType as 'Petrol' | 'Diesel',
+                            fuelType: reading.fuelType as FuelType,
                             cumulativeVolume: reading.cumulativeVolume,
                             readingDate: reading.readingDate,
                             readingTime: reading.readingTime,

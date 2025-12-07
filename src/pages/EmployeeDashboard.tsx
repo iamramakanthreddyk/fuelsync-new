@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Fuel, DollarSign, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
+import { EquipmentStatusEnum } from '@/core/enums';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
@@ -256,7 +257,7 @@ const EmployeeDashboard = () => {
                     <div>
                       <p className="font-medium">{pump.name || `Pump ${pump.number}`}</p>
                       <Badge 
-                        variant={pump.status === 'active' ? 'default' : 'secondary'}
+                        variant={pump.status === EquipmentStatusEnum.ACTIVE ? 'default' : 'secondary'}
                         className="text-xs"
                       >
                         {pump.status}

@@ -1,6 +1,8 @@
 // src/lib/apiPayloadHelpers.ts
 // Global helper to map form values to API payloads with correct types and keys
 
+import { PaymentMethod } from '@/core/enums';
+
 /**
  * Ensures a value is a number, returns 0 if not parseable.
  */
@@ -22,12 +24,12 @@ export function mapReadingFormToPayload(form: {
   nozzleId: string;
   readingValue: string | number;
   readingDate: string;
-  paymentType: 'cash' | 'credit' | 'digital';
+  paymentType: PaymentMethod;
 }): {
   nozzleId: string;
   readingValue: number;
   readingDate: string;
-  paymentType: 'cash' | 'credit' | 'digital';
+  paymentType: PaymentMethod;
 } {
   return {
     nozzleId: form.nozzleId,

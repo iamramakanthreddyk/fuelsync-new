@@ -23,6 +23,7 @@ import { Badge } from '@/components/ui/badge';
 import { useStations } from '@/hooks/api';
 import { safeToFixed } from '@/lib/format-utils';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { ShiftStatusEnum } from '@/core/enums';
 import {
   FileText,
   TrendingUp,
@@ -1062,7 +1063,7 @@ export default function Reports() {
                               <span className="font-medium">{shift.employeeName}</span>
                               <Badge variant={
                                 shift.status === 'completed' ? 'default' :
-                                shift.status === 'active' ? 'secondary' : 'outline'
+                                shift.status === ShiftStatusEnum.ACTIVE ? 'secondary' : 'outline'
                               }>
                                 {shift.status}
                               </Badge>

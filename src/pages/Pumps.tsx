@@ -14,6 +14,7 @@ import { Plus, Fuel, Gauge, ClipboardEdit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { usePumpsData } from "@/hooks/usePumpsData";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { EquipmentStatusEnum, FuelTypeEnum } from "@/core/enums";
 
 export default function Pumps() {
   const navigate = useNavigate();
@@ -25,7 +26,7 @@ export default function Pumps() {
     is_active: true
   });
   const [newNozzle, setNewNozzle] = useState({
-    fuel_type: 'PETROL' as 'PETROL' | 'DIESEL' | 'CNG' | 'EV'
+    fuel_type: FuelTypeEnum.PETROL as FuelTypeEnum
   });
 
   const { toast } = useToast();
@@ -39,7 +40,7 @@ export default function Pumps() {
       if (!currentStation?.id) throw new Error('No station selected');
       return await apiClient.post<{ success: boolean; data: unknown }>(`/stations/${currentStation.id}/pumps`, {
         name: pumpData.name,
-        status: pumpData.is_active ? 'active' : 'inactive'
+        status: pumpData.is_active ? EquipmentStatusEnum.ACTIVE : EquipmentStatusEnum.INACTIVE
       });
     },
     onSuccess: () => {
@@ -68,9 +69,9 @@ export default function Pumps() {
 
   // Add nozzle mutation - uses /stations/pumps/:pumpId/nozzles
   const addNozzleMutation = useMutation({
-    mutationFn: async (nozzleData: { fuel_type: 'PETROL' | 'DIESEL' | 'CNG' | 'EV'; pump_id: string }) => {
+    mutationFn: async (nozzleData: { fuel_type: FuelTypeEnum; pump_id: string }) => {
       return await apiClient.post<{ success: boolean; data: unknown }>(`/stations/pumps/${nozzleData.pump_id}/nozzles`, {
-        fuelType: nozzleData.fuel_type.toLowerCase() as 'petrol' | 'diesel',
+        fuelType: nozzleData.fuel_type.toLowerCase() as FuelTypeEnum,
         initialReading: 0
       });
     },
@@ -78,7 +79,7 @@ export default function Pumps() {
       queryClient.invalidateQueries({ queryKey: ['pumps'] });
       setIsAddNozzleOpen(false);
       setSelectedPumpId(null);
-      setNewNozzle({ fuel_type: 'PETROL' });
+      setNewNozzle({ fuel_type: FuelTypeEnum.PETROL });
       toast({
         title: "Success",
         description: "Nozzle added successfully",
@@ -217,8 +218,8 @@ export default function Pumps() {
                     Pump #{pump.pumpNumber}
                   </CardDescription>
                 </div>
-                <Badge className={pump.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                  {pump.status === 'active' ? 'Active' : 'Inactive'}
+                <Badge className={pump.status === EquipmentStatusEnum.ACTIVE ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                  {pump.status === EquipmentStatusEnum.ACTIVE ? 'Active' : 'Inactive'}
                 </Badge>
               </div>
             </CardHeader>
@@ -248,15 +249,15 @@ export default function Pumps() {
                         <div className="space-y-4">
                           <div>
                             <Label htmlFor="fuel_type">Fuel Type</Label>
-                            <Select value={newNozzle.fuel_type} onValueChange={(value: 'PETROL' | 'DIESEL' | 'CNG' | 'EV') => setNewNozzle(prev => ({ ...prev, fuel_type: value }))}>
+                            <Select value={newNozzle.fuel_type} onValueChange={(value: FuelTypeEnum) => setNewNozzle(prev => ({ ...prev, fuel_type: value }))}>
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="PETROL">Petrol</SelectItem>
-                                <SelectItem value="DIESEL">Diesel</SelectItem>
-                                <SelectItem value="CNG">CNG</SelectItem>
-                                <SelectItem value="EV">EV Charging</SelectItem>
+                                <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
+                                <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
+                                <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
+                                <SelectItem value={FuelTypeEnum.EV_CHARGING}>EV Charging</SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
@@ -279,8 +280,8 @@ export default function Pumps() {
                           <Badge className={getFuelBadgeClasses(nozzle.fuel_type)}>
                             {nozzle.fuel_type}
                           </Badge>
-                          <Badge variant="outline" className={nozzle.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                            {nozzle.status === 'active' ? 'Active' : 'Inactive'}
+                          <Badge variant="outline" className={nozzle.status === EquipmentStatusEnum.ACTIVE ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
+                            {nozzle.status === EquipmentStatusEnum.ACTIVE ? 'Active' : 'Inactive'}
                           </Badge>
                         </div>
                         {nozzle.lastReading ? (

@@ -24,6 +24,7 @@ import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { safeToFixed } from '@/lib/format-utils';
 import { FuelBadge } from '@/components/FuelBadge';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
+import { EquipmentStatusEnum, PaymentMethodEnum } from '@/core/enums';
 import {
   Zap,
   Building2,
@@ -138,7 +139,7 @@ export default function QuickDataEntry() {
         nozzleId,
         readingValue: value,
         date: readingDate,
-        paymentType: 'cash'
+        paymentType: PaymentMethodEnum.CASH
       }
     }));
   };
@@ -280,7 +281,7 @@ export default function QuickDataEntry() {
                         </CardDescription>
                       </div>
                     </div>
-                    <Badge variant={pump.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                    <Badge variant={pump.status === EquipmentStatusEnum.ACTIVE ? 'default' : 'secondary'} className="text-xs">
                       {pump.status}
                     </Badge>
                   </div>
@@ -336,7 +337,7 @@ export default function QuickDataEntry() {
                               value={readings[nozzle.id]?.readingValue || ''}
                               onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
                               className={`pr-8 ${!hasFuelPrice ? 'border-red-300' : ''}`}
-                              disabled={nozzle.status !== 'active' || !hasFuelPrice}
+                              disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
                             />
                             {readings[nozzle.id]?.readingValue && hasFuelPrice && (
                               <div className="absolute right-2 top-1/2 -translate-y-1/2">
