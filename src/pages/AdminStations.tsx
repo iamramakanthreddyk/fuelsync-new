@@ -38,7 +38,7 @@ export default function AdminStations() {
   const { data: stations, isLoading } = useQuery({
     queryKey: ['admin-stations'],
     queryFn: async () => {
-      const response = await apiClient.get<any>('/admin/stations');
+      const response = await apiClient.get<any>('/api/v1/stations');
       
       // Extract data from wrapped response { success, data, pagination }
       if (response && typeof response === 'object') {
@@ -81,6 +81,35 @@ export default function AdminStations() {
     },
   });
 
+  // Fetch selected owner's plan and station count for validation
+  const { data: selectedOwnerData } = useQuery({
+    queryKey: ['owner-data', newStation.owner_id],
+    queryFn: async () => {
+      if (!newStation.owner_id) return null;
+      
+      try {
+        // Get owner details with plan
+        const ownerResponse = await apiClient.get<any>(`/users/${newStation.owner_id}`);
+        const owner = ownerResponse?.data || ownerResponse;
+        
+        // Get owner's current station count
+        const stationsResponse = await apiClient.get<any>('/api/v1/stations');
+        const allStations = stationsResponse?.data || stationsResponse || [];
+        const ownerStations = allStations.filter((s: any) => s.ownerId === newStation.owner_id);
+        
+        return {
+          owner,
+          stationCount: ownerStations.length,
+          plan: owner?.plan
+        };
+      } catch (error) {
+        console.error('Error fetching owner data:', error);
+        throw error;
+      }
+    },
+    enabled: !!newStation.owner_id,
+  });
+
   // Add station mutation using REST API
   const addStationMutation = useMutation({
     mutationFn: async (stationData: typeof newStation) => {
@@ -94,6 +123,7 @@ export default function AdminStations() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-stations'] });
+      queryClient.invalidateQueries({ queryKey: ['owner-data'] });
       setIsAddStationOpen(false);
       setNewStation({
         name: '',
@@ -157,6 +187,14 @@ export default function AdminStations() {
     // Owner validation (required for super_admin)
     if (!newStation.owner_id) {
       errors.push("Please select a station owner");
+    }
+    
+    // Plan limit validation
+    if (selectedOwnerData?.plan?.maxStations != null) {
+      const currentCount = selectedOwnerData.stationCount || 0;
+      if (currentCount + 1 > selectedOwnerData.plan.maxStations) {
+        errors.push(`Plan limit exceeded. ${selectedOwnerData.plan.name} plan allows ${selectedOwnerData.plan.maxStations} station(s). Currently has ${currentCount}.`);
+      }
     }
     
     if (errors.length > 0) {
@@ -252,6 +290,15 @@ export default function AdminStations() {
                 </Select>
                 {ownersError && (
                   <p className="text-xs text-red-500 mt-1">Failed to load owners</p>
+                )}
+                {selectedOwnerData && (
+                  <div className="mt-2 p-2 bg-muted rounded text-xs">
+                    <div className="font-medium">Plan: {selectedOwnerData.plan?.name || 'No Plan'}</div>
+                    <div>Current Stations: {selectedOwnerData.stationCount || 0}</div>
+                    {selectedOwnerData.plan?.maxStations && (
+                      <div>Limit: {selectedOwnerData.stationCount || 0} / {selectedOwnerData.plan.maxStations}</div>
+                    )}
+                  </div>
                 )}
               </div>
               <Button onClick={handleAddStation} disabled={addStationMutation.isPending} className="w-full">
