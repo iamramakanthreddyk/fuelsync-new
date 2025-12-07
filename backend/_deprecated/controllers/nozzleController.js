@@ -16,13 +16,25 @@ exports.createNozzle = async (req, res) => {
     const { pumpId } = req.params;
     const { nozzleId, nozzleNumber, fuelType, fuel_type, initialReading, initial_reading, maxFlowRate } = req.body;
 
+    console.log('Create nozzle request:', {
+      pumpId,
+      body: req.body,
+      nozzleId,
+      nozzleNumber,
+      fuelType,
+      fuel_type
+    });
+
     // Support both field names for backward compatibility
     const nozzleNum = nozzleNumber || nozzleId;
     const fuel = fuelType || fuel_type;
     const initial = initialReading || initial_reading || 0;
 
+    console.log('Parsed values:', { nozzleNum, fuel, initial });
+
     // Validation
     if (!nozzleNum || nozzleNum < 1 || nozzleNum > 10) {
+      console.log('Validation failed: nozzleNum =', nozzleNum);
       return res.status(400).json({
         success: false,
         error: 'Nozzle number must be between 1 and 10'
@@ -83,10 +95,16 @@ exports.createNozzle = async (req, res) => {
       message: 'Nozzle created successfully'
     });
   } catch (error) {
-    console.error('Create nozzle error:', error);
+    console.error('Create nozzle error:', {
+      message: error.message,
+      stack: error.stack,
+      pumpId: req.params.pumpId,
+      body: req.body
+    });
     res.status(500).json({
       success: false,
-      error: 'Failed to create nozzle'
+      error: 'Internal server error',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
 };
