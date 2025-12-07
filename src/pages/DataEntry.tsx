@@ -407,7 +407,10 @@ export default function DataEntry() {
               Data Entry <span className="text-fuel-orange text-lg">•</span>
             </div>
             <div className="mt-1 text-muted-foreground text-base">
-              Add readings, tenders, or tank refills quickly.
+              {userStations.length === 1 
+                ? `Add readings, tenders, or tank refills for ${userStations[0].name}`
+                : 'Add readings, tenders, or tank refills quickly.'
+              }
             </div>
           </div>
           <span className="rounded px-2 py-0.5 text-xs bg-primary/10 text-primary font-medium mt-3 md:mt-0 shadow">
