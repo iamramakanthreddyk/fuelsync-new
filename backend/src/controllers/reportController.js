@@ -258,7 +258,7 @@ exports.getPumpPerformance = async (req, res, next) => {
 
     const stationIds = stations.map(s => s.id);
 
-    // Get pump performance data
+    // Get pump performance data - use LEFT JOIN and filter properly
     const pumpData = await NozzleReading.findAll({
       attributes: [
         [col('pump.id'), 'pumpId'],
@@ -273,14 +273,16 @@ exports.getPumpPerformance = async (req, res, next) => {
         model: Pump,
         as: 'pump',
         attributes: [],
-        where: { stationId: { [Op.in]: stationIds } },
+        required: false, // LEFT JOIN to handle missing pumps
         include: [{
           model: Station,
           as: 'station',
-          attributes: []
+          attributes: [],
+          required: false // LEFT JOIN for station
         }]
       }],
       where: {
+        stationId: { [Op.in]: stationIds }, // Filter by station directly from NozzleReading
         readingDate: {
           [Op.between]: [startDate, endDate]
         },
@@ -290,7 +292,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         ],
         litresSold: { [Op.gt]: 0 }
       },
-      group: ['pumpId'],
+      group: ['pump.id', 'pump.name', 'pump.pump_number', 'pump->station.name'],
       raw: true
     });
 
@@ -308,13 +310,21 @@ exports.getPumpPerformance = async (req, res, next) => {
         model: Pump,
         as: 'pump',
         attributes: [],
-        where: { stationId: { [Op.in]: stationIds } }
+        required: false,
+        include: [{
+          model: Station,
+          as: 'station',
+          attributes: [],
+          required: false
+        }]
       }, {
         model: Nozzle,
         as: 'nozzle',
-        attributes: []
+        attributes: [],
+        required: false
       }],
       where: {
+        stationId: { [Op.in]: stationIds }, // Filter by station directly from NozzleReading
         readingDate: {
           [Op.between]: [startDate, endDate]
         },
@@ -324,7 +334,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         ],
         litresSold: { [Op.gt]: 0 }
       },
-      group: ['pumpId', 'nozzleId'],
+      group: ['pump.id', 'nozzle.id', 'nozzle.nozzle_number', 'nozzle.fuel_type'],
       raw: true
     });
 
@@ -375,7 +385,16 @@ exports.getPumpPerformance = async (req, res, next) => {
     });
 
   } catch (error) {
-    console.error('Pump performance error:', error);
+    console.error('Pump performance error:', {
+      message: error.message,
+      stack: error.stack,
+      query: {
+        startDate,
+        endDate,
+        stationId,
+        stationFilter: stationFilter ? Object.keys(stationFilter) : null
+      }
+    });
     next(error);
   }
 };
