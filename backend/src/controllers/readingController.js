@@ -134,11 +134,11 @@ exports.createReading = async (req, res, next) => {
     const fuelPrice = await FuelPrice.getPriceForDate(stationId, nozzle.fuelType, readingDate);
 
     // Allow legacy clients/tests to supply `pricePerLitre` or `totalAmount` explicitly.
-    // Prefer fuelPrice from DB, then client-provided pricePerLitre, then sensible defaults.
+    // Prefer client-provided pricePerLitre, then fuelPrice from DB, then sensible defaults.
     const clientPrice = req.body.pricePerLitre !== undefined ? parseFloat(req.body.pricePerLitre) : undefined;
     const clientTotal = req.body.totalAmount !== undefined ? parseFloat(req.body.totalAmount) : undefined;
 
-    let pricePerLitre = fuelPrice || clientPrice || (isInitialReading ? 100 : 0);
+    let pricePerLitre = clientPrice || fuelPrice || (isInitialReading ? 100 : 0);
 
     // If no DB price and the client did not provide pricePerLitre but provided totalAmount,
     // derive pricePerLitre from totalAmount/litresSold when possible (avoid divide by zero).

@@ -260,6 +260,10 @@ export default function DataEntry() {
         readingDate: data.reading_date,
         readingValue: data.cumulative_vol,
         readingTime: data.reading_time,
+        // Include calculated values to ensure backend uses same calculations
+        pricePerLitre: saleCalculation.pricePerLitre,
+        totalAmount: saleCalculation.saleValue,
+        litresSold: saleCalculation.litresSold,
         // Include payment breakdown if sale has value
         ...(saleCalculation.saleValue > 0 && paymentSplit && {
           paymentBreakdown: {
