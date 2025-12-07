@@ -594,13 +594,26 @@ exports.getPumps = async (req, res, next) => {
 };
 
 exports.createPump = async (req, res, next) => {
-  const t = await sequelize.transaction();
+  let t;
   try {
     const { stationId } = req.params;
     const { name, notes, pumpNumber } = req.body;
     const user = req.user;
 
-    console.log(`🔧 CREATE PUMP - Station: ${stationId}, User: ${user.id}`);
+    console.log(`🔧 CREATE PUMP - Station: ${stationId}, User: ${user?.id}, Body:`, JSON.stringify(req.body));
+
+    // Validate required parameters
+    if (!stationId) {
+      return res.status(400).json({ success: false, error: 'Station ID is required' });
+    }
+
+    if (!user) {
+      return res.status(401).json({ success: false, error: 'Authentication required' });
+    }
+
+    // Start transaction
+    t = await sequelize.transaction();
+    console.log(`🔧 Transaction started for pump creation`);
 
     // Check station access
     if (!(await canAccessStation(user, stationId))) {
@@ -627,8 +640,25 @@ exports.createPump = async (req, res, next) => {
       }
     }
 
-    let finalPumpNumber = pumpNumber;
-    let pump = null;
+    // Validate request body
+    if (pumpNumber !== undefined && pumpNumber !== null && pumpNumber !== '') {
+      const num = parseInt(pumpNumber);
+      if (isNaN(num) || num < 1) {
+        await t.rollback();
+        return res.status(400).json({ success: false, error: 'Pump number must be a positive integer' });
+      }
+      finalPumpNumber = num;
+    }
+
+    if (name && typeof name !== 'string') {
+      await t.rollback();
+      return res.status(400).json({ success: false, error: 'Pump name must be a string' });
+    }
+
+    if (notes && typeof notes !== 'string') {
+      await t.rollback();
+      return res.status(400).json({ success: false, error: 'Pump notes must be a string' });
+    }
     
     if (finalPumpNumber == null || finalPumpNumber === '') {
       // Auto-generate pump number - find the next available number for this station
@@ -670,27 +700,28 @@ exports.createPump = async (req, res, next) => {
       console.log(`🔧 Using provided pump number: ${finalPumpNumber}`);
       // Check if pump with this number already exists
       const existingPump = await Pump.findOne({ where: { stationId, pumpNumber: finalPumpNumber }, transaction: t });
-      
+
       if (existingPump) {
-        // User provided pump number that exists - update existing pump
-        await existingPump.update({ 
-          name: name || `Pump ${finalPumpNumber}`, 
-          notes 
-        }, { transaction: t });
-        
-        await t.commit();
-        console.log(`✅ PUMP UPDATED - ID: ${existingPump.id}, Number: ${existingPump.pumpNumber}, Name: ${existingPump.name}`);
-        return res.status(200).json({ success: true, data: existingPump, message: 'Pump updated successfully' });
-      } else {
-        // Create new pump with provided number
-        pump = await Pump.create({
-          stationId,
-          name: name || `Pump ${finalPumpNumber}`,
-          pumpNumber: finalPumpNumber,
-          status: 'active',
-          notes
-        }, { transaction: t });
+        await t.rollback();
+        return res.status(409).json({
+          success: false,
+          error: `Pump with number ${finalPumpNumber} already exists for this station`,
+          existingPump: {
+            id: existingPump.id,
+            name: existingPump.name,
+            status: existingPump.status
+          }
+        });
       }
+
+      // Create new pump with provided number
+      pump = await Pump.create({
+        stationId,
+        name: name || `Pump ${finalPumpNumber}`,
+        pumpNumber: finalPumpNumber,
+        status: 'active',
+        notes
+      }, { transaction: t });
     }
 
     // Post-create verification
@@ -710,17 +741,52 @@ exports.createPump = async (req, res, next) => {
     res.status(201).json({ success: true, data: pump });
 
   } catch (error) {
-    console.error(`❌ CREATE PUMP ERROR - Station: ${req.params.stationId}`, error.message);
-    try { await t.rollback(); } catch (e) { /* ignore */ }
-    
+    console.error(`❌ CREATE PUMP ERROR - Station: ${req.params.stationId}`, {
+      message: error.message,
+      name: error.name,
+      stack: error.stack,
+      code: error.code,
+      sql: error.sql
+    });
+
+    // Try to rollback transaction if it exists
+    if (t) {
+      try {
+        await t.rollback();
+        console.log(`🔧 Transaction rolled back`);
+      } catch (rollbackError) {
+        console.error(`❌ Failed to rollback transaction:`, rollbackError.message);
+      }
+    }
+
+    // Handle specific error types
     if (error.name === 'SequelizeUniqueConstraintError') {
-      // Composite unique constraint on (station_id, pump_number)
-      return res.status(409).json({ 
-        success: false, 
-        error: 'Failed to create pump - duplicate number' 
+      return res.status(409).json({
+        success: false,
+        error: 'Pump with this number already exists for this station'
       });
     }
-    next(error);
+
+    if (error.name === 'SequelizeValidationError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid pump data',
+        details: error.errors?.map(e => ({ field: e.path, message: e.message }))
+      });
+    }
+
+    if (error.name === 'SequelizeForeignKeyConstraintError') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid station ID'
+      });
+    }
+
+    // For any other error, return 500
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error while creating pump'
+    });
   }
 };
 
