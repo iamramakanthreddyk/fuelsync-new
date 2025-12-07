@@ -601,7 +601,7 @@ export default function QuickDataEntry() {
                         <p className="text-xs text-muted-foreground">Total Sale Value</p>
                         <p className="text-xl md:text-2xl font-bold text-green-600 break-all md:break-normal">
                           ₹{saleSummary.totalSaleValue >= 100000 
-                            ? `${(saleSummary.totalSaleValue / 100000).toFixed(1)}L`
+                            ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`
                             : safeToFixed(saleSummary.totalSaleValue, 2)}
                         </p>
                       </div>
@@ -610,7 +610,7 @@ export default function QuickDataEntry() {
                           <p className="text-xs text-muted-foreground truncate">Liters</p>
                           <p className="text-base md:text-lg font-semibold truncate">
                             {saleSummary.totalLiters >= 1000 
-                              ? `${(saleSummary.totalLiters / 1000).toFixed(1)}K`
+                              ? `${safeToFixed(saleSummary.totalLiters / 1000, 1)}K`
                               : safeToFixed(saleSummary.totalLiters, 1)}
                           </p>
                         </div>

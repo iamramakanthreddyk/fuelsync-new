@@ -840,10 +840,12 @@ export default function StationDetail() {
                       </div>
                       <div className="text-center">
                         <div className="text-2xl font-bold text-green-600">
-                          {pump.nozzles?.reduce((total: number, n: any) => {
-                            const lastReading = n.lastReading != null ? n.lastReading : n.initialReading;
-                            return total + (lastReading || 0);
-                          }, 0).toFixed(1) || '0.0'}
+                          {(pump.nozzles && Array.isArray(pump.nozzles))
+                            ? pump.nozzles.reduce((total: number, n: any) => {
+                                const lastReading = n.lastReading != null ? n.lastReading : n.initialReading;
+                                return total + (lastReading || 0);
+                              }, 0).toFixed(1)
+                            : '0.0'}
                         </div>
                         <div className="text-xs text-muted-foreground">Total Reading</div>
                       </div>

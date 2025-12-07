@@ -148,7 +148,7 @@ export default function DailySalesReport() {
             <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Sale Value</div>
             <div className="text-xl md:text-2xl lg:text-3xl font-bold text-green-600 break-all md:break-normal">
               ₹{report.totalSaleValue >= 100000 
-                ? `${(report.totalSaleValue / 100000).toFixed(1)}L`
+                ? `${safeToFixed(report.totalSaleValue / 100000, 1)}L`
                 : safeToFixed(report.totalSaleValue, 2)}
             </div>
             <div className="text-xs text-muted-foreground mt-2 truncate">Today's revenue</div>
@@ -160,7 +160,7 @@ export default function DailySalesReport() {
             <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Liters</div>
             <div className="text-xl md:text-2xl lg:text-3xl font-bold text-blue-600 break-all md:break-normal">
               {report.totalLiters >= 1000 
-                ? `${(report.totalLiters / 1000).toFixed(1)}K L`
+                ? `${safeToFixed(report.totalLiters / 1000, 1)}K L`
                 : `${safeToFixed(report.totalLiters, 2)} L`}
             </div>
             <div className="text-xs text-muted-foreground mt-2 truncate">Fuel dispensed</div>
@@ -182,7 +182,7 @@ export default function DailySalesReport() {
             <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Readings</div>
             <div className="text-xl md:text-2xl lg:text-3xl font-bold text-orange-600 break-all md:break-normal">
               {report.readingsCount >= 1000 
-                ? `${(report.readingsCount / 1000).toFixed(1)}K`
+                ? `${safeToFixed(report.readingsCount / 1000, 1)}K`
                 : report.readingsCount.toLocaleString()}
             </div>
             <div className="text-xs text-muted-foreground mt-2 truncate">Total entries</div>
@@ -208,7 +208,7 @@ export default function DailySalesReport() {
                     cx="50%"
                     cy="50%"
                     outerRadius={80}
-                    label={({ name, percentage }) => `${name} (${percentage.toFixed(1)}%)`}
+                    label={({ name, percentage }) => `${name} (${safeToFixed(percentage, 1)}%)`}
                   >
                     {fuelTypeArray.map((_, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />

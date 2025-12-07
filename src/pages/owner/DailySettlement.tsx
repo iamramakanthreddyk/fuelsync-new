@@ -246,7 +246,7 @@ export default function DailySettlement() {
                   <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Liters</div>
                   <div className="text-lg md:text-xl lg:text-2xl font-bold text-blue-600 break-all md:break-normal">
                     {dailySales.totalLiters >= 1000
-                      ? `${(dailySales.totalLiters / 1000).toFixed(1)}K L`
+                      ? `${safeToFixed(dailySales.totalLiters / 1000, 1)}K L`
                       : `${safeToFixed(dailySales.totalLiters, 2)} L`}
                   </div>
                 </div>
@@ -254,7 +254,7 @@ export default function DailySettlement() {
                   <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Sale Value</div>
                   <div className="text-lg md:text-xl lg:text-2xl font-bold text-green-600 break-all md:break-normal">
                     ₹{dailySales.totalSaleValue >= 100000
-                      ? `${(dailySales.totalSaleValue / 100000).toFixed(1)}L`
+                      ? `${safeToFixed(dailySales.totalSaleValue / 100000, 1)}L`
                       : safeToFixed(dailySales.totalSaleValue, 2)}
                   </div>
                 </div>
@@ -262,7 +262,7 @@ export default function DailySettlement() {
                   <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Readings</div>
                   <div className="text-lg md:text-xl lg:text-2xl font-bold text-purple-600 break-all md:break-normal">
                     {dailySales.readings.length >= 1000
-                      ? `${(dailySales.readings.length / 1000).toFixed(1)}K`
+                      ? `${safeToFixed(dailySales.readings.length / 1000, 1)}K`
                       : dailySales.readings.length.toLocaleString()}
                   </div>
                 </div>
@@ -270,7 +270,7 @@ export default function DailySettlement() {
                   <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Expected Cash</div>
                   <div className="text-lg md:text-xl lg:text-2xl font-bold text-orange-600 break-all md:break-normal">
                     ₹{dailySales.expectedCash >= 100000
-                      ? `${(dailySales.expectedCash / 100000).toFixed(1)}L`
+                      ? `${safeToFixed(dailySales.expectedCash / 100000, 1)}L`
                       : safeToFixed(dailySales.expectedCash, 2)}
                   </div>
                 </div>
@@ -306,7 +306,7 @@ export default function DailySettlement() {
                   <div className="text-xs text-muted-foreground mb-1 truncate">Cash</div>
                   <div className="text-sm md:text-base font-bold text-green-600 break-all md:break-normal">
                     ₹{dailySales.paymentSplit.cash >= 100000
-                      ? `${(dailySales.paymentSplit.cash / 100000).toFixed(1)}L`
+                      ? `${safeToFixed(dailySales.paymentSplit.cash / 100000, 1)}L`
                       : safeToFixed(dailySales.paymentSplit.cash, 2)}
                   </div>
                 </div>
@@ -314,7 +314,7 @@ export default function DailySettlement() {
                   <div className="text-xs text-muted-foreground mb-1 truncate">Online</div>
                   <div className="text-sm md:text-base font-bold text-blue-600 break-all md:break-normal">
                     ₹{dailySales.paymentSplit.online >= 100000
-                      ? `${(dailySales.paymentSplit.online / 100000).toFixed(1)}L`
+                      ? `${safeToFixed(dailySales.paymentSplit.online / 100000, 1)}L`
                       : safeToFixed(dailySales.paymentSplit.online, 2)}
                   </div>
                 </div>
@@ -322,7 +322,7 @@ export default function DailySettlement() {
                   <div className="text-xs text-muted-foreground mb-1 truncate">Credit</div>
                   <div className="text-sm md:text-base font-bold text-orange-600 break-all md:break-normal">
                     ₹{dailySales.paymentSplit.credit >= 100000
-                      ? `${(dailySales.paymentSplit.credit / 100000).toFixed(1)}L`
+                      ? `${safeToFixed(dailySales.paymentSplit.credit / 100000, 1)}L`
                       : safeToFixed(dailySales.paymentSplit.credit, 2)}
                   </div>
                 </div>
@@ -347,7 +347,7 @@ export default function DailySettlement() {
                   <Label className="text-sm font-semibold truncate">Expected Cash</Label>
                   <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-2 break-all md:break-normal">
                     ₹{dailySales.expectedCash >= 100000
-                      ? `${(dailySales.expectedCash / 100000).toFixed(1)}L`
+                      ? `${safeToFixed(dailySales.expectedCash / 100000, 1)}L`
                       : safeToFixed(dailySales.expectedCash, 2)}
                   </div>
                   <p className="text-xs text-muted-foreground mt-2 truncate">
@@ -458,9 +458,9 @@ export default function DailySettlement() {
                         </div>
                         <div className="text-xs text-muted-foreground truncate">
                           Expected: ₹{settlement.expectedCash >= 100000
-                            ? `${(settlement.expectedCash / 100000).toFixed(1)}L`
+                            ? `${safeToFixed(settlement.expectedCash / 100000, 1)}L`
                             : safeToFixed(settlement.expectedCash, 2)} | Actual: ₹{settlement.actualCash >= 100000
-                            ? `${(settlement.actualCash / 100000).toFixed(1)}L`
+                            ? `${safeToFixed(settlement.actualCash / 100000, 1)}L`
                             : safeToFixed(settlement.actualCash, 2)}
                         </div>
                       </div>
