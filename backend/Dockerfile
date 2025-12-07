@@ -13,18 +13,22 @@ COPY backend/package*.json ./
 # Install dependencies
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy only directories that exist in the backend
-COPY backend/src ./src
-COPY backend/config ./config
-COPY backend/database ./database
-COPY backend/models ./models
-COPY backend/routes ./routes
-COPY backend/scripts ./scripts
-COPY backend/migrations ./migrations
-COPY backend/seeders ./seeders
+# Copy the entire backend directory content, then clean up what we don't need
+COPY backend/ ./
 
-# Create data directory for SQLite (if needed)
-RUN mkdir -p data
+# Remove dev dependencies, tests, and unnecessary files
+RUN rm -rf node_modules tests _deprecated docs *.js *.json *.txt *.md .env .env* jest-results.json && \
+    find . -name ".git*" -type f -delete && \
+    mkdir -p data
+
+# Ensure required directories exist
+RUN mkdir -p data && \
+    mkdir -p src && \
+    mkdir -p config && \
+    mkdir -p database && \
+    mkdir -p models && \
+    mkdir -p routes && \
+    mkdir -p scripts
 
 # Change ownership to node user
 RUN chown -R node:node /app
@@ -42,11 +46,5 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/health', (res) => { process.exit(res.statusCode === 200 ? 0 : 1) }).on('error', () => process.exit(1))"
 
 # Start the application with proper signal handling and initialization
-# The src/server.js now handles:
-# 1. Database connection validation
-# 2. Schema verification
-# 3. Automatic migrations
-# 4. Seed data initialization
-# 5. Express server startup
 ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "src/server.js"]
