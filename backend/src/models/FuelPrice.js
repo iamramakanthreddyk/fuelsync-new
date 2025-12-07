@@ -23,9 +23,12 @@ module.exports = (sequelize) => {
       }
     },
     fuelType: {
-      type: DataTypes.ENUM(...Object.values(FUEL_TYPES)),
+      type: DataTypes.STRING(30),
       allowNull: false,
-      field: 'fuel_type'
+      field: 'fuel_type',
+      validate: {
+        isIn: [Object.values(FUEL_TYPES)]
+      }
     },
     price: {
       type: DataTypes.DECIMAL(8, 2),
