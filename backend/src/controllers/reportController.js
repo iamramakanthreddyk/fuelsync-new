@@ -234,6 +234,14 @@ exports.getPumpPerformance = async (req, res, next) => {
     const { startDate, endDate, stationId } = req.query;
     const user = await User.findByPk(req.userId);
     
+    console.log('Pump performance request:', {
+      userId: req.userId,
+      userRole: user?.role,
+      stationId,
+      startDate,
+      endDate
+    });
+    
     if (!startDate || !endDate) {
       return res.status(400).json({
         success: false,
@@ -242,6 +250,8 @@ exports.getPumpPerformance = async (req, res, next) => {
     }
 
     const stationFilter = await getStationFilter(user, stationId);
+    console.log('Station filter:', stationFilter);
+    
     if (stationFilter === null) {
       return res.json({ success: true, data: [] });
     }
@@ -252,13 +262,28 @@ exports.getPumpPerformance = async (req, res, next) => {
       attributes: ['id', 'name']
     });
 
+    console.log('Found stations:', stations.length, stations.map(s => s.name));
+    
     if (stations.length === 0) {
       return res.json({ success: true, data: [] });
     }
 
     const stationIds = stations.map(s => s.id);
 
-    // Get pump performance data - use LEFT JOIN and filter properly
+    // Get pump IDs for the stations first to avoid complex joins
+    const pumpsForStations = await Pump.findAll({
+      where: { stationId: { [Op.in]: stationIds } },
+      attributes: ['id']
+    });
+    const pumpIds = pumpsForStations.map(p => p.id);
+
+    console.log('Found pumps:', pumpIds.length);
+    
+    if (pumpIds.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    // Get pump performance data - use LEFT JOIN and filter by pump IDs
     const pumpData = await NozzleReading.findAll({
       attributes: [
         [col('pump.id'), 'pumpId'],
@@ -282,7 +307,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         }]
       }],
       where: {
-        stationId: { [Op.in]: stationIds }, // Filter by station directly from NozzleReading
+        pumpId: { [Op.in]: pumpIds }, // Filter by pump IDs we know belong to user's stations
         readingDate: {
           [Op.between]: [startDate, endDate]
         },
@@ -310,13 +335,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         model: Pump,
         as: 'pump',
         attributes: [],
-        required: false,
-        include: [{
-          model: Station,
-          as: 'station',
-          attributes: [],
-          required: false
-        }]
+        required: false
       }, {
         model: Nozzle,
         as: 'nozzle',
@@ -324,7 +343,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         required: false
       }],
       where: {
-        stationId: { [Op.in]: stationIds }, // Filter by station directly from NozzleReading
+        pumpId: { [Op.in]: pumpIds }, // Filter by pump IDs
         readingDate: {
           [Op.between]: [startDate, endDate]
         },
