@@ -930,31 +930,6 @@ exports.createNozzle = async (req, res, next) => {
     // Check station access
     if (!(await canAccessStation(user, pump.stationId))) { await t.rollback(); return res.status(403).json({ success: false, error: 'Access denied' }); }
 
-    // Defensive transactional plan check: ensure pump's owner plan allows another nozzle
-    try {
-      const pumpRecord = await Pump.findByPk(pumpId, { include: [{ model: Station, as: 'station' }], transaction: t });
-      const ownerId = pumpRecord?.station?.ownerId || pumpRecord?.stationId && (await Station.findByPk(pumpRecord.stationId, { transaction: t }))?.ownerId;
-      console.log('[PLANCHECK] createNozzle pumpId=', pumpId, 'ownerId=', ownerId);
-      if (ownerId) {
-        owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
-        console.log('[PLANCHECK] createNozzle ownerPlan=', owner?.plan?.name, 'maxNozzlesPerPump=', owner?.plan?.maxNozzlesPerPump);
-        if (owner && owner.plan && owner.plan.maxNozzlesPerPump) {
-          const nozzleCount = await Nozzle.count({ where: { pumpId }, transaction: t });
-          console.log('[PLANCHECK] createNozzle nozzleCount=', nozzleCount);
-          if ((nozzleCount + 1) > owner.plan.maxNozzlesPerPump) {
-            await t.rollback();
-            return res.status(403).json({
-              success: false,
-              error: `Plan limit reached. Your ${owner.plan.name} plan allows ${owner.plan.maxNozzlesPerPump} nozzle(s) per pump. This pump has ${nozzleCount}.`,
-              planLimitExceeded: true
-            });
-          }
-        }
-      }
-    } catch (err) {
-      console.error('Error while checking nozzle plan limits:', err);
-    }
-
     let finalNozzleNumber = nozzleNumber;
     let nozzle = null;
     if (!finalNozzleNumber) {
@@ -1009,11 +984,7 @@ exports.createNozzle = async (req, res, next) => {
 
     // Post-create verification
     const nozzleCountPost = await Nozzle.count({ where: { pumpId }, transaction: t });
-    if (owner && owner.plan && owner.plan.maxNozzlesPerPump != null && nozzleCountPost > owner.plan.maxNozzlesPerPump) {
-      console.log('[PLANCHECK] Rolling back nozzle create: would exceed plan after create', nozzleCountPost, owner.plan.maxNozzlesPerPump);
-      await t.rollback();
-      return res.status(403).json({ success: false, error: 'Plan limit exceeded after creation attempt', planLimitExceeded: true });
-    }
+    // Note: Plan limit check is done in middleware, so no need to verify here
 
     await t.commit();
 
