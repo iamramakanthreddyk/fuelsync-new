@@ -12,6 +12,16 @@ module.exports = {
     const transaction = await queryInterface.sequelize.transaction();
     
     try {
+      // Add shift_id column for shift tracking
+      await queryInterface.addColumn('nozzle_readings', 'shift_id', {
+        type: Sequelize.UUID,
+        allowNull: true,
+        references: {
+          model: 'shifts',
+          key: 'id'
+        }
+      }, { transaction });
+
       // Add approval status to nozzle_readings
       await queryInterface.addColumn('nozzle_readings', 'approval_status', {
         type: Sequelize.ENUM('pending', 'approved', 'rejected'),
@@ -68,6 +78,7 @@ module.exports = {
       await queryInterface.removeColumn('nozzle_readings', 'approved_at', { transaction });
       await queryInterface.removeColumn('nozzle_readings', 'approved_by', { transaction });
       await queryInterface.removeColumn('nozzle_readings', 'approval_status', { transaction });
+      await queryInterface.removeColumn('nozzle_readings', 'shift_id', { transaction });
       
       // Drop the ENUM type
       await queryInterface.sequelize.query(
