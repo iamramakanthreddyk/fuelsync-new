@@ -105,11 +105,9 @@ exports.login = async (req, res, next) => {
       } : null
     };
 
-    // Backwards-compatible response: include top-level token/user and nested data object
+    // Return clean response structure
     res.json({
       success: true,
-      token,
-      user: userPayload,
       data: {
         token,
         user: userPayload
@@ -173,10 +171,9 @@ exports.getCurrentUser = async (req, res, next) => {
       userData.stations = [];
     }
 
-    // Return a flat `data` object for compatibility with tests/frontend
+    // Return clean response structure
     res.json({
       success: true,
-      user: userData,
       data: userData
     });
 
@@ -257,8 +254,6 @@ exports.register = async (req, res, next) => {
 
     res.status(201).json({
       success: true,
-      token,
-      user: user.toSafeObject(),
       data: {
         token,
         user: user.toSafeObject()
