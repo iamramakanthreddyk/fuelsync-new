@@ -1,11 +1,10 @@
 {
   "build": {
-    "builder": "nixpacks",
-    "buildCommand": "cd backend && npm install"
+    "builder": "dockerfile",
+    "dockerfilePath": "backend/Dockerfile"
   },
   "deploy": {
     "numReplicas": 1,
-    "startCommand": "cd backend && npm run db:migrate && node src/server.js",
     "restartPolicyType": "on_failure",
     "restartPolicyMaxRetries": 3,
     "sleepApplication": false
