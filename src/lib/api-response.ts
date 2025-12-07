@@ -85,14 +85,6 @@ export function isWrappedResponse(response: any): boolean {
 export function safeExtractData(response: any, context: string = ''): any {
   const data = extractApiData(response, null);
 
-  if (process.env.NODE_ENV === 'development' && context) {
-    console.log(`📊 [${context}] Extracted data:`, {
-      isWrapped: isWrappedResponse(response),
-      original: response,
-      extracted: data
-    });
-  }
-
   return data;
 }
 

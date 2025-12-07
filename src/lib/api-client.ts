@@ -204,17 +204,7 @@ async function request<T>(
     
     // Log the request for debugging
     if (method === 'POST' && endpoint.includes('/stations')) {
-      console.log('🌐 API Client sending request:');
-      console.log('   URL:', url);
-      console.log('   Method:', method);
-      console.log('   Body string:', config.body);
-      try {
-        console.log('   Parsed body:', JSON.parse(config.body as string));
-      } catch (err) {
-        // ignore parse error for debug log
-        // eslint-disable-next-line no-console
-        console.debug('api-client: unable to parse body for debug log', err);
-      }
+      // Logging removed
     }
   }
 

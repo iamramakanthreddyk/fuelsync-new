@@ -116,12 +116,7 @@ class PerformanceMonitor {
       const min = Math.min(...durations);
       const max = Math.max(...durations);
       
-      console.log(`${name}:`, {
-        count: durations.length,
-        avg: `${avg.toFixed(2)}ms`,
-        min: `${min.toFixed(2)}ms`,
-        max: `${max.toFixed(2)}ms`
-      });
+      // Performance logging removed
     });
     console.groupEnd();
   }
@@ -153,7 +148,7 @@ export function usePerformanceMonitor(componentName: string) {
   return {
     renderCount: renderCount.current,
     logInfo: () => {
-      console.log(`${componentName} rendered ${renderCount.current} times`);
+      // Performance logging removed
     }
   };
 }
@@ -181,7 +176,7 @@ export function logWebVitals() {
       const lcpObserver = new PerformanceObserver((list) => {
         const entries = list.getEntries();
         const lastEntry = entries[entries.length - 1];
-        console.log('LCP:', lastEntry.startTime.toFixed(2) + 'ms');
+        // LCP logging removed
       });
       lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] });
 
@@ -191,7 +186,7 @@ export function logWebVitals() {
         entries.forEach((entry: PerformanceEntry) => {
           // FID entries are of type PerformanceEventTiming
           const eventEntry = entry as PerformanceEventTiming;
-          console.log('FID:', eventEntry.processingStart - eventEntry.startTime + 'ms');
+          // FID logging removed
         });
       });
       fidObserver.observe({ entryTypes: ['first-input'] });
@@ -207,11 +202,11 @@ export function logWebVitals() {
             clsValue += layoutEntry.value ?? 0;
           }
         }
-        console.log('CLS:', clsValue.toFixed(4));
+        // CLS logging removed
       });
       clsObserver.observe({ entryTypes: ['layout-shift'] });
     } catch (error) {
-      console.error('Error observing web vitals:', error);
+      // Error logging removed
     }
   }
 }

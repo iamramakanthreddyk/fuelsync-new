@@ -90,13 +90,9 @@ export default function StationsPage() {
       }
     }
     
-    console.log('✅ Stations:', stationsData);
-    console.log('✅ All Users:', usersData);
-    
     // Defensive: always set to array
     setStations(Array.isArray(stationsData) ? stationsData : []);
     const filteredOwners = Array.isArray(usersData) ? usersData.filter((user: Owner) => user.role === 'owner') : [];
-    console.log('✅ Filtered Owners:', filteredOwners);
     setOwners(filteredOwners);
     setLoading(false);
   };
@@ -268,7 +264,6 @@ export default function StationsPage() {
                 <Select 
                   value={formData.ownerId} 
                   onValueChange={(value) => {
-                    console.log('🎯 Owner selected:', value);
                     setFormData({ ...formData, ownerId: value });
                     if (formErrors.ownerId) setFormErrors({ ...formErrors, ownerId: '' });
                   }}

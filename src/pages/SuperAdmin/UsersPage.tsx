@@ -92,10 +92,6 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       const stationsRes = normalize(stationsResRaw) || [];
       const plansRes = normalize(plansResRaw) || [];
 
-      console.log('👥 Users response:', usersRes);
-      console.log('🏢 Stations response:', stationsRes);
-      console.log('📋 Plans response:', plansRes);
-
       setUsers(Array.isArray(usersRes) ? usersRes : []);
       setStations(Array.isArray(stationsRes) ? stationsRes : []);
       setPlans(Array.isArray(plansRes) ? plansRes : []);

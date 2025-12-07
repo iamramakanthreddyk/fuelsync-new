@@ -35,7 +35,6 @@ export default function CreateOwnerWizard() {
 
   const createOwnerMutation = useMutation({
     mutationFn: async (data: OwnerFormData) => {
-      console.log('Creating owner with data:', data);
       // Step 1: Create owner - apiClient unwraps the response automatically
       const ownerResponse = await apiClient.post<{ id: string; planId?: string }>('/users', {
         name: data.name,
@@ -44,7 +43,6 @@ export default function CreateOwnerWizard() {
         password: data.password,
         role: 'owner'
       });
-      console.log('Owner created, response:', ownerResponse);
       const owner = ownerResponse;
       if (!owner || !owner.id) {
         throw new Error('Failed to create owner - invalid response');
@@ -60,11 +58,9 @@ export default function CreateOwnerWizard() {
         address: data.address,
         ownerId: owner.id
       });
-      console.log('Station created, response:', stationResponse);
       return { owner, station: stationResponse };
     },
     onSuccess: (data) => {
-      console.log('Owner created successfully:', data);
       setCreatedData(data);
       setStep(3);
       toast({ 

@@ -256,7 +256,6 @@ export default function AdminUsers() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {users?.map((userItem) => {
-          console.log('User role:', userItem.role, 'Type:', typeof userItem.role);
           const primaryStation = userItem.stations?.[0];
           return (
           <Card key={userItem.id} className="relative">

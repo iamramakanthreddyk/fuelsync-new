@@ -483,7 +483,6 @@ export default function StationsManagement() {
       ) : Array.isArray(stations) && stations.length > 0 ? (
         <div className="grid gap-4 grid-cols-1">
           {(Array.isArray(stations) ? stations : []).map((station) => {
-            console.log('Station data:', station.id, station.name, 'isActive:', station.isActive);
             return (
             <Card
               key={station.id}

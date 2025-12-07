@@ -155,16 +155,7 @@ export default function DataEntry() {
 
   // Debug logging
   React.useEffect(() => {
-    console.log('🔍 DataEntry Debug:', {
-      availableStations,
-      selectedStation,
-      stationForQuery: selectedStation || availableStations[0]?.id,
-      pumps,
-      pumpsLoading,
-      pumpsError,
-      manualNozzle,
-      allNozzles
-    });
+    // Debug logging removed
   }, [availableStations, selectedStation, pumps, pumpsLoading, pumpsError, manualNozzle, allNozzles]);
 
 
@@ -277,11 +268,7 @@ export default function DataEntry() {
         })
       };
 
-      console.log('📤 Submitting manual reading with payment:', payload);
-
       const result = await apiClient.post<{ litresSold?: number; totalAmount?: number }>('/readings', payload);
-
-      console.log('✅ Reading recorded:', result);
 
       // Invalidate relevant queries so UI reflects the new reading
       try {
@@ -362,13 +349,12 @@ export default function DataEntry() {
     }
   };
 
-  const onSubmitRefill = async (data: RefillData) => {
+  const onSubmitRefill = async (_data: RefillData) => {
     try {
       setIsSubmitting(true);
       // TODO: Need to get tank ID for the station and fuel type
       // Endpoint: POST /api/v1/tanks/:id/refill
       toast.info('Tank refill feature coming soon!');
-      console.log('Refill data:', data);
     } catch (error: unknown) {
       let message = 'Error adding tank refill';
       if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
@@ -383,7 +369,6 @@ export default function DataEntry() {
   // Set default station & reset-dependent dropdowns
   useEffect(() => {
     if (availableStations.length > 0 && !selectedStation) {
-      console.log('🎯 Setting default station:', availableStations[0]);
       setSelectedStation(availableStations[0].id);
     }
   }, [availableStations, selectedStation]);
@@ -410,18 +395,14 @@ export default function DataEntry() {
       setLoadingPreviousReading(true);
       // apiClient unwraps {success, data} to just data
       const response = await apiClient.get<{ previousReading?: string }>(`/readings/previous/${nozzleId}`);
-      console.log('📊 Previous reading response:', response);
       
       if (response && response.previousReading !== undefined) {
         const prevValue = parseFloat(response.previousReading);
         setPreviousReading(prevValue);
-        console.log('📊 Set previous reading to:', prevValue);
       } else {
         setPreviousReading(0); // No previous reading, starting from 0
-        console.log('📊 No previous reading found, starting from 0');
       }
     } catch (error) {
-      console.error('❌ Failed to fetch previous reading:', error);
       setPreviousReading(0);
     } finally {
       setLoadingPreviousReading(false);
@@ -513,7 +494,6 @@ export default function DataEntry() {
                     <Select
                       value={manualNozzle ?? ''}
                       onValueChange={value => {
-                        console.log('🔧 Nozzle selected:', value, typeof value);
                         setManualNozzle(value);
                       }}
                       disabled={!allNozzles.length}
@@ -523,7 +503,6 @@ export default function DataEntry() {
                       </SelectTrigger>
                       <SelectContent>
                         {allNozzles.map((nz: any) => {
-                          console.log('🔍 All nozzle option:', nz.id, nz.nozzleNumber);
                           const colors = getFuelColors(nz.fuelType);
                           return (
                             <SelectItem key={nz.id} value={nz.id}>

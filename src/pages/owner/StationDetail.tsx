@@ -76,8 +76,6 @@ export default function StationDetail() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
-  console.log('🚀 StationDetail COMPONENT MOUNTED - ID:', id);
   
   const [isPumpDialogOpen, setIsPumpDialogOpen] = useState(false);
   const [isNozzleDialogOpen, setIsNozzleDialogOpen] = useState(false);
@@ -93,20 +91,6 @@ export default function StationDetail() {
   const getDefaultFuelType = (): FuelType => {
     return FuelTypeEnum.PETROL;
   };
-
-  // Log last reading value for selected nozzle
-  useEffect(() => {
-    if (selectedNozzle) {
-      console.log('Last Reading:', selectedNozzle.lastReading ?? selectedNozzle.initialReading);
-    }
-  }, [selectedNozzle]);
-
-  // Log last reading value for selected nozzle
-  useEffect(() => {
-    if (selectedNozzle) {
-      console.log('Last Reading:', selectedNozzle.lastReading ?? selectedNozzle.initialReading);
-    }
-  }, [selectedNozzle]);
 
   const [pumpForm, setPumpForm] = useState({
     pumpNumber: '',
@@ -201,33 +185,10 @@ export default function StationDetail() {
       const response = await apiClient.get<{ success: boolean; data: Pump[] }>(`/stations/${id}/pumps`);
       // Extract array data from wrapped response
       const pumpData = extractApiArray(response, []);
-      console.log('=== PUMPS DEBUG ===');
-      console.log('Raw API Response:', response);
-      console.log('Extracted Data:', pumpData);
-      console.log('Count:', pumpData?.length);
-      if (pumpData && pumpData.length > 0) {
-        console.log('First pump:', pumpData[0]);
-      }
       return pumpData;
     },
     enabled: !!id
   });
-
-  // Log pumps state changes
-  console.log('=== PUMPS STATE ===');
-  console.log('Pumps:', pumps);
-  console.log('Loading:', pumpsLoading);
-  console.log('Pumps is array?', Array.isArray(pumps));
-
-  // Debug effect to track pumps changes
-  useEffect(() => {
-    console.log('🔍 PUMPS CHANGED:', {
-      pumps,
-      isArray: Array.isArray(pumps),
-      length: pumps?.length,
-      loading: pumpsLoading
-    });
-  }, [pumps, pumpsLoading]);
 
   // Fetch fuel prices
   const { data: prices, isLoading: pricesLoading } = useQuery({
@@ -644,8 +605,6 @@ export default function StationDetail() {
     );
   }
 
-  console.log('StationDetail - Station data:', station);
-
   return (
     <div className="container mx-auto p-6 space-y-4">
       {/* Header */}
@@ -703,7 +662,6 @@ export default function StationDetail() {
                 variant="outline"
                 onClick={() => {
                   queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
-                  console.log('🔄 Manually refreshing pumps...');
                 }}
               >
                 Refresh

@@ -22,8 +22,6 @@ export function usePumpNozzles(pumpId?: string) {
           `/stations/pumps/${pumpId}/nozzles`
         );
 
-        console.log('✅ Nozzles fetched for pump:', pumpId, nozzles);
-
         if (Array.isArray(nozzles)) {
           return nozzles;
         }
