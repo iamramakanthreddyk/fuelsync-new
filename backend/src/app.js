@@ -66,6 +66,7 @@ if (!isDevelopment) {
 
 console.log('🔓 CORS Enabled for:', isDevelopment ? 'ALL (development)' : corsOrigins);
 
+// Apply CORS with explicit preflight handling
 app.use(cors({
   origin: corsOrigins,
   credentials: true,
@@ -74,10 +75,25 @@ app.use(cors({
   maxAge: 86400 // 24 hours
 }));
 
+// Explicit preflight handler (ensures OPTIONS always returns 200)
+app.options('*', cors({
+  origin: corsOrigins,
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-tenant-id']
+}));
+
 // Security headers - configure for development
+// IMPORTANT: Disable policies that interfere with cross-origin requests
 app.use(helmet({
-  crossOriginResourcePolicy: isDevelopment ? false : { policy: 'same-origin' },
-  crossOriginOpenerPolicy: isDevelopment ? false : { policy: 'same-origin' }
+  crossOriginResourcePolicy: false,
+  crossOriginOpenerPolicy: false,
+  contentSecurityPolicy: isDevelopment ? false : {
+    directives: {
+      defaultSrc: ["'self'"],
+      connectSrc: ["'self'", 'https://fuelsync-new.vercel.app']
+    }
+  }
 }));
 
 // Rate limiting - skip OPTIONS preflight requests
@@ -93,6 +109,27 @@ app.use('/api/', limiter);
 if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('dev'));
 }
+
+// Add debugging middleware for CORS issues
+app.use((req, res, next) => {
+  if (req.method === 'OPTIONS') {
+    console.log('📍 [CORS] OPTIONS preflight request:', req.path);
+  }
+  next();
+});
+
+// Wrap all middleware in try-catch to prevent uncaught exceptions from crashing
+app.use((req, res, next) => {
+  try {
+    next();
+  } catch (error) {
+    console.error('❌ [MIDDLEWARE] Uncaught error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));
