@@ -72,27 +72,33 @@ export default function StationsPage() {
     
     // Extract stations from wrapped response { success, data, pagination }
     let stationsData: Station[] = [];
-    if (stationsRes && typeof stationsRes === 'object') {
-      if ('data' in stationsRes && Array.isArray((stationsRes as any).data)) {
-        stationsData = (stationsRes as any).data;
-      } else if (Array.isArray(stationsRes)) {
-        stationsData = stationsRes;
+    try {
+      if (stationsRes && typeof stationsRes === 'object' && 'data' in stationsRes) {
+        const data = (stationsRes as any).data;
+        if (Array.isArray(data)) {
+          stationsData = data;
+        }
       }
+    } catch (error) {
+      console.warn('Error extracting stations data:', error);
     }
     
     // Extract users from wrapped response
     let usersData: Owner[] = [];
-    if (usersRes && typeof usersRes === 'object') {
-      if ('data' in usersRes && Array.isArray((usersRes as any).data)) {
-        usersData = (usersRes as any).data;
-      } else if (Array.isArray(usersRes)) {
-        usersData = usersRes;
+    try {
+      if (usersRes && typeof usersRes === 'object' && 'data' in usersRes) {
+        const data = (usersRes as any).data;
+        if (Array.isArray(data)) {
+          usersData = data;
+        }
       }
+    } catch (error) {
+      console.warn('Error extracting users data:', error);
     }
     
-    // Defensive: always set to array
-    setStations(Array.isArray(stationsData) ? stationsData : []);
-    const filteredOwners = Array.isArray(usersData) ? usersData.filter((user: Owner) => user.role === 'owner') : [];
+    // Always set to arrays to prevent map errors
+    setStations(stationsData);
+    const filteredOwners = usersData.filter((user: Owner) => user.role === 'owner');
     setOwners(filteredOwners);
     setLoading(false);
   };
