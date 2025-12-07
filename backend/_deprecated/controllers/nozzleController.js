@@ -14,17 +14,22 @@ const { Op } = require('sequelize');
 exports.createNozzle = async (req, res) => {
   try {
     const { pumpId } = req.params;
-    const { nozzleId, fuelType, maxFlowRate } = req.body;
+    const { nozzleId, nozzleNumber, fuelType, fuel_type, initialReading, initial_reading, maxFlowRate } = req.body;
+
+    // Support both field names for backward compatibility
+    const nozzleNum = nozzleNumber || nozzleId;
+    const fuel = fuelType || fuel_type;
+    const initial = initialReading || initial_reading || 0;
 
     // Validation
-    if (!nozzleId || nozzleId < 1 || nozzleId > 8) {
+    if (!nozzleNum || nozzleNum < 1 || nozzleNum > 10) {
       return res.status(400).json({
         success: false,
-        error: 'Nozzle ID must be between 1 and 8'
+        error: 'Nozzle number must be between 1 and 10'
       });
     }
 
-    if (!fuelType || !['petrol', 'diesel'].includes(fuelType.toLowerCase())) {
+    if (!fuel || !['petrol', 'diesel'].includes(fuel.toLowerCase())) {
       return res.status(400).json({
         success: false,
         error: 'Fuel type must be petrol or diesel'
@@ -53,21 +58,22 @@ exports.createNozzle = async (req, res) => {
 
     // Check for duplicate nozzle
     const existingNozzle = await Nozzle.findOne({
-      where: { pumpId, nozzleId }
+      where: { pumpId, nozzleNumber: nozzleNum }
     });
 
     if (existingNozzle) {
       return res.status(409).json({
         success: false,
-        error: `Nozzle ${nozzleId} already exists on this pump`
+        error: `Nozzle ${nozzleNum} already exists on this pump`
       });
     }
 
     const nozzle = await Nozzle.create({
       pumpId,
-      nozzleId,
-      fuelType: fuelType.toLowerCase(),
-      maxFlowRate: maxFlowRate || null,
+      stationId: pump.stationId, // Denormalize station ID
+      nozzleNumber: nozzleNum,
+      fuelType: fuel.toLowerCase(),
+      initialReading: initial,
       status: 'active'
     });
 
