@@ -149,8 +149,8 @@ module.exports = {
    */
   PUMP_STATUS: {
     ACTIVE: 'active',
-    INACTIVE: 'inactive',
-    MAINTENANCE: 'repair'  // Note: stored as 'repair' in database for backward compatibility
+    REPAIR: 'repair',
+    INACTIVE: 'inactive'
   },
 
   /**

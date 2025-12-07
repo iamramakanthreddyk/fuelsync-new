@@ -594,7 +594,6 @@ exports.getPumps = async (req, res, next) => {
 };
 
 exports.createPump = async (req, res, next) => {
-  let t;
   try {
     const { stationId } = req.params;
     const { name, notes, pumpNumber } = req.body;
@@ -611,34 +610,12 @@ exports.createPump = async (req, res, next) => {
       return res.status(401).json({ success: false, error: 'Authentication required' });
     }
 
-    // Start transaction
-    t = await sequelize.transaction();
-    console.log(`🔧 Transaction started for pump creation`);
-
     // Check station access
     if (!(await canAccessStation(user, stationId))) {
-      await t.rollback();
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    // Only check plan limits when creating new pump (not updating)
-    const station = await Station.findByPk(stationId, { transaction: t });
-    const ownerId = station?.ownerId;
-    if (ownerId) {
-      const owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
-      if (owner && owner.plan && owner.plan.maxPumpsPerStation) {
-        const pumpCount = await Pump.count({ where: { stationId }, transaction: t });
-        console.log('[PLANCHECK] createPump pumpCount=', pumpCount, 'planLimit=', owner.plan.maxPumpsPerStation);
-        if ((pumpCount + 1) > owner.plan.maxPumpsPerStation) {
-          await t.rollback();
-          return res.status(403).json({
-            success: false,
-            error: `Plan limit reached. Your ${owner.plan.name} plan allows ${owner.plan.maxPumpsPerStation} pump(s) per station. This station has ${pumpCount}.`,
-            planLimitExceeded: true
-          });
-        }
-      }
-    }
+    // Plan limit check is done in middleware, so no need to check here
 
     // Declare finalPumpNumber variable
     let finalPumpNumber = null;
@@ -648,19 +625,16 @@ exports.createPump = async (req, res, next) => {
     if (pumpNumber !== undefined && pumpNumber !== null && pumpNumber !== '') {
       const num = parseInt(pumpNumber);
       if (isNaN(num) || num < 1) {
-        await t.rollback();
         return res.status(400).json({ success: false, error: 'Pump number must be a positive integer' });
       }
       finalPumpNumber = num;
     }
 
     if (name && typeof name !== 'string') {
-      await t.rollback();
       return res.status(400).json({ success: false, error: 'Pump name must be a string' });
     }
 
     if (notes && typeof notes !== 'string') {
-      await t.rollback();
       return res.status(400).json({ success: false, error: 'Pump notes must be a string' });
     }
     
@@ -680,7 +654,7 @@ exports.createPump = async (req, res, next) => {
             pumpNumber: pumpNumberToTry,
             status: 'active',
             notes
-          }, { transaction: t });
+          });
 
           pumpCreated = true;
           finalPumpNumber = pumpNumberToTry;
@@ -697,16 +671,14 @@ exports.createPump = async (req, res, next) => {
       }
 
       if (!pumpCreated) {
-        await t.rollback();
         return res.status(500).json({ success: false, error: 'Could not generate unique pump number' });
       }
     } else {
       console.log(`🔧 Using provided pump number: ${finalPumpNumber}`);
       // Check if pump with this number already exists
-      const existingPump = await Pump.findOne({ where: { stationId, pumpNumber: finalPumpNumber }, transaction: t });
+      const existingPump = await Pump.findOne({ where: { stationId, pumpNumber: finalPumpNumber } });
 
       if (existingPump) {
-        await t.rollback();
         return res.status(409).json({
           success: false,
           error: `Pump with number ${finalPumpNumber} already exists for this station`,
@@ -725,21 +697,8 @@ exports.createPump = async (req, res, next) => {
         pumpNumber: finalPumpNumber,
         status: 'active',
         notes
-      }, { transaction: t });
+      });
     }
-
-    // Post-create verification
-    const pumpCountPost = await Pump.count({ where: { stationId }, transaction: t });
-    if (ownerId) {
-      const owner = await User.findByPk(ownerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
-      if (owner && owner.plan && owner.plan.maxPumpsPerStation != null && pumpCountPost > owner.plan.maxPumpsPerStation) {
-        console.log('[PLANCHECK] Rolling back pump create: would exceed plan after create', pumpCountPost, owner.plan.maxPumpsPerStation);
-        await t.rollback();
-        return res.status(403).json({ success: false, error: 'Plan limit exceeded after creation attempt', planLimitExceeded: true });
-      }
-    }
-
-    await t.commit();
 
     console.log(`✅ PUMP CREATED - ID: ${pump.id}, Number: ${pump.pumpNumber}, Name: ${pump.name}`);
     res.status(201).json({ success: true, data: pump });
@@ -752,16 +711,6 @@ exports.createPump = async (req, res, next) => {
       code: error.code,
       sql: error.sql
     });
-
-    // Try to rollback transaction if it exists
-    if (t) {
-      try {
-        await t.rollback();
-        console.log(`🔧 Transaction rolled back`);
-      } catch (rollbackError) {
-        console.error(`❌ Failed to rollback transaction:`, rollbackError.message);
-      }
-    }
 
     // Handle specific error types
     if (error.name === 'SequelizeUniqueConstraintError') {
