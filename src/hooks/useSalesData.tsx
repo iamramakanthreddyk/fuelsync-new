@@ -52,11 +52,7 @@ export function useSalesData(date?: string) {
       try {
         // apiClient.get already unwraps {success, data} structure
         const sales = await apiClient.get<Sale[]>(url);
-        
-        console.log('💰 useSalesData - API response:', sales);
-        console.log('💰 useSalesData - Is array?', Array.isArray(sales));
-        console.log('💰 useSalesData - Length:', sales?.length);
-        
+
         if (Array.isArray(sales)) {
           return sales;
         }

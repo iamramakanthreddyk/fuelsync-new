@@ -15,17 +15,13 @@ export default function DataSeeder() {
     try {
       setIsSeeding(true);
       setSeedStatus('idle');
-      
-      console.log('🌱 Starting database seeding...');
-      
+
       const response = await apiClient.post<ApiResponse<unknown>>('/admin/seed', { action: 'seed' });
 
       if (!response.success) {
         throw new Error(response.message || 'Failed to seed database');
       }
 
-      console.log('✅ Seeding response:', response.data);
-      
       setSeedStatus('success');
       toast({
         title: 'Success!',

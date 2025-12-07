@@ -28,7 +28,6 @@ export function UserConfirmationManager() {
     setIsLoading(true);
     try {
       const result = await apiClient.get<UnconfirmedUsersData>('/users/unconfirmed');
-      console.log('📋 Unconfirmed users response:', result);
       setData(result);
     } catch (error: unknown) {
       console.error('Error fetching unconfirmed users:', error);
@@ -46,8 +45,6 @@ export function UserConfirmationManager() {
     setIsConfirming(true);
     try {
       const result = await apiClient.post<{ confirmedCount: number; totalUsers: number }>('/users/confirm-all', {});
-
-      console.log('Confirm all users response:', result);
 
       toast({
         title: "Users Confirmed",

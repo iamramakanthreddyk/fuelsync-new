@@ -38,15 +38,11 @@ export const useReadingManagement = () => {
   ): Promise<ReceiptUploadResult | null> => {
     try {
       setIsLoading(true);
-      console.log('🔍 Starting receipt upload and parsing process...');
 
       // Check authentication using our custom auth system
       if (!user || !user.id) {
-        console.error('❌ Authentication error: User not logged in');
         throw new Error("Authentication required. Please log in again.");
       }
-
-      console.log('✅ Authentication verified, user ID:', user.id);
 
       // Validate file
       if (!file) {
@@ -69,21 +65,12 @@ export const useReadingManagement = () => {
         throw new Error("Invalid file type. Please upload an image (JPEG, PNG) or PDF.");
       }
 
-      console.log('📤 Uploading file:', {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        pumpSno
-      });
-
       const formData = new FormData();
       formData.append("file", file);
       formData.append("pump_sno", pumpSno);
       formData.append("user_id", user.id.toString());
 
       const res = await apiClient.post<ReceiptUploadResult>('/readings/upload', formData);
-
-      console.log('✅ Receipt upload successful:', res);
 
       const inserted = res?.data?.readings_inserted ?? 0;
       const parsed = res?.data?.parsed_preview ?? null;
@@ -126,7 +113,6 @@ export const useReadingManagement = () => {
   ): Promise<ManualReadingResult | null> => {
     try {
       setIsLoading(true);
-      console.log('📝 Submitting manual reading:', readingData);
 
       // Check authentication using our custom auth system
       if (!user || !user.id) {
@@ -153,7 +139,6 @@ export const useReadingManagement = () => {
         throw new Error('Failed to save reading');
       }
       const data = response.data;
-      console.log('✅ Manual reading saved:', data);
       toast({
         title: "Reading Saved",
         description: "Manual reading recorded successfully",

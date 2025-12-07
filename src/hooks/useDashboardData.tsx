@@ -81,13 +81,26 @@ export const useDashboardData = () => {
       // Fetch dashboard summary from backend
       // apiClient unwraps {success, data} to just data
       const summary = await apiClient.get<{
-        totalSales: number;
-        totalReadings: number;
-        fuelSales: Record<string, { litres: number; amount: number }>;
-        recentReadings: { createdAt?: string }[];
+        date: string;
+        today: {
+          litres: number;
+          amount: number;
+          cash: number;
+          online: number;
+          credit: number;
+          readings: number;
+        };
+        creditOutstanding: number;
+        pumps: Array<{
+          id: string;
+          name: string;
+          number: number;
+          status: string;
+          nozzleCount: number;
+          activeNozzles: number;
+          today: { litres: number; amount: number };
+        }>;
       }>(`/dashboard/summary?stationId=${currentStation.id}&startDate=${today}&endDate=${today}`);
-
-      console.log('📊 Dashboard summary:', summary);
 
       // Extract fuel prices from current prices endpoint
       const fuelPrices: DashboardData['fuelPrices'] = {};
@@ -106,10 +119,10 @@ export const useDashboardData = () => {
       }
 
       setData({
-        todaySales: summary.today?.amount || 0,
-        todayTender: 0, // Not implemented yet
-        totalReadings: summary.today?.readings || 0,
-        lastReading: summary.recentReadings?.[0]?.createdAt || null,
+        todaySales: summary.today.amount,
+        todayTender: summary.today.cash + summary.today.online + summary.today.credit,
+        totalReadings: summary.today.readings,
+        lastReading: null, // Not available in current API
         pendingClosures: 0, // Not implemented yet
         trendsData: [],
         fuelPrices,

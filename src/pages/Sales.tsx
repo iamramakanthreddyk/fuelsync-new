@@ -79,8 +79,7 @@ export default function Sales() {
 
   // Debug logging
   useEffect(() => {
-    console.log('💰 Sales data:', sales);
-    console.log('💰 Sales count:', sales?.length);
+    // Debug logging removed
   }, [sales]);
 
   useEffect(() => {
@@ -155,11 +154,6 @@ export default function Sales() {
 
     return true;
   }) || [];
-
-  // Debug logging
-  console.log('💰 Sales page - raw sales:', sales?.length);
-  console.log('💰 Sales page - filtered sales:', filteredSales.length);
-  console.log('💰 Sales page - dateRange:', dateRange);
 
   // Pagination
   const pagedSales = filteredSales.slice((page - 1) * pageSize, page * pageSize);

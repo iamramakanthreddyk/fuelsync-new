@@ -141,7 +141,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStoredUser(userData);
       setUser(userData);
 
-      console.log('[AUTH] Login successful:', authUser.email, authUser.role);
     } catch (error: unknown) {
       const msg = getErrorMessage(error);
       console.error('[AUTH] Login error:', msg);

@@ -132,7 +132,6 @@ function useStationsForSuperAdmin() {
     queryKey: ["all-stations"],
     queryFn: async (): Promise<Station[]> => {
       const response = await apiClient.get<Station[]>('/stations');
-      console.log('🏢 All stations response:', response);
       return response || [];
     },
     enabled: !!user && isSuperAdmin, // Only run when user is authenticated and is super admin

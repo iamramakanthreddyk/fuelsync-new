@@ -89,9 +89,9 @@ export default function QuickDataEntry() {
   // Debug: Log fuel prices when they load
   useEffect(() => {
     if (fuelPrices && fuelPrices.length > 0) {
-      console.log('✓ Fuel prices loaded:', fuelPrices);
+      // Fuel prices loaded
     } else if (selectedStation && !pricesLoading) {
-      console.warn('⚠ No fuel prices available for station:', selectedStation);
+      // No fuel prices available
     }
   }, [fuelPrices, selectedStation, pricesLoading]);
 
@@ -161,8 +161,6 @@ export default function QuickDataEntry() {
       });
     }
 
-    console.log('Sale summary calculated:', { totalLiters, totalSaleValue, byFuelType, readingsCount: Object.keys(readings).length });
-
     return {
       totalLiters,
       totalSaleValue,
@@ -172,16 +170,11 @@ export default function QuickDataEntry() {
 
   // Move default allocation to an effect to avoid side-effects inside useMemo
   useEffect(() => {
-    console.log('Payment allocation effect:', {
-      totalSaleValue: saleSummary.totalSaleValue,
-      currentAllocation: paymentAllocation
-    });
     if (saleSummary.totalSaleValue > 0) {
       // Always adjust cash to make up the difference: total - online - credit
       const allocated = paymentAllocation.online + paymentAllocation.credit;
       const newCash = Math.max(0, saleSummary.totalSaleValue - allocated);
       if (newCash !== paymentAllocation.cash) {
-        console.log('Adjusting cash to balance payments:', { oldCash: paymentAllocation.cash, newCash, allocated, total: saleSummary.totalSaleValue });
         setPaymentAllocation(prev => ({
           ...prev,
           cash: newCash
@@ -244,6 +237,19 @@ export default function QuickDataEntry() {
         allocatedCash = round2(allocatedCash + cashAmt);
         allocatedOnline = round2(allocatedOnline + onlineAmt);
         allocatedCredit = round2(allocatedCredit + creditAmt);
+
+        // Recalculate price and litres for this entry
+        const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === item.entry.nozzleId);
+        const enteredValue = parseFloat(item.entry.readingValue || '0');
+        const lastReading = nozzle?.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
+        const initialReading = nozzle?.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+        const compareValue = lastReading !== null && !isNaN(lastReading)
+          ? lastReading
+          : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
+
+        const litres = Math.max(0, enteredValue - (compareValue || 0));
+        const priceData = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
+        const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
 
         const readingData: any = {
           stationId: selectedStation,

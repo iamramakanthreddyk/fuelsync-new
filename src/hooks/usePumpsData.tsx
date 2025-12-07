@@ -79,25 +79,19 @@ export function usePumpsData() {
       try {
         // Use the correct endpoint: /stations/:stationId/pumps
         const url = `/stations/${stationId}/pumps`;
-        console.log('🔍 Fetching pumps from:', url);
-        
+
         // apiClient.get returns the full response: {success, data}
         const response = await apiClient.get<{ success: boolean; data: BackendPump[] }>(url);
-        
+
         // Extract array data from wrapped response - handles both wrapped and unwrapped
         const pumpsData = extractApiArray(response, []);
-        
-        console.log('✅ Raw response:', response);
-        console.log('✅ Extracted data:', pumpsData);
-        console.log('Count:', pumpsData?.length);
 
         if (Array.isArray(pumpsData) && pumpsData.length > 0) {
           // Transform each pump to frontend format
           const transformed = pumpsData.map(transformPump);
-          console.log('✅ Transformed pumps:', transformed);
           return transformed;
         }
-        
+
         console.warn('⚠️ No pumps data found');
         return [];
       } catch (error) {

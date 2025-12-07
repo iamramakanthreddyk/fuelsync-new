@@ -56,7 +56,6 @@ export function useFuelPricesData(overrideStationId?: string) {
     queryFn: async () => {
       // Prevent API call if stationId is undefined
       if (!stationId) {
-        console.log('useFuelPricesData: No stationId provided, returning empty array');
         return [];
       }
       try {
@@ -86,19 +85,12 @@ export function useFuelPricesData(overrideStationId?: string) {
           }
         }
         
-        // Debug logging
-        console.log('Fuel prices API response for station', stationId, ':', response);
-        console.log('Extracted currentPrices:', currentPrices);
-        
         if (currentPrices.length > 0) {
           const transformed = currentPrices.map(transformPrice);
-          console.log('Transformed fuel prices for station', stationId, ':', transformed);
           return transformed;
         }
-        console.log('No fuel prices found for station', stationId);
         return [];
       } catch (error) {
-        console.error('Failed to fetch fuel prices:', error);
         return [];
       }
     },
