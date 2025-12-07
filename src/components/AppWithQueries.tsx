@@ -169,42 +169,41 @@ function ManagerOrOwnerRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
-export function AppWithQueries() {
+function AppContent() {
   const stationsQuery = useStationsForSuperAdmin();
 
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          <Route 
-            path="/login" 
-            element={
-              <PublicRoute>
-                <Login />
-              </PublicRoute>
-            } 
-          />
-          <Route 
-            path="/signup" 
-            element={
-              <PublicRoute>
-                <Signup />
-              </PublicRoute>
-            }
-          />
-          
-          {/* Super Admin Routes - MUST come BEFORE the catch-all /* route */}
-          <Route 
-            path="/superadmin/*" 
-            element={
-              <SuperAdminGuard>
-                <SuperAdminLayout>
-                  <Routes>
-                    <Route
-                      path="/users"
-                      element={
-                        stationsQuery.isLoading
-                          ? (
+    <Router>
+      <Routes>
+        <Route
+          path="/login"
+          element={
+            <PublicRoute>
+              <Login />
+            </PublicRoute>
+          }
+        />
+        <Route
+          path="/signup"
+          element={
+            <PublicRoute>
+              <Signup />
+            </PublicRoute>
+          }
+        />
+
+        {/* Super Admin Routes - MUST come BEFORE the catch-all /* route */}
+        <Route
+          path="/superadmin/*"
+          element={
+            <SuperAdminGuard>
+              <SuperAdminLayout>
+                <Routes>
+                  <Route
+                    path="/users"
+                    element={
+                      stationsQuery.isLoading
+                        ? (
                               <div className="flex items-center justify-center min-h-screen">Loading stations…</div>
                             )
                           : (
@@ -325,6 +324,13 @@ export function AppWithQueries() {
         </Routes>
         <Toaster />
       </Router>
+    );
+}
+
+export function AppWithQueries() {
+  return (
+    <AuthProvider>
+      <AppContent />
     </AuthProvider>
   );
 }
