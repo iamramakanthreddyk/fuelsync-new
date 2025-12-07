@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Fuel, DollarSign, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { EquipmentStatusEnum } from '@/core/enums';
+import { TodayReadings } from '@/components/dashboard/TodayReadings';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
@@ -232,7 +233,7 @@ const EmployeeDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-1">
-              <p className="text-sm"><strong>Brand:</strong> {currentStation.brand}</p>
+              <p className="text-sm"><strong>Oil Company:</strong> {currentStation.oilCompany || 'Not specified'}</p>
               <p className="text-sm"><strong>Address:</strong> {currentStation.address || 'Not specified'}</p>
             </div>
           </CardContent>
