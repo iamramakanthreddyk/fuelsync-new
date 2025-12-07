@@ -122,13 +122,20 @@ function RoleBasedRedirect() {
 }
 
 function useStationsForSuperAdmin() {
+  const { user } = useAuth();
+
+  // Normalize role to handle legacy formats
+  const normalizedRole = typeof user?.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
+  const isSuperAdmin = normalizedRole === 'superadmin' || normalizedRole === 'super_admin';
+
   return useQuery<Station[]>({
     queryKey: ["all-stations"],
     queryFn: async (): Promise<Station[]> => {
       const response = await apiClient.get<Station[]>('/stations');
       console.log('🏢 All stations response:', response);
       return response || [];
-    }
+    },
+    enabled: !!user && isSuperAdmin, // Only run when user is authenticated and is super admin
   });
 }
 
