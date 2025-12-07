@@ -6,13 +6,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FuelType, FuelTypeEnum } from '@/core/enums';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CurrencyInput } from '@/components/inputs/CurrencyInput';
 import { IndianRupee, Fuel, Gauge } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
@@ -47,7 +48,7 @@ interface TenderEntryData {
 
 interface RefillData {
   station_id: string;
-  fuel_type: 'PETROL' | 'DIESEL' | 'CNG' | 'EV';
+  fuel_type: FuelType;
   quantity_l: number;
   filled_at: string;
 }
@@ -181,20 +182,11 @@ export default function DataEntry() {
   } = useForm<RefillData>({
     defaultValues: {
       station_id: userStations[0]?.id || '',
-      fuel_type: 'PETROL',
+      fuel_type: FuelTypeEnum.PETROL,
       quantity_l: 0,
       filled_at: format(new Date(), 'yyyy-MM-dd'),
     }
   });
-
-  useEffect(() => {
-    // sync forms when stations are ready
-    if (userStations.length > 0) {
-      setManualValue('station_id', userStations[0].id);
-      setTenderValue('station_id', userStations[0].id);
-      setRefillValue('station_id', userStations[0].id);
-    }
-  }, [userStations, setManualValue, setTenderValue, setRefillValue]);
 
   useEffect(() => {
     // sync forms when stations are ready
@@ -739,16 +731,19 @@ export default function DataEntry() {
                     <Label htmlFor="refill-fuel">Fuel Type</Label>
                     <Select
                       value={watchRefill('fuel_type')}
-                      onValueChange={value => setRefillValue('fuel_type', value as 'PETROL' | 'DIESEL' | 'CNG' | 'EV')}
+                      onValueChange={value => setRefillValue('fuel_type', value as FuelType)}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select fuel type" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="PETROL">Petrol</SelectItem>
-                        <SelectItem value="DIESEL">Diesel</SelectItem>
-                        <SelectItem value="CNG">CNG</SelectItem>
-                        <SelectItem value="EV">EV</SelectItem>
+                        <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
+                        <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
+                        <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
+                        <SelectItem value={FuelTypeEnum.LPG}>LPG</SelectItem>
+                        <SelectItem value={FuelTypeEnum.PREMIUM_PETROL}>Premium Petrol</SelectItem>
+                        <SelectItem value={FuelTypeEnum.PREMIUM_DIESEL}>Premium Diesel</SelectItem>
+                        <SelectItem value={FuelTypeEnum.EV_CHARGING}>EV Charging</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>

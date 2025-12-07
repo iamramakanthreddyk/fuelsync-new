@@ -66,13 +66,13 @@ describe('Sales Calculations', () => {
     it('should validate fuel price retrieval logic', () => {
       const mockFuelPrices = [
         { 
-          fuel_type: 'PETROL', 
+          fuel_type: 'petrol', 
           price_per_litre: 95.50, 
           station_id: 1, 
           valid_from: '2024-01-01T00:00:00Z' 
         },
         { 
-          fuel_type: 'DIESEL', 
+          fuel_type: 'diesel', 
           price_per_litre: 87.20, 
           station_id: 1, 
           valid_from: '2024-01-01T00:00:00Z' 

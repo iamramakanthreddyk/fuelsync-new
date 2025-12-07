@@ -10,6 +10,7 @@
 
 const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, sequelize } = require('../models');
 const { Op, fn, col } = require('sequelize');
+const { FUEL_TYPES } = require('../config/constants');
 
 console.log('[INIT] stationController loaded');
 
@@ -220,32 +221,18 @@ exports.createStation = async (req, res, next) => {
       return res.status(404).json({ success: false, error: 'Owner not found' });
     }
 
-    // Perform plan limit check and creation in a transaction to avoid races
+    // Perform station creation in a transaction for code uniqueness
     const t = await sequelize.transaction();
     try {
-      const ownerWithPlan = await User.findByPk(stationOwnerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
-      console.log('[PLANCHECK] createStation ownerId=', stationOwnerId, 'plan=', ownerWithPlan?.plan?.name, 'maxStations=', ownerWithPlan?.plan?.maxStations);
-      
-      // Validate that the currentPlanId matches the owner's actual plan
-      if (currentPlanId && ownerWithPlan?.planId !== currentPlanId) {
-        console.log('[PLANCHECK] Plan ID mismatch: owner has', ownerWithPlan?.planId, 'but client sent', currentPlanId);
-        await t.rollback();
-        return res.status(400).json({
-          success: false,
-          error: 'Plan validation failed. Owner\'s current plan does not match the provided plan ID.'
-        });
-      }
-      
-      const stationCount = await Station.count({ where: { ownerId: stationOwnerId }, transaction: t });
-      console.log('[PLANCHECK] createStation currentStationCount=', stationCount);
-      if (ownerWithPlan && ownerWithPlan.plan && ownerWithPlan.plan.maxStations != null) {
-        if ((stationCount + 1) > ownerWithPlan.plan.maxStations) {
-          console.log('[PLANCHECK] Blocking createStation: limit reached');
+      // Validate that the currentPlanId matches the owner's actual plan (if provided)
+      if (currentPlanId) {
+        const ownerWithPlan = await User.findByPk(stationOwnerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
+        if (ownerWithPlan?.planId !== currentPlanId) {
+          console.log('[PLANCHECK] Plan ID mismatch: owner has', ownerWithPlan?.planId, 'but client sent', currentPlanId);
           await t.rollback();
-          return res.status(403).json({
+          return res.status(400).json({
             success: false,
-            error: `Plan limit reached. Your ${ownerWithPlan.plan.name} plan allows ${ownerWithPlan.plan.maxStations} station(s). You currently have ${stationCount}.`,
-            planLimitExceeded: true
+            error: 'Plan validation failed. Owner\'s current plan does not match the provided plan ID.'
           });
         }
       }
@@ -308,14 +295,6 @@ exports.createStation = async (req, res, next) => {
         email,
         gstNumber
       }, { transaction: t });
-
-      // Post-create verification (still inside transaction)
-      const stationCountPost = await Station.count({ where: { ownerId: stationOwnerId }, transaction: t });
-      if (ownerWithPlan && ownerWithPlan.plan && ownerWithPlan.plan.maxStations != null && stationCountPost > ownerWithPlan.plan.maxStations) {
-        console.log('[PLANCHECK] Rolling back station create: would exceed plan after create', stationCountPost, ownerWithPlan.plan.maxStations);
-        await t.rollback();
-        return res.status(403).json({ success: false, error: 'Plan limit exceeded after creation attempt', planLimitExceeded: true });
-      }
 
       await t.commit();
       res.status(201).json({ success: true, data: station, message: 'Station created successfully' });
@@ -929,10 +908,6 @@ exports.createNozzle = async (req, res, next) => {
       });
     }
 
-    // Post-create verification
-    const nozzleCountPost = await Nozzle.count({ where: { pumpId } });
-    // Note: Plan limit check is done in middleware, so no need to verify here
-
     console.log(`✅ NOZZLE CREATED - ID: ${nozzle.id}, Number: ${nozzle.nozzleNumber}, Pump: ${pumpId}`);
     res.status(201).json({ success: true, data: nozzle });
 
@@ -1111,7 +1086,7 @@ exports.checkPriceSet = async (req, res, next) => {
       });
     }
 
-    const validFuelTypes = ['petrol', 'diesel'];
+    const validFuelTypes = Object.values(FUEL_TYPES);
     if (!validFuelTypes.includes(fuelType)) {
       return res.status(400).json({ 
         success: false, 

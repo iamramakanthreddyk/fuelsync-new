@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { FuelType, FuelTypeEnum } from '@/core/enums';
 
 export default function NozzleReadings() {
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -23,7 +24,7 @@ export default function NozzleReadings() {
     cumulative_volume: 0,
     reading_date: new Date().toISOString().split('T')[0],
     reading_time: new Date().toTimeString().slice(0, 5),
-    fuel_type: 'Petrol' as 'Petrol' | 'Diesel'
+    fuel_type: FuelTypeEnum.PETROL as FuelType
   });
 
   const { user } = useAuth();
@@ -218,14 +219,19 @@ export default function NozzleReadings() {
                 <Label htmlFor="fuel_type">Fuel Type</Label>
                 <Select
                   value={newReading.fuel_type}
-                  onValueChange={(value: 'Petrol' | 'Diesel') => setNewReading(prev => ({ ...prev, fuel_type: value }))}
+                  onValueChange={(value: FuelType) => setNewReading(prev => ({ ...prev, fuel_type: value }))}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Petrol">Petrol</SelectItem>
-                    <SelectItem value="Diesel">Diesel</SelectItem>
+                    <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
+                    <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
+                    <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
+                    <SelectItem value={FuelTypeEnum.LPG}>LPG</SelectItem>
+                    <SelectItem value={FuelTypeEnum.PREMIUM_PETROL}>Premium Petrol</SelectItem>
+                    <SelectItem value={FuelTypeEnum.PREMIUM_DIESEL}>Premium Diesel</SelectItem>
+                    <SelectItem value={FuelTypeEnum.EV_CHARGING}>EV Charging</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -385,7 +391,7 @@ export default function NozzleReadings() {
                 <Label htmlFor="edit_fuel_type">Fuel Type</Label>
                 <Select
                   value={editingReading.fuelType}
-                  onValueChange={(value: 'Petrol' | 'Diesel') => 
+                  onValueChange={(value: FuelType) => 
                     setEditingReading(prev => prev ? { ...prev, fuelType: value } : null)
                   }
                 >
@@ -393,8 +399,13 @@ export default function NozzleReadings() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Petrol">Petrol</SelectItem>
-                    <SelectItem value="Diesel">Diesel</SelectItem>
+                    <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
+                    <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
+                    <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
+                    <SelectItem value={FuelTypeEnum.LPG}>LPG</SelectItem>
+                    <SelectItem value={FuelTypeEnum.PREMIUM_PETROL}>Premium Petrol</SelectItem>
+                    <SelectItem value={FuelTypeEnum.PREMIUM_DIESEL}>Premium Diesel</SelectItem>
+                    <SelectItem value={FuelTypeEnum.EV_CHARGING}>EV Charging</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

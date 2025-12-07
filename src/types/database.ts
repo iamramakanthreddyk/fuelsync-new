@@ -113,7 +113,7 @@ export interface ManualReading {
 export interface FuelPrice {
   id: number;
   station_id: number | null;
-  fuel_type: 'PETROL' | 'DIESEL' | 'CNG' | 'EV';
+  fuel_type: 'petrol' | 'diesel' | 'premium_petrol' | 'premium_diesel' | 'cng' | 'lpg' | 'ev_charging';
   price_per_litre: number;
   valid_from: string;
   created_by: string | null; // UUID
@@ -189,7 +189,7 @@ export interface TenderEntryData {
 
 export interface RefillData {
   station_id: number;
-  fuel_type: 'PETROL' | 'DIESEL' | 'CNG' | 'EV';
+  fuel_type: 'petrol' | 'diesel' | 'premium_petrol' | 'premium_diesel' | 'cng' | 'lpg' | 'ev_charging';
   quantity_l: number;
   filled_at: string;
 }

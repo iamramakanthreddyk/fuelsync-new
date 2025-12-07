@@ -51,9 +51,23 @@ export enum FuelTypeEnum {
   PREMIUM_DIESEL = 'premium_diesel',
   CNG = 'cng',
   LPG = 'lpg',
+  EV_CHARGING = 'ev_charging',
 }
 
 export type FuelType = `${FuelTypeEnum}`;
+
+/**
+ * Fuel type display labels
+ */
+export const FUEL_TYPE_LABELS: Record<FuelType, string> = {
+  petrol: 'Petrol',
+  diesel: 'Diesel',
+  premium_petrol: 'Premium Petrol',
+  premium_diesel: 'Premium Diesel',
+  cng: 'CNG',
+  lpg: 'LPG',
+  ev_charging: 'EV Charging',
+};
 
 /**
  * Equipment status (pumps, nozzles, tanks)

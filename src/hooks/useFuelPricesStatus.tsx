@@ -10,6 +10,7 @@
 import { useMemo } from 'react';
 import { useFuelPricesData } from './useFuelPricesData';
 import { useRoleAccess } from './useRoleAccess';
+import { FuelTypeEnum } from '@/core/enums';
 
 export interface FuelPricesStatus {
   hasPrices: boolean;
@@ -84,7 +85,7 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
 
     // Get fuel types from prices
     const setFuelTypes = pricesArray.map(p => p.fuel_type.toUpperCase()) || [];
-    const commonFuelTypes = ['PETROL', 'DIESEL'];
+    const commonFuelTypes = [FuelTypeEnum.PETROL.toUpperCase(), FuelTypeEnum.DIESEL.toUpperCase()];
     const missingFuelTypes = commonFuelTypes.filter(ft => !setFuelTypes.includes(ft));
 
     let warning: string | null = null;
