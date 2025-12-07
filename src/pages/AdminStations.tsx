@@ -17,10 +17,8 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 
 type NewStation = {
   name: string;
-  brand: 'IOCL' | 'BPCL' | 'HPCL';
   address: string;
   owner_id: string;
-  current_plan_id: string;
 }
 
 
@@ -28,10 +26,8 @@ export default function AdminStations() {
   const [isAddStationOpen, setIsAddStationOpen] = useState(false);
   const [newStation, setNewStation] = useState<NewStation>({
     name: '',
-    brand: 'IOCL',
     address: '',
-    owner_id: '',
-    current_plan_id: ''
+    owner_id: ''
   });
 
   const { toast } = useToast();
@@ -85,39 +81,15 @@ export default function AdminStations() {
     },
   });
 
-  // Fetch plans for dropdown
-  const { data: plans, isLoading: plansLoading } = useQuery({
-    queryKey: ['plans'],
-    queryFn: async () => {
-      try {
-        const response = await apiClient.get<any>('/plans');
-        
-        // Extract data from wrapped response
-        if (response && typeof response === 'object') {
-          if ('data' in response && Array.isArray(response.data)) {
-            return response.data;
-          }
-          if (Array.isArray(response)) {
-            return response;
-          }
-        }
-        return [];
-      } catch (error) {
-        console.error('Error fetching plans:', error);
-        throw error;
-      }
-    },
-  });
-
   // Add station mutation using REST API
   const addStationMutation = useMutation({
     mutationFn: async (stationData: typeof newStation) => {
-      return await apiClient.post<Station>('/admin/stations', {
+      return await apiClient.post<Station>('/api/v1/stations', {
         name: stationData.name,
-        brand: stationData.brand,
         address: stationData.address,
         ownerId: stationData.owner_id,
-        currentPlanId: stationData.current_plan_id
+        // Note: currentPlanId is not used by backend for station creation
+        // Plan limits are checked against the owner's plan
       });
     },
     onSuccess: () => {
@@ -125,10 +97,8 @@ export default function AdminStations() {
       setIsAddStationOpen(false);
       setNewStation({
         name: '',
-        brand: 'IOCL',
         address: '',
-        owner_id: '',
-        current_plan_id: ''
+        owner_id: ''
       });
       toast({
         title: "Success",
@@ -169,10 +139,30 @@ export default function AdminStations() {
   }
 
   const handleAddStation = () => {
-    if (!newStation.name || !newStation.address || !newStation.owner_id || !newStation.current_plan_id) {
+    // Frontend validation matching backend Joi schema
+    const errors: string[] = [];
+    
+    // Name validation
+    if (!newStation.name || newStation.name.trim().length < 2) {
+      errors.push("Station name must be at least 2 characters");
+    } else if (newStation.name.length > 100) {
+      errors.push("Station name cannot exceed 100 characters");
+    }
+    
+    // Address validation (optional but if provided, check length)
+    if (newStation.address && newStation.address.length > 255) {
+      errors.push("Address cannot exceed 255 characters");
+    }
+    
+    // Owner validation (required for super_admin)
+    if (!newStation.owner_id) {
+      errors.push("Please select a station owner");
+    }
+    
+    if (errors.length > 0) {
       toast({
-        title: "Missing Information",
-        description: "Please fill in all required fields",
+        title: "Validation Error",
+        description: errors.join(". "),
         variant: "destructive",
       });
       return;
@@ -232,19 +222,6 @@ export default function AdminStations() {
                 />
               </div>
               <div>
-                <Label htmlFor="brand">Brand</Label>
-                <Select value={newStation.brand} onValueChange={(value: NewStation['brand']) => setNewStation(prev => ({ ...prev, brand: value }))}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="IOCL">IOCL</SelectItem>
-                    <SelectItem value="BPCL">BPCL</SelectItem>
-                    <SelectItem value="HPCL">HPCL</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
                 <Label htmlFor="address">Address</Label>
                 <Input
                   id="address"
@@ -276,27 +253,6 @@ export default function AdminStations() {
                 {ownersError && (
                   <p className="text-xs text-red-500 mt-1">Failed to load owners</p>
                 )}
-              </div>
-              <div>
-                <Label htmlFor="plan">Plan</Label>
-                <Select value={newStation.current_plan_id} onValueChange={(value) => setNewStation(prev => ({ ...prev, current_plan_id: value }))}>
-                  <SelectTrigger disabled={plansLoading}>
-                    <SelectValue placeholder={plansLoading ? "Loading plans..." : "Select a plan"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {plansLoading && (
-                      <div className="p-2 text-sm text-muted-foreground">Loading plans...</div>
-                    )}
-                    {!plansLoading && plans && plans.length === 0 && (
-                      <div className="p-2 text-sm text-muted-foreground">No plans found</div>
-                    )}
-                    {!plansLoading && plans?.map((plan: any) => (
-                      <SelectItem key={plan.id} value={plan.id}>
-                        {plan.name} (₹{plan.priceMonthly}/month)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
               </div>
               <Button onClick={handleAddStation} disabled={addStationMutation.isPending} className="w-full">
                 {addStationMutation.isPending ? 'Creating...' : 'Create Station'}
