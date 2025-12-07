@@ -13,22 +13,15 @@ COPY backend/package*.json ./
 # Install dependencies
 RUN npm ci --only=production && npm cache clean --force
 
-# Copy the entire backend directory content, then clean up what we don't need
+# Copy the entire backend directory content
 COPY backend/ ./
 
-# Remove dev dependencies, tests, and unnecessary files
-RUN rm -rf node_modules tests _deprecated docs *.js *.json *.txt *.md .env .env* jest-results.json && \
-    find . -name ".git*" -type f -delete && \
-    mkdir -p data
+# Remove dev dependencies, tests, and unnecessary files (but NOT node_modules!)
+RUN rm -rf tests _deprecated docs *.js *.json *.txt *.md .env .env* jest-results.json && \
+    find . -name ".git*" -type f -delete
 
 # Ensure required directories exist
-RUN mkdir -p data && \
-    mkdir -p src && \
-    mkdir -p config && \
-    mkdir -p database && \
-    mkdir -p models && \
-    mkdir -p routes && \
-    mkdir -p scripts
+RUN mkdir -p data
 
 # Change ownership to node user
 RUN chown -R node:node /app
