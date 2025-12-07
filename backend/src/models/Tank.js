@@ -10,6 +10,7 @@
  */
 
 const { DataTypes, Op } = require('sequelize');
+const { FUEL_TYPES } = require('../config/constants');
 
 module.exports = (sequelize) => {
   const Tank = sequelize.define('Tank', {
@@ -29,7 +30,7 @@ module.exports = (sequelize) => {
       type: DataTypes.STRING(20),
       allowNull: false,
       validate: {
-        isIn: [['petrol', 'diesel', 'premium_petrol', 'premium_diesel', 'cng']]
+        isIn: [Object.values(FUEL_TYPES)]
       }
     },
     

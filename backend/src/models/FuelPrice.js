@@ -4,6 +4,7 @@
  */
 
 const { DataTypes } = require('sequelize');
+const { FUEL_TYPES } = require('../config/constants');
 
 module.exports = (sequelize) => {
   const FuelPrice = sequelize.define('FuelPrice', {
@@ -22,7 +23,7 @@ module.exports = (sequelize) => {
       }
     },
     fuelType: {
-      type: DataTypes.ENUM('petrol', 'diesel'),
+      type: DataTypes.ENUM(...Object.values(FUEL_TYPES)),
       allowNull: false,
       field: 'fuel_type'
     },
