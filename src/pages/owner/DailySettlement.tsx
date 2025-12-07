@@ -152,7 +152,7 @@ export default function DailySettlement() {
       return;
     }
 
-    const variance = actualCash - dailySales.expectedCash;
+    const variance = dailySales.expectedCash - actualCash;
 
     setIsSubmitting(true);
     submitSettlementMutation.mutate({
@@ -376,7 +376,7 @@ export default function DailySettlement() {
               {/* Variance */}
               {actualCash > 0 && (
                 <div className={`p-4 rounded-lg border-2 ${
-                  Math.abs(actualCash - dailySales.expectedCash) < 1
+                  Math.abs(dailySales.expectedCash - actualCash) < 1
                     ? 'border-green-300 bg-green-100'
                     : 'border-yellow-300 bg-yellow-100'
                 }`}>
@@ -386,7 +386,7 @@ export default function DailySettlement() {
                         ? 'text-green-700'
                         : 'text-yellow-700'
                     }`}>
-                      {Math.abs(actualCash - dailySales.expectedCash) < 1 ? (
+                      {Math.abs(dailySales.expectedCash - actualCash) < 1 ? (
                         <>
                           <CheckCircle2 className="w-5 h-5 inline mr-2" />
                           Cash Match - No Variance
@@ -399,13 +399,13 @@ export default function DailySettlement() {
                       )}
                     </span>
                     <div className={`text-lg md:text-xl lg:text-2xl font-bold ${
-                      actualCash > dailySales.expectedCash
+                      dailySales.expectedCash < actualCash
                         ? 'text-green-600'
-                        : actualCash < dailySales.expectedCash
+                        : dailySales.expectedCash > actualCash
                         ? 'text-red-600'
                         : 'text-green-600'
                     } break-all md:break-normal`}>
-                      {actualCash > dailySales.expectedCash ? '+' : ''}₹{safeToFixed(actualCash - dailySales.expectedCash, 2)}
+                      {dailySales.expectedCash < actualCash ? '+' : ''}₹{safeToFixed(dailySales.expectedCash - actualCash, 2)}
                     </div>
                   </div>
                 </div>

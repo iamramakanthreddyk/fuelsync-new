@@ -32,6 +32,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, queryKeys } from '@/hooks/api';
+import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { Station } from '@/types/api';
 import type { ApiResponse } from '@/lib/api-client';
 import { 
@@ -44,7 +45,8 @@ import {
   Phone,
   Fuel,
   TrendingUp,
-  Clock
+  Clock,
+  DollarSign
 } from 'lucide-react';
 
 interface StationFormData {
@@ -184,6 +186,60 @@ const StationFormContent = ({ formData, onChange }: StationFormProps) => (
     </div>
   </div>
 );
+
+// Fuel Prices Section Component
+interface FuelPricesSectionProps {
+  stationId: string;
+}
+
+const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
+  const { data: fuelPrices = [], isLoading } = useFuelPricesData(stationId);
+
+  if (isLoading) {
+    return (
+      <div className="bg-muted/50 p-3 rounded-lg">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+          <DollarSign className="w-4 h-4" />
+          <span>Fuel Prices</span>
+        </div>
+        <div className="text-sm text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  if (!fuelPrices || fuelPrices.length === 0) {
+    return (
+      <div className="bg-muted/50 p-3 rounded-lg">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+          <DollarSign className="w-4 h-4" />
+          <span>Fuel Prices</span>
+        </div>
+        <div className="text-sm text-muted-foreground">No prices set</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-muted/50 p-3 rounded-lg">
+      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+        <DollarSign className="w-4 h-4" />
+        <span>Fuel Prices</span>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        {fuelPrices.map((price) => (
+          <div key={price.id} className="bg-background/50 p-2 rounded border">
+            <div className="text-xs text-muted-foreground capitalize">
+              {price.fuel_type}
+            </div>
+            <div className="text-sm font-semibold text-green-700">
+              ₹{price.price_per_litre.toFixed(2)}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 export default function StationsManagement() {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
@@ -424,158 +480,173 @@ export default function StationsManagement() {
           </CardContent>
         </Card>
       ) : Array.isArray(stations) && stations.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {(Array.isArray(stations) ? stations : []).map((station) => (
+        <div className="grid gap-4 grid-cols-1">
+          {(Array.isArray(stations) ? stations : []).map((station) => {
+            console.log('Station data:', station.id, station.name, 'isActive:', station.isActive);
+            return (
             <Card
               key={station.id}
-              className="hover:shadow-lg transition-all duration-200 hover:scale-[1.02] cursor-pointer border-0 shadow-sm bg-card/50 backdrop-blur-sm"
+              className="hover:shadow-xl transition-all duration-300 hover:scale-[1.01] cursor-pointer border border-border/50 shadow-md bg-gradient-to-br from-card to-card/80 backdrop-blur-sm overflow-hidden"
               onClick={() => navigate(`/owner/stations/${station.id}`)}
             >
-              <CardHeader className="pb-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                      <Building2 className="w-5 h-5 text-primary" />
+              <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border-b border-border/30">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex-shrink-0 ring-1 ring-primary/20">
+                      <Building2 className="w-6 h-6 text-primary" />
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <CardTitle className="text-lg font-semibold truncate">{station.name}</CardTitle>
-                      {station.code && (
-                        <CardDescription className="text-sm">Code: {station.code}</CardDescription>
-                      )}
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <CardTitle className="text-xl font-bold truncate leading-tight">{station.name}</CardTitle>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        {station.code && (
+                          <Badge variant="outline" className="text-xs font-medium border-primary/30 text-primary">
+                            {station.code}
+                          </Badge>
+                        )}
+                        <Badge
+                          variant={station.isActive ? 'default' : 'secondary'}
+                          className={`text-xs font-medium ${
+                            station.isActive
+                              ? 'bg-green-100 text-green-800 hover:bg-green-100 border-green-200'
+                              : 'bg-gray-100 text-gray-800 hover:bg-gray-100 border-gray-200'
+                          }`}
+                        >
+                          {station.isActive ? '● Active' : '○ Inactive'} ({station.isActive ? 'true' : 'false'})
+                        </Badge>
+                      </div>
                     </div>
                   </div>
-                  <Badge
-                    variant={station.isActive ? 'default' : 'secondary'}
-                    className={`flex-shrink-0 text-xs font-medium ${
-                      station.isActive
-                        ? 'bg-green-100 text-green-800 hover:bg-green-100'
-                        : 'bg-gray-100 text-gray-800 hover:bg-gray-100'
-                    }`}
-                  >
-                    {station.isActive ? 'Active' : 'Inactive'}
-                  </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-4" onClick={(e) => e.stopPropagation()}>
-                {/* Today's Sales - Prominent */}
-                {station.todaySales !== undefined && station.todaySales !== null && (
-                  <div className="bg-gradient-to-r from-green-50 to-transparent p-4 rounded-lg border border-green-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <TrendingUp className="w-4 h-4 text-green-600" />
-                        <span className="text-sm font-medium text-green-800">Today's Sales</span>
-                      </div>
-                      <span className="text-xl font-bold text-green-700">
-                        ₹{station.todaySales.toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                      </span>
+              <CardContent className="space-y-4 p-4" onClick={(e) => e.stopPropagation()}>
+                {/* Key Metrics Grid */}
+                <div className="grid grid-cols-3 gap-3">
+                  {/* Today's Sales */}
+                  <div className="bg-gradient-to-br from-green-50 to-green-100/50 p-3 rounded-lg border border-green-200/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-4 h-4 text-green-600" />
+                      <span className="text-xs font-medium text-green-800">Sales</span>
                     </div>
-                  </div>
-                )}
-
-                {/* Stats Grid */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-muted/50 p-3 rounded-lg">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                      <Fuel className="w-4 h-4" />
-                      <span>Pumps</span>
+                    <div className="text-lg font-bold text-green-700">
+                      ₹{(station.todaySales || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
                     </div>
-                    <div className="font-semibold text-lg">
-                      {station.activePumps}/{station.pumpCount}
-                      <span className="text-xs text-muted-foreground ml-1 block">active</span>
-                    </div>
+                    <div className="text-xs text-green-600/70">Today</div>
                   </div>
 
-                  {station.lastReading && (
-                    <div className="bg-muted/50 p-3 rounded-lg">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                        <Clock className="w-4 h-4" />
-                        <span>Last Entry</span>
+                  {/* Pumps Status */}
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100/50 p-3 rounded-lg border border-blue-200/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Fuel className="w-4 h-4 text-blue-600" />
+                      <span className="text-xs font-medium text-blue-800">Pumps</span>
+                    </div>
+                    <div className="text-lg font-bold text-blue-700">
+                      {station.activePumps || 0}/{station.pumpCount || 0}
+                    </div>
+                    <div className="text-xs text-blue-600/70">Active</div>
+                  </div>
+
+                  {/* Last Reading */}
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 p-3 rounded-lg border border-purple-200/50">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Clock className="w-4 h-4 text-purple-600" />
+                      <span className="text-xs font-medium text-purple-800">Reading</span>
+                    </div>
+                    <div className="text-lg font-bold text-purple-700">
+                      {station.lastReading || 0}L
+                    </div>
+                    <div className="text-xs text-purple-600/70">Last</div>
+                  </div>
+                </div>
+
+                {/* Fuel Prices */}
+                <FuelPricesSection stationId={station.id} />
+
+                {/* Location & Contact Info */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* Location */}
+                  {(station.city || station.address) && (
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/30">
+                      <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-muted-foreground mb-1">Location</div>
+                        <div className="text-sm leading-tight">
+                          {station.city && <span>{station.city}</span>}
+                          {station.state && <span>{station.city ? `, ${station.state}` : station.state}</span>}
+                          {station.address && <div className="text-xs text-muted-foreground mt-1 truncate">{station.address}</div>}
+                        </div>
                       </div>
-                      <div className="text-sm font-medium">
-                        {new Date(station.lastReading).toLocaleDateString('en-IN', {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit'
-                        })}
+                    </div>
+                  )}
+
+                  {/* Contact */}
+                  {(station.phone || station.email) && (
+                    <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 border border-border/30">
+                      <Phone className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        <div className="text-xs font-medium text-muted-foreground mb-1">Contact</div>
+                        <div className="space-y-1">
+                          {station.phone && <div className="text-sm truncate">{station.phone}</div>}
+                          {station.email && <div className="text-xs text-muted-foreground truncate">{station.email}</div>}
+                        </div>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {/* Location */}
-                {(station.city || station.address) && (
-                  <div className="flex items-start gap-3 p-3 rounded-lg bg-muted/30">
-                    <MapPin className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <span className="text-sm text-muted-foreground leading-relaxed">
-                        {station.city && <span>{station.city}{station.state && `, ${station.state}`}</span>}
-                      </span>
+                {/* Plan Info */}
+                {station.owner?.plan && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-orange-50 to-orange-100/50 border border-orange-200/50">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 rounded-full bg-orange-500"></div>
+                      <span className="text-sm font-medium text-orange-800">Plan: {station.owner.plan.name}</span>
                     </div>
+                    <span className="text-sm font-semibold text-orange-700">
+                      ₹{station.owner.plan.priceMonthly}/mo
+                    </span>
                   </div>
                 )}
 
-                {/* Contact */}
-                {station.phone && (
-                  <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30">
-                    <Phone className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                    <span className="text-sm text-muted-foreground">{station.phone}</span>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="space-y-2 pt-3 border-t">
-                  <div className="flex gap-2">
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1 hover:bg-primary/90"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/owner/stations/${station.id}`);
-                      }}
-                    >
-                      <ArrowRight className="w-4 h-4 mr-2" />
-                      Manage
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(station);
-                      }}
-                      className="hover:bg-primary/5"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteStationId(station.id);
-                      }}
-                      className="hover:bg-destructive/90"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </div>
+                {/* Action Buttons */}
+                <div className="flex gap-2 pt-2 border-t border-border/30">
                   <Button
-                    variant="secondary"
+                    variant="default"
                     size="sm"
-                    className="w-full hover:bg-secondary/80"
+                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      navigate(`/owner/daily-settlement/${station.id}`);
+                      navigate(`/owner/stations/${station.id}`);
                     }}
                   >
-                    Daily Settlement
+                    <ArrowRight className="w-4 h-4 mr-2" />
+                    Manage Station
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleEdit(station);
+                    }}
+                    className="hover:bg-muted"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteStationId(station.id);
+                    }}
+                    className="hover:bg-destructive/10 hover:border-destructive/30"
+                  >
+                    <Trash2 className="w-4 h-4" />
                   </Button>
                 </div>
               </CardContent>
             </Card>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <Card>

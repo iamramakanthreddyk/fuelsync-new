@@ -47,6 +47,17 @@ import {
   CreditCard
 } from 'lucide-react';
 
+// Import enums and types
+import {
+  type FuelType,
+  type EquipmentStatus,
+  FuelTypeEnum,
+  EquipmentStatusEnum
+} from '@/core/enums';
+
+// Define reading payment types (subset of PaymentMethod used for readings)
+type ReadingPaymentType = 'cash' | 'digital' | 'credit';
+
 interface Creditor {
   id: string;
   name: string;
@@ -76,8 +87,8 @@ export default function StationDetail() {
   const [selectedNozzle, setSelectedNozzle] = useState<Nozzle | null>(null);
 
   // Get default fuel type: default to petrol (allow multiple nozzles of same type)
-  const getDefaultFuelType = (): string => {
-    return 'petrol';
+  const getDefaultFuelType = (): FuelType => {
+    return FuelTypeEnum.PETROL;
   };
 
   // Log last reading value for selected nozzle
@@ -97,29 +108,29 @@ export default function StationDetail() {
   const [pumpForm, setPumpForm] = useState({
     pumpNumber: '',
     name: '',
-    status: 'active' as 'active' | 'inactive' | 'maintenance'
+    status: EquipmentStatusEnum.ACTIVE as EquipmentStatus
   });
 
   const [editPumpForm, setEditPumpForm] = useState<{
     name: string;
-    status: 'active' | 'inactive' | 'maintenance';
+    status: EquipmentStatus;
     notes: string;
   }>({
     name: '',
-    status: 'active',
+    status: EquipmentStatusEnum.ACTIVE,
     notes: ''
   });
 
   const [nozzleForm, setNozzleForm] = useState({
-    fuelType: 'petrol',
+    fuelType: FuelTypeEnum.PETROL as FuelType,
     initialReading: ''
   });
 
   const [editNozzleForm, setEditNozzleForm] = useState<{
-    status: 'active' | 'inactive' | 'maintenance';
+    status: EquipmentStatus;
     notes: string;
   }>({
-    status: 'active',
+    status: EquipmentStatusEnum.ACTIVE,
     notes: ''
   });
 
@@ -127,7 +138,7 @@ export default function StationDetail() {
     nozzleId: '',
     readingValue: '',
     readingDate: formatDateISO(new Date()),
-    paymentType: 'cash' as 'cash' | 'digital' | 'credit'
+    paymentType: 'cash' as ReadingPaymentType
   });
 
   const [priceForm, setPriceForm] = useState({
@@ -174,9 +185,8 @@ export default function StationDetail() {
   const { data: station, isLoading: stationLoading } = useQuery({
     queryKey: ['station', id],
     queryFn: async () => {
-      const response = await apiClient.get<Station>(`/stations/${id}`);
-      console.log('Station API Response:', response);
-      return response;
+      const response = await apiClient.get<{ success: boolean; data: Station }>(`/stations/${id}`);
+      return response.data;
     },
     enabled: !!id
   });
@@ -471,7 +481,7 @@ export default function StationDetail() {
 
   // Add reading mutation
   const addReadingMutation = useMutation({
-    mutationFn: async (data: { nozzleId: string; readingValue: number; readingDate: string; paymentType: 'cash' | 'digital' | 'credit' }) => {
+    mutationFn: async (data: { nozzleId: string; readingValue: number; readingDate: string; paymentType: ReadingPaymentType }) => {
       const response = await apiClient.post(`/readings`, data);
       return response;
     },
@@ -618,7 +628,7 @@ export default function StationDetail() {
   if (stationLoading) {
     return (
       <div className="container mx-auto p-6">
-        <div className="text-center py-12">Loading station details...</div>
+        <div className="text-center py-8">Loading station details...</div>
       </div>
     );
   }
@@ -626,13 +636,15 @@ export default function StationDetail() {
   if (!station) {
     return (
       <div className="container mx-auto p-6">
-        <div className="text-center py-12">Station not found</div>
+        <div className="text-center py-8">Station not found</div>
       </div>
     );
   }
 
+  console.log('StationDetail - Station data:', station);
+
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-6 space-y-4">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -648,31 +660,31 @@ export default function StationDetail() {
           </div>
         </div>
         <Badge variant={station.isActive ? 'default' : 'secondary'} className="self-start sm:self-center flex-shrink-0">
-          {station.isActive ? 'Active' : 'Inactive'}
+          {station.isActive ? '● Active' : '○ Inactive'} ({station.isActive ? 'true' : 'false'})
         </Badge>
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="pumps" className="space-y-4">
         <div className="flex flex-col gap-4">
-          <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 bg-gray-100 p-1 rounded-xl h-auto">
-            <TabsTrigger value="pumps" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
-              <Fuel className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+          <TabsList className="flex h-14 items-center justify-center rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-1 text-muted-foreground shadow-lg border border-slate-200 dark:border-slate-700 w-full overflow-x-auto overflow-y-hidden flex-nowrap min-w-max backdrop-blur-sm">
+            <TabsTrigger value="pumps" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md flex-shrink-0 group">
+              <Fuel className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-blue-500 transition-colors flex-shrink-0" />
               <span className="hidden sm:inline">Pumps</span>
               <span className="sm:hidden">Pumps</span>
             </TabsTrigger>
-            <TabsTrigger value="prices" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
-              <DollarSign className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+            <TabsTrigger value="prices" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-green-600 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 dark:data-[state=active]:border-green-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-green-600 dark:hover:text-green-400 hover:shadow-md flex-shrink-0 group">
+              <DollarSign className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-green-500 transition-colors flex-shrink-0" />
               <span className="hidden sm:inline">Prices</span>
               <span className="sm:hidden">Prices</span>
             </TabsTrigger>
-            <TabsTrigger value="creditors" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3">
-              <CreditCard className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+            <TabsTrigger value="creditors" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 dark:data-[state=active]:border-purple-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-purple-600 dark:hover:text-purple-400 hover:shadow-md flex-shrink-0 group">
+              <CreditCard className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-purple-500 transition-colors flex-shrink-0" />
               <span className="hidden sm:inline">Creditors</span>
               <span className="sm:hidden">Creditors</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 col-span-2 md:col-span-1">
-              <Settings className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
+            <TabsTrigger value="settings" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-orange-200 dark:data-[state=active]:border-orange-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-orange-600 dark:hover:text-orange-400 hover:shadow-md flex-shrink-0 group">
+              <Settings className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-orange-500 transition-colors flex-shrink-0" />
               <span className="hidden sm:inline">Settings</span>
               <span className="sm:hidden">Settings</span>
             </TabsTrigger>
@@ -729,15 +741,15 @@ export default function StationDetail() {
                     <Label htmlFor="pumpStatus">Status</Label>
                     <Select
                       value={pumpForm.status}
-                      onValueChange={(value) => setPumpForm({ ...pumpForm, status: value as 'active' | 'inactive' | 'maintenance' })}
+                      onValueChange={(value) => setPumpForm({ ...pumpForm, status: value as EquipmentStatus })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value={EquipmentStatusEnum.ACTIVE}>Active</SelectItem>
+                        <SelectItem value={EquipmentStatusEnum.INACTIVE}>Inactive</SelectItem>
+                        <SelectItem value={EquipmentStatusEnum.MAINTENANCE}>Maintenance</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -759,10 +771,10 @@ export default function StationDetail() {
           </div>
 
           {pumpsLoading ? (
-            <div className="text-center py-8">Loading pumps...</div>
+            <div className="text-center py-6">Loading pumps...</div>
           ) : !pumps || !Array.isArray(pumps) || pumps.length === 0 ? (
             <Card>
-              <CardContent className="py-12 text-center">
+              <CardContent className="py-8 text-center">
                 <Fuel className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">No pumps added yet</p>
 
@@ -773,8 +785,8 @@ export default function StationDetail() {
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              <div className="col-span-full text-sm text-green-600 mb-2">
+            <div className="space-y-4">
+              <div className="text-sm text-green-600 mb-2">
                 ✅ Found {pumps.length} pumps
               </div>
               {pumps.map((pump) => (
@@ -786,8 +798,18 @@ export default function StationDetail() {
                           <Fuel className="w-5 h-5 text-primary" />
                           Pump {pump.pumpNumber}
                         </CardTitle>
-                        <CardDescription className="mt-1">
-                          {pump.name}
+                        <CardDescription className="mt-1 space-y-1">
+                          <div>{pump.name}</div>
+                          <div className="flex items-center gap-4 text-xs">
+                            <span className="flex items-center gap-1">
+                              <span className="font-medium">{pump.nozzles?.length || 0}</span> nozzles
+                            </span>
+                            {pump.nozzles && pump.nozzles.length > 0 && (
+                              <span className="flex items-center gap-1">
+                                Fuels: {[...new Set(pump.nozzles.map((n: any) => n.fuelType))].join(', ')}
+                              </span>
+                            )}
+                          </div>
                         </CardDescription>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
@@ -805,7 +827,26 @@ export default function StationDetail() {
                       </div>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3">
+                    {/* Pump Metrics */}
+                    <div className="grid grid-cols-2 gap-3 p-2 bg-muted/30 rounded-lg">
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-primary">
+                          {pump.nozzles?.filter((n: any) => n.status === 'active').length || 0}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Active Nozzles</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">
+                          {pump.nozzles?.reduce((total: number, n: any) => {
+                            const lastReading = n.lastReading != null ? n.lastReading : n.initialReading;
+                            return total + (lastReading || 0);
+                          }, 0).toFixed(1) || '0.0'}
+                        </div>
+                        <div className="text-xs text-muted-foreground">Total Reading</div>
+                      </div>
+                    </div>
+
                     {/* Nozzles Section */}
                     <div>
                       <div className="flex items-center justify-between mb-3">
@@ -827,11 +868,11 @@ export default function StationDetail() {
                       </div>
 
                       {pump.nozzles && pump.nozzles.length > 0 ? (
-                        <div className="space-y-2">
+                        <div className="space-y-1.5">
                           {pump.nozzles.map((nozzle: any) => (
                             <div
                               key={nozzle.id}
-                              className="flex items-center justify-between p-3 bg-muted/50 rounded-lg border"
+                              className="flex items-center justify-between p-2 bg-muted/50 rounded-lg border"
                             >
                               <div className="flex items-center gap-3 min-w-0 flex-1">
                                 <div className="flex items-center gap-2">
@@ -879,7 +920,7 @@ export default function StationDetail() {
                           ))}
                         </div>
                       ) : (
-                        <div className="text-center py-6 border-2 border-dashed border-muted-foreground/25 rounded-lg">
+                        <div className="text-center py-4 border-2 border-dashed border-muted-foreground/25 rounded-lg">
                           <Fuel className="w-8 h-8 mx-auto text-muted-foreground/50 mb-2" />
                           <p className="text-sm text-muted-foreground mb-3">No nozzles configured</p>
                           <Button
@@ -925,15 +966,15 @@ export default function StationDetail() {
                     <Label htmlFor="fuelType">Fuel Type *</Label>
                     <Select
                       value={priceForm.fuelType}
-                      onValueChange={(value) => setPriceForm({ ...priceForm, fuelType: value })}
+                      onValueChange={(value) => setPriceForm({ ...priceForm, fuelType: value as FuelType })}
                     >
                       <SelectTrigger>
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="petrol">Petrol</SelectItem>
-                        <SelectItem value="diesel">Diesel</SelectItem>
-                        <SelectItem value="cng">CNG</SelectItem>
+                        <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
+                        <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
+                        <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -974,7 +1015,7 @@ export default function StationDetail() {
           </div>
 
           {pricesLoading ? (
-            <div className="text-center py-8">Loading prices...</div>
+            <div className="text-center py-6">Loading prices...</div>
           ) : prices && prices.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {prices.map((price: any) => (
@@ -996,7 +1037,7 @@ export default function StationDetail() {
             </div>
           ) : (
             <Card>
-              <CardContent className="py-12 text-center">
+              <CardContent className="py-8 text-center">
                 <DollarSign className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">No fuel prices set</p>
                 <Button onClick={() => setIsPriceDialogOpen(true)}>
@@ -1090,7 +1131,7 @@ export default function StationDetail() {
           </div>
 
           {creditorsLoading ? (
-            <div className="text-center py-8">Loading creditors...</div>
+            <div className="text-center py-6">Loading creditors...</div>
           ) : creditors && creditors.length > 0 ? (
             <div className="grid gap-4">
               {creditors.map((creditor) => (
@@ -1138,7 +1179,7 @@ export default function StationDetail() {
             </div>
           ) : (
             <Card>
-              <CardContent className="py-12 text-center">
+              <CardContent className="py-8 text-center">
                 <CreditCard className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">No creditors added yet</p>
                 <Button onClick={() => setIsCreditorDialogOpen(true)}>
@@ -1180,15 +1221,15 @@ export default function StationDetail() {
               <Label htmlFor="nozzleFuelType">Fuel Type *</Label>
               <Select
                 value={nozzleForm.fuelType}
-                onValueChange={(value) => setNozzleForm({ ...nozzleForm, fuelType: value })}
+                onValueChange={(value) => setNozzleForm({ ...nozzleForm, fuelType: value as FuelType })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="petrol">Petrol</SelectItem>
-                  <SelectItem value="diesel">Diesel</SelectItem>
-                  <SelectItem value="cng">CNG</SelectItem>
+                  <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
+                  <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
+                  <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1240,15 +1281,15 @@ export default function StationDetail() {
               <Label htmlFor="editPumpStatus">Status</Label>
               <Select
                 value={editPumpForm.status}
-                onValueChange={(value) => setEditPumpForm({ ...editPumpForm, status: value as 'active' | 'inactive' | 'maintenance' })}
+                onValueChange={(value) => setEditPumpForm({ ...editPumpForm, status: value as EquipmentStatus })}
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
+                  <SelectItem value={EquipmentStatusEnum.ACTIVE}>Active</SelectItem>
+                  <SelectItem value={EquipmentStatusEnum.INACTIVE}>Inactive</SelectItem>
+                  <SelectItem value={EquipmentStatusEnum.MAINTENANCE}>Maintenance</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -1290,7 +1331,7 @@ export default function StationDetail() {
               <Label htmlFor="editNozzleStatus">Status</Label>
               <Select
                 value={editNozzleForm.status}
-                onValueChange={(value) => setEditNozzleForm({ ...editNozzleForm, status: value as 'active' | 'inactive' | 'maintenance' })}
+                onValueChange={(value) => setEditNozzleForm({ ...editNozzleForm, status: value as EquipmentStatus })}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -1365,7 +1406,7 @@ export default function StationDetail() {
               <Label htmlFor="paymentType">Payment Type *</Label>
               <Select
                 value={readingForm.paymentType}
-                onValueChange={(value) => setReadingForm({ ...readingForm, paymentType: value as 'cash' | 'digital' | 'credit' })}
+                onValueChange={(value) => setReadingForm({ ...readingForm, paymentType: value as ReadingPaymentType })}
               >
                 <SelectTrigger>
                   <SelectValue />

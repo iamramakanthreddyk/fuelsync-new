@@ -405,7 +405,7 @@ export default function MyStations() {
       </div>
 
       {/* Stations Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 gap-4 md:gap-6">
         {stations?.map((station) => (
           <Card key={station.id} className="hover:shadow-lg transition-all duration-200 border-0 shadow-sm bg-card/50 backdrop-blur-sm">
             <CardHeader className="pb-4">

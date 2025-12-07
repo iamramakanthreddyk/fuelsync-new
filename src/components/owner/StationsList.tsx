@@ -100,7 +100,7 @@ export function StationsList({ stations, isLoading, navigate }: StationsListProp
                     {station.lastReading && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground">
                         <Clock className="w-3 h-3" />
-                        <span>Last: {new Date(station.lastReading).toLocaleDateString()}</span>
+                        <span>Last: {station.lastReading} L</span>
                       </div>
                     )}
                   </div>
