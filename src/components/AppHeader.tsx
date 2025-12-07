@@ -52,17 +52,10 @@ export function AppHeader() {
         <div className="flex items-center justify-between gap-2">
           <MobileMenuTrigger />
           <div className="flex-1 flex items-center justify-center -ml-7">
-            {currentStation ? (
-              <span className="text-base font-semibold text-foreground truncate text-center flex items-center gap-2">
-                <FuelSyncLogo size={24} variant="alt" />
-                {currentStation.name}
-              </span>
-            ) : (
-              <div className="flex items-center gap-2">
-                <FuelSyncLogo size={28} variant="alt" />
-                <span className="text-base font-bold text-foreground tracking-wide">FuelSync</span>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              <FuelSyncLogo size={32} variant="alt" />
+              <span className="text-base font-bold text-foreground tracking-wide">FuelSync</span>
+            </div>
           </div>
           {/* Notification Bell Mobile - moved to far right */}
           <div className="flex items-center justify-end">
@@ -125,12 +118,8 @@ export function AppHeader() {
       {/* Desktop Header */}
       <div className="hidden md:flex items-center h-16 w-full px-6 justify-between">
         <div className="flex items-center gap-3">
-          <FuelSyncLogo size={28} variant="alt" />
-          {currentStation ? (
-            <span className="text-lg font-semibold text-foreground">{currentStation.name}</span>
-          ) : (
-            <span className="text-lg font-bold text-foreground tracking-wide">FuelSync</span>
-          )}
+          <FuelSyncLogo size={32} variant="alt" />
+          <span className="text-lg font-bold text-foreground tracking-wide">FuelSync</span>
         </div>
         <div className="flex items-center gap-6">
           <div className="text-sm text-muted-foreground hidden lg:flex items-center">
