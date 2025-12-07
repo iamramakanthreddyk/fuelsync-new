@@ -1,15 +1,15 @@
 /**
  * Essential Data Seeding Script
- * 
+ *
  * Seeds only the critical data needed for the app to function:
- * - Subscription Plans (Free, Basic, Premium, Enterprise)
+ * - Subscription Plans (Free, Basic, Premium, Enterprise) - PRICING IN RUPEES (₹)
  * - Super Admin user
- * 
+ *
  * This runs automatically when the backend starts.
- * For full sample data, run: npm run seed
- */
-
-const { sequelize } = require('../src/models');
+ * This is the ONLY seeding script - no additional sample data is created.
+ *
+ * PRICING: All amounts are in Indian Rupees (₹)
+ */const { sequelize } = require('../src/models');
 const { User, Plan } = require('../src/models');
 const bcrypt = require('bcryptjs');
 
@@ -27,8 +27,8 @@ async function seedEssentials() {
         {
           name: 'Free',
           description: 'Free plan',
-          priceMonthly: 0,
-          priceYearly: 0,
+          priceMonthly: 0, // ₹0/month
+          priceYearly: 0, // ₹0/year
           billingCycle: 'monthly',
           maxStations: 1,
           maxPumpsPerStation: 2,
@@ -48,8 +48,8 @@ async function seedEssentials() {
         {
           name: 'Basic',
           description: 'Basic plan',
-          priceMonthly: 999,
-          priceYearly: 9990,
+          priceMonthly: 999, // ₹999/month
+          priceYearly: 9990, // ₹9990/year
           billingCycle: 'monthly',
           maxStations: 3,
           maxPumpsPerStation: 10,
@@ -70,8 +70,8 @@ async function seedEssentials() {
         {
           name: 'Premium',
           description: 'Premium plan',
-          priceMonthly: 2499,
-          priceYearly: 24990,
+          priceMonthly: 2499, // ₹2499/month
+          priceYearly: 24990, // ₹24990/year
           billingCycle: 'monthly',
           maxStations: 10,
           maxPumpsPerStation: 50,
@@ -95,8 +95,8 @@ async function seedEssentials() {
         {
           name: 'Enterprise',
           description: 'Enterprise plan',
-          priceMonthly: 4999,
-          priceYearly: 49990,
+          priceMonthly: 4999, // ₹4999/month
+          priceYearly: 49990, // ₹49990/year
           billingCycle: 'monthly',
           maxStations: 999, // effectively unlimited
           maxPumpsPerStation: 999,

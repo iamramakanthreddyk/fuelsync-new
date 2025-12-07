@@ -139,7 +139,7 @@ GET  /api/v1/stations/:id/profit-loss
 | `npm start` | Production start |
 | `npm run db:sync` | Sync tables |
 | `npm run db:reset` | Reset database ⚠️ |
-| `npm run db:seed` | Seed default data |
+| `npm run seed` | Seed essential data (plans + super admin) |
 
 ## ⚙️ Environment Variables
 

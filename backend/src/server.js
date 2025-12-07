@@ -1,6 +1,6 @@
 /**
  * FuelSync Server Entry Point
- * Starts the server and syncs database
+ * Starts the server and runs database migrations
  */
 
 console.log('🚀 [SERVER] Node process starting...');
@@ -8,6 +8,7 @@ console.log('🚀 [SERVER] Node process starting...');
 const app = require('./app');
 const { syncDatabase } = require('./models');
 const seedEssentials = require('../scripts/seedEssentials');
+const { execSync } = require('child_process');
 
 const PORT = process.env.PORT || 3001;
 
@@ -32,22 +33,32 @@ const server = app.listen(PORT, '0.0.0.0', () => {
 // Initialize database in background (non-blocking)
 (async () => {
   console.log('📝 [BACKGROUND] Starting database initialization...');
-  
+
   // Set a hard timeout to prevent hanging
   const backgroundTimeout = setTimeout(() => {
     console.warn('⚠️  [BACKGROUND] Timeout after 30 seconds');
   }, 30000);
-  
+
   try {
-    console.log('📝 [BACKGROUND] Syncing database...');
-    // Check if RESET_DB is set to force recreate tables
-    const shouldForceSync = process.env.RESET_DB === 'true';
-    const syncOptions = { 
-      force: shouldForceSync, 
-      alter: !shouldForceSync 
-    };
-    console.log('📝 [BACKGROUND] Sync options:', syncOptions);
-    const syncSuccess = await syncDatabase(syncOptions);
+    console.log('📝 [BACKGROUND] Running database migrations...');
+
+    // Always run migrations first (both dev and prod)
+    try {
+      execSync('npm run db:migrate', {
+        stdio: 'inherit',
+        cwd: process.cwd()
+      });
+      console.log('✅ [BACKGROUND] Database migrations completed');
+    } catch (migrationError) {
+      console.error('❌ [MIGRATION] Migration failed:', migrationError.message);
+      console.error('📝 [MIGRATION] This might be expected if migrations are already applied');
+      // Don't throw - continue with server startup
+    }
+
+    // Optional: Still run sync for any model associations or constraints
+    // But don't use force/alter - let migrations handle schema changes
+    console.log('📝 [BACKGROUND] Syncing model associations...');
+    const syncSuccess = await syncDatabase({ alter: false, force: false });
     console.log('📝 [BACKGROUND] Sync result:', syncSuccess);
     
     // Always try to seed - tables might exist even if sync "failed"

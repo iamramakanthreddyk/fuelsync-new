@@ -9,7 +9,7 @@
     "db:sync": "node -e \"require('./src/models').syncDatabase({ alter: true }).then(() => process.exit(0))\"",
     "db:reset": "node -e \"require('./src/models').syncDatabase({ force: true }).then(() => process.exit(0))\"",
     "reset:db": "node scripts/resetDatabase.js",
-    "seed": "node scripts/seedSampleData.js",
+    "seed": "node scripts/seedEssentials.js",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:verbose": "jest --verbose",

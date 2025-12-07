@@ -119,10 +119,9 @@ BACKUP_SCHEDULE=0 2 * * *
     
     "db:sync": "NODE_ENV=development node -e \"require('./src/models').syncDatabase({ alter: true })\"",
     "db:sync:testing": "NODE_ENV=testing node -e \"require('./src/models').syncDatabase({ alter: true })\"",
-    
-    "db:seed": "NODE_ENV=development node scripts/seedSampleData.js",
-    "db:seed:testing": "NODE_ENV=testing node scripts/seedSampleData.js",
-    
+
+    "seed": "node scripts/seedEssentials.js",
+
     "db:reset": "NODE_ENV=development node -e \"require('./src/models').syncDatabase({ force: true })\"",
     "db:reset:testing": "NODE_ENV=testing node -e \"require('./src/models').syncDatabase({ force: true })\"",
     
@@ -184,14 +183,14 @@ npm run dev
 # Connected to http://localhost:3001
 ```
 
-**Test Data for Development:**
+**Essential Data Setup:**
 ```bash
-# Reset local database and seed with demo data
+# Reset local database and seed with essential data
 cd backend
 npm run db:reset        # Clears all data
-npm run db:seed         # Seeds sample data
+npm run seed            # Seeds only essential data (plans + super admin)
 
-# Default login:
+# Default super admin login:
 # Email: admin@fuelsync.com
 # Password: admin123
 ```
@@ -301,7 +300,7 @@ railway data export
 # ⚠️ CAREFUL: This deletes all local data
 cd backend
 npm run db:reset        # Force reset
-npm run db:seed         # Re-seed demo data
+npm run seed            # Re-seed essential data
 npm run dev             # Restart server
 ```
 

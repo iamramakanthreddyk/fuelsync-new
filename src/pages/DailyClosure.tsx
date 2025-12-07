@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
-import { ClipboardCheck, DollarSign, TrendingUp, AlertTriangle } from "lucide-react";
+import { ClipboardCheck, CreditCard, TrendingUp, AlertTriangle } from "lucide-react";
 import { useDailySummary } from "@/hooks/useDailySummary";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 
@@ -145,7 +145,7 @@ export default function DailyClosure() {
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <CardTitle className="text-sm font-medium">Tender Total</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CreditCard className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">₹{safeToFixed(summary.tender_total)}</div>
