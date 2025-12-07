@@ -51,6 +51,20 @@ export default function PricesPage() {
             <div className="text-center">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
               <p className="text-muted-foreground">Loading stations...</p>
+              <p className="text-sm text-muted-foreground mt-2">
+                If this takes too long, try refreshing the page or logging out and back in.
+              </p>
+              <p className="text-sm text-muted-foreground mt-1">
+                Make sure you're logged in as an owner or admin with access to stations.
+              </p>
+              <div className="mt-4">
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90"
+                >
+                  Refresh Page
+                </button>
+              </div>
             </div>
           </CardContent>
         </Card>

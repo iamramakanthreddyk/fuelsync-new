@@ -640,6 +640,10 @@ exports.createPump = async (req, res, next) => {
       }
     }
 
+    // Declare finalPumpNumber variable
+    let finalPumpNumber = null;
+    let pump = null;
+
     // Validate request body
     if (pumpNumber !== undefined && pumpNumber !== null && pumpNumber !== '') {
       const num = parseInt(pumpNumber);

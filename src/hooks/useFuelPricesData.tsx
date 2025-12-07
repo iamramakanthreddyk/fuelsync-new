@@ -55,11 +55,8 @@ export function useFuelPricesData(overrideStationId?: string) {
     queryKey: ['fuel-prices', stationId],
     queryFn: async () => {
       // Prevent API call if stationId is undefined
-      if (!stationId && !isAdmin) {
-        return [];
-      }
       if (!stationId) {
-        // If stationId is undefined, return empty and do not call API
+        console.log('useFuelPricesData: No stationId provided, returning empty array');
         return [];
       }
       try {
@@ -105,7 +102,7 @@ export function useFuelPricesData(overrideStationId?: string) {
         return [];
       }
     },
-    enabled: !!stationId || isAdmin,
+    enabled: !!stationId,
     staleTime: 0, // Force refetch to debug
     gcTime: 1000 * 60 * 5, // 5 minutes
   });
