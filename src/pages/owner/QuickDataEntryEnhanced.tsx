@@ -74,7 +74,7 @@ export default function QuickDataEntry() {
   const { data: stationsResponse } = useStations();
   const stations = stationsResponse?.data;
 
-  const { prices: globalFuelPrices, setStationId, setPrices: setGlobalFuelPrices } = useFuelPricesGlobal();
+  const { prices: globalFuelPrices, setStationId, setPrices: setGlobalFuelPrices, stationId: ctxStationId } = useFuelPricesGlobal();
 
   // Auto-select first station on load and inform global fuel price provider
   useEffect(() => {
@@ -96,6 +96,21 @@ export default function QuickDataEntry() {
     let cancelled = false;
     async function fetchAndSet() {
       if (!selectedStation) return;
+
+      // If the global context already has prices, always reuse them (prefer single source-of-truth)
+      const hasGlobalPrices = Object.keys(globalFuelPrices || {}).length > 0;
+      const canReuseGlobal = hasGlobalPrices;
+      if (canReuseGlobal) {
+        try {
+          const normalizedFromCtx = Object.entries(globalFuelPrices).map(([fuel_type, price_per_litre]) => ({ fuel_type, price_per_litre }));
+          console.debug('[QuickDataEntry] Reusing global prices for station', selectedStation, 'prices:', normalizedFromCtx);
+          queryClient.setQueryData(['fuel-prices', selectedStation], normalizedFromCtx);
+        } catch (e) {
+          // ignore cache set errors
+        }
+        return;
+      }
+
       try {
         const resp = await apiClient.get(`/stations/${selectedStation}/prices`);
         const payload = resp && (resp as any).data ? (resp as any).data : resp;
@@ -128,6 +143,8 @@ export default function QuickDataEntry() {
           if (Object.keys(pricesObj).length > 0) {
             // set global prices directly to avoid the 'Prices Required' race
             setGlobalFuelPrices(pricesObj);
+            // ensure the context knows these prices belong to the selected station
+            try { setStationId(selectedStation); } catch (e) { /* ignore */ }
             // Also populate React Query cache so useFuelPricesData and status hook re-render immediately
             try {
               queryClient.setQueryData(['fuel-prices', selectedStation], normalized);
@@ -142,7 +159,7 @@ export default function QuickDataEntry() {
     }
     fetchAndSet();
     return () => { cancelled = true; };
-  }, [selectedStation, setGlobalFuelPrices]);
+  }, [selectedStation, setGlobalFuelPrices, ctxStationId, globalFuelPrices, queryClient]);
 
   // Fetch pumps for selected station
   const { data: pumpsResponse, isLoading: pumpsLoading } = usePumps(selectedStation);
@@ -150,7 +167,7 @@ export default function QuickDataEntry() {
 
   // Fetch global fuel prices (matches Dashboard)
   const { data: fuelPricesRaw, isLoading: pricesLoading } = useFuelPricesData();
-  const fuelPrices = Object.keys(globalFuelPrices).length > 0
+  const fuelPrices = (ctxStationId === selectedStation && Object.keys(globalFuelPrices).length > 0)
     ? Object.entries(globalFuelPrices).map(([fuel_type, price_per_litre]) => ({ fuel_type, price_per_litre }))
     : fuelPricesRaw;
 
