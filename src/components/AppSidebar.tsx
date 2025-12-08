@@ -23,6 +23,7 @@ import {
   FileText,
   Users, 
   Building2, 
+  Banknote,
   Settings,
   LogOut,
   BarChart3,
@@ -74,6 +75,11 @@ export function AppSidebar() {
       title: "Daily Reports",
       url: "/owner/daily-reports",
       icon: LineChart,
+    },
+    {
+      title: "Cash Handovers",
+      url: "/owner/cash-handovers",
+      icon: Banknote,
     },
     {
       title: "Stations",

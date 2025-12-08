@@ -66,8 +66,14 @@ export default function ShiftManagement() {
   const { user } = useAuth();
   const { stations: userStations, isManager, isOwner } = useRoleAccess();
   const queryClient = useQueryClient();
-  
   const [selectedStation, setSelectedStation] = useState<string>('');
+  // Pending handovers alert (depends on selectedStation)
+  const { data: pendingAlert } = useQuery({
+    queryKey: ['pending-handovers-alert', selectedStation],
+    queryFn: () => dashboardAlertsService.getPendingHandoversAlert(),
+    enabled: !!selectedStation,
+    refetchInterval: 30000,
+  });
   const [showEndShiftDialog, setShowEndShiftDialog] = useState(false);
   const [showStartShiftDialog, setShowStartShiftDialog] = useState(false);
   
@@ -209,6 +215,15 @@ export default function ShiftManagement() {
               ))}
             </SelectContent>
           </Select>
+          )}
+
+          {/* Pending handovers badge for managers/owners */}
+          {(isManager || isOwner) && pendingAlert && (
+            <div className="ml-4">
+              <Badge className="bg-yellow-100 text-yellow-800">
+                {pendingAlert.pendingCount || 0} pending handovers
+              </Badge>
+            </div>
         )}
       </div>
 
@@ -283,6 +298,12 @@ export default function ShiftManagement() {
               <Clock className="w-4 h-4 mr-2" />
               Shift History
             </Button>
+            {(isManager || isOwner) && (
+              <Button variant="secondary" onClick={() => window.location.href = '/cash-handovers'}>
+                <Banknote className="w-4 h-4 mr-2" />
+                Reconcile
+              </Button>
+            )}
           </div>
         </div>
       ) : (

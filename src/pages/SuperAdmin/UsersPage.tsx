@@ -41,10 +41,11 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
     email: '',
     phone: '',
     role: 'employee' as User['role'],
-    password: 'changeme123',
+    password: '',
     stationId: '',
     planId: '' // Will be set to basic plan by default
   });
+  const [createErrors, setCreateErrors] = useState<Record<string, string>>({});
   
   // Edit dialog
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -114,33 +115,92 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
       email: '',
       phone: '',
       role: 'employee',
-      password: 'changeme123',
+      password: '',
       stationId: '',
       planId: ''
     });
+    setCreateErrors({});
+  };
+
+  // Validation function for create form
+  const validateCreateForm = (): boolean => {
+    const errors: Record<string, string> = {};
+    const trim = (v?: string) => (v || '').trim();
+
+    // Name validation: required, 1-100 chars
+    if (!trim(createForm.name)) {
+      errors.name = 'Name is required';
+    } else if (trim(createForm.name).length < 2) {
+      errors.name = 'Name must be at least 2 characters';
+    } else if (trim(createForm.name).length > 100) {
+      errors.name = 'Name must be less than 100 characters';
+    }
+
+    // Email validation: required, valid format
+    const email = trim(createForm.email);
+    if (!email) {
+      errors.email = 'Email is required';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Enter a valid email address';
+    }
+
+    // Password validation: required, min 8 chars, uppercase, lowercase, number
+    const password = createForm.password;
+    if (!password) {
+      errors.password = 'Password is required';
+    } else if (password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
+    } else if (!/[a-z]/.test(password)) {
+      errors.password = 'Password must contain a lowercase letter';
+    } else if (!/[A-Z]/.test(password)) {
+      errors.password = 'Password must contain an uppercase letter';
+    } else if (!/\d/.test(password)) {
+      errors.password = 'Password must contain a number';
+    }
+
+    // Phone validation: optional, but if provided must be 10 digits or 12 digits starting with 91
+    const phone = trim(createForm.phone);
+    if (phone) {
+      const digits = phone.replace(/\D/g, '');
+      if (digits.length !== 10 && !(digits.length === 12 && digits.startsWith('91'))) {
+        errors.phone = 'Enter a valid 10-digit phone number';
+      }
+    }
+
+    // Role validation
+    if (!createForm.role) {
+      errors.role = 'Role is required';
+    }
+
+    // Station required for manager/employee
+    if ((createForm.role === 'manager' || createForm.role === 'employee') && !createForm.stationId) {
+      errors.stationId = 'Station is required for manager/employee';
+    }
+
+    // Plan required for owner
+    if (createForm.role === 'owner' && !createForm.planId) {
+      const basicPlan = plans.find(p => p.name.toLowerCase() === 'basic' || p.name.toLowerCase() === 'free');
+      if (!basicPlan) {
+        errors.planId = 'Please select a plan for the owner';
+      }
+    }
+
+    setCreateErrors(errors);
+    return Object.keys(errors).length === 0;
   };
 
   const handleCreateUser = async () => {
-    if (!createForm.name || !createForm.email) {
-      toast({ title: "Validation Error", description: "Name and email are required", variant: "destructive" });
+    // Run client-side validation
+    if (!validateCreateForm()) {
       return;
     }
 
-    // Validate station for manager/employee
-    if ((createForm.role === 'manager' || createForm.role === 'employee') && !createForm.stationId) {
-      toast({ title: "Validation Error", description: "Manager/Employee must be assigned to a station", variant: "destructive" });
-      return;
-    }
-
-    // Fallback to 'basic' plan if owner and no plan selected
+    // Fallback to 'basic' or 'free' plan if owner and no plan selected
     let planIdToUse = createForm.planId;
     if (createForm.role === 'owner' && !planIdToUse) {
-      const basicPlan = plans.find(p => p.name.toLowerCase() === 'basic');
+      const basicPlan = plans.find(p => p.name.toLowerCase() === 'basic' || p.name.toLowerCase() === 'free');
       if (basicPlan) {
         planIdToUse = basicPlan.id;
-      } else {
-        toast({ title: "Validation Error", description: "No plan selected and no 'basic' plan found.", variant: "destructive" });
-        return;
       }
     }
 
@@ -382,9 +442,14 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                 <Input
                   id="name"
                   value={createForm.name}
-                  onChange={(e) => setCreateForm({ ...createForm, name: e.target.value })}
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, name: e.target.value });
+                    if (createErrors.name) setCreateErrors({ ...createErrors, name: '' });
+                  }}
                   placeholder="Enter user name"
+                  className={createErrors.name ? 'border-red-500' : ''}
                 />
+                {createErrors.name && <p className="text-sm text-red-500 mt-1">{createErrors.name}</p>}
               </div>
               <div>
                 <Label htmlFor="email">Email *</Label>
@@ -392,39 +457,58 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                   id="email"
                   type="email"
                   value={createForm.email}
-                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, email: e.target.value });
+                    if (createErrors.email) setCreateErrors({ ...createErrors, email: '' });
+                  }}
                   placeholder="Enter email address"
+                  className={createErrors.email ? 'border-red-500' : ''}
                 />
+                {createErrors.email && <p className="text-sm text-red-500 mt-1">{createErrors.email}</p>}
               </div>
               <div>
                 <Label htmlFor="phone">Phone</Label>
                 <Input
                   id="phone"
                   value={createForm.phone}
-                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
-                  placeholder="Enter phone number"
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, phone: e.target.value });
+                    if (createErrors.phone) setCreateErrors({ ...createErrors, phone: '' });
+                  }}
+                  placeholder="10-digit phone number"
+                  className={createErrors.phone ? 'border-red-500' : ''}
                 />
+                {createErrors.phone && <p className="text-sm text-red-500 mt-1">{createErrors.phone}</p>}
               </div>
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password">Password *</Label>
                 <Input
                   id="password"
                   type="password"
                   value={createForm.password}
-                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                  placeholder="Default: changeme123"
+                  onChange={(e) => {
+                    setCreateForm({ ...createForm, password: e.target.value });
+                    if (createErrors.password) setCreateErrors({ ...createErrors, password: '' });
+                  }}
+                  placeholder="Min 8 chars, uppercase, lowercase, number"
+                  className={createErrors.password ? 'border-red-500' : ''}
                 />
+                {createErrors.password && <p className="text-sm text-red-500 mt-1">{createErrors.password}</p>}
+                <p className="text-xs text-muted-foreground mt-1">Must contain uppercase, lowercase, and a number</p>
               </div>
               <div>
                 <Label htmlFor="role">Role *</Label>
                 <Select 
                   value={createForm.role}
-                  onValueChange={(value) => setCreateForm({
-                    ...createForm,
-                    role: value as User['role'],
-                    stationId: '',
-                    planId: '' // Do not auto-set planId, let user pick
-                  })}
+                  onValueChange={(value) => {
+                    setCreateForm({
+                      ...createForm,
+                      role: value as User['role'],
+                      stationId: '',
+                      planId: '' // Do not auto-set planId, let user pick
+                    });
+                    if (createErrors.role) setCreateErrors({ ...createErrors, role: '' });
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
@@ -458,8 +542,14 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
               {createForm.role === 'owner' && (
                 <div>
                   <Label htmlFor="plan">Subscription Plan *</Label>
-                  <Select value={createForm.planId} onValueChange={(value) => setCreateForm({ ...createForm, planId: value })}>
-                    <SelectTrigger>
+                  <Select 
+                    value={createForm.planId} 
+                    onValueChange={(value) => {
+                      setCreateForm({ ...createForm, planId: value });
+                      if (createErrors.planId) setCreateErrors({ ...createErrors, planId: '' });
+                    }}
+                  >
+                    <SelectTrigger className={createErrors.planId ? 'border-red-500' : ''}>
                       <SelectValue placeholder="Select plan" />
                     </SelectTrigger>
                     <SelectContent>
@@ -475,6 +565,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {createErrors.planId && <p className="text-sm text-red-500 mt-1">{createErrors.planId}</p>}
                   <p className="text-xs text-muted-foreground mt-1">
                     Plan determines limits for stations, pumps, employees, etc.
                   </p>
@@ -485,8 +576,14 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
               {(createForm.role === 'manager' || createForm.role === 'employee') && (
                 <div>
                   <Label htmlFor="station">Assigned Station *</Label>
-                  <Select value={createForm.stationId} onValueChange={(value) => setCreateForm({ ...createForm, stationId: value })}>
-                    <SelectTrigger>
+                  <Select 
+                    value={createForm.stationId} 
+                    onValueChange={(value) => {
+                      setCreateForm({ ...createForm, stationId: value });
+                      if (createErrors.stationId) setCreateErrors({ ...createErrors, stationId: '' });
+                    }}
+                  >
+                    <SelectTrigger className={createErrors.stationId ? 'border-red-500' : ''}>
                       <SelectValue placeholder="Select station" />
                     </SelectTrigger>
                     <SelectContent>
@@ -497,6 +594,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                       ))}
                     </SelectContent>
                   </Select>
+                  {createErrors.stationId && <p className="text-sm text-red-500 mt-1">{createErrors.stationId}</p>}
                 </div>
               )}
 
