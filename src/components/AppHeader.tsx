@@ -61,10 +61,7 @@ export function AppHeader() {
         <div className="flex items-center justify-between gap-2">
           <MobileMenuTrigger />
           <div className="flex-1 flex items-center justify-center -ml-7">
-            <div className="flex items-center gap-2">
-              <FuelSyncLogo size={32} variant="alt" />
-              <span className="text-base font-bold text-foreground tracking-wide">FuelSync</span>
-            </div>
+            <FuelSyncLogo size={36} variant="brand" showText={true} />
           </div>
           {/* Notification Bell Mobile - moved to far right */}
           <div className="flex items-center justify-end">
@@ -126,9 +123,8 @@ export function AppHeader() {
       </div>
       {/* Desktop Header */}
       <div className="hidden md:flex items-center h-16 w-full px-6 justify-between">
-        <div className="flex items-center gap-3">
-          <FuelSyncLogo size={32} variant="alt" />
-          <span className="text-lg font-bold text-foreground tracking-wide">FuelSync</span>
+        <div className="flex items-center gap-4">
+          <FuelSyncLogo size={40} variant="brand" showText={true} />
         </div>
         <div className="flex items-center gap-6">
           <div className="text-sm text-muted-foreground hidden lg:flex items-center">

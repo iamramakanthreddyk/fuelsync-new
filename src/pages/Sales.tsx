@@ -323,7 +323,7 @@ export default function Sales() {
     <div className="container mx-auto p-2 md:p-4 lg:p-6 max-w-7xl flex flex-col gap-4 md:gap-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
         <div>
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Sales Management</h1>
+          <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight">Sales Management</h1>
           <p className="text-sm md:text-base text-muted-foreground">
             Track and manage sales {currentStation ? `for ${currentStation.name}` : 'across all stations'}
           </p>

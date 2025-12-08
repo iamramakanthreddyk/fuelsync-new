@@ -157,7 +157,7 @@ export default function Pumps() {
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Pump Management</h1>
+          <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight">Pump Management</h1>
           <p className="text-muted-foreground">
             Manage pumps and nozzles {currentStation ? `for ${currentStation.name}` : 'across all stations'}
           </p>

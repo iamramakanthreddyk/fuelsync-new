@@ -189,7 +189,7 @@ export default function Dashboard() {
       <div className="space-y-2">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
           <div>
-            <h1 className="text-responsive-lg font-bold text-foreground">Dashboard</h1>
+            <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight text-foreground">Dashboard</h1>
             <p className="text-responsive-sm text-muted-foreground">
               Welcome back, <span className="font-medium text-foreground">{user?.name}</span>
             </p>
