@@ -5,30 +5,28 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { Fuel } from "lucide-react";
 
 export function QuickActions() {
-  const { isOwner, isAdmin } = useRoleAccess();
+  const { isOwner, isAdmin, isManager, isEmployee } = useRoleAccess();
 
   const actions = [
     {
       title: "Add Reading",
       description: "Upload or manual entry",
       href: "/upload",
-      icon: null,
       color: "hover:bg-blue-50 hover:border-blue-200"
     },
     {
       title: "Daily Closure",
       description: "End of day summary",
       href: "/daily-closure",
-      icon: null,
       color: "hover:bg-green-50 hover:border-green-200"
     },
-    {
+    // 'View Reports' should be visible to managers and above; hide for employees
+    ...(isEmployee ? [] : [{
       title: "View Reports",
       description: "Sales & analytics",
       href: "/reports",
-      icon: null,
       color: "hover:bg-purple-50 hover:border-purple-200"
-    },
+    }])
   ];
 
   return (

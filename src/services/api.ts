@@ -1,5 +1,6 @@
 import { apiClient } from '@/lib/api-client';
 import { NozzleReading, Pump, Nozzle, DashboardSummary } from '@/types/api';
+import { extractApiData } from '@/lib/api-response';
 
 export class ApiService {
   async getNozzleReadings(stationId: string) {
@@ -108,13 +109,14 @@ export class ApiService {
 
   async getDailySummary(stationId: string) {
     const today = new Date().toISOString().split('T')[0];
-    const response = await apiClient.get<DashboardSummary>(`/dashboard/summary?stationId=${stationId}&startDate=${today}&endDate=${today}`);
+    const response = await apiClient.get<any>(`/dashboard/summary?stationId=${stationId}&startDate=${today}&endDate=${today}`);
+    const summary = extractApiData(response, null) as DashboardSummary | null;
     return {
-      cash: response.cashCollection || 0,
+      cash: summary?.cashCollection || 0,
       card: 0, // Not available in DashboardSummary
       upi: 0,  // Not available in DashboardSummary
-      credit: response.creditSales || 0,
-      total: response.totalSales || 0
+      credit: summary?.creditSales || 0,
+      total: summary?.totalSales || 0
     };
   }
 

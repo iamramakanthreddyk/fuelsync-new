@@ -402,8 +402,10 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Reading Summary - Full width */}
-      <ReadingSummary totalReadings={data.totalReadings} lastReading={data.lastReading} />
+      {/* Reading Summary - Full width (hide for employees to avoid duplicate cards) */}
+      {!isEmployee && (
+        <ReadingSummary totalReadings={data.totalReadings} lastReading={data.lastReading} />
+      )}
       
       {/* Upgrade Modal */}
       <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />

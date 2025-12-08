@@ -24,9 +24,6 @@ const EmployeeDashboard = () => {
 
   // Get the first station for this employee
   const currentStation = user?.stations?.[0];
-  // Debug log for station assignment
-  console.log('Employee stations:', user?.stations);
-  console.log('Current station:', currentStation);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -35,7 +32,6 @@ const EmployeeDashboard = () => {
         return;
       }
       try {
-        console.log('Triggering API calls for station:', currentStation.id);
         const today = new Date().toISOString().split('T')[0];
         const [pricesData, summaryData, shiftStatus] = await Promise.all([
           fuelPriceService.getFuelPrices(currentStation.id),
@@ -132,16 +128,8 @@ const EmployeeDashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              No station assigned to your account.<br />
-              Please contact your administrator.<br />
-              <span style={{color: 'red'}}>API calls will only trigger if a station is assigned.</span>
+              No station assigned to your account. Please contact your administrator.
             </p>
-            <pre style={{marginTop: 16, background: '#f8f8f8', color: '#333', padding: 12, borderRadius: 8, fontSize: 12}}>
-              <strong>Debug Info:</strong>{'\n'}
-              User: {JSON.stringify(user, null, 2)}{'\n'}
-              Stations: {JSON.stringify(user?.stations, null, 2)}{'\n'}
-              CurrentStation: {JSON.stringify(currentStation, null, 2)}
-            </pre>
           </CardContent>
         </Card>
       </div>

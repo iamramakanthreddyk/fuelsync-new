@@ -23,18 +23,20 @@ export function ReadingSummary({
           <div className="text-2xl font-bold">{totalReadings}</div>
           <div className="text-sm text-muted-foreground">Total Readings</div>
         </div>
-        <div className="text-center p-4 border rounded-lg">
-          <div className="text-2xl font-bold">
-            {lastReading ? new Date(lastReading).toLocaleTimeString() : 'None'}
-          </div>
-          <div className="text-sm text-muted-foreground">Last Reading</div>
-        </div>
-        <div className="text-center p-4 border rounded-lg">
-          <div className="text-2xl font-bold">
-            {lastReading ? new Date(lastReading).toLocaleDateString() : 'No data'}
-          </div>
-          <div className="text-sm text-muted-foreground">Last Reading Date</div>
-        </div>
+
+        {/* Only show last reading/time if available; hide otherwise to avoid showing useless placeholders */}
+        {lastReading ? (
+          <>
+            <div className="text-center p-4 border rounded-lg">
+              <div className="text-2xl font-bold">{new Date(lastReading).toLocaleTimeString()}</div>
+              <div className="text-sm text-muted-foreground">Last Reading</div>
+            </div>
+            <div className="text-center p-4 border rounded-lg">
+              <div className="text-2xl font-bold">{new Date(lastReading).toLocaleDateString()}</div>
+              <div className="text-sm text-muted-foreground">Last Reading Date</div>
+            </div>
+          </>
+        ) : null}
       </CardContent>
     </Card>
   );
