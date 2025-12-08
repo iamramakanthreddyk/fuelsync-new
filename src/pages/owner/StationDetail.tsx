@@ -31,7 +31,6 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { mapReadingFormToPayload } from '@/lib/apiPayloadHelpers';
 import { debounce } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { extractApiArray } from '@/lib/api-response';
@@ -59,7 +58,7 @@ import {
 } from '@/core/enums';
 
 // Define reading payment types (subset of PaymentMethod used for readings)
-type ReadingPaymentType = PaymentMethod;
+ 
 
 interface Creditor {
   id: string;
@@ -83,7 +82,7 @@ export default function StationDetail() {
   const [isCreditorDialogOpen, setIsCreditorDialogOpen] = useState(false);
   const [isEditPumpDialogOpen, setIsEditPumpDialogOpen] = useState(false);
   const [isEditNozzleDialogOpen, setIsEditNozzleDialogOpen] = useState(false);
-  const [isReadingDialogOpen, setIsReadingDialogOpen] = useState(false);
+  
   const [selectedPump, setSelectedPump] = useState<Pump | null>(null);
   const [selectedNozzle, setSelectedNozzle] = useState<Nozzle | null>(null);
 
@@ -121,12 +120,7 @@ export default function StationDetail() {
     notes: ''
   });
 
-  const [readingForm, setReadingForm] = useState({
-    nozzleId: '',
-    readingValue: '',
-    readingDate: formatDateISO(new Date()),
-    paymentType: PaymentMethodEnum.CASH as PaymentMethod
-  });
+  
 
   const [priceForm, setPriceForm] = useState({
     fuelType: FuelTypeEnum.PETROL as FuelType,
@@ -443,45 +437,6 @@ export default function StationDetail() {
     }
   });
 
-  // Add reading mutation
-  const addReadingMutation = useMutation({
-    mutationFn: async (data: { nozzleId: string; readingValue: number; readingDate: string; paymentType: ReadingPaymentType }) => {
-      const response = await apiClient.post(`/readings`, data);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
-      // Ensure other components (latest readings, analytics) refresh
-      queryClient.invalidateQueries({ queryKey: ['readings', 'latest'] });
-      queryClient.invalidateQueries({ queryKey: ['analytics'] });
-      toast({ title: 'Success', description: 'Reading added successfully', variant: 'success' });
-      setIsReadingDialogOpen(false);
-      setReadingForm({ nozzleId: '', readingValue: '', readingDate: formatDateISO(new Date()), paymentType: PaymentMethodEnum.CASH as PaymentMethod });
-      setSelectedNozzle(null);
-    },
-    onError: (error: unknown) => {
-      let message = 'Failed to add reading';
-      if (error && typeof error === 'object') {
-        const errObj = error as { response?: { data?: { error?: string } }; message?: string };
-        if (
-          errObj.response &&
-          typeof errObj.response === 'object' &&
-          errObj.response.data &&
-          typeof errObj.response.data === 'object' &&
-          'error' in errObj.response.data
-        ) {
-          message = errObj.response.data.error || message;
-        } else if (typeof errObj.message === 'string') {
-          message = errObj.message;
-        }
-      }
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive'
-      });
-    }
-  });
 
   const handleCreatePump = () => {
     if (!pumpForm.name) {
@@ -566,28 +521,7 @@ export default function StationDetail() {
     });
   };
 
-  const handleAddReading = (nozzle: Nozzle) => {
-    setSelectedNozzle(nozzle);
-    setReadingForm({
-      nozzleId: nozzle.id,
-      readingValue: '',
-      readingDate: formatDateISO(new Date()),
-      paymentType: PaymentMethodEnum.CASH as PaymentMethod
-    });
-    setIsReadingDialogOpen(true);
-  };
-
-  const handleSubmitReading = () => {
-    if (!selectedNozzle) return;
-    // Convert readingForm to correct payload for mutation
-    const payload = mapReadingFormToPayload(readingForm);
-    addReadingMutation.mutate({
-      nozzleId: payload.nozzleId,
-      readingValue: payload.readingValue, // API expects 'readingValue'
-      readingDate: payload.readingDate,
-      paymentType: payload.paymentType
-    });
-  };
+  
 
   if (stationLoading) {
     return (
@@ -862,15 +796,6 @@ export default function StationDetail() {
                                   {nozzle.status}
                                 </Badge>
                                 <div className="flex gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => handleAddReading(nozzle)}
-                                    className="h-7 w-7 p-0 hover:bg-primary/10"
-                                    title="Add Reading"
-                                  >
-                                    <Plus className="w-3 h-3" />
-                                  </Button>
                                   <Button
                                     size="sm"
                                     variant="ghost"
@@ -1333,71 +1258,7 @@ export default function StationDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Reading Dialog */}
-      <Dialog open={isReadingDialogOpen} onOpenChange={setIsReadingDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add Nozzle Reading</DialogTitle>
-            <DialogDescription>
-              Record a new reading for Nozzle {selectedNozzle?.nozzleNumber} ({selectedNozzle?.fuelType})
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="readingValue">Reading Value *</Label>
-              <Input
-                id="readingValue"
-                type="number"
-                step="any"
-                value={readingForm.readingValue}
-                onChange={(e) => setReadingForm({ ...readingForm, readingValue: e.target.value })}
-                placeholder="Enter current meter reading"
-              />
-              {selectedNozzle && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Last reading: {selectedNozzle.lastReading != null ? toFixedNumber(selectedNozzle.lastReading, 2) : toFixedNumber(selectedNozzle.initialReading, 2)}
-                </p>
-              )}
-            </div>
-            <div>
-              <Label htmlFor="readingDate">Date *</Label>
-              <Input
-                id="readingDate"
-                type="date"
-                value={readingForm.readingDate}
-                onChange={(e) => setReadingForm({ ...readingForm, readingDate: e.target.value })}
-              />
-            </div>
-            <div>
-              <Label htmlFor="paymentType">Payment Type *</Label>
-              <Select
-                value={readingForm.paymentType}
-                onValueChange={(value) => setReadingForm({ ...readingForm, paymentType: value as PaymentMethod })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={PaymentMethodEnum.CASH}>Cash</SelectItem>
-                  <SelectItem value={PaymentMethodEnum.UPI}>Digital</SelectItem>
-                  <SelectItem value={PaymentMethodEnum.CREDIT}>Credit</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsReadingDialogOpen(false)}>
-              Cancel
-            </Button>
-            <Button 
-              onClick={handleSubmitReading}
-              disabled={!readingForm.readingValue || addReadingMutation.isPending}
-            >
-              {addReadingMutation.isPending ? 'Adding...' : 'Add Reading'}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      
     </div>
   );
 }

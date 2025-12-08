@@ -174,114 +174,7 @@ export default function NozzleReadings() {
             View and manage fuel nozzle readings from parsed and manual entries.
           </p>
         </div>
-        <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
-          <DialogTrigger asChild>
-            <Button>Add Manual Reading</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Manual Reading</DialogTitle>
-              <DialogDescription>
-                Enter the nozzle reading manually
-              </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <Label htmlFor="pump_sno">Pump Serial Number</Label>
-                <Input
-                  id="pump_sno"
-                  value={newReading.pump_sno}
-                  onChange={(e) => setNewReading(prev => ({ ...prev, pump_sno: e.target.value }))}
-                  placeholder="e.g., P001"
-                  required
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="nozzle_id">Nozzle ID</Label>
-                <Select
-                  value={newReading.nozzle_id.toString()}
-                  onValueChange={(value) => setNewReading(prev => ({ ...prev, nozzle_id: parseInt(value) }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="1">Nozzle 1</SelectItem>
-                    <SelectItem value="2">Nozzle 2</SelectItem>
-                    <SelectItem value="3">Nozzle 3</SelectItem>
-                    <SelectItem value="4">Nozzle 4</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="fuel_type">Fuel Type</Label>
-                <Select
-                  value={newReading.fuel_type}
-                  onValueChange={(value: FuelType) => setNewReading(prev => ({ ...prev, fuel_type: value }))}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
-                    <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
-                    <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
-                    <SelectItem value={FuelTypeEnum.LPG}>LPG</SelectItem>
-                    <SelectItem value={FuelTypeEnum.PREMIUM_PETROL}>Premium Petrol</SelectItem>
-                    <SelectItem value={FuelTypeEnum.PREMIUM_DIESEL}>Premium Diesel</SelectItem>
-                    <SelectItem value={FuelTypeEnum.EV_CHARGING}>EV Charging</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <Label htmlFor="cumulative_volume">Cumulative Volume (L)</Label>
-                <Input
-                  id="cumulative_volume"
-                  type="number"
-                  step="0.001"
-                  value={newReading.cumulative_volume}
-                  onChange={(e) => setNewReading(prev => ({ ...prev, cumulative_volume: parseFloat(e.target.value) || 0 }))}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="reading_date">Date</Label>
-                  <Input
-                    id="reading_date"
-                    type="date"
-                    value={newReading.reading_date}
-                    onChange={(e) => setNewReading(prev => ({ ...prev, reading_date: e.target.value }))}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="reading_time">Time</Label>
-                  <Input
-                    id="reading_time"
-                    type="time"
-                    value={newReading.reading_time}
-                    onChange={(e) => setNewReading(prev => ({ ...prev, reading_time: e.target.value }))}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-4">
-                <Button type="submit" disabled={createMutation.isPending}>
-                  {createMutation.isPending ? 'Adding...' : 'Add Reading'}
-                </Button>
-                <Button type="button" variant="outline" onClick={() => setShowAddDialog(false)}>
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          </DialogContent>
-        </Dialog>
+        {/* Manual entry disabled — readings allowed only via Quick Entry (DataEntry) */}
       </div>
 
       {/* Readings Table */}
@@ -325,34 +218,10 @@ export default function NozzleReadings() {
                     </div>
                     
                     <div className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const mappedReading: NozzleReading = {
-                            id: reading.id,
-                            userId: reading.userId,
-                            pumpSno: reading.pumpSno,
-                            nozzleId: reading.nozzleId,
-                            fuelType: reading.fuelType as FuelType,
-                            cumulativeVolume: reading.cumulativeVolume,
-                            readingDate: reading.readingDate,
-                            readingTime: reading.readingTime,
-                            isManualEntry: reading.isManualEntry,
-                            createdAt: reading.createdAt,
-                            updatedAt: reading.updatedAt
-                          };
-                          handleEdit(mappedReading);
-                        }}
-                      >
+                      <Button variant="outline" size="sm" disabled>
                         Edit
                       </Button>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleDelete(reading.id)}
-                        className="text-red-600 hover:text-red-700"
-                      >
+                      <Button variant="outline" size="sm" disabled className="text-red-600">
                         Delete
                       </Button>
                     </div>
