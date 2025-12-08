@@ -1,12 +1,21 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/api-client";
-import { extractNestedData } from "@/lib/api-response";
+import { extractNestedData, extractApiData } from "@/lib/api-response";
 
 interface DashboardData {
   todaySales: number;
   todayTender: number;
   totalReadings: number;
+  // Preserve API 'today' object for components expecting the original shape
+  today?: {
+    litres: number;
+    amount: number;
+    cash: number;
+    online: number;
+    credit: number;
+    readings: number;
+  } | null;
   lastReading: string | null;
   pendingClosures: number;
   trendsData: Array<{
@@ -19,6 +28,15 @@ interface DashboardData {
     diesel?: number;
     cng?: number;
   };
+  pumps?: Array<{
+    id: string;
+    name: string;
+    number: number;
+    status: string;
+    nozzleCount: number;
+    activeNozzles: number;
+    today?: { litres: number; amount: number };
+  }>;
   alerts: Array<{
     id: string;
     type: 'warning' | 'info' | 'error';
@@ -34,10 +52,12 @@ export const useDashboardData = () => {
     todaySales: 0,
     todayTender: 0,
     totalReadings: 0,
+    today: null,
     lastReading: null,
     pendingClosures: 0,
     trendsData: [],
     fuelPrices: {},
+    pumps: [],
     alerts: []
   });
   const [isLoading, setIsLoading] = useState(true);
@@ -79,7 +99,6 @@ export const useDashboardData = () => {
       const today = new Date().toISOString().split('T')[0];
 
       // Fetch dashboard summary from backend
-      // apiClient unwraps {success, data} to just data
       const summary = await apiClient.get<{
         date: string;
         today: {
@@ -102,6 +121,29 @@ export const useDashboardData = () => {
         }>;
       }>(`/dashboard/summary?stationId=${currentStation.id}&startDate=${today}&endDate=${today}`);
 
+      // The apiClient returns the envelope { success, data } — unwrap it safely
+      const summaryData = extractApiData(summary, null) as {
+        date: string;
+        today?: {
+          litres: number;
+          amount: number;
+          cash: number;
+          online: number;
+          credit: number;
+          readings: number;
+        };
+        creditOutstanding?: number;
+        pumps?: Array<{
+          id: string;
+          name: string;
+          number: number;
+          status: string;
+          nozzleCount: number;
+          activeNozzles: number;
+          today?: { litres: number; amount: number };
+        }>;
+      } | null;
+
       // Extract fuel prices from current prices endpoint
       const fuelPrices: DashboardData['fuelPrices'] = {};
       try {
@@ -119,9 +161,11 @@ export const useDashboardData = () => {
       }
 
       setData({
-        todaySales: summary?.today?.amount ?? 0,
-        todayTender: (summary?.today?.cash ?? 0) + (summary?.today?.online ?? 0) + (summary?.today?.credit ?? 0),
-        totalReadings: summary?.today?.readings ?? 0,
+        todaySales: summaryData?.today?.amount ?? 0,
+        todayTender: (summaryData?.today?.cash ?? 0) + (summaryData?.today?.online ?? 0) + (summaryData?.today?.credit ?? 0),
+        totalReadings: summaryData?.today?.readings ?? 0,
+        today: summaryData?.today ?? null,
+        pumps: summaryData?.pumps ?? [],
         lastReading: null, // Not available in current API
         pendingClosures: 0, // Not implemented yet
         trendsData: [],
