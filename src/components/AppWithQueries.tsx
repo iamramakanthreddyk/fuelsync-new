@@ -22,6 +22,7 @@ import Staff from '@/pages/Staff';
 import DataEntry from '@/pages/DataEntry';
 import EmployeeQuickEntry from '@/pages/EmployeeQuickEntry';
 import EmployeeSalesView from '@/pages/EmployeeSalesView';
+import EmployeePumpsView from '@/pages/EmployeePumpsView';
 import Sales from '@/pages/Sales';
 import DailyClosure from '@/pages/DailyClosure';
 import Pumps from '@/pages/Pumps';
@@ -208,6 +209,18 @@ function RoleBasedSales() {
   return <Sales />;
 }
 
+function RoleBasedPumps() {
+  const { user } = useAuth();
+
+  // Employees get a read-only pumps view
+  if (user?.role === 'employee') {
+    return <EmployeePumpsView />;
+  }
+
+  // Managers and owners get the full Pumps management
+  return <Pumps />;
+}
+
 function AppContent() {
   const stationsQuery = useStationsForSuperAdmin();
 
@@ -343,7 +356,7 @@ function AppContent() {
                         <DailyClosure />
                       </ManagerOrOwnerRoute>
                     } />
-                    <Route path="/pumps" element={<Pumps />} />
+                    <Route path="/pumps" element={<RoleBasedPumps />} />
                     <Route path="/prices" element={
                       <ManagerOrOwnerRoute>
                         <Prices />

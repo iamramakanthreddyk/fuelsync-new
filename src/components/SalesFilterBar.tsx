@@ -143,13 +143,13 @@ export function SalesFilterBar({
             <span className="truncate text-xs font-medium">
               {pumpValue === "all"
                 ? "All Pumps"
-                : pumps.find(p => p.id?.toString() === pumpValue)?.name?.slice(0, 14) || `Pump ${pumpValue}`}
+                : (Array.isArray(pumps) && pumps.find(p => p.id?.toString() === pumpValue)?.name?.slice(0, 14)) || `Pump ${pumpValue}`}
             </span>
           </SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Pumps</SelectItem>
-          {pumps
+          {Array.isArray(pumps) && pumps
             .filter(pump => pump && pump.id != null && pump.id !== "")
             .map((pump) => {
               const p = pump as any;
@@ -179,7 +179,7 @@ export function SalesFilterBar({
               {nozzleValue === "all"
                 ? "All Nozzles"
                 : (() => {
-                    const found = nozzles.find(n => n.id?.toString() === nozzleValue);
+                    const found = Array.isArray(nozzles) && nozzles.find(n => n.id?.toString() === nozzleValue);
                     if (!found) return nozzleValue;
                     const f = found as any;
                     const num = found.nozzleNumber ?? f.nozzle_number ?? '';
@@ -191,7 +191,7 @@ export function SalesFilterBar({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Nozzles</SelectItem>
-          {nozzles
+          {Array.isArray(nozzles) && nozzles
             .filter(nozzle => nozzle && nozzle.id != null && nozzle.id !== "")
             .map((nozzle) => {
               const n = nozzle as any;
