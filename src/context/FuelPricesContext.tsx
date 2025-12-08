@@ -58,8 +58,10 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
 
     pricesArr.forEach((cur: any) => {
       const fuelType = cur.fuel_type ?? cur.fuelType ?? '';
-      const pricePerLitre = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
-      if (fuelType && pricePerLitre !== undefined && pricePerLitre !== null) {
+      const rawPrice = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
+      // Coerce strings to numbers and ignore invalid values
+      const pricePerLitre = rawPrice !== undefined && rawPrice !== null ? Number(rawPrice) : undefined;
+      if (fuelType && pricePerLitre !== undefined && !Number.isNaN(pricePerLitre)) {
         priceObj[fuelType] = pricePerLitre;
       }
     });

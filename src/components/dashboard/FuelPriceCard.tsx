@@ -93,9 +93,11 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({
               <span className="text-xs font-medium text-muted-foreground">{label}</span>
               <span className="text-xs font-bold flex items-center text-foreground">
                 <IndianRupee className="w-2.5 h-2.5" />
-                {typeof prices[key as keyof typeof prices] === 'number'
-                  ? safeToFixed(prices[key as keyof typeof prices], 2)
-                  : 'N/A'}
+                {(() => {
+                  const v = prices[key as keyof typeof prices];
+                  const num = typeof v === 'number' ? v : (typeof v === 'string' ? Number(v) : NaN);
+                  return !Number.isNaN(num) ? safeToFixed(num, 2) : 'N/A';
+                })()}
               </span>
             </div>
           );
