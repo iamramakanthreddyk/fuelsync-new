@@ -67,6 +67,20 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
 
   const { isAuthenticated, loading: authLoading, user } = useAuth();
 
+  // Role creation permissions based on backend rules
+  const getCreatableRoles = () => {
+    const currentRole = user?.role?.toLowerCase() || '';
+    const creationRules: Record<string, string[]> = {
+      'super_admin': ['owner'],
+      'owner': ['manager', 'employee'],
+      'manager': ['employee'],
+      'employee': []
+    };
+    return creationRules[currentRole] || [];
+  };
+
+  const creatableRoles = getCreatableRoles();
+
   useEffect(() => {
     if (isAuthenticated && !authLoading) {
       fetchData();
@@ -110,11 +124,13 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
   };
 
   const resetCreateForm = () => {
+    // Set default role to first creatable role
+    const defaultRole = creatableRoles.length > 0 ? creatableRoles[0] : 'employee';
     setCreateForm({
       name: '',
       email: '',
       phone: '',
-      role: 'employee',
+      role: defaultRole as User['role'],
       password: '',
       stationId: '',
       planId: ''
@@ -514,28 +530,39 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="super_admin">
-                      <span className="flex items-center gap-2">
-                        <Crown className="h-4 w-4" /> Super Admin
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="owner">
-                      <span className="flex items-center gap-2">
-                        <Building2 className="h-4 w-4" /> Owner (can create stations)
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="manager">
-                      <span className="flex items-center gap-2">
-                        <Briefcase className="h-4 w-4" /> Manager
-                      </span>
-                    </SelectItem>
-                    <SelectItem value="employee">
-                      <span className="flex items-center gap-2">
-                        <UserIcon className="h-4 w-4" /> Employee
-                      </span>
-                    </SelectItem>
+                    {creatableRoles.includes('super_admin') && (
+                      <SelectItem value="super_admin">
+                        <span className="flex items-center gap-2">
+                          <Crown className="h-4 w-4" /> Super Admin
+                        </span>
+                      </SelectItem>
+                    )}
+                    {creatableRoles.includes('owner') && (
+                      <SelectItem value="owner">
+                        <span className="flex items-center gap-2">
+                          <Building2 className="h-4 w-4" /> Owner (can create stations)
+                        </span>
+                      </SelectItem>
+                    )}
+                    {creatableRoles.includes('manager') && (
+                      <SelectItem value="manager">
+                        <span className="flex items-center gap-2">
+                          <Briefcase className="h-4 w-4" /> Manager
+                        </span>
+                      </SelectItem>
+                    )}
+                    {creatableRoles.includes('employee') && (
+                      <SelectItem value="employee">
+                        <span className="flex items-center gap-2">
+                          <UserIcon className="h-4 w-4" /> Employee
+                        </span>
+                      </SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
+                {creatableRoles.length === 0 && (
+                  <p className="text-sm text-amber-600 mt-1">You don't have permission to create users</p>
+                )}
               </div>
 
               {/* Plan selection for owners */}
@@ -883,7 +910,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
               </div>
             </div>
               {/* Password reset/change for super admin */}
-              {user && (user.role === 'super_admin' || user.role === 'superadmin') && (
+              {user && user.role === 'super_admin' && (
                 <div>
                   <Label htmlFor="edit-password">Change Password</Label>
                   <Input

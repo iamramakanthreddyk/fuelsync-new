@@ -9,7 +9,7 @@ import { useDashboardData } from "@/hooks/useDashboardData";
 import { UpgradeModal } from "@/components/dashboard/UpgradeModal";
 import { useState, useEffect } from "react";
 import { useActivityLogger } from "@/hooks/useActivityLogger";
-import { useFuelPricesData } from "@/hooks/useFuelPricesData";
+import { useFuelPricesData, normalizeFuelType } from "@/hooks/useFuelPricesData";
 import { Button } from "@/components/ui/button";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 
@@ -41,17 +41,22 @@ export default function Dashboard() {
   const premiumRequired = false; // Premium features not implemented yet
   const variance = data.todayTender - data.todaySales;
 
-  // Build fuel price object for FuelPriceCard - normalize keys to uppercase
+  // Build fuel price object for FuelPriceCard - normalize keys using enum
   const fuelPricesObj: Record<string, number> = {};
   if (data.fuelPrices) {
     Object.entries(data.fuelPrices).forEach(([key, value]) => {
       if (value !== undefined) {
-        fuelPricesObj[key.toUpperCase()] = value;
+        fuelPricesObj[normalizeFuelType(key)] = value;
       }
     });
   } else if (fuelPricesList) {
     fuelPricesList.forEach((cur) => {
-      fuelPricesObj[cur.fuel_type?.toUpperCase()] = cur.price_per_litre;
+      // Get fuel type from any available field and normalize using enum helper
+      const fuelType = cur.fuel_type ?? cur.fuelType;
+      const pricePerLitre = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
+      if (fuelType && pricePerLitre !== undefined) {
+        fuelPricesObj[normalizeFuelType(fuelType)] = pricePerLitre;
+      }
     });
   }
 
