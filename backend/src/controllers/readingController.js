@@ -316,6 +316,19 @@ exports.createReading = async (req, res, next) => {
       }
 
       await t.commit();
+
+      // Best-effort fallback: some environments may have model->DB mapping issues
+      // (columns missing or save failing silently). Attempt a raw query to update
+      // the nozzle cache fields so UI that reads `nozzles.last_reading` sees the
+      // new value immediately. Failure here is non-fatal and only logged.
+      try {
+        await sequelize.query(
+          'UPDATE nozzles SET last_reading = :val, last_reading_date = :date WHERE id = :id',
+          { replacements: { val: currentValue, date: readingDate, id: nozzle.id } }
+        );
+      } catch (rawErr) {
+        console.warn(`[WARN] Raw nozzle cache update failed for nozzle ${nozzle.id}:`, rawErr?.message || rawErr);
+      }
     } catch (err) {
       await t.rollback();
       throw err;
