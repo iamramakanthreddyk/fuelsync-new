@@ -86,12 +86,18 @@ export const dailyClosureService = {
    * Get today's dashboard summary
    * GET /api/v1/dashboard/summary
    */
-  async getDailySummary(): Promise<DailySummary | null> {
+  async getDailySummary(stationId?: string, date?: string): Promise<DailySummary | null> {
     try {
-      const response = await apiClient.get<ApiResponse<DailySummary>>('/dashboard/summary');
+      let url = '/dashboard/summary';
+      const params: string[] = [];
+      if (stationId) params.push(`stationId=${encodeURIComponent(stationId)}`);
+      if (date) params.push(`startDate=${encodeURIComponent(date)}&endDate=${encodeURIComponent(date)}`);
+      if (params.length > 0) url += `?${params.join('&')}`;
 
-      if (response.success && response.data) {
-        return response.data;
+      const response = await apiClient.get<ApiResponse<DailySummary>>(url);
+
+      if (response && (response as any).success && (response as any).data) {
+        return (response as any).data as DailySummary;
       }
       return null;
     } catch (error) {

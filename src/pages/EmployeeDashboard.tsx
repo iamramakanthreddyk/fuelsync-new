@@ -36,14 +36,23 @@ const EmployeeDashboard = () => {
       }
       try {
         console.log('Triggering API calls for station:', currentStation.id);
+        const today = new Date().toISOString().split('T')[0];
         const [pricesData, summaryData, shiftStatus] = await Promise.all([
           fuelPriceService.getFuelPrices(currentStation.id),
-          dailyClosureService.getDailySummary(),
-          dashboardAlertsService.getShiftStatus()
+          dailyClosureService.getDailySummary(currentStation.id, today),
+          dashboardAlertsService.getShiftStatus(),
         ]);
-        setFuelPrices(pricesData);
-        setDailySummary(summaryData);
-        setActiveShift(shiftStatus.myActiveShift);
+
+        setFuelPrices(pricesData || []);
+
+        if (summaryData) {
+          setDailySummary(summaryData);
+        } else {
+          console.warn('dailyClosureService returned no summary; fallback to null');
+          setDailySummary(null);
+        }
+
+        setActiveShift((shiftStatus && (shiftStatus as any).myActiveShift) || null);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
         alert('Error fetching dashboard data: ' + (error instanceof Error ? error.message : String(error)));
@@ -77,7 +86,7 @@ const EmployeeDashboard = () => {
 
   const handleEndShift = async () => {
     if (!activeShift) return;
-    
+
     setShiftLoading(true);
     try {
       const cashCollected = prompt('Enter cash collected amount:');
@@ -87,13 +96,20 @@ const EmployeeDashboard = () => {
       }
 
       await shiftService.endShift(activeShift.id, {
-        cashCollected: parseFloat(cashCollected) || 0
+        cashCollected: parseFloat(cashCollected) || 0,
       });
+
       setActiveShift(null);
-      
-      // Refresh summary
-      const summaryData = await dailyClosureService.getDailySummary();
-      setDailySummary(summaryData);
+
+      // Refresh summary (use stationId & today's date if available)
+      const today = new Date().toISOString().split('T')[0];
+      if (currentStation && currentStation.id) {
+        const summaryData = await dailyClosureService.getDailySummary(currentStation.id, today);
+        setDailySummary(summaryData);
+      } else {
+        const summaryData = await dailyClosureService.getDailySummary();
+        setDailySummary(summaryData);
+      }
     } catch (error: unknown) {
       console.error('Failed to end shift:', error);
       alert(error instanceof Error ? error.message : 'Failed to end shift');
@@ -204,7 +220,7 @@ const EmployeeDashboard = () => {
               {/* Map fuelPrices to FuelPriceCard format */}
               {fuelPrices.length > 0 ? (
                 <FuelPriceCard
-                  prices={fuelPrices.reduce((acc, cur) => {
+                  prices={fuelPrices.reduce((acc: Record<string, number>, cur) => {
                     const type = normalizeFuelType(cur.fuelType);
                     acc[type] = Number(cur.price);
                     return acc;

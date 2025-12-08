@@ -1,5 +1,5 @@
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { DollarSign, TrendingUp, Clock, AlertTriangle, Lock } from "lucide-react";
 import { TrendsChart } from "@/components/dashboard/TrendsChart";
@@ -39,7 +39,8 @@ export default function Dashboard() {
 
   // ...existing code...
   const { data: fuelPricesList, isLoading: isPricesLoading } = useFuelPricesData();
-  const { currentStation } = useRoleAccess();
+  const roleAccess = useRoleAccess();
+  const { currentStation, isEmployee } = roleAccess;
   const { setStationId } = useFuelPricesGlobal();
 
   useEffect(() => {
@@ -172,6 +173,86 @@ export default function Dashboard() {
     );
   }
 
+  // Simplified dashboard for employees: only essential, accessible cards
+  function EmployeeDashboard() {
+    const d: any = data as any;
+    return (
+      <div className="space-y-3">
+        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
+          <Card className="card-mobile border-l-4 border-l-green-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Sales Today</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(d.today?.amount ?? d.todaySales ?? 0)}</div>
+              <p className="text-xs text-muted-foreground mt-1">From fuel dispensing</p>
+            </CardContent>
+          </Card>
+
+          <Card className="card-mobile border-l-4 border-l-blue-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Litres Dispensed</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="text-xl sm:text-2xl font-bold text-blue-600">{safeToFixed(d.today?.litres ?? d.todayLitres ?? 0)}</div>
+              <p className="text-xs text-muted-foreground mt-1">Total litres today</p>
+            </CardContent>
+          </Card>
+
+          <Card className="card-mobile border-l-4 border-l-amber-500">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Readings Today</CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              <div className="text-xl sm:text-2xl font-bold text-amber-600">{d.today?.readings ?? 0}</div>
+              <p className="text-xs text-muted-foreground mt-1">Nozzle readings recorded</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Pumps summary */}
+        <div className="space-y-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Pumps (Today)</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid gap-2">
+                {Array.isArray(d.pumps) && d.pumps.length > 0 ? (
+                  d.pumps.map((p: any) => (
+                    <div key={p.id} className="flex items-center justify-between">
+                      <div className="text-sm font-medium">{p.name} • {p.number}</div>
+                      <div className="text-sm text-muted-foreground">{p.today?.litres ?? 0}L • ₹{safeToFixed(p.today?.amount ?? 0)}</div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-xs text-muted-foreground">No pump activity</div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        {/* Quick Actions + Compact Trends */}
+        <div className="grid gap-4 sm:grid-cols-3">
+          <div className="sm:col-span-1">
+            <QuickActions />
+          </div>
+          <div className="sm:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Today Sales Trend</CardTitle>
+                <CardDescription className="text-xs">Last 7 entries</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <TrendsChart data={d.trendsData ?? data.trendsData} isLoading={!d.trendsData && !data.trendsData} />
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   function TrendsChartPremiumPromo() {
     return (
       <Card className="h-full min-h-[200px] sm:min-h-[240px] flex flex-col items-center justify-center bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-dashed border-yellow-400 card-mobile">
@@ -227,92 +308,99 @@ export default function Dashboard() {
       {/* Alerts - Full width mobile */}
       <AlertBadges alerts={data.alerts} />
 
-      {/* Key Metrics - Responsive grid */}
-      {premiumRequired ? (
-        <div className="space-y-3 sm:space-y-4">
-          <KeyMetricsFreeCards />
-          <KeyMetricPremiumPromo />
-        </div>
+      {/* Key Metrics - Render simplified view for employees */}
+      {isEmployee ? (
+        <EmployeeDashboard />
       ) : (
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-          {/* Total Sales Today */}
-          <Card className="card-mobile border-l-4 border-l-green-500 hover:scale-[1.01] transition-transform">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Sales Today</CardTitle>
-              <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(data.todaySales)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                From fuel dispensing
-              </p>
-            </CardContent>
-          </Card>
+        (premiumRequired ? (
+          <div className="space-y-3 sm:space-y-4">
+            <KeyMetricsFreeCards />
+            <KeyMetricPremiumPromo />
+          </div>
+        ) : (
+          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Total Sales Today */}
+            <Card className="card-mobile border-l-4 border-l-green-500 hover:scale-[1.01] transition-transform">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Sales Today</CardTitle>
+                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(data.todaySales)}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  From fuel dispensing
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Total Tender */}
-          <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Tender</CardTitle>
-              <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayTender)}</div>
-              <p className="text-xs text-muted-foreground mt-1">
-                Cash, card, UPI & credit
-              </p>
-            </CardContent>
-          </Card>
+            {/* Total Tender */}
+            <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Tender</CardTitle>
+                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayTender)}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Cash, card, UPI & credit
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Pending Closures */}
-          <Card className="card-mobile border-l-4 border-l-amber-500 hover:scale-[1.01] transition-transform">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Pending Closures</CardTitle>
-              <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className={`text-xl sm:text-2xl font-bold ${data.pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                {data.pendingClosures}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {data.pendingClosures > 0 ? 'Need attention' : 'All closed'}
-              </p>
-            </CardContent>
-          </Card>
+            {/* Pending Closures */}
+            <Card className="card-mobile border-l-4 border-l-amber-500 hover:scale-[1.01] transition-transform">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Pending Closures</CardTitle>
+                <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className={`text-xl sm:text-2xl font-bold ${data.pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {data.pendingClosures}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {data.pendingClosures > 0 ? 'Need attention' : 'All closed'}
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Daily Variance */}
-          <Card className="card-mobile border-l-4 border-l-purple-500 hover:scale-[1.01] transition-transform">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Daily Variance</CardTitle>
-              <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className={`text-xl sm:text-2xl font-bold ${Math.abs(variance) < 1 ? 'text-green-600' : variance > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                {Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${safeToFixed(Math.abs(variance))}`}
-              </div>
-              <p className="text-xs text-muted-foreground mt-1">
-                {Math.abs(variance) < 1 ? 'Sales match collections' : variance > 0 ? 'Collection excess' : 'Collection shortage'}
-              </p>
-            </CardContent>
-          </Card>
-        </div>
+            {/* Daily Variance */}
+            <Card className="card-mobile border-l-4 border-l-purple-500 hover:scale-[1.01] transition-transform">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Daily Variance</CardTitle>
+                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
+              </CardHeader>
+              <CardContent className="px-4 pb-4">
+                <div className={`text-xl sm:text-2xl font-bold ${Math.abs(variance) < 1 ? 'text-green-600' : variance > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                  {Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${safeToFixed(Math.abs(variance))}`}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {Math.abs(variance) < 1 ? 'Sales match collections' : variance > 0 ? 'Collection excess' : 'Collection shortage'}
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+        ))
       )}
 
-      {/* Charts and Actions - Stack on mobile, side by side on desktop */}
-      <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
-        {/* Trends Chart - Full width on mobile, 2 cols on desktop */}
-        <div className="lg:col-span-2 relative animate-slide-up">
-          {premiumRequired ? (
-            <TrendsChartPremiumPromo />
-          ) : (
-            <TrendsChart data={data.trendsData} isLoading={isLoading} />
-          )}
+      {/* Charts and Actions - Stack on mobile, side by side on desktop
+          Hidden for employees because EmployeeDashboard already shows a compact trends + quick actions */}
+      {!isEmployee && (
+        <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
+          {/* Trends Chart - Full width on mobile, 2 cols on desktop */}
+          <div className="lg:col-span-2 relative animate-slide-up">
+            {premiumRequired ? (
+              <TrendsChartPremiumPromo />
+            ) : (
+              <TrendsChart data={data.trendsData} isLoading={isLoading} />
+            )}
+          </div>
+          
+          {/* Sidebar content - Quick Actions only */}
+          <div className="space-y-4 sm:space-y-6">
+            <QuickActions />
+          </div>
         </div>
-        
-        {/* Sidebar content - Quick Actions only */}
-        <div className="space-y-4 sm:space-y-6">
-          <QuickActions />
-        </div>
-      </div>
+      )}
 
       {/* Reading Summary - Full width */}
       <ReadingSummary totalReadings={data.totalReadings} lastReading={data.lastReading} />
