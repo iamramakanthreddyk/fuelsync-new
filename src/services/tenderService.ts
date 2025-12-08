@@ -411,14 +411,14 @@ export const tenderService = {
       const { dailyClosureService } = await import('./dailyClosureService');
       const summary = await dailyClosureService.getDailySummary();
       
-      if (summary) {
+      if (summary?.today) {
         return {
-          cash: summary.today.cash,
+          cash: summary.today.cash ?? 0,
           card: 0, // Backend tracks online (card + upi combined)
           upi: 0,
-          online: summary.today.online,
-          credit: summary.today.credit,
-          total: summary.today.amount
+          online: summary.today.online ?? 0,
+          credit: summary.today.credit ?? 0,
+          total: summary.today.amount ?? 0
         };
       }
     } catch (error) {

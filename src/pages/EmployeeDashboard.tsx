@@ -205,16 +205,16 @@ const EmployeeDashboard = () => {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            {dailySummary ? (
+            {dailySummary?.today ? (
               <>
                 <div className="text-2xl font-bold">
-                  ₹{dailySummary.today.amount.toLocaleString()}
+                  ₹{(dailySummary.today.amount ?? 0).toLocaleString()}
                 </div>
                 <div className="text-xs text-muted-foreground space-y-1 mt-2">
-                  <p>Cash: ₹{dailySummary.today.cash.toLocaleString()}</p>
-                  <p>Online: ₹{dailySummary.today.online.toLocaleString()}</p>
-                  <p>Credit: ₹{dailySummary.today.credit.toLocaleString()}</p>
-                  <p className="font-medium pt-1">{dailySummary.today.readings} readings</p>
+                  <p>Cash: ₹{(dailySummary.today.cash ?? 0).toLocaleString()}</p>
+                  <p>Online: ₹{(dailySummary.today.online ?? 0).toLocaleString()}</p>
+                  <p>Credit: ₹{(dailySummary.today.credit ?? 0).toLocaleString()}</p>
+                  <p className="font-medium pt-1">{dailySummary.today.readings ?? 0} readings</p>
                 </div>
               </>
             ) : (
@@ -269,9 +269,9 @@ const EmployeeDashboard = () => {
                     </span>
                   </div>
                   <div className="mt-2">
-                    <p className="text-lg font-bold">₹{pump.today.amount.toLocaleString()}</p>
+                    <p className="text-lg font-bold">₹{(pump.today?.amount ?? 0).toLocaleString()}</p>
                     <p className="text-sm text-muted-foreground">
-                      {safeToFixed(pump.today.litres)} litres
+                      {safeToFixed(pump.today?.litres ?? 0)} litres
                     </p>
                   </div>
                 </div>

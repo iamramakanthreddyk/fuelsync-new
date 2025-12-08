@@ -119,9 +119,9 @@ export const useDashboardData = () => {
       }
 
       setData({
-        todaySales: summary.today.amount,
-        todayTender: summary.today.cash + summary.today.online + summary.today.credit,
-        totalReadings: summary.today.readings,
+        todaySales: summary?.today?.amount ?? 0,
+        todayTender: (summary?.today?.cash ?? 0) + (summary?.today?.online ?? 0) + (summary?.today?.credit ?? 0),
+        totalReadings: summary?.today?.readings ?? 0,
         lastReading: null, // Not available in current API
         pendingClosures: 0, // Not implemented yet
         trendsData: [],
