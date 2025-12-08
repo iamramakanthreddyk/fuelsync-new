@@ -19,7 +19,8 @@ import AdminUsers from '@/pages/AdminUsers';
 import AdminStations from '@/pages/AdminStations';
 import MyStations from '@/pages/MyStations';
 import Staff from '@/pages/Staff';
-import DataEntry from '@/pages/DataEntry'; // UPDATED: use DataEntry
+import DataEntry from '@/pages/DataEntry';
+import EmployeeQuickEntry from '@/pages/EmployeeQuickEntry';
 import Sales from '@/pages/Sales';
 import DailyClosure from '@/pages/DailyClosure';
 import Pumps from '@/pages/Pumps';
@@ -182,6 +183,18 @@ function ManagerOrOwnerRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RoleBasedDataEntry() {
+  const { user } = useAuth();
+  
+  // Employees get the simplified Quick Entry
+  if (user?.role === 'employee') {
+    return <EmployeeQuickEntry />;
+  }
+  
+  // Managers and owners get the full DataEntry (with tabs)
+  return <DataEntry />;
+}
+
 function AppContent() {
   const stationsQuery = useStationsForSuperAdmin();
 
@@ -307,11 +320,10 @@ function AppContent() {
                     <Route path="/reading-approvals" element={<ReadingApprovalList />} />
                     <Route path="/credit-ledger" element={<CreditLedger />} />
                     
-                    {/* Legacy routes - keep for backward compatibility */}
-                    <Route path="/stations" element={<MyStations />} />
-                    
-                    {/* CHANGED: Use /data-entry route instead of /upload */}
-                    <Route path="/data-entry" element={<DataEntry />} />
+                    {/* Employee Quick Entry - replaces old DataEntry */}
+                    <Route path="/quick-entry" element={<EmployeeQuickEntry />} />
+                    {/* Role-based data entry - employees get Quick Entry, managers/owners get full DataEntry */}
+                    <Route path="/data-entry" element={<RoleBasedDataEntry />} />
                     <Route path="/sales" element={<Sales />} />
                     <Route path="/daily-closure" element={
                       <ManagerOrOwnerRoute>
@@ -333,8 +345,8 @@ function AppContent() {
                     <Route path="/admin/stations" element={<AdminStations />} />
                     <Route path="/staff" element={<Staff />} />
                     <Route path="/settings" element={<Settings />} />
-                    {/* Optionally: for backward compatibility, can also keep /upload as DataEntry */}
-                    <Route path="/upload" element={<DataEntry />} />
+                    {/* Optionally: for backward compatibility, can also keep /upload as role-based DataEntry */}
+                    <Route path="/upload" element={<RoleBasedDataEntry />} />
                     
                     <Route path="/" element={<RoleBasedRedirect />} />
                     {/* Catch-all route for unknown paths - redirects based on auth status */}

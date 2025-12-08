@@ -16,7 +16,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { isOwner, getDashboardUrl } from '@/lib/roleUtils';
 import { 
   Home,
-  Upload,
   TrendingUp,
   Calendar,
   Fuel,
@@ -121,9 +120,9 @@ export function AppSidebar() {
       icon: Home,
     },
     {
-      title: "Data Entry",
-      url: "/data-entry",
-      icon: Upload,
+      title: "Quick Entry",
+      url: "/quick-entry",
+      icon: Zap,
     },
     // Sales - view readings (employees can view own readings)
     {
@@ -167,7 +166,6 @@ export function AppSidebar() {
     Reports: 'text-[#10B981]',
     Analytics: 'text-[#EF4444]',
     Settings: 'text-[#64748B]',
-    'Data Entry': 'text-[#0EA5E9]',
     Sales: 'text-[#F59E0B]',
     'Daily Closure': 'text-[#06B6D4]',
     Pumps: 'text-[#3B82F6]',

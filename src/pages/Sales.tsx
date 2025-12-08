@@ -72,7 +72,7 @@ export default function Sales() {
     }
     return null;
   };
-  const { currentStation, canAccessAllStations, stations } = useRoleAccess();
+  const { currentStation, canAccessAllStations, stations, isOwner, isAdmin } = useRoleAccess();
   const { createManualEntry } = useSalesManagement();
   const activeShiftQuery = useActiveShift();
   
@@ -329,13 +329,14 @@ export default function Sales() {
           </p>
         </div>
 
-        <Dialog open={isAddSaleOpen} onOpenChange={setIsAddSaleOpen}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto shadow-sm text-sm md:text-base">
-              <Plus className="w-4 h-4 mr-2" />
-              Manual Entry
-            </Button>
-          </DialogTrigger>
+        {(isOwner || isAdmin) && (
+          <Dialog open={isAddSaleOpen} onOpenChange={setIsAddSaleOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full sm:w-auto shadow-sm text-sm md:text-base">
+                <Plus className="w-4 h-4 mr-2" />
+                Manual Entry
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-md mx-4">
             <DialogHeader>
               <DialogTitle className="text-lg">Manual Sales Entry</DialogTitle>
@@ -444,6 +445,7 @@ export default function Sales() {
             </div>
           </DialogContent>
         </Dialog>
+        )}
       </div>
 
       {/* Filter Bar */}
