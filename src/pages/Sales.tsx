@@ -63,7 +63,7 @@ export default function Sales() {
   const { data: pumps } = usePumpsData();
   // Utility: Given nozzleId, find nozzle (and parent pump) in pumpsData
   const getNozzle = (nozzleId: number) => {
-    if (!nozzleId || !pumps) return null;
+    if (!nozzleId || !pumps || !Array.isArray(pumps)) return null;
     for (const pump of pumps) {
       const nozzle = pump.nozzles?.find((n) => Number(n.id) === nozzleId);
       if (nozzle) {
@@ -159,7 +159,7 @@ export default function Sales() {
   const pagedSales = filteredSales.slice((page - 1) * pageSize, page * pageSize);
 
   // Get pumps and nozzles list for filter bar
-  const pumpsList = pumps || [];
+  const pumpsList = Array.isArray(pumps) ? pumps : [];
   const nozzlesList = pumpsList
     .find(p => p.id?.toString() === barPumpId)?.nozzles || [];
 
@@ -174,7 +174,7 @@ export default function Sales() {
       : undefined;
 
   // Fix: Ensure availablePumps uses correct number type
-  const availablePumps = pumps?.filter(
+  const availablePumps = (Array.isArray(pumps) ? pumps : []).filter(
     (pump) =>
       !manualEntry.station_id ||
       pump.stationId === selectedStationIdParsed

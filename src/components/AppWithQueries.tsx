@@ -21,6 +21,7 @@ import MyStations from '@/pages/MyStations';
 import Staff from '@/pages/Staff';
 import DataEntry from '@/pages/DataEntry';
 import EmployeeQuickEntry from '@/pages/EmployeeQuickEntry';
+import EmployeeSalesView from '@/pages/EmployeeSalesView';
 import Sales from '@/pages/Sales';
 import DailyClosure from '@/pages/DailyClosure';
 import Pumps from '@/pages/Pumps';
@@ -195,6 +196,18 @@ function RoleBasedDataEntry() {
   return <DataEntry />;
 }
 
+function RoleBasedSales() {
+  const { user } = useAuth();
+
+  // Employees get a read-only sales view
+  if (user?.role === 'employee') {
+    return <EmployeeSalesView />;
+  }
+
+  // Managers and owners get the full Sales management
+  return <Sales />;
+}
+
 function AppContent() {
   const stationsQuery = useStationsForSuperAdmin();
 
@@ -324,7 +337,7 @@ function AppContent() {
                     <Route path="/quick-entry" element={<EmployeeQuickEntry />} />
                     {/* Role-based data entry - employees get Quick Entry, managers/owners get full DataEntry */}
                     <Route path="/data-entry" element={<RoleBasedDataEntry />} />
-                    <Route path="/sales" element={<Sales />} />
+                    <Route path="/sales" element={<RoleBasedSales />} />
                     <Route path="/daily-closure" element={
                       <ManagerOrOwnerRoute>
                         <DailyClosure />
@@ -345,8 +358,6 @@ function AppContent() {
                     <Route path="/admin/stations" element={<AdminStations />} />
                     <Route path="/staff" element={<Staff />} />
                     <Route path="/settings" element={<Settings />} />
-                    {/* Optionally: for backward compatibility, can also keep /upload as role-based DataEntry */}
-                    <Route path="/upload" element={<RoleBasedDataEntry />} />
                     
                     <Route path="/" element={<RoleBasedRedirect />} />
                     {/* Catch-all route for unknown paths - redirects based on auth status */}
