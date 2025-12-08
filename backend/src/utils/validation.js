@@ -11,7 +11,13 @@ const commonSchemas = {
   email: Joi.string().email().messages({
     'string.email': 'Invalid email format'
   }),
-  phone: Joi.string().pattern(/^\+?[\d\s\-\(\)]+$/).messages({
+  phone: Joi.string().custom((value, helpers) => {
+    if (!value) return value;
+    const digits = String(value).replace(/\D/g, '');
+    if (digits.length === 10) return value;
+    if (digits.length === 12 && digits.startsWith('91')) return value;
+    return helpers.message('Invalid phone number format');
+  }).messages({
     'string.pattern.base': 'Invalid phone number format'
   }),
   date: Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).messages({

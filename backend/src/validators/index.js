@@ -23,7 +23,15 @@ const optionalUuid = Joi.string().uuid();
 const intIdParam = Joi.number().integer().positive().required();
 const optionalIntId = Joi.number().integer().positive();
 const dateString = Joi.string().pattern(/^\d{4}-\d{2}-\d{2}$/).message('Date must be in YYYY-MM-DD format');
-const phone = Joi.string().pattern(/^\+?[\d\s-]{10,15}$/).message('Invalid phone number');
+const phone = Joi.string().custom((value, helpers) => {
+  if (!value) return value;
+  const digits = String(value).replace(/\D/g, '');
+  // Accept plain 10-digit Indian numbers (e.g. 9876543210)
+  // or numbers prefixed with country code 91 (e.g. +919876543210 or 91-9876543210)
+  if (digits.length === 10) return value;
+  if (digits.length === 12 && digits.startsWith('91')) return value;
+  return helpers.message('Invalid phone number');
+}).message('Invalid phone number');
 const email = Joi.string().email().lowercase();
 const pagination = {
   page: Joi.number().integer().min(1).default(1),

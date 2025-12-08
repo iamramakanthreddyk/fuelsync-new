@@ -119,10 +119,57 @@ export default function StationsPage() {
     setFormErrors({});
   };
 
+  const validateCreateForm = (data: typeof formData) => {
+    const errors: Record<string, string> = {};
+    const trim = (v?: string) => (v || '').trim();
+
+    if (!trim(data.name)) {
+      errors.name = 'Station name is required';
+    } else if (trim(data.name).length < 2) {
+      errors.name = 'Station name must be at least 2 characters';
+    }
+
+    if (!trim(data.ownerId)) {
+      errors.ownerId = 'Owner is required';
+    }
+
+    const phone = trim(data.phone);
+    if (!phone) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^\d{10}$/.test(phone)) {
+      errors.phone = 'Enter a valid 10-digit phone number';
+    }
+
+    const email = trim(data.email);
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      errors.email = 'Enter a valid email address';
+    }
+
+    const pincode = trim(data.pincode);
+    if (pincode && !/^\d{6}$/.test(pincode)) {
+      errors.pincode = 'Pincode must be 6 digits';
+    }
+
+    const gst = trim(data.gstNumber).toUpperCase();
+    if (gst) {
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      if (!gstRegex.test(gst)) {
+        errors.gstNumber = 'Invalid GST number format';
+      }
+    }
+
+    return errors;
+  };
+
   // Auto-generate station code when owner is selected
 
   const handleCreateStation = async () => {
-    // Basic payload construction without validation
+    // Validate on client first
+    const validationErrors = validateCreateForm(formData);
+    if (Object.keys(validationErrors).length > 0) {
+      setFormErrors(validationErrors);
+      return;
+    }
     setFormErrors({});
     const payload: Record<string, unknown> = {
       name: formData.name,
@@ -262,6 +309,7 @@ export default function StationsPage() {
                 <Input
                   id="name"
                   value={formData.name}
+                  required
                   onChange={(e) => {
                     setFormData({ ...formData, name: e.target.value });
                     if (formErrors.name) setFormErrors({ ...formErrors, name: '' });
@@ -280,6 +328,7 @@ export default function StationsPage() {
                     setFormData({ ...formData, ownerId: value });
                     if (formErrors.ownerId) setFormErrors({ ...formErrors, ownerId: '' });
                   }}
+                  required
                 >
                   <SelectTrigger className={formErrors.ownerId ? 'border-red-500' : ''}>
                     <SelectValue placeholder="Select owner" />
@@ -342,6 +391,7 @@ export default function StationsPage() {
                     onChange={(e) => setFormData({ ...formData, pincode: e.target.value })}
                     placeholder="Pincode"
                   />
+                  {formErrors.pincode && <p className="text-sm text-red-500 mt-1">{formErrors.pincode}</p>}
                 </div>
               </div>
 
@@ -351,6 +401,7 @@ export default function StationsPage() {
                   <Input
                     id="phone"
                     value={formData.phone}
+                    required
                     onChange={(e) => {
                       setFormData({ ...formData, phone: e.target.value });
                       if (formErrors.phone) setFormErrors({ ...formErrors, phone: '' });
@@ -369,6 +420,7 @@ export default function StationsPage() {
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="Station email"
                   />
+                  {formErrors.email && <p className="text-sm text-red-500 mt-1">{formErrors.email}</p>}
                 </div>
               </div>
 
@@ -380,6 +432,7 @@ export default function StationsPage() {
                   onChange={(e) => setFormData({ ...formData, gstNumber: e.target.value })}
                   placeholder="GST Number"
                 />
+                {formErrors.gstNumber && <p className="text-sm text-red-500 mt-1">{formErrors.gstNumber}</p>}
               </div>
             </div>
             <DialogFooter>
