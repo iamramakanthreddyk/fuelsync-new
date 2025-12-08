@@ -5,7 +5,7 @@
     "context": "."
   },
   "deploy": {
-    "numReplicas": 1,
+    "numReplicas": 2,
     "restartPolicyType": "on_failure",
     "restartPolicyMaxRetries": 3,
     "sleepApplication": false
