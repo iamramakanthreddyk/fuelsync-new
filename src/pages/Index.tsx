@@ -1,6 +1,7 @@
 import React from 'react';
 import { useLocation } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
+import { FuelPricesProvider } from '../context/FuelPricesContext';
 import Dashboard from './Dashboard';
 import DataEntry from './DataEntry';
 import Sales from './Sales';
@@ -42,9 +43,11 @@ const Index = () => {
   };
 
   return (
-    <AppLayout>
-      {renderPage()}
-    </AppLayout>
+    <FuelPricesProvider>
+      <AppLayout>
+        {renderPage()}
+      </AppLayout>
+    </FuelPricesProvider>
   );
 };
 

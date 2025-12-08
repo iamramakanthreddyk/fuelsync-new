@@ -6,6 +6,8 @@ import { fuelPriceService, FuelPrice } from '@/services/fuelPriceService';
 import { dailyClosureService, DailySummary } from '@/services/dailyClosureService';
 import { shiftService, dashboardAlertsService, Shift } from '@/services/tenderService';
 import { Badge } from '@/components/ui/badge';
+import { FuelPriceCard } from '@/components/dashboard/FuelPriceCard';
+import { normalizeFuelType } from '@/hooks/useFuelPricesData';
 import { Button } from '@/components/ui/button';
 import { Fuel, DollarSign, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
@@ -22,6 +24,9 @@ const EmployeeDashboard = () => {
 
   // Get the first station for this employee
   const currentStation = user?.stations?.[0];
+  // Debug log for station assignment
+  console.log('Employee stations:', user?.stations);
+  console.log('Current station:', currentStation);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -29,25 +34,28 @@ const EmployeeDashboard = () => {
         setLoading(false);
         return;
       }
-      
       try {
+        console.log('Triggering API calls for station:', currentStation.id);
         const [pricesData, summaryData, shiftStatus] = await Promise.all([
           fuelPriceService.getFuelPrices(currentStation.id),
           dailyClosureService.getDailySummary(),
           dashboardAlertsService.getShiftStatus()
         ]);
-
         setFuelPrices(pricesData);
         setDailySummary(summaryData);
         setActiveShift(shiftStatus.myActiveShift);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
+        alert('Error fetching dashboard data: ' + (error instanceof Error ? error.message : String(error)));
       } finally {
         setLoading(false);
       }
     };
-
-    fetchData();
+    if (currentStation && currentStation.id) {
+      fetchData();
+    } else {
+      setLoading(false);
+    }
   }, [currentStation]);
 
   const handleStartShift = async () => {
@@ -108,8 +116,16 @@ const EmployeeDashboard = () => {
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-muted-foreground">
-              No station assigned to your account. Please contact your administrator.
+              No station assigned to your account.<br />
+              Please contact your administrator.<br />
+              <span style={{color: 'red'}}>API calls will only trigger if a station is assigned.</span>
             </p>
+            <pre style={{marginTop: 16, background: '#f8f8f8', color: '#333', padding: 12, borderRadius: 8, fontSize: 12}}>
+              <strong>Debug Info:</strong>{'\n'}
+              User: {JSON.stringify(user, null, 2)}{'\n'}
+              Stations: {JSON.stringify(user?.stations, null, 2)}{'\n'}
+              CurrentStation: {JSON.stringify(currentStation, null, 2)}
+            </pre>
           </CardContent>
         </Card>
       </div>
@@ -180,23 +196,26 @@ const EmployeeDashboard = () => {
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Current Fuel Prices</CardTitle>
-            <Fuel className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {fuelPrices.slice(0, 4).map((price) => (
-                <div key={price.id} className="flex justify-between items-center">
-                  <span className="text-sm capitalize">{price.fuelType}</span>
-                  <span className="font-medium">₹{price.price}</span>
-                </div>
-              ))}
-              {fuelPrices.length === 0 && (
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Current Fuel Prices</CardTitle>
+              <Fuel className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              {/* Map fuelPrices to FuelPriceCard format */}
+              {fuelPrices.length > 0 ? (
+                <FuelPriceCard
+                  prices={fuelPrices.reduce((acc, cur) => {
+                    const type = normalizeFuelType(cur.fuelType);
+                    acc[type] = Number(cur.price);
+                    return acc;
+                  }, {})}
+                  isLoading={loading}
+                  canSetPrices={false}
+                />
+              ) : (
                 <p className="text-sm text-muted-foreground">No fuel prices available</p>
               )}
-            </div>
-          </CardContent>
+            </CardContent>
         </Card>
 
         <Card>

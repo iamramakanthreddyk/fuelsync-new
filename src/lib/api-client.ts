@@ -186,6 +186,12 @@ async function request<T>(
     signal: options?.signal,
   };
 
+  // Avoid browser conditional requests (304 Not Modified) for GETs which return no body
+  // Force a network fetch so the response contains JSON the client can parse.
+  if (method === 'GET') {
+    (config as any).cache = 'no-store';
+  }
+
   if (data && method !== 'GET') {
     // Handle FormData separately (file uploads) - do not JSON stringify or convert keys
     if (data instanceof FormData) {

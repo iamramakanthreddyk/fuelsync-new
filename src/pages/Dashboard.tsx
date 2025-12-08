@@ -10,6 +10,7 @@ import { UpgradeModal } from "@/components/dashboard/UpgradeModal";
 import { useState, useEffect } from "react";
 import { useActivityLogger } from "@/hooks/useActivityLogger";
 import { useFuelPricesData, normalizeFuelType } from "@/hooks/useFuelPricesData";
+import { useFuelPricesGlobal } from "../context/FuelPricesContext";
 import { Button } from "@/components/ui/button";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 
@@ -21,6 +22,11 @@ import { ReadingSummary } from "@/components/dashboard/ReadingSummary";
 import { safeToFixed } from '@/lib/format-utils';
 
 export default function Dashboard() {
+  const { user } = useAuth();
+  const { data, isLoading } = useDashboardData();
+  // Debug: log user and dashboard data
+  console.log('Dashboard user:', user);
+  console.log('Dashboard data:', data);
   const logActivity = useActivityLogger();
   useEffect(() => {
     logActivity("dashboard_view", {
@@ -31,10 +37,16 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { user } = useAuth();
-  const { data, isLoading } = useDashboardData();
+  // ...existing code...
   const { data: fuelPricesList, isLoading: isPricesLoading } = useFuelPricesData();
-  useRoleAccess();
+  const { currentStation } = useRoleAccess();
+  const { setStationId } = useFuelPricesGlobal();
+
+  useEffect(() => {
+    if (currentStation && currentStation.id) {
+      setStationId(currentStation.id);
+    }
+  }, [currentStation, setStationId]);
   const [showUpgrade, setShowUpgrade] = useState(false);
   const checklist = useSetupChecklist();
 
@@ -42,6 +54,7 @@ export default function Dashboard() {
   const variance = data.todayTender - data.todaySales;
 
   // Build fuel price object for FuelPriceCard - normalize keys using enum
+  const { prices: globalFuelPrices, setPrices: setGlobalFuelPrices } = useFuelPricesGlobal();
   const fuelPricesObj: Record<string, number> = {};
   if (data.fuelPrices) {
     Object.entries(data.fuelPrices).forEach(([key, value]) => {
@@ -60,6 +73,13 @@ export default function Dashboard() {
     });
   }
 
+  // Store prices in global context for other pages
+  useEffect(() => {
+    if (Object.keys(fuelPricesObj).length > 0) {
+      setGlobalFuelPrices(fuelPricesObj);
+    }
+  }, [JSON.stringify(fuelPricesObj)]);
+
   // --- Lock overlay click handler
   const onLockUpgradeClick = () => setShowUpgrade(true);
 
@@ -73,6 +93,9 @@ export default function Dashboard() {
       </div>
     );
   }
+  // Debug: log after loading
+  console.log('Dashboard loaded. User:', user);
+  console.log('Dashboard loaded. Data:', data);
 
   // New: Render only free cards for key metrics and compact premium card/sections
   function KeyMetricsFreeCards() {

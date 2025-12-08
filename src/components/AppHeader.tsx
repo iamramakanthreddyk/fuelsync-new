@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/useAuth';
-import { useFuelPricesData, normalizeFuelType } from '@/hooks/useFuelPricesData';
+import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
+import { normalizeFuelType } from '@/hooks/useFuelPricesData';
 import FuelSyncLogo from './FuelSyncLogo';
 import { MobileMenuTrigger } from './MobileMenuTrigger';
 import { FuelPriceCard } from '@/components/dashboard/FuelPriceCard';
@@ -19,7 +20,14 @@ export function AppHeader() {
   const { currentStation } = useRoleAccess();
   const { state, isMobile } = useSidebar();
   const { user } = useAuth();
-  const { data: fuelPrices, isLoading: isPricesLoading } = useFuelPricesData();
+  const { prices: globalFuelPrices, setStationId } = useFuelPricesGlobal();
+  const isPricesLoading = false;
+
+  useEffect(() => {
+    if (currentStation && currentStation.id) {
+      setStationId(currentStation.id);
+    }
+  }, [currentStation, setStationId]);
 
   // Match widths with sidebar (w-20 = 5rem collapsed, w-56 = 14rem expanded)
   const sidebarWidth = state === 'collapsed' ? '5rem' : '14rem';
@@ -29,19 +37,11 @@ export function AppHeader() {
 
   // Build fuel price object for FuelPriceCard - normalize keys to uppercase using enum
   const fuelPricesObj: Record<string, number> = {};
-  if (Array.isArray(fuelPrices) && fuelPrices.length > 0) {
-    fuelPrices.forEach((price) => {
-      // Get price value from any available field
-      const priceValue = price.price_per_litre ?? price.pricePerLitre ?? price.price;
-      // Get fuel type from any available field and normalize
-      const fuelType = price.fuel_type ?? price.fuelType;
-      
-      if (priceValue !== undefined && priceValue !== null && fuelType) {
-        const numValue = parseFloat(String(priceValue));
-        if (!isNaN(numValue)) {
-          // Use normalizeFuelType to ensure consistent uppercase keys
-          fuelPricesObj[normalizeFuelType(fuelType)] = numValue;
-        }
+  if (globalFuelPrices && Object.keys(globalFuelPrices).length > 0) {
+    Object.entries(globalFuelPrices).forEach(([fuelType, priceValue]) => {
+      const numValue = parseFloat(String(priceValue));
+      if (!isNaN(numValue)) {
+        fuelPricesObj[normalizeFuelType(fuelType)] = numValue;
       }
     });
   }

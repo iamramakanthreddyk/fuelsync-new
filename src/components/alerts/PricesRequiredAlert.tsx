@@ -17,6 +17,7 @@ interface PricesRequiredAlertProps {
   showIfMissing?: boolean;
   compact?: boolean;
   onSetPrices?: () => void;
+  hasPricesOverride?: boolean;
 }
 
 /**
@@ -28,6 +29,7 @@ export function PricesRequiredAlert({
   showIfMissing = true,
   compact = false,
   onSetPrices
+  , hasPricesOverride
 }: PricesRequiredAlertProps) {
   const navigate = useNavigate();
   const { hasPrices, missingFuelTypes, warning, isLoading } = useFuelPricesStatus(stationId);
@@ -35,6 +37,9 @@ export function PricesRequiredAlert({
   
   // Find station name from stationId
   const stationName = stationId ? stations.find(s => s.id === stationId)?.name : null;
+
+  // If caller can assert prices already exist, skip showing the alert
+  if (hasPricesOverride) return null;
 
   // Don't show alert while loading or if no station is selected
   if (isLoading || !showIfMissing || hasPrices || !stationId) {

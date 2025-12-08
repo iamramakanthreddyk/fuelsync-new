@@ -21,6 +21,8 @@ import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, usePumps } from '@/hooks/api';
 import { useFuelPricesData } from '@/hooks/useFuelPricesData';
+import { useFuelPricesGlobal } from '../../context/FuelPricesContext';
+import { normalizeFuelType } from '@/hooks/useFuelPricesData';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { ReadingSaleCalculation } from '@/components/owner/ReadingSaleCalculation';
@@ -72,19 +74,85 @@ export default function QuickDataEntry() {
   const { data: stationsResponse } = useStations();
   const stations = stationsResponse?.data;
 
-  // Auto-select first station on load
+  const { prices: globalFuelPrices, setStationId, setPrices: setGlobalFuelPrices } = useFuelPricesGlobal();
+
+  // Auto-select first station on load and inform global fuel price provider
   useEffect(() => {
     if (stations && stations.length > 0 && !selectedStation) {
       setSelectedStation(stations[0].id);
     }
-  }, [stations, selectedStation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stations]);
+
+  // When selectedStation changes, update global provider so it fetches station prices
+  useEffect(() => {
+    if (selectedStation) {
+      setStationId(selectedStation);
+    }
+  }, [selectedStation, setStationId]);
+
+  // Proactively fetch prices for selected station to avoid race where provider hasn't set prices yet
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchAndSet() {
+      if (!selectedStation) return;
+      try {
+        const resp = await apiClient.get(`/stations/${selectedStation}/prices`);
+        const payload = resp && (resp as any).data ? (resp as any).data : resp;
+        let pricesArr: any[] = [];
+        if (Array.isArray(payload)) pricesArr = payload;
+        else if (payload.current && Array.isArray(payload.current)) pricesArr = payload.current;
+        else if (payload.fuelPrices && payload.fuelPrices.current && Array.isArray(payload.fuelPrices.current)) pricesArr = payload.fuelPrices.current;
+        else if (payload.data) {
+          const inner = payload.data;
+          if (Array.isArray(inner)) pricesArr = inner;
+          else if (inner.current && Array.isArray(inner.current)) pricesArr = inner.current;
+        }
+
+        if (!cancelled && pricesArr.length > 0) {
+          // Normalize to frontend shape used elsewhere
+          const normalized = pricesArr.map((p: any) => ({
+            id: p.id,
+            station_id: p.stationId || p.station_id,
+            fuel_type: (p.fuelType ?? p.fuel_type ?? '').toString(),
+            price_per_litre: p.price_per_litre ?? p.pricePerLitre ?? p.price
+          }));
+          // If global prices are available, set them so UI reads immediately
+          const pricesObj: Record<string, number> = {};
+          normalized.forEach((x: any) => {
+            const key = normalizeFuelType(x.fuel_type ?? x.fuelType ?? '');
+            if (key && x.price_per_litre !== undefined) {
+              pricesObj[key] = x.price_per_litre;
+            }
+          });
+          if (Object.keys(pricesObj).length > 0) {
+            // set global prices directly to avoid the 'Prices Required' race
+            setGlobalFuelPrices(pricesObj);
+            // Also populate React Query cache so useFuelPricesData and status hook re-render immediately
+            try {
+              queryClient.setQueryData(['fuel-prices', selectedStation], normalized);
+            } catch (e) {
+              // ignore
+            }
+          }
+        }
+      } catch (err) {
+        // ignore
+      }
+    }
+    fetchAndSet();
+    return () => { cancelled = true; };
+  }, [selectedStation, setGlobalFuelPrices]);
 
   // Fetch pumps for selected station
   const { data: pumpsResponse, isLoading: pumpsLoading } = usePumps(selectedStation);
   const pumps = pumpsResponse?.data;
 
-  // Fetch fuel prices for selected station
-  const { data: fuelPrices, isLoading: pricesLoading } = useFuelPricesData(selectedStation);
+  // Fetch global fuel prices (matches Dashboard)
+  const { data: fuelPricesRaw, isLoading: pricesLoading } = useFuelPricesData();
+  const fuelPrices = Object.keys(globalFuelPrices).length > 0
+    ? Object.entries(globalFuelPrices).map(([fuel_type, price_per_litre]) => ({ fuel_type, price_per_litre }))
+    : fuelPricesRaw;
 
   // Debug: Log fuel prices when they load
   useEffect(() => {
@@ -435,7 +503,7 @@ export default function QuickDataEntry() {
         )}
       </div>
 
-      {selectedStation && <PricesRequiredAlert stationId={selectedStation} showIfMissing={true} compact={true} />}
+      {selectedStation && <PricesRequiredAlert stationId={selectedStation} showIfMissing={true} compact={true} hasPricesOverride={Boolean(fuelPrices && fuelPrices.length > 0)} />}
 
       {/* Station & Date Selection - Compact */}
       <Card>
@@ -567,7 +635,10 @@ export default function QuickDataEntry() {
                                 )}
                               </div>
                               {!hasFuelPrice && (
-                                <p className="text-xs text-red-600 mt-1">No price set</p>
+                                <p className="text-xs text-red-600 mt-1">
+                                  Price not set for this fuel type.<br />
+                                  Set prices in the <b>Prices</b> page. Prices update automatically.
+                                </p>
                               )}
                               {/* Show calculation below input if reading is valid */}
                               {reading?.readingValue && enteredValue > compareValue && hasFuelPrice && (
