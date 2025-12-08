@@ -100,10 +100,10 @@ module.exports = (sequelize) => {
   /**
    * Update last reading cache
    */
-  Nozzle.prototype.updateLastReading = async function(reading, date) {
+  Nozzle.prototype.updateLastReading = async function(reading, date, options = {}) {
     this.lastReading = reading;
     this.lastReadingDate = date;
-    await this.save();
+    await this.save(options);
   };
 
   /**

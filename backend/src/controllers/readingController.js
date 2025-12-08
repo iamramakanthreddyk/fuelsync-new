@@ -646,6 +646,28 @@ exports.updateReading = async (req, res, next) => {
     // Audit log (simple console, replace with DB log if needed)
     console.log(`[AUDIT] User ${user.id} (${user.role}) updated reading ${id}: from ${oldReadingValue} to ${newReadingValue}`);
 
+    // Refresh nozzle cache: set nozzle.lastReading to latest reading for that nozzle
+    try {
+      const nozzle = await Nozzle.findByPk(reading.nozzleId);
+      if (nozzle) {
+        const latest = await NozzleReading.findOne({
+          where: { nozzleId: reading.nozzleId },
+          order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
+          attributes: ['readingValue', 'readingDate'],
+          raw: true
+        });
+        const val = latest ? parseFloat(latest.readingValue || latest.reading_value || 0) : null;
+        const date = latest ? (latest.readingDate || latest.reading_date) : null;
+        try {
+          await nozzle.updateLastReading(val, date);
+        } catch (e) {
+          try { await nozzle.updateLastReading(val, date, {}); } catch (_) {}
+        }
+      }
+    } catch (e) {
+      console.warn('[WARN] Failed to refresh nozzle cache after updateReading', e?.message || e);
+    }
+
     res.json({
       success: true,
       data: await NozzleReading.findByPk(id),
@@ -813,6 +835,29 @@ exports.deleteReading = async (req, res, next) => {
     } else {
       await reading.update({ isActive: false });
     }
+
+    // Refresh nozzle cache: if this was the latest, recompute latest and update nozzle
+    try {
+      const nozzle = await Nozzle.findByPk(reading.nozzleId);
+      if (nozzle) {
+        const latest = await NozzleReading.findOne({
+          where: { nozzleId: reading.nozzleId },
+          order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
+          attributes: ['readingValue', 'readingDate'],
+          raw: true
+        });
+        const val = latest ? parseFloat(latest.readingValue || latest.reading_value || 0) : null;
+        const date = latest ? (latest.readingDate || latest.reading_date) : null;
+        try {
+          await nozzle.updateLastReading(val, date);
+        } catch (e) {
+          try { await nozzle.updateLastReading(val, date, {}); } catch (_) {}
+        }
+      }
+    } catch (e) {
+      console.warn('[WARN] Failed to refresh nozzle cache after deleteReading', e?.message || e);
+    }
+
     res.json({ success: true, data: reading, reading: reading, message: 'Reading deleted' });
   } catch (error) {
     console.error('Delete reading error:', error);
