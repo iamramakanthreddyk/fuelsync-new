@@ -117,14 +117,23 @@ app.use(helmet({
   contentSecurityPolicy: false // Disable in production if it causes issues
 }));
 
-// Rate limiting - skip OPTIONS preflight requests AND anything to /health
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: isDevelopment ? 10000 : 100, // Very high limit in development
-  message: { success: false, error: 'Too many requests, please try again later.' },
-  skip: (req) => req.method === 'OPTIONS' || req.path === '/health' || req.path === '/health/config'
-});
-app.use('/api/', limiter);
+// Rate limiting - toggleable via RATE_LIMIT env var (set to 'false' to disable)
+// Skip OPTIONS preflight requests AND anything to /health
+const rateLimitEnabled = (process.env.RATE_LIMIT || 'true').toLowerCase() !== 'false';
+if (rateLimitEnabled) {
+  const defaultMax = isDevelopment ? 10000 : 100;
+  const max = parseInt(process.env.RATE_LIMIT_MAX || String(defaultMax), 10);
+
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max,
+    message: { success: false, error: 'Too many requests, please try again later.' },
+    skip: (req) => req.method === 'OPTIONS' || req.path === '/health' || req.path === '/health/config'
+  });
+  app.use('/api/', limiter);
+} else {
+  console.log('⚠️ Rate limiting disabled via RATE_LIMIT=false');
+}
 
 // Request logging
 if (process.env.NODE_ENV !== 'test') {
