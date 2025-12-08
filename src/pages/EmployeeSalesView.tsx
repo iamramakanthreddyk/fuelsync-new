@@ -76,22 +76,27 @@ export default function EmployeeSalesView() {
 
   if (isLoading) {
     return (
-      <div className="container mx-auto p-2 md:p-4 lg:p-6 max-w-7xl flex flex-col gap-4 md:gap-6">
-        <Skeleton className="h-12 w-full mb-4" />
+      <div className="w-full flex flex-col gap-6 md:gap-8">
+        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6">
+          <div className="space-y-1">
+            <div className="h-8 md:h-10 lg:h-12 bg-muted animate-pulse rounded w-64"></div>
+            <div className="h-4 md:h-5 bg-muted animate-pulse rounded w-96"></div>
+          </div>
+        </div>
         <div className="space-y-6">
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-80 w-full" />
+          <div className="h-12 bg-muted animate-pulse rounded"></div>
+          <div className="h-80 bg-muted animate-pulse rounded"></div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="container mx-auto p-2 md:p-4 lg:p-6 max-w-7xl flex flex-col gap-4 md:gap-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 md:gap-4">
-        <div>
-          <h1 className="text-xl md:text-2xl lg:text-3xl font-bold">Sales Overview</h1>
-          <p className="text-sm md:text-base text-muted-foreground">
+    <div className="w-full flex flex-col gap-6 md:gap-8">
+      <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 lg:gap-6">
+        <div className="space-y-1">
+          <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight">Sales Overview</h1>
+          <p className="text-sm md:text-base lg:text-lg text-muted-foreground">
             View sales data {currentStation ? `for ${currentStation.name}` : 'across all stations'}
           </p>
         </div>
