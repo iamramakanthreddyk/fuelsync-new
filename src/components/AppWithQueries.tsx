@@ -313,14 +313,22 @@ function AppContent() {
                     {/* CHANGED: Use /data-entry route instead of /upload */}
                     <Route path="/data-entry" element={<DataEntry />} />
                     <Route path="/sales" element={<Sales />} />
-                    <Route path="/daily-closure" element={<DailyClosure />} />
+                    <Route path="/daily-closure" element={
+                      <ManagerOrOwnerRoute>
+                        <DailyClosure />
+                      </ManagerOrOwnerRoute>
+                    } />
                     <Route path="/pumps" element={<Pumps />} />
                     <Route path="/prices" element={
                       <ManagerOrOwnerRoute>
                         <Prices />
                       </ManagerOrOwnerRoute>
                     } />
-                    <Route path="/reports" element={<Reports />} />
+                    <Route path="/reports" element={
+                      <ManagerOrOwnerRoute>
+                        <Reports />
+                      </ManagerOrOwnerRoute>
+                    } />
                     <Route path="/admin/users" element={<AdminUsers />} />
                     <Route path="/admin/stations" element={<AdminStations />} />
                     <Route path="/staff" element={<Staff />} />

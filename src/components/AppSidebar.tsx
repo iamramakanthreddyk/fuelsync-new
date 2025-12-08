@@ -109,6 +109,11 @@ export function AppSidebar() {
   ];
 
   // Manager/Employee menu items
+  // Note: Employees have limited access per backend ACCESS_RULES:
+  // - CAN: Enter readings, view own readings, view pumps/nozzles/prices
+  // - CANNOT: Reports, daily closure, edit/delete readings, set prices
+  const isManager = user?.role === 'manager';
+  
   const staffMenuItems = [
     {
       title: "Dashboard",
@@ -120,26 +125,29 @@ export function AppSidebar() {
       url: "/data-entry",
       icon: Upload,
     },
+    // Sales - view readings (employees can view own readings)
     {
       title: "Sales",
       url: "/sales", 
       icon: TrendingUp,
     },
-    {
+    // Daily Closure - only managers can close the day
+    ...(isManager ? [{
       title: "Daily Closure",
       url: "/daily-closure",
       icon: Calendar,
-    },
+    }] : []),
     {
       title: "Pumps",
       url: "/pumps",
       icon: Fuel,
     },
-    {
+    // Reports - only for managers, not employees
+    ...(isManager ? [{
       title: "Reports",
       url: "/reports",
       icon: FileText,
-    },
+    }] : []),
     {
       title: "Settings",
       url: "/settings",

@@ -1,5 +1,5 @@
 ﻿import React from 'react';
-import { Fuel, IndianRupee, AlertCircle } from 'lucide-react';
+import { Fuel, IndianRupee, AlertCircle, Info } from 'lucide-react';
 import { getFuelColors } from '@/lib/fuelColors';
 import { safeToFixed } from '@/lib/format-utils';
 import { useNavigate } from 'react-router-dom';
@@ -13,6 +13,8 @@ interface FuelPriceCardProps {
   };
   isLoading?: boolean;
   showWarning?: boolean;
+  /** If false, user cannot set prices (e.g., employee) - show info instead of action */
+  canSetPrices?: boolean;
   onSetPrices?: () => void;
 }
 
@@ -20,6 +22,7 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({
   prices,
   isLoading = false,
   showWarning = true,
+  canSetPrices = true,
   onSetPrices,
 }) => {
   const navigate = useNavigate();
@@ -47,7 +50,8 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({
   );
 
   if (setPrices.length === 0) {
-    if (showWarning) {
+    // If user can set prices and showWarning is true, show actionable warning
+    if (showWarning && canSetPrices) {
       return (
         <div
           onClick={() => onSetPrices?.() || navigate('/prices')}
@@ -59,10 +63,13 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({
       );
     }
 
+    // For employees or when showWarning is false, show non-actionable info
     return (
       <div className="w-full sm:w-auto min-w-0 flex items-center gap-2 px-3 py-2 bg-amber-50 rounded-lg border border-amber-200">
-        <Fuel className="h-4 w-4 text-amber-600 flex-shrink-0" />
-        <span className="text-xs sm:text-sm font-medium text-amber-700">No fuel prices set</span>
+        <Info className="h-4 w-4 text-amber-600 flex-shrink-0" />
+        <span className="text-xs sm:text-sm font-medium text-amber-700">
+          {canSetPrices ? 'No fuel prices set' : 'Fuel prices not set by manager'}
+        </span>
       </div>
     );
   }

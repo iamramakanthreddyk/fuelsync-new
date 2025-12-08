@@ -63,6 +63,9 @@ export default function Dashboard() {
   // --- Lock overlay click handler
   const onLockUpgradeClick = () => setShowUpgrade(true);
 
+  // Employees cannot set fuel prices - only manager and above can
+  const canSetPrices = user?.role && ['manager', 'owner', 'super_admin'].includes(user.role);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -193,7 +196,7 @@ export default function Dashboard() {
           </div>
           {/* Fuel Prices in header on desktop, below on mobile */}
           <div className="sm:ml-auto">
-            <FuelPriceCard prices={fuelPricesObj || {}} isLoading={isPricesLoading} />
+            <FuelPriceCard prices={fuelPricesObj || {}} isLoading={isPricesLoading} canSetPrices={canSetPrices} />
           </div>
         </div>
       </div>

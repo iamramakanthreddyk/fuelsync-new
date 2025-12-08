@@ -48,6 +48,9 @@ export function AppHeader() {
 
   // Notification logic
   const notifications = notificationService.getAll();
+
+  // Employees cannot set fuel prices - only manager and above can
+  const canSetPrices = user?.role && ['manager', 'owner', 'super_admin'].includes(user.role);
   const unreadCount = notificationService.getUnread().length;
   const [showDropdown, setShowDropdown] = React.useState(false);
 
@@ -117,7 +120,7 @@ export function AppHeader() {
         {/* Fuel Prices on mobile - only show for users with station access */}
         {currentStation && (
           <div className="flex justify-center px-2 pb-1">
-            <FuelPriceCard prices={fuelPricesObj} isLoading={isPricesLoading} />
+            <FuelPriceCard prices={fuelPricesObj} isLoading={isPricesLoading} canSetPrices={canSetPrices} />
           </div>
         )}
       </div>
