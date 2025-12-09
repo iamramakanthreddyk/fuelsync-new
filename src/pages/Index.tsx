@@ -9,7 +9,7 @@ import Prices from './Prices';
 import Pumps from './Pumps';
 import Reports from './Reports';
 import Settings from './Settings';
-import DailyClosure from './DailyClosure';
+import Settlements from './Settlements';
 import Staff from './Staff';
 
 const Index = () => {
@@ -32,7 +32,8 @@ const Index = () => {
       case '/settings':
         return <Settings />;
       case '/daily-closure':
-        return <DailyClosure />;
+      case '/settlements':
+        return <Settlements />;
       case '/staff':
         return <Staff />;
       case '/dashboard':

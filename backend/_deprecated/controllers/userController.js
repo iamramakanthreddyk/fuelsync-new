@@ -39,10 +39,10 @@ exports.getAllUsers = async (req, res) => {
 // Create employee (Owner only, within plan limits)
 exports.createEmployee = async (req, res) => {
   try {
-    if (req.user.role !== 'Pump Owner') {
+    if (req.user.role !== 'Owner') {
       return res.status(403).json({
         success: false,
-        error: 'Only Pump Owners can create employees'
+        error: 'Only Owners can create employees'
       });
     }
 

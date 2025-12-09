@@ -256,7 +256,7 @@ VITE_API_URL=https://fuelsync-testing-backend.railway.app
 
 Email: testuser@fuelsync-demo.app
 Password: TestUser123!
-Role: Pump Owner
+Role: Owner
 Plan: Premium (for full feature testing)
 Station: Demo Station
 ```
@@ -339,7 +339,7 @@ POST http://localhost:3001/api/v1/auth/register
   "password": "TestUser123!",
   "firstName": "Test",
   "lastName": "User",
-  "role": "pump_owner"
+  "role": "owner"
 }
 
 // Response:
@@ -348,7 +348,7 @@ POST http://localhost:3001/api/v1/auth/register
   "data": {
     "id": "uuid-here",
     "email": "testuser@fuelsync-demo.app",
-    "role": "pump_owner",
+    "role": "owner",
     "plan": "basic"
   }
 }

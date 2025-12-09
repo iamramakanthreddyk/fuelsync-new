@@ -5,7 +5,7 @@ export * from './api';
 export type {
   ManualReading,
   TenderEntry,
-  DailyClosure,
+  DailyClosure as Settlement,
   PlanUsage,
   EventLog,
   ManualEntryData,

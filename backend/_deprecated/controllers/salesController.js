@@ -19,7 +19,7 @@ exports.getSales = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'Employee') {
       whereClause.userId = req.userId;
-    } else if (req.user.role === 'Pump Owner') {
+    } else if (req.user.role === 'Owner') {
       const stationUsers = await User.findAll({
         where: { stationId: req.user.stationId },
         attributes: ['id']
@@ -85,7 +85,7 @@ exports.getDailySummary = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'Employee') {
       whereClause.userId = req.userId;
-    } else if (req.user.role === 'Pump Owner') {
+    } else if (req.user.role === 'Owner') {
       const stationUsers = await User.findAll({
         where: { stationId: req.user.stationId },
         attributes: ['id']
@@ -182,7 +182,7 @@ exports.getShiftSummary = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'Employee') {
       whereClause.userId = req.userId;
-    } else if (req.user.role === 'Pump Owner') {
+    } else if (req.user.role === 'Owner') {
       const stationUsers = await User.findAll({
         where: { stationId: req.user.stationId },
         attributes: ['id']
@@ -253,7 +253,7 @@ exports.getSalesTrends = async (req, res) => {
     // Role-based access control
     if (req.user.role === 'Employee') {
       whereClause.userId = req.userId;
-    } else if (req.user.role === 'Pump Owner') {
+    } else if (req.user.role === 'Owner') {
       const stationUsers = await User.findAll({
         where: { stationId: req.user.stationId },
         attributes: ['id']

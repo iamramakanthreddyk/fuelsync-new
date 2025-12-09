@@ -9,7 +9,7 @@
 2. **Login**: Use your provided credentials
 3. **First-Time Setup**: 
    - Complete your profile information
-   - Set up your fuel station details (Pump Owners)
+   - Set up your fuel station details (Owners)
    - Configure initial pump and nozzle settings
 
 ### Role-Specific Dashboards
@@ -20,7 +20,7 @@
 - **Plan Management**: Upgrade/downgrade user plans
 - **Global Analytics**: Cross-station insights and trends
 
-#### 🏢 Pump Owner Dashboard  
+#### 🏢 Owner Dashboard  
 - **Station Overview**: Your station's performance metrics
 - **Sales Summary**: Daily, weekly, and monthly sales data
 - **Quick Actions**: Upload receipts, update prices, manage pumps
@@ -84,7 +84,7 @@
    - 🔴 Inactive: Pump is offline
    - 🟡 Maintenance: Pump under maintenance
 
-### Adding New Pumps (Pump Owners)
+### Adding New Pumps (Owners)
 
 1. **Check Plan Limits**: Ensure you haven't reached your pump limit
 2. **Click "Add Pump"**
@@ -118,7 +118,7 @@
 2. **View Price Table**: See current prices for Petrol and Diesel
 3. **Check Price History**: Review recent price changes
 
-### Updating Fuel Prices (Pump Owners & Super Admin)
+### Updating Fuel Prices (Owners & Super Admin)
 
 1. **Select Fuel Type**: Choose Petrol or Diesel
 2. **Enter New Price**: Input price per litre
@@ -167,7 +167,7 @@
 
 ---
 
-## 👥 User Management (Pump Owners)
+## 👥 User Management (Owners)
 
 ### Adding Employees
 
@@ -195,7 +195,7 @@
 ### User Management
 
 1. **View All Users**: Access complete user directory
-2. **Create Pump Owners**:
+2. **Create Owners**:
    - Set up new fuel station accounts
    - Assign appropriate plans
    - Configure station details
@@ -235,7 +235,7 @@
    - Change password
    - Set notification preferences
 
-2. **Station Information** (Pump Owners):
+2. **Station Information** (Owners):
    - Update station name and address
    - Configure operational hours
    - Set station-specific preferences

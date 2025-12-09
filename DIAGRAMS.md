@@ -175,7 +175,7 @@ User sees dashboard
 ```
 plans
   ↓ (1:many)
-    users (pump_owner, manager, employee)
+    users (owner, manager, employee)
       ↓ (1:many)
         stations
           ↓ (1:many)

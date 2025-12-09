@@ -7,7 +7,7 @@ exports.getPumps = async (req, res) => {
     let whereClause = {};
     
     // Role-based access control
-    if (req.user.role === 'Pump Owner') {
+    if (req.user.role === 'Owner') {
       whereClause.stationId = req.user.stationId;
     }
     // Super Admin sees all pumps
@@ -42,7 +42,7 @@ exports.getPumps = async (req, res) => {
 // Create new pump (with plan limits)
 exports.createPump = async (req, res) => {
   try {
-    if (req.user.role !== 'Pump Owner' && req.user.role !== 'Super Admin') {
+    if (req.user.role !== 'Owner' && req.user.role !== 'Super Admin') {
       return res.status(403).json({
         success: false,
         error: 'Access denied'
@@ -51,8 +51,8 @@ exports.createPump = async (req, res) => {
 
     const { name, location } = req.body;
 
-    // Check plan limits for Pump Owners
-    if (req.user.role === 'Pump Owner') {
+    // Check plan limits for Owners
+    if (req.user.role === 'Owner') {
       const currentPumps = await Pump.count({
         where: { stationId: req.user.stationId }
       });
@@ -118,7 +118,7 @@ exports.updatePumpStatus = async (req, res) => {
     let whereClause = { id: pumpId };
     
     // Role-based access control
-    if (req.user.role === 'Pump Owner') {
+    if (req.user.role === 'Owner') {
       whereClause.stationId = req.user.stationId;
     }
 
@@ -176,7 +176,7 @@ exports.updateNozzleFuelType = async (req, res) => {
     }
 
     // Role-based access control
-    if (req.user.role === 'Pump Owner' && nozzle.pump.stationId !== req.user.stationId) {
+    if (req.user.role === 'Owner' && nozzle.pump.stationId !== req.user.stationId) {
       return res.status(403).json({
         success: false,
         error: 'Access denied'
@@ -207,7 +207,7 @@ exports.getPumpMetrics = async (req, res) => {
     let whereClause = { id: pumpId };
     
     // Role-based access control
-    if (req.user.role === 'Pump Owner') {
+    if (req.user.role === 'Owner') {
       whereClause.stationId = req.user.stationId;
     }
 

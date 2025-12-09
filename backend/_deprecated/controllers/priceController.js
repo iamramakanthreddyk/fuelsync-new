@@ -29,10 +29,10 @@ exports.getFuelPrices = async (req, res) => {
 // Update fuel price (Owner and Super Admin only)
 exports.updateFuelPrice = async (req, res) => {
   try {
-    if (!['Pump Owner', 'Super Admin'].includes(req.user.role)) {
-      return res.status(403).json({
-        success: false,
-        error: 'Access denied. Only Pump Owners and Super Admins can update prices.'
+    if (!['Owner', 'Super Admin'].includes(req.user.role)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Access denied. Only Owners and Super Admins can update prices.'
       });
     }
 

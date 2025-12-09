@@ -6,7 +6,7 @@
 The FuelSync API is designed with a multi-tenant architecture where:
 - **Super Admins** have system-wide access
 - **Owners** can manage multiple stations and their employees
-- **Employees** are tied to specific stations through the user_stations junction table
+-- **Employees** are tied to a specific station via `users.station_id` (single-station assignment). Owners manage stations via `stations.owner_id`.
 
 ## Authentication & Authorization
 
@@ -38,7 +38,7 @@ interface User {
   is_active: boolean;
   created_at: string;
   updated_at: string;
-  stations: Station[]; // Related stations through ownership or user_stations
+  stations: Station[]; // For owners: related stations via ownership. For managers/employees: single station via `user.stationId`.
 }
 ```
 
@@ -87,10 +87,9 @@ interface Plan {
 ## Database Schema Changes
 
 ### Key Updates:
-1. **Removed `station_id` from users table** - Users are now linked to stations through the `user_stations` junction table or ownership
-2. **Added `user_stations` junction table** - Enables many-to-many relationships between users and stations
-3. **Owners manage stations** - Owners are linked to stations via `owner_id` in the stations table
-4. **Employees can access multiple stations** - Through the `user_stations` table
+1. **Users table includes `station_id`** - Managers/employees are linked to a single station via `users.station_id`.
+2. **Owners manage stations** - Owners are linked to stations via `stations.owner_id` (one owner → many stations).
+3. **Note:** The `user_stations` many-to-many table is not present in the runtime schema — add it only if you need multi-station employees.
 
 ### Data Access Patterns:
 
@@ -100,12 +99,11 @@ interface Plan {
 SELECT * FROM stations WHERE owner_id = :user_id;
 ```
 
-#### For Employees:
+## For Employees (current runtime):
 ```sql
--- Get stations accessible to an employee
+-- Get the station accessible to an employee
 SELECT s.* FROM stations s
-JOIN user_stations us ON s.id = us.station_id
-WHERE us.user_id = :user_id;
+WHERE s.id = :user_station_id;
 ```
 
 #### For Super Admins:
@@ -428,7 +426,7 @@ Get sales summary for dashboard.
 ## Business Rules
 
 1. **Owner Creation**: When creating an owner, optionally create their first station simultaneously
-2. **Employee Assignment**: Employees can be assigned to multiple stations through user_stations table
+2. **Employee Assignment**: Employees are assigned to a single station via `users.station_id` in the current runtime; change to many-to-many only if required.
 3. **Station Ownership**: Each station has exactly one owner, but owners can have multiple stations
 4. **Plan Limits**: Stations are subject to plan limits (max pumps, employees, manual readings, etc.)
 5. **Data Isolation**: Complete data isolation between different owners' stations
@@ -501,29 +499,4 @@ POST /api/v1/readings/upload
 
 ## Migration Notes
 
-### From Previous Schema:
-1. **station_id removed from users table** - Relationship now managed through user_stations
-2. **Data migration required** - Existing employee-station relationships need to be moved to user_stations table
-3. **API updates** - Responses now include stations array instead of single station_id
-4. **Authentication flow** - Login now returns user with associated stations array
-
-### Database Migration Steps:
-```sql
--- 1. Create user_stations table
-CREATE TABLE user_stations (
-  user_id INTEGER REFERENCES users(id),
-  station_id INTEGER REFERENCES stations(id),
-  created_at TIMESTAMP DEFAULT NOW(),
-  PRIMARY KEY (user_id, station_id)
-);
-
--- 2. Migrate existing data (if any station_id exists in users)
-INSERT INTO user_stations (user_id, station_id)
-SELECT id, station_id FROM users 
-WHERE station_id IS NOT NULL AND role = 'employee';
-
--- 3. Remove station_id column from users
-ALTER TABLE users DROP COLUMN station_id;
-```
-
-This updated architecture provides better flexibility for multi-station management while maintaining clear data isolation and access controls.
+This project currently keeps `users.station_id` for manager/employee single-station assignments and `stations.owner_id` for owner→station ownership. If you later move to a many-to-many `user_stations` design, plan a careful migration and backfill; contact the maintainers for a recommended migration plan.

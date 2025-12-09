@@ -13,7 +13,7 @@ const User = sequelize.define('User', {
   email: { type: DataTypes.STRING, allowNull: false, unique: true },
   password: { type: DataTypes.STRING, allowNull: false },
   role: {
-    type: DataTypes.ENUM('Super Admin', 'Pump Owner', 'Manager', 'Employee'),
+    type: DataTypes.ENUM('Super Admin', 'Owner', 'Manager', 'Employee'),
     defaultValue: 'Employee'
   },
   stationId: { type: DataTypes.UUID, field: 'station_id' },

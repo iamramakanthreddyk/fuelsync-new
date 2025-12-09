@@ -36,19 +36,10 @@ CREATE TABLE users (
 **Key Relationships:**
 - Super admins have no station restrictions
 - Owners manage stations via `stations.owner_id`
-- Employees are linked via `user_stations` table
+- Managers and Employees are assigned to a single station via `users.station_id`
 
 ### 2. User-Station Assignments
-Many-to-many relationship for employee station assignments.
-
-```sql
-CREATE TABLE user_stations (
-  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
-  station_id INTEGER REFERENCES stations(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  PRIMARY KEY (user_id, station_id)
-);
-```
+Managers and employees are directly assigned to a single station via `users.station_id`. A many-to-many `user_stations` table is intentionally not part of the runtime schema; add it only when multi-station employees are required.
 
 ### 3. Stations
 Fuel stations owned by users with owner role.
@@ -233,23 +224,11 @@ CREATE TABLE sales (
 Cash/card collections and payments.
 
 ```sql
-CREATE TABLE tender_entries (
-  id SERIAL PRIMARY KEY,
-  station_id INT REFERENCES stations(id),
-  entry_date DATE NOT NULL,
-  type tender_type, -- 'cash', 'card', 'upi', 'credit'
-  payer TEXT,
-  amount NUMERIC(14,2) CHECK (amount >= 0),
-  user_id INT REFERENCES users(id),
-  created_at TIMESTAMPTZ DEFAULT now()
-);
-```
-
-### 15. Daily_Closure
-End-of-day reconciliation.
 
 ```sql
-CREATE TABLE daily_closure (
+-- Settlements: canonical end-of-day reconciliation table.
+-- (Previously documented as `daily_closure` in older docs.)
+CREATE TABLE settlements (
   station_id INT REFERENCES stations(id),
   date DATE NOT NULL,
   sales_total NUMERIC(14,2),
@@ -257,6 +236,7 @@ CREATE TABLE daily_closure (
   difference NUMERIC(14,2),
   closed_by INT REFERENCES users(id),
   closed_at TIMESTAMPTZ DEFAULT now(),
+  notes TEXT,
   PRIMARY KEY (station_id, date)
 );
 ```

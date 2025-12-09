@@ -18,7 +18,8 @@ CREATE TABLE users (
     name VARCHAR(100) NOT NULL,
     email VARCHAR(255) NOT NULL UNIQUE,
     password VARCHAR(255) NOT NULL,
-    role VARCHAR(20) NOT NULL DEFAULT 'Employee' CHECK (role IN ('Super Admin', 'Pump Owner', 'Manager', 'Employee')),
+    -- Note: baseline migration now uses 'owner' enum; this SQL seed uses 'Owner' label.
+    role VARCHAR(20) NOT NULL DEFAULT 'Employee' CHECK (role IN ('Super Admin', 'Owner', 'Manager', 'Employee')),
     station_id UUID,
     plan_id UUID REFERENCES plans(id),
     is_active BOOLEAN DEFAULT true,

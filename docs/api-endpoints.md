@@ -96,7 +96,7 @@ Get sales trend data for chart visualization.
 
 #### Common Alert IDs:
 - `variance_alert`: Sales vs tender variance exceeds threshold
-- `pending_closure`: Daily closure not completed
+- `pending_settlement` (aka `pending_closure`): Daily settlement not completed
 - `missing_readings`: No fuel readings in specified timeframe
 - `load_error`: System error loading dashboard data
 
@@ -362,7 +362,7 @@ All endpoints return errors in this format:
 - Superadmins: No station restrictions
 - Plans: Apply at station level, not user level
 - Sales: Calculated automatically or entered manually
-- Daily Closure: Reconciles sales vs tender collections
+- Settlements (Daily Closure): Reconciles sales vs tender collections
 
 ## Authentication
 These endpoints currently have `verify_jwt = false` for testing. In production:

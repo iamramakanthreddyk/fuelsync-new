@@ -24,7 +24,7 @@ import EmployeeQuickEntry from '@/pages/EmployeeQuickEntry';
 import EmployeeSalesView from '@/pages/EmployeeSalesView';
 import EmployeePumpsView from '@/pages/EmployeePumpsView';
 import Sales from '@/pages/Sales';
-import DailyClosure from '@/pages/DailyClosure';
+import Settlements from '@/pages/Settlements';
 import Pumps from '@/pages/Pumps';
 import Prices from '@/pages/Prices';
 import Reports from '@/pages/Reports';
@@ -353,7 +353,12 @@ function AppContent() {
                     <Route path="/sales" element={<RoleBasedSales />} />
                     <Route path="/daily-closure" element={
                       <ManagerOrOwnerRoute>
-                        <DailyClosure />
+                        <Settlements />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/settlements" element={
+                      <ManagerOrOwnerRoute>
+                        <Settlements />
                       </ManagerOrOwnerRoute>
                     } />
                     <Route path="/pumps" element={<RoleBasedPumps />} />

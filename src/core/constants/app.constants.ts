@@ -58,6 +58,7 @@ export const ROUTES = {
   RECORD_READING: '/readings/record',
   SHIFTS: '/shifts',
   DAILY_CLOSURE: '/daily-closure',
+  SETTLEMENTS: '/settlements',
   
   // Station Management
   STATION: '/station',

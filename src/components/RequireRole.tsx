@@ -15,6 +15,7 @@ interface RequireRoleProps {
 function normalizeRole(role: string): string {
   const lowerRole = role.toLowerCase().trim();
   if (lowerRole === 'superadmin' || lowerRole === 'super admin') return 'super_admin';
+  // legacy label mapping: normalize 'pump owner' to 'owner'
   if (lowerRole === 'pump owner') return 'owner';
   return role;
 }

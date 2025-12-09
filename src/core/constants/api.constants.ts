@@ -165,6 +165,7 @@ export const FINANCIAL_ENDPOINTS = {
 
 export const REPORT_ENDPOINTS = {
   DAILY_CLOSURE: '/reports/daily-closure',
+  SETTLEMENTS: '/reports/settlements',
   SALES: '/reports/sales',
   INVENTORY: '/reports/inventory',
   FINANCIAL: '/reports/financial',
@@ -283,4 +284,5 @@ export const QUERY_KEYS = {
   // Reports
   REPORTS: ['reports'],
   DAILY_CLOSURE_REPORT: (date: string) => ['reports', 'daily-closure', date],
+  SETTLEMENTS_REPORT: (date: string) => ['reports', 'settlements', date],
 } as const;

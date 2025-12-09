@@ -1258,7 +1258,7 @@ exports.getDailySales = async (req, res, next) => {
 exports.recordSettlement = async (req, res, next) => {
   try {
     const { stationId } = req.params;
-    const { date, actualCash, expectedCash, variance, notes } = req.body;
+    const { date, actualCash, expectedCash, variance, notes, online, credit } = req.body;
     const user = req.user;
 
     // Check station access
@@ -1268,23 +1268,32 @@ exports.recordSettlement = async (req, res, next) => {
 
     const settlementDate = date || new Date().toISOString().split('T')[0];
 
-    // For now, just record the intent and return success
-    // This will be stored once the settlements table is created
-    res.json({
-      success: true,
-      data: {
-        id: `settlement_${stationId}_${settlementDate}_${Date.now()}`,
+    // Persist settlement
+    const sequelize = require('../models').sequelize;
+    const { Settlement } = require('../models');
+
+    const t = await sequelize.transaction();
+    try {
+      const record = await Settlement.create({
         stationId,
         date: settlementDate,
-        actualCash: parseFloat(actualCash || 0),
         expectedCash: parseFloat(expectedCash || 0),
+        actualCash: parseFloat(actualCash || 0),
         variance: parseFloat(variance || 0),
+        online: parseFloat(online || 0),
+        credit: parseFloat(credit || 0),
         notes: notes || '',
         recordedBy: user.id,
-        recordedAt: new Date().toISOString(),
-        status: 'recorded'
-      }
-    });
+        recordedAt: new Date()
+      }, { transaction: t });
+
+      await t.commit();
+
+      res.json({ success: true, data: record });
+    } catch (err) {
+      await t.rollback();
+      throw err;
+    }
 
   } catch (error) {
     next(error);
@@ -1306,12 +1315,15 @@ exports.getSettlements = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    // For now return empty array until settlements table is created
-    res.json({
-      success: true,
-      data: [],
-      message: 'Settlement history feature coming soon'
+    // Query persisted settlements
+    const { Settlement } = require('../models');
+    const rows = await Settlement.findAll({
+      where: { stationId },
+      order: [['date', 'DESC'], ['createdAt', 'DESC']],
+      limit: parseInt(limit, 10)
     });
+
+    res.json({ success: true, data: rows });
 
   } catch (error) {
     next(error);

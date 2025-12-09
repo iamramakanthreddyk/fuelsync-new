@@ -15,9 +15,10 @@ export function QuickActions() {
       color: "hover:bg-blue-50 hover:border-blue-200"
     },
     {
-      title: "Daily Closure",
+      title: "Settlements (Daily Closure)",
       description: "End of day summary",
-      href: "/daily-closure",
+      href: "/settlements",
+      // keep old path as alias: /daily-closure will also render settlements
       color: "hover:bg-green-50 hover:border-green-200"
     },
     // 'View Reports' should be visible to managers and above; hide for employees

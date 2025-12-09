@@ -16,6 +16,7 @@ export function normalizeRole(role?: string): string {
   if (lower === 'superadmin' || lower === 'super admin' || lower === 'super_admin') {
     return 'super_admin';
   }
+  // legacy mapping: accept 'pump owner' variants but normalize to 'owner'
   if (lower === 'pump owner' || lower === 'pump_owner') {
     return 'owner';
   }

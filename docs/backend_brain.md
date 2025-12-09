@@ -64,7 +64,7 @@ User ──belongs_to──> Plan
 Station ──has_many──> Pump ──has_many──> Nozzle
 Station ──has_many──> FuelTank ──has_many──> FuelDelivery
 Station ──has_many──> Sale
-Station ──has_many──> DailyClosure
+Station ──has_many──> Settlements (previously documented as DailyClosure)
 User ──has_many──> AuditLog
 ```
 
@@ -72,7 +72,7 @@ User ──has_many──> AuditLog
 
 1. **FuelTank** - Tank inventory with dip readings
 2. **FuelDelivery** - Delivery tracking with verification
-3. **DailyClosure** - Shift reconciliation with approval workflow
+3. **Settlements** (aka Daily Closure) - Shift/end-of-day reconciliation with approval workflow
 4. **AuditLog** - Immutable action log
 5. **TokenBlacklist** - JWT invalidation
 6. **PasswordResetToken** - Password recovery
@@ -150,7 +150,7 @@ module.exports = router;
 | `nozzlesDirect.js` | `/api/v1/nozzles` | Direct nozzle access |
 | `dashboard.js` | `/api/v1/dashboard` | Analytics endpoints |
 | `inventory.js` | `/api/v1/inventory` | Tanks and deliveries |
-| `closures.js` | `/api/v1/closures` | Daily closures |
+| `closures.js` | `/api/v1/closures` | Settlements / daily closure endpoints |
 
 ---
 

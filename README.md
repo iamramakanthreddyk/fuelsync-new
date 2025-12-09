@@ -17,7 +17,7 @@
 * 🏭 **Pump/Nozzle Configuration** – Map nozzles to fuel types with plan limits
 * 📊 **Analytics Dashboard** – Charts & trends for sales performance
 * 📈 **Reports Export** – PDF/Excel export support
-* 👥 **Role-Based Access Control** – Super Admin, Pump Owner, Employee roles
+* 👥 **Role-Based Access Control** – Super Admin, Owner, Employee roles
 * 📱 **Mobile-First Design** – PWA support for on-the-go management
 
 ### 📋 Plan-Based Access Control
@@ -35,11 +35,11 @@
 ### 🔧 Super Admin
 - **Global Control**: Manage all users, stations, and data across the platform
 - **Plan Management**: Upgrade/downgrade user plans, monitor subscriptions
-- **User Management**: Create/edit/delete Pump Owners with confirmation flows
+- **User Management**: Create/edit/delete Owners with confirmation flows
 - **Analytics**: Platform-wide insights and performance metrics
 - **Access**: All features without restrictions
 
-### 🏢 Pump Owner
+### 🏢 Owner
 - **Station Management**: Manage own pumps, nozzles, sales, and uploads
 - **Employee Management**: Add/remove employees within plan limits
 - **Price Control**: Update fuel prices for their station
@@ -135,7 +135,7 @@ After running `npm run setup-db`, use these demo accounts:
 | Role        | Email                 | Password    | Plan      |
 | ----------- | --------------------- | ----------- | --------- |
 | Super Admin | admin@fuelsync.com    | admin123    | Premium   |
-| Pump Owner  | owner@fuelsync.com    | owner123    | Basic     |
+| Owner       | owner@fuelsync.com    | owner123    | Basic     |
 | Manager     | manager@fuelsync.com  | manager123  | Basic     |
 | Employee    | employee@fuelsync.com | employee123 | Free      |
 
@@ -261,7 +261,7 @@ if (todayUploads >= user.plan.uploadLimit) {
 let whereClause = {};
 if (user.role === 'Employee') {
   whereClause.userId = user.id;
-} else if (user.role === 'Pump Owner') {
+} else if (user.role === 'Owner') {
   whereClause.stationId = user.stationId;
 }
 // Super Admin sees all data

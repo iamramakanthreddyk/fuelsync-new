@@ -323,7 +323,7 @@ Common HTTP status codes:
 The superadmin API interacts with these main tables:
 - `users` - User accounts and roles
 - `stations` - Fuel stations
-- `user_stations` - Many-to-many user-station assignments
+-- `user_stations` - (Not used by runtime) Many-to-many user-station assignments. Managers/employees are assigned via `users.station_id` in the current schema.
 - `pumps` - Fuel pumps
 - `nozzles` - Fuel nozzles
 - `pump_assignments` - Pump assignment history

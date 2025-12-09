@@ -130,10 +130,11 @@ export function AppSidebar() {
       url: "/sales", 
       icon: TrendingUp,
     },
-    // Daily Closure - only managers can close the day
+    // Settlements (Daily Closure) - only managers can access the closure UI
     ...(isManager ? [{
-      title: "Daily Closure",
-      url: "/daily-closure",
+      title: "Settlements",
+      url: "/settlements",
+      // Alias kept: /daily-closure will still work and is routed to Settlements
       icon: Calendar,
     }] : []),
     {
@@ -167,7 +168,7 @@ export function AppSidebar() {
     Analytics: 'text-[#EF4444]',
     Settings: 'text-[#64748B]',
     Sales: 'text-[#F59E0B]',
-    'Daily Closure': 'text-[#06B6D4]',
+    'Settlements': 'text-[#06B6D4]',
     Pumps: 'text-[#3B82F6]',
   }
 

@@ -20,8 +20,8 @@ export default function StationStaffList() {
   const [staff, setStaff] = useState<StaffUser[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Get the user's first station (since mapped via user_stations)
-  const currentStation = user?.stations?.[0];
+  // Get the user's primary station: owners access via Station.ownerId, manager/employee via user.stationId
+  const currentStation = user?.stations?.[0] || user?.station;
 
   useEffect(() => {
     const fetchStaff = async () => {

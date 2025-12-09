@@ -33,7 +33,7 @@ Login with email and password.
       "id": "uuid",
       "name": "John Doe",
       "email": "user@example.com",
-      "role": "Pump Owner",
+      "role": "Owner",
       "plan": "Basic",
       "stationId": "uuid"
     },
@@ -55,7 +55,7 @@ Get current user information.
     "id": "uuid",
     "name": "John Doe",
     "email": "user@example.com",
-    "role": "Pump Owner",
+    "role": "Owner",
     "plan": "Basic",
     "stationId": "uuid"
   }

@@ -226,7 +226,7 @@ super_admin (Platform Admin)
  - ❌ ocr_readings (removed; use manual_readings or parsed receipts)
 - ❌ fuel_tanks (no tank tracking)
 - ❌ fuel_deliveries (no delivery tracking)
-- ❌ daily_closures (simplified to daily_summaries)
+- ❌ daily_closures (replaced by `settlements` / daily summaries)
 
 ---
 

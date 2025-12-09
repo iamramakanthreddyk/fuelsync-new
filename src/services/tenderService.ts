@@ -402,23 +402,23 @@ export const tenderService = {
   },
 
   /**
-   * @deprecated Use dailyClosureService.getDailySummary() instead
+   * @deprecated Use settlementsService.getDailySummary() instead
    */
   async getDailySummary(stationId: string, date: string) {
-    console.warn('tenderService.getDailySummary is deprecated. Use dailyClosureService.getDailySummary() instead.');
+    console.warn('tenderService.getDailySummary is deprecated. Use settlementsService.getDailySummary() instead.');
     // Import and use the actual dashboard summary
     try {
-      const { dailyClosureService } = await import('./dailyClosureService');
-      const summary = await dailyClosureService.getDailySummary();
+      const { settlementsService } = await import('./settlementsService');
+      const summary = await settlementsService.getDailySummary();
       
-      if (summary?.today) {
+      if (summary) {
         return {
-          cash: summary.today.cash ?? 0,
-          card: 0, // Backend tracks online (card + upi combined)
-          upi: 0,
-          online: summary.today.online ?? 0,
-          credit: summary.today.credit ?? 0,
-          total: summary.today.amount ?? 0
+          cash: summary.breakdown?.cash ?? 0,
+          card: 0,
+          upi: summary.breakdown?.upi ?? 0,
+          online: summary.breakdown?.online ?? 0,
+          credit: summary.breakdown?.credit ?? 0,
+          total: summary.sales_total ?? 0
         };
       }
     } catch (error) {

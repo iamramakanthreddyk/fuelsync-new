@@ -128,6 +128,7 @@ const TankRefill = require('./TankRefill')(sequelize);
 const Shift = require('./Shift')(sequelize);
 const AuditLog = require('./AuditLog')(sequelize);
 const CashHandover = require('./CashHandover')(sequelize);
+const Settlement = require('./Settlement')(sequelize);
 
 // Create models object for associations
 const models = {
@@ -146,7 +147,8 @@ const models = {
   TankRefill,
   Shift,
   AuditLog,
-  CashHandover
+  CashHandover,
+  Settlement
 };
 
 // Run associations

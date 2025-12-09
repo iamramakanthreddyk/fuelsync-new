@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { fuelPriceService, FuelPrice } from '@/services/fuelPriceService';
-import { dailyClosureService, DailySummary } from '@/services/dailyClosureService';
+import { settlementsService, DailySummary } from '@/services/settlementsService';
 import { shiftService, dashboardAlertsService, Shift } from '@/services/tenderService';
 import { Badge } from '@/components/ui/badge';
 import { FuelPriceCard } from '@/components/dashboard/FuelPriceCard';
@@ -35,7 +35,7 @@ const EmployeeDashboard = () => {
         const today = new Date().toISOString().split('T')[0];
         const [pricesData, summaryData, shiftStatus] = await Promise.all([
           fuelPriceService.getFuelPrices(currentStation.id),
-          dailyClosureService.getDailySummary(currentStation.id, today),
+          settlementsService.getDailySummary(currentStation.id, today),
           dashboardAlertsService.getShiftStatus(),
         ]);
 
@@ -44,7 +44,7 @@ const EmployeeDashboard = () => {
         if (summaryData) {
           setDailySummary(summaryData);
         } else {
-          console.warn('dailyClosureService returned no summary; fallback to null');
+          console.warn('settlementsService returned no summary; fallback to null');
           setDailySummary(null);
         }
 
@@ -100,10 +100,10 @@ const EmployeeDashboard = () => {
       // Refresh summary (use stationId & today's date if available)
       const today = new Date().toISOString().split('T')[0];
       if (currentStation && currentStation.id) {
-        const summaryData = await dailyClosureService.getDailySummary(currentStation.id, today);
+        const summaryData = await settlementsService.getDailySummary(currentStation.id, today);
         setDailySummary(summaryData);
       } else {
-        const summaryData = await dailyClosureService.getDailySummary();
+        const summaryData = await settlementsService.getDailySummary();
         setDailySummary(summaryData);
       }
     } catch (error: unknown) {

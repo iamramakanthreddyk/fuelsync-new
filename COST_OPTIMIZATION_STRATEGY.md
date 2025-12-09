@@ -123,7 +123,7 @@ Can Break Anytime   Data Preserved         Locked & Monitored
    # Testing environment setup
    Email: testuser@fuelsync-demo.app
    Password: TestUser123!
-   Role: Pump Owner (Plan: Premium)
+  Role: Owner (Plan: Premium)
    ```
 
 2. **Database Backup Strategy**
@@ -595,7 +595,7 @@ cp backend/.env.example backend/.env.production # Production
 # In testing environment:
 Email: testuser@fuelsync-demo.app
 Password: TestUser123!
-Role: Pump Owner
+Role: Owner
 Plan: Premium (for testing features)
 
 # Add to .env.testing

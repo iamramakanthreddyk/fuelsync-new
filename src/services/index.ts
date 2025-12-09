@@ -30,7 +30,7 @@ export type { DashboardSummary, DailyTotals, FuelBreakdown, PumpPerformance, Fin
 
 export { shiftService, cashHandoverService, dashboardAlertsService } from './tenderService';
 export { fuelPriceService } from './fuelPriceService';
-export { dailyClosureService } from './dailyClosureService';
+export { settlementsService } from './settlementsService';
 
 // Legacy exports for backward compatibility
 export { apiService } from './api';

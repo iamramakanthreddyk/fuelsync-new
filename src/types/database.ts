@@ -142,7 +142,7 @@ export interface TenderEntry {
   created_at: string;
 }
 
-export interface DailyClosure {
+export interface Settlement {
   station_id: number;
   date: string;
   sales_total: number | null;
@@ -150,7 +150,11 @@ export interface DailyClosure {
   difference: number | null;
   closed_by: number | null;
   closed_at: string;
+  notes?: string | null;
 }
+
+// Backwards compatibility alias
+export type DailyClosure = Settlement;
 
 export interface PlanUsage {
   station_id: number;
