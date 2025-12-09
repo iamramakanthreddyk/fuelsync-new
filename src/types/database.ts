@@ -153,9 +153,6 @@ export interface Settlement {
   notes?: string | null;
 }
 
-// Backwards compatibility alias
-export type DailyClosure = Settlement;
-
 export interface PlanUsage {
   station_id: number;
   month: string;

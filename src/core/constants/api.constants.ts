@@ -164,7 +164,7 @@ export const FINANCIAL_ENDPOINTS = {
 // ============================================
 
 export const REPORT_ENDPOINTS = {
-  DAILY_CLOSURE: '/reports/daily-closure',
+  SETTLEMENTS: '/reports/settlements',
   SETTLEMENTS: '/reports/settlements',
   SALES: '/reports/sales',
   INVENTORY: '/reports/inventory',
