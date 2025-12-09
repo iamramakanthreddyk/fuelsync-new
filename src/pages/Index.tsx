@@ -31,7 +31,6 @@ const Index = () => {
         return <Reports />;
       case '/settings':
         return <Settings />;
-      case '/daily-closure':
       case '/settlements':
         return <Settlements />;
       case '/staff':

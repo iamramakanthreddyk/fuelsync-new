@@ -79,7 +79,6 @@
     "dashboard": "Dashboard",
     "readings": "Readings",
     "shifts": "Shifts",
-    "dailyClosure": "Daily Closure",
     "settlements": "Settlements",
     "station": "Station",
     "pumps": "Pumps",
@@ -204,7 +203,6 @@
   },
   "reports": {
     "title": "Reports",
-    "dailyClosure": "Daily Closure Report",
     "settlementsReport": "Settlements Report",
     "salesReport": "Sales Report",
     "inventoryReport": "Inventory Report",

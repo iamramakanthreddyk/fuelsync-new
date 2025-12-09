@@ -79,7 +79,6 @@
     "dashboard": "डैशबोर्ड",
     "readings": "रीडिंग",
     "shifts": "शिफ्ट",
-    "dailyClosure": "दैनिक समापन",
     "settlements": "निपटान",
     "station": "स्टेशन",
     "pumps": "पंप",
@@ -204,7 +203,6 @@
   },
   "reports": {
     "title": "रिपोर्ट",
-    "dailyClosure": "दैनिक समापन रिपोर्ट",
     "settlementsReport": "निपटान रिपोर्ट",
     "salesReport": "बिक्री रिपोर्ट",
     "inventoryReport": "इन्वेंट्री रिपोर्ट",

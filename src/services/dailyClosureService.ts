@@ -1,15 +1,5 @@
-/*
- * Compatibility shim for `dailyClosureService`.
- *
- * This file intentionally re-exports the new `settlementsService` to
- * preserve backward compatibility for imports that still reference
- * `dailyClosureService`. The plan is to remove this shim in a future
- * major version once all consumers have migrated to `settlementsService`.
- */
-import { settlementsService } from './settlementsService';
-
-export type { DailySummary, PumpSummary } from './settlementsService';
-
-export const dailyClosureService = settlementsService;
-
-export default dailyClosureService;
+// dailyClosureService shim removed.
+// This file previously re-exported `settlementsService` as `dailyClosureService`.
+// It has been intentionally emptied to enforce migration to `settlementsService`.
+// Please update imports from `dailyClosureService` to `settlementsService`.
+export {};

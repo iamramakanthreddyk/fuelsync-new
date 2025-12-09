@@ -79,7 +79,6 @@
     "dashboard": "டாஷ்போர்டு",
     "readings": "ரீடிங்குகள்",
     "shifts": "ஷிப்ட்கள்",
-    "dailyClosure": "தினசரி முடிவு",
     "settlements": "நிகரப்படுத்தல்கள்",
     "station": "நிலையம்",
     "pumps": "பம்புகள்",
@@ -204,7 +203,6 @@
   },
   "reports": {
     "title": "அறிக்கைகள்",
-    "dailyClosure": "தினசரி முடிவு அறிக்கை",
     "settlementsReport": "நிகரப்படுத்தல்கள் அறிக்கை",
     "salesReport": "விற்பனை அறிக்கை",
     "inventoryReport": "சரக்கு அறிக்கை",

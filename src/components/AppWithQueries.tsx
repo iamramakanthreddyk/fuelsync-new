@@ -351,11 +351,6 @@ function AppContent() {
                     {/* Role-based data entry - employees get Quick Entry, managers/owners get full DataEntry */}
                     <Route path="/data-entry" element={<RoleBasedDataEntry />} />
                     <Route path="/sales" element={<RoleBasedSales />} />
-                    <Route path="/daily-closure" element={
-                      <ManagerOrOwnerRoute>
-                        <Settlements />
-                      </ManagerOrOwnerRoute>
-                    } />
                     <Route path="/settlements" element={
                       <ManagerOrOwnerRoute>
                         <Settlements />

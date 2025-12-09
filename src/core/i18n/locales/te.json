@@ -79,7 +79,6 @@
     "dashboard": "డాష్‌బోర్డ్",
     "readings": "రీడింగ్స్",
     "shifts": "షిఫ్ట్‌లు",
-    "dailyClosure": "దినసరి ముగింపు",
     "settlements": "సెట్టిల్మెంట్స్",
     "station": "స్టేషన్",
     "pumps": "పంపులు",
@@ -204,7 +203,6 @@
   },
   "reports": {
     "title": "నివేదికలు",
-    "dailyClosure": "దినసరి ముగింపు నివేదిక",
     "settlementsReport": "సెట్టిల్మెంట్స్ నివేదిక",
     "salesReport": "విక్రయాల నివేదిక",
     "inventoryReport": "ఇన్వెంటరీ నివేదిక",
