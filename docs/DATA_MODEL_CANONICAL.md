@@ -1,59 +1,62 @@
 # Canonical Data Model — fuelsync-new
 
-Purpose: provide a single source of truth for where domain data is stored, which controllers write/read it, and migration sources. Use this file when adding features or migrations to avoid duplication.
+Purpose: provide a single, durable source of truth for where key domain data lives, who owns it, and how to extend it safely.
 
-Guidelines
-- Prefer existing canonical tables over adding new tables for the same concept.
-- If a new table is needed, document why and add references in this file.
-- Migrations should live in `backend/migrations` (see `.sequelizerc`).
+Design principles
+- Prefer canonical tables already in the schema over adding duplicates.
+- Avoid embedding transient or derived snapshots in the primary schema; prefer views or scheduled snapshot jobs.
+- Keep migration references non-volatile: do not hard-code migration filenames here. All migrations live in `backend/migrations`.
 
-Canonical Tables
+Core canonical tables and guidance
 
 - `nozzle_readings`
-  - Purpose: Source-of-truth for dispenser readings (per nozzle). Holds litresSold, totalAmount, cash/online/credit splits, timestamps.
-  - Written by: `src/controllers/nozzleReadingController` (or equivalent), ingestion services.
-  - Read by: `salesController`, reporting/dashboard controllers.
-  - Migration: `backend/migrations/20251202114000-baseline-schema.js` (baseline schema)
+  - Purpose: Source of truth for per-nozzle dispenser readings (volumes, amount, timestamps).
+  - Usage: Written by reading ingestion controllers/services; read by reporting and reconciliation flows.
+  - Guidance: Treat this as the authoritative sales input when reconciling totals.
 
-- `cash_handovers` / Model: `CashHandover`
-  - Purpose: Records tender/collection entries, handovers, bank deposits, and shift collections.
-  - Written by: `backend/src/controllers/cashHandoverController.js` (endpoints `/api/v1/handovers`, station subroutes)
-  - Used by: Dashboard summaries, shift flows, reconciliation.
-  - Migration: `backend/migrations/20251202114000-baseline-schema.js`
-  - Note: Do NOT add a separate `tender_entries` table — use `cash_handovers`.
+- `cash_handovers` (Model: `CashHandover`)
+  - Purpose: Records tender collections, handovers, bank deposits, and shift handovers.
+  - Usage: Used for reconciliation, handover reports, and financial summaries.
+  - Guidance: Use `cash_handovers` for tender and handover records; do not create parallel `tender_entries` tables unless you have a strong compatibility reason.
 
-- `settlements` / Model: `Settlement`
-  - Purpose: Persist station end-of-day reconciliations / settlements.
-  - Written by: `backend/src/controllers/stationController.recordSettlement` (POST `/stations/:id/settlements`)
-  - Read by: `stationController.getSettlements` and owner UI.
-  - Migration: `backend/migrations/20251209-create-settlements.js` (moved to `backend/migrations`)
-
-- `sales`
-  - Purpose: Historically a snapshot/summary of sales. Prefer deriving from `nozzle_readings`. If you must persist snapshots for reporting, clearly document the reason and use a materialized view or scheduled snapshot job.
-  - Recommendation: Do not create `sales` table in migrations unless a clear snapshot/backfill plan exists.
+- `settlements` (Model: `Settlement`)
+  - Purpose: Persist station end-of-day reconciliations and settlement metadata (totals, differences, closed_by, notes).
+  - Usage: Written by settlement APIs and read by owner/manager UIs and reporting.
+  - Guidance: Store only final reconciliation/snapshot metadata here; derive detailed sales from `nozzle_readings` when needed.
 
 - `audit_logs`
-  - Purpose: Central application audit trail. Use this for user activity/audit needs instead of creating `user_activity_log` duplicate tables.
-  - Written by: Audit middleware / controllers.
+  - Purpose: Centralized audit trail for user actions and system events.
+  - Guidance: Prefer writing to `audit_logs` from middleware or controllers instead of creating ad-hoc activity tables.
 
-- **Owner→Stations (current behavior)**
-  - Purpose: Owners own multiple stations via the `stations.owner_id` column. Managers and employees are assigned to a single station via `users.station_id`.
-  - Enforcement: Backend access control and controllers use `Station.ownerId` to scope owner queries and `User.stationId` for manager/employee assignments.
-  - Note: The `user_stations` many-to-many mapping was considered but intentionally omitted from migrations and runtime; add it only if you need managers/employees assigned to multiple stations.
+Ownership and relationships
+- Owner → Stations
+  - Owners are associated to stations via `stations.owner_id` (one owner can own many stations).
+  - Managers and employees are assigned to a station via `users.station_id`.
+  - Guidance: Do not introduce many-to-many owner/station mappings unless a business need emerges; prefer the simpler `owner_id` and `station_id` fields.
 
-- `station_plans`, `plan_usage` (omitted)
-  - Purpose: These were considered for historical plan assignments and monthly usage snapshots.
-  - Decision: Omitted from migrations — the application uses `stations.plan_id` for current plan and `cash_handovers`/`nozzle_readings` for activity. Add a new table only if you need historical billing or precomputed monthly usage.
+Derived data and snapshots
+- Avoid adding `sales` as a primary persisted table for raw sales data; instead:
+  - Derive reports from `nozzle_readings` (source-of-truth) when possible.
+  - If persistent snapshots are required for performance/legacy reasons, use materialized views or scheduled snapshot jobs and document the retention/backfill plan.
+
+When to add a new table
+- Check `backend/src/models` and existing migrations first.
+- If adding a table, document in this file: purpose, owning controller(s), read/write patterns, and migration/backfill plan (including rollback strategy).
 
 Where to look when adding features
-- Models: `backend/src/models/` — check for an existing model first.
-- Controllers: `backend/src/controllers/` — identify existing endpoints that perform the domain function.
-- Frontend services: `src/services/` — avoid adding new endpoints if an existing controller covers the flow.
-- Migrations: `backend/migrations/` — add migrations here and avoid duplicating tables already created in baseline migrations.
+- Models: `backend/src/models/` — confirm an existing model.
+- Controllers: `backend/src/controllers/` — identify existing endpoints that cover the domain.
+- Frontend services: `src/services/` — reuse existing endpoints when possible.
+- Migrations: `backend/migrations/` — add new migrations here; reference them in release notes, not in this canonical file.
+
+Maintenance guidance
+- Keep this file focused on stable domain concepts; avoid including exact migration filenames or ephemeral implementation details here.
+- If a table is deprecated, add a short deprecation note and reference the migration/backfill scripts kept under `backend/migrations`.
+- Add or update this file when you create or deprecate tables — treat it as the human-readable contract for the data model.
 
 Action items for maintainers
-- When creating a new migration or model: add an entry here documenting the change and why a new table was required.
-- When deprecating an old table, document the migration and backfill steps.
-- Keep docs (`docs/database-schema.md`, `docs/schema_review.md`, `docs/superadmin-api.md`) aligned with this canonical file.
+- When creating a migration: add a one-paragraph entry here describing why the new table is required and where to find the migration script.
+- When deprecating a table: document the deprecation, backfill, and cleanup steps here.
+- Keep `docs/database-schema.md` and `docs/schema_review.md` aligned with this canonical file; prefer references rather than copy-paste of schema details.
 
-Questions? Add them as comments below the relevant table section.
+Questions? Add them as comments below the most-relevant section or open a short PR referencing this file.

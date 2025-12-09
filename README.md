@@ -199,6 +199,15 @@ PUT    /api/v1/uploads/:id      # Update processed data
 DELETE /api/v1/uploads/:id      # Delete upload
 ```
 
+---
+
+## Documentation
+
+All repository documentation has been consolidated under the `docs/` folder. Start here:
+
+- `docs/INDEX.md` — centralized documentation index and navigation
+
+
 ### Pumps & Configuration
 ```
 GET    /api/v1/pumps            # Get pumps

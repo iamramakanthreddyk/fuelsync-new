@@ -1,3 +1,6 @@
+# Visual summary and diagrams moved from root
+
+Original content migrated from repository root.
 # FuelSync Strategy: Visual Summary & Quick Reference
 
 ## 🎯 Your Challenge
@@ -198,43 +201,8 @@ Today (Web Only):
 │ ├── hooks/ (useAuth, useSales, etc)     │
 │ └── ...                                 │
 └──────────────────────────────────────────┘
-     100% Web-specific code
-
-Tomorrow (Web + Mobile + Desktop):
-┌──────────────────────────────────────────────────────────┐
-│ packages/shared/                                         │
-│ ├── services/api.ts (100% SHARED)                        │
-│ ├── hooks/ (100% SHARED)                                 │
-│ ├── types/ (100% SHARED)                                 │
-│ ├── components/ (70% SHARED - slight tweaks needed)     │
-│ └── ...                                                  │
-├──────────────────────────────────────────────────────────┤
-│ packages/web/       packages/mobile/  packages/desktop/  │
-│ ├── pages/          ├── screens/      ├── windows/      │
-│ └── layouts/        └── navigation/   └── menu/         │
-│ (10% web code)      (15% mobile code) (15% desktop code)│
-└──────────────────────────────────────────────────────────┘
-     80% SHARED - Write once, run everywhere!
 ```
 
-### Platform Timeline
+---
 
-```
-Month 1:  Web Optimization
-          ✅ Setup environments
-          ✅ Deploy to Railway
-          ✅ Document everything
-          ✅ Cost: $5-10/month
-
-Month 2:  Mobile App
-          ⏳ Create React Native project
-          ⏳ Share code with web
-          ⏳ iOS TestFlight beta
-          ⏳ Android Play Store beta
-          ⏳ Cost: +$0 (same backend!)
-
-VISUAL_SUMMARY.md moved to `docs/strategy/VISUAL_SUMMARY.md`.
-Please open `docs/strategy/VISUAL_SUMMARY.md` for the visual summary and quick reference.
-          ⏳ Reuse web components
-
-          ⏳ Windows installer
+## 📚 Continue in `docs/strategy/` for the full strategy collection.

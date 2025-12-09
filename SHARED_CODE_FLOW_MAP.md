@@ -44,22 +44,6 @@ src/
 ## 🗺️ Flow Map
 
 1. **Find what you need:**
-   - Enums: `src/core/enums/`
-   - Types: `src/types/`
+  SHARED_CODE_FLOW_MAP.md moved to `docs/architecture/SHARED_CODE_FLOW_MAP.md` to consolidate documentation.
+  Please use the `docs/architecture/` folder for shared-code guidance.
    - Helpers: `src/lib/`
-2. **Import from the folder's `index.ts` or from `src/index.ts` for convenience.**
-3. **If you add new shared code:**
-   - Place it in the correct folder.
-   - Export it in the folder's `index.ts` and in `src/index.ts`.
-   - Update the shared code README.
-
----
-
-## ✅ Best Practices
-- Always check for existing enums, types, or helpers before creating new ones.
-- Use the central `src/index.ts` for most imports to keep code clean and discoverable.
-- Keep documentation up to date.
-
----
-
-**Tip:** Use VS Code search (Ctrl+Shift+F) to quickly find shared code.
