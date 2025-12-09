@@ -6,15 +6,9 @@ This repository's canonical documentation is consolidated under the `docs/` fold
 - **Strategy & Product:** `docs/strategy/` — roadmap, quick-start, visual summary
 - **Maintenance:** `docs/maintenance/` — quick fixes, troubleshooting notes
 - **Architecture:** `docs/architecture/` — architecture overview and diagrams
-- **Archive:** `docs/archive/` — archived notes and plans
-
 To get started, open the folder that matches your goal (deploy, strategy, maintenance, architecture).
 
-If you find a file that used to be in the top-level docs but is missing, check the archive first:
-
-- `docs/archive/2025-12-09-removed/` — files archived on 2025-12-09 during repository cleanup.
-
-If you want any archived file restored, reply here and I will restore it.
+If you want any previously archived file restored, reply here and I will restore it from version control history.
 **Documentation Index**
 
 This index links the main documentation moved from the repository root into organized `docs/` subfolders.
