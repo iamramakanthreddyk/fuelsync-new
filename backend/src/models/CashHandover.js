@@ -188,6 +188,7 @@ module.exports = (sequelize) => {
 
   /**
    * Confirm cash receipt
+   * ✅ Fixed: Better variance detection (2% or ₹100 threshold)
    */
   CashHandover.prototype.confirm = async function(data = {}, transaction = null) {
     const { actualAmount, confirmedBy, notes } = data;
@@ -196,7 +197,15 @@ module.exports = (sequelize) => {
       ? parseFloat(actualAmount) - parseFloat(this.expectedAmount)
       : null;
     
-    const status = difference && Math.abs(difference) > 1 ? 'disputed' : 'confirmed';
+    // ✅ NEW: Variance-based dispute detection
+    // Dispute if: variance > 2% OR absolute difference > ₹100
+    const variancePercent = difference && parseFloat(this.expectedAmount) !== 0
+      ? Math.abs(difference) / parseFloat(this.expectedAmount) * 100
+      : 0;
+    
+    const status = difference && (Math.abs(difference) > 100 || variancePercent > 2) 
+      ? 'disputed' 
+      : 'confirmed';
     
     await this.update({
       actualAmount: actualAmount || this.expectedAmount,
@@ -236,14 +245,22 @@ module.exports = (sequelize) => {
 
   /**
    * Create a handover from shift end
+   * ✅ Fixed: Assigns toUserId to station manager, uses correct date field
    */
   CashHandover.createFromShift = async function(shift, transaction = null) {
+    // Get station's manager to assign as recipient
+    const Station = sequelize.models.Station;
+    const station = await Station.findByPk(shift.stationId, { transaction });
+    const stationManager = station?.managerId;
+    
+    // Use correct field names and calculate expected amount from actual values
     return this.create({
       stationId: shift.stationId,
       handoverType: 'shift_collection',
-      handoverDate: shift.shiftDate,
+      handoverDate: shift.date || new Date().toISOString().split('T')[0],  // ✅ Fixed: was shiftDate
       fromUserId: shift.employeeId,
-      expectedAmount: shift.cashCollected || 0,
+      toUserId: stationManager,  // ✅ NEW: Assign to manager for confirmation
+      expectedAmount: shift.expectedCash || shift.cashCollected || 0,  // ✅ Use expected + actual
       actualAmount: shift.cashCollected || 0,
       shiftId: shift.id,
       status: 'pending'
@@ -297,6 +314,55 @@ module.exports = (sequelize) => {
       ],
       order: [['handoverDate', 'DESC'], ['createdAt', 'DESC']]
     });
+  };
+
+  /**
+   * ✅ NEW: Validate handover sequence
+   * Ensures handovers progress through proper stages: shift → employee → manager → owner → bank
+   */
+  CashHandover.validateSequence = async function(handoverType, fromUserId, stationId, transaction = null) {
+    const errorMessages = {
+      'employee_to_manager': 'No confirmed shift_collection found for this employee',
+      'manager_to_owner': 'No confirmed employee_to_manager found for this station',
+      'deposit_to_bank': 'No confirmed manager_to_owner found for this station'
+    };
+    
+    if (handoverType === 'employee_to_manager') {
+      const exists = await this.findOne({
+        where: {
+          stationId,
+          handoverType: 'shift_collection',
+          fromUserId,
+          status: 'confirmed'
+        },
+        transaction
+      });
+      if (!exists) throw new Error(errorMessages[handoverType]);
+    }
+    
+    if (handoverType === 'manager_to_owner') {
+      const exists = await this.findOne({
+        where: {
+          stationId,
+          handoverType: 'employee_to_manager',
+          status: 'confirmed'
+        },
+        transaction
+      });
+      if (!exists) throw new Error(errorMessages[handoverType]);
+    }
+    
+    if (handoverType === 'deposit_to_bank') {
+      const exists = await this.findOne({
+        where: {
+          stationId,
+          handoverType: 'manager_to_owner',
+          status: 'confirmed'
+        },
+        transaction
+      });
+      if (!exists) throw new Error(errorMessages[handoverType]);
+    }
   };
 
   /**

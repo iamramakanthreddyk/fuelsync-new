@@ -43,6 +43,7 @@ exports.getPendingHandovers = async (req, res, next) => {
 /**
  * Create a new handover (manager/owner initiates)
  * POST /api/v1/handovers
+ * ✅ Fixed: Auto-calculates toUserId, validates sequence, sets previousHandoverId
  */
 exports.createHandover = async (req, res, next) => {
   try {
@@ -73,26 +74,89 @@ exports.createHandover = async (req, res, next) => {
       });
     }
     
-    // Validate handover type based on role
-    if (handoverType === 'manager_to_owner' && user.role === 'manager') {
-      // Manager is giving to owner
-    } else if (handoverType === 'deposit_to_bank' && !['owner', 'super_admin'].includes(user.role)) {
-      return res.status(403).json({
+    // ✅ NEW: Validate handover sequence (cannot skip stages)
+    try {
+      await CashHandover.validateSequence(handoverType, fromUserId, stationId);
+    } catch (error) {
+      return res.status(400).json({
         success: false,
-        error: 'Only owners can record bank deposits'
+        error: error.message
       });
+    }
+    
+    // ✅ NEW: Auto-calculate toUserId based on handover type
+    let toUserId = null;
+    if (handoverType === 'employee_to_manager') {
+      // Get fromUser's manager or assign to current user
+      const fromUser = await User.findByPk(fromUserId);
+      toUserId = fromUser?.managerId || req.userId;
+    } else if (handoverType === 'manager_to_owner') {
+      // Go to owner
+      const station = await Station.findByPk(stationId);
+      toUserId = station?.ownerId;
+    } else if (handoverType === 'deposit_to_bank') {
+      // Owner/Manager deposits - no specific toUserId needed
+      toUserId = req.userId;
+    }
+    
+    // ✅ NEW: Auto-find and set previousHandoverId (build the chain)
+    let previousHandoverId = null;
+    if (handoverType === 'employee_to_manager') {
+      // Link to shift_collection
+      const prevHandover = await CashHandover.findOne({
+        where: {
+          stationId,
+          handoverType: 'shift_collection',
+          fromUserId,
+          status: 'confirmed'
+        },
+        order: [['handoverDate', 'DESC']]
+      });
+      previousHandoverId = prevHandover?.id;
+    } else if (handoverType === 'manager_to_owner') {
+      // Link to employee_to_manager
+      const prevHandover = await CashHandover.findOne({
+        where: {
+          stationId,
+          handoverType: 'employee_to_manager',
+          status: 'confirmed'
+        },
+        order: [['handoverDate', 'DESC']]
+      });
+      previousHandoverId = prevHandover?.id;
+    } else if (handoverType === 'deposit_to_bank') {
+      // Link to manager_to_owner
+      const prevHandover = await CashHandover.findOne({
+        where: {
+          stationId,
+          handoverType: 'manager_to_owner',
+          status: 'confirmed'
+        },
+        order: [['handoverDate', 'DESC']]
+      });
+      previousHandoverId = prevHandover?.id;
     }
     
     // Get uncollected amount if not specified
     let amount = expectedAmount;
     if (!amount && handoverType === 'employee_to_manager') {
-      // Sum unconfirmed shift collections
+      // Sum confirmed shift collections for this employee
       const pending = await CashHandover.findAll({
         where: {
           stationId,
           handoverType: 'shift_collection',
-          status: 'pending',
-          fromUserId: fromUserId
+          fromUserId,
+          status: 'confirmed'
+        }
+      });
+      amount = pending.reduce((sum, h) => sum + parseFloat(h.expectedAmount || 0), 0);
+    } else if (!amount && handoverType === 'manager_to_owner') {
+      // Sum confirmed employee_to_manager handovers
+      const pending = await CashHandover.findAll({
+        where: {
+          stationId,
+          handoverType: 'employee_to_manager',
+          status: 'confirmed'
         }
       });
       amount = pending.reduce((sum, h) => sum + parseFloat(h.expectedAmount || 0), 0);
@@ -103,8 +167,9 @@ exports.createHandover = async (req, res, next) => {
       handoverType,
       handoverDate,
       fromUserId,
-      toUserId: req.userId,
-      expectedAmount: amount || 0,
+      toUserId,  // ✅ Now auto-set
+      expectedAmount: amount || expectedAmount || 0,
+      previousHandoverId,  // ✅ Now auto-set
       notes
     });
     
@@ -129,13 +194,14 @@ exports.createHandover = async (req, res, next) => {
 /**
  * Confirm a handover (recipient confirms)
  * POST /api/v1/handovers/:id/confirm
+ * ✅ Fixed: Supports acceptAsIs flag for quick confirmation
  */
 exports.confirmHandover = async (req, res, next) => {
   const t = await sequelize.transaction();
   
   try {
     const { id } = req.params;
-    const { actualAmount, notes } = req.body;
+    const { actualAmount, acceptAsIs, notes } = req.body;  // ✅ NEW: acceptAsIs flag
     
     const handover = await CashHandover.findByPk(id, {
       include: [
@@ -181,8 +247,21 @@ exports.confirmHandover = async (req, res, next) => {
       }
     }
     
+    // ✅ NEW: Accept expected amount without entering
+    const confirmAmount = acceptAsIs 
+      ? handover.expectedAmount 
+      : actualAmount;
+    
+    if (confirmAmount === undefined && confirmAmount !== 0) {
+      await t.rollback();
+      return res.status(400).json({
+        success: false,
+        error: 'Actual amount or acceptAsIs flag required'
+      });
+    }
+    
     await handover.confirm({
-      actualAmount: actualAmount !== undefined ? actualAmount : handover.expectedAmount,
+      actualAmount: confirmAmount,  // ✅ Use acceptAsIs or provided amount
       confirmedBy: req.userId,
       notes
     }, t);
@@ -198,7 +277,7 @@ exports.confirmHandover = async (req, res, next) => {
     });
     
     const message = handover.status === 'disputed'
-      ? `Handover confirmed with discrepancy of ₹${handover.difference}`
+      ? `Handover confirmed with discrepancy of ₹${Math.abs(handover.difference)}`
       : 'Handover confirmed successfully';
     
     res.json({
@@ -216,6 +295,7 @@ exports.confirmHandover = async (req, res, next) => {
 /**
  * Record bank deposit
  * POST /api/v1/handovers/bank-deposit
+ * ✅ Fixed: Links to previous manager_to_owner handover
  */
 exports.recordBankDeposit = async (req, res, next) => {
   try {
@@ -246,6 +326,24 @@ exports.recordBankDeposit = async (req, res, next) => {
       });
     }
     
+    // ✅ NEW: Find and link to previous manager_to_owner handover
+    const prevHandover = await CashHandover.findOne({
+      where: {
+        stationId,
+        handoverType: 'manager_to_owner',
+        status: 'confirmed'
+      },
+      order: [['handoverDate', 'DESC']]
+    });
+    
+    // ✅ NEW: Verify amount matches the confirmed handover
+    if (prevHandover && Math.abs(parseFloat(amount) - parseFloat(prevHandover.expectedAmount)) > 100) {
+      return res.status(400).json({
+        success: false,
+        error: `Deposit amount ₹${amount} does not match confirmed handover amount ₹${prevHandover.expectedAmount}. Difference exceeds ₹100.`
+      });
+    }
+    
     const handover = await CashHandover.create({
       stationId,
       handoverType: 'deposit_to_bank',
@@ -253,11 +351,12 @@ exports.recordBankDeposit = async (req, res, next) => {
       fromUserId: req.userId,
       expectedAmount: amount,
       actualAmount: amount,
+      previousHandoverId: prevHandover?.id,  // ✅ NOW SET
       bankName,
       depositReference,
       depositReceiptUrl,
       notes,
-      status: 'confirmed',
+      status: 'confirmed',  // Bank deposits auto-confirm (no recipient needed)
       confirmedAt: new Date(),
       confirmedBy: req.userId
     });

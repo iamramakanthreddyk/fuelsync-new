@@ -59,6 +59,7 @@ export default function CashHandoverConfirmation() {
   const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const [actualAmount, setActualAmount] = useState<string>('');
   const [confirmNotes, setConfirmNotes] = useState('');
+  const [useAcceptAsIs, setUseAcceptAsIs] = useState(false);
 
   // Fetch pending handovers
   const { data: pendingHandovers = [], isLoading } = useQuery({
@@ -73,7 +74,8 @@ export default function CashHandoverConfirmation() {
       if (!selectedHandover) throw new Error('No handover selected');
       
       return cashHandoverService.confirmHandover(selectedHandover.id, {
-        actualAmount: parseFloat(actualAmount) || 0,
+        acceptAsIs: useAcceptAsIs,
+        actualAmount: useAcceptAsIs ? undefined : (parseFloat(actualAmount) || 0),
         notes: confirmNotes || undefined,
       });
     },
@@ -88,6 +90,7 @@ export default function CashHandoverConfirmation() {
       setSelectedHandover(null);
       setActualAmount('');
       setConfirmNotes('');
+      setUseAcceptAsIs(false);
       queryClient.invalidateQueries({ queryKey: ['pending-handovers'] });
     },
     onError: (error: Error) => {
@@ -394,12 +397,54 @@ export default function CashHandoverConfirmation() {
                     step="0.01"
                     min="0"
                     value={actualAmount}
-                    onChange={(e) => setActualAmount(e.target.value)}
+                    onChange={(e) => {
+                      setActualAmount(e.target.value);
+                      setUseAcceptAsIs(false);
+                    }}
+                    disabled={useAcceptAsIs}
                     className="pl-7 text-lg"
                     placeholder="0.00"
                   />
                 </div>
               </div>
+
+              {/* Accept As Is Quick Button */}
+              {!useAcceptAsIs && (
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-px bg-gray-200"></div>
+                  <span className="text-xs text-muted-foreground">OR</span>
+                  <div className="flex-1 h-px bg-gray-200"></div>
+                </div>
+              )}
+
+              {useAcceptAsIs ? (
+                <div className="p-3 rounded-lg bg-green-50 border border-green-200 flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="text-sm font-medium text-green-700">Accept as is</p>
+                      <p className="text-xs text-green-600">Amount: {formatCurrency(selectedHandover.expectedAmount)}</p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setUseAcceptAsIs(false)}
+                    className="text-green-600 hover:text-green-700"
+                  >
+                    Change
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setUseAcceptAsIs(true)}
+                >
+                  <CheckCircle2 className="w-4 h-4 mr-2" />
+                  Accept {formatCurrency(selectedHandover.expectedAmount)} as is
+                </Button>
+              )}
 
               {/* Difference Preview */}
               {actualAmount && (
@@ -446,12 +491,16 @@ export default function CashHandoverConfirmation() {
           )}
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowConfirmDialog(false)}>
+            <Button variant="outline" onClick={() => {
+              setShowConfirmDialog(false);
+              setUseAcceptAsIs(false);
+              setActualAmount('');
+            }}>
               Cancel
             </Button>
             <Button
               onClick={() => confirmMutation.mutate()}
-              disabled={confirmMutation.isPending || !actualAmount}
+              disabled={confirmMutation.isPending || (!useAcceptAsIs && !actualAmount)}
             >
               {confirmMutation.isPending ? 'Confirming...' : 'Confirm Receipt'}
             </Button>

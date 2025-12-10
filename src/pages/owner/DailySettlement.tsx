@@ -1,7 +1,28 @@
 /**
  * Daily Settlement Page
- * Manager/Owner finalizes daily sales with cash reconciliation
- * Includes reading selection to link specific employee entries to settlement
+ * 
+ * FLOW:
+ * 1. Manager selects a date to review readings
+ * 2. System shows all readings for that date (unlinked = not yet settled, linked = already settled)
+ * 3. Manager selects which readings to include in this settlement
+ * 4. Manager enters actual cash collected (physical count)
+ * 5. System calculates variance = expected cash - actual cash
+ * 6. Manager confirms settlement, linking readings to settlement record
+ * 
+ * DATA FIELDS:
+ * - openingReading = previous meter reading (last reading before today)
+ * - closingReading = current meter reading (entered during reading entry)
+ * - litresSold = closingReading - openingReading
+ * - saleValue = litresSold × price per litre (pre-calculated during reading entry)
+ * - expectedCash = sum of all selected readings' cash amounts
+ * - actualCash = physical cash count by manager (user input)
+ * - variance = expectedCash - actualCash (calculated on backend to prevent manipulation)
+ * 
+ * UNLINKED vs LINKED:
+ * - Unlinked: Readings not yet assigned to any settlement (ready to be settled)
+ * - Linked: Readings already assigned to a settlement (finalized)
+ * 
+ * IMPORTANT: Backend recalculates variance to prevent frontend tampering
  */
 
 import { useState } from 'react';

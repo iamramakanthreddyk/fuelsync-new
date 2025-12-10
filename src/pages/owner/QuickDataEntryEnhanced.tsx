@@ -1,6 +1,21 @@
 /**
  * Quick Data Entry with Sale Calculations
  * Enhanced version with per-nozzle sale value calculations
+ * 
+ * READING ENTRY FLOW:
+ * 1. Employee enters the CLOSING READING (current meter value on pump)
+ * 2. System fetches the OPENING READING (previous meter reading)
+ * 3. System calculates LITRES SOLD = closingReading - openingReading
+ * 4. System fetches FUEL PRICE for the date
+ * 5. System calculates SALE VALUE = litresSold × fuelPrice
+ * 6. Employee allocates payment (cash/online/credit)
+ * 7. Backend saves reading with all calculated values
+ * 
+ * IMPORTANT TERMINOLOGY:
+ * - openingReading = lastReading (previous recorded meter value)
+ * - closingReading = readingValue (meter value entered now)
+ * - litresSold = calculated difference
+ * - saleValue = totalAmount (calculated sale revenue)
  */
 
 import { useState, useMemo, useEffect } from 'react';

@@ -1400,6 +1400,16 @@ exports.getReadingsForSettlement = async (req, res, next) => {
       return acc;
     }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
 
+    // Calculate totals for linked readings
+    const linkedTotals = linkedReadings.reduce((acc, r) => {
+      acc.cash += r.cashAmount;
+      acc.online += r.onlineAmount;
+      acc.credit += r.creditAmount;
+      acc.litres += r.litresSold;
+      acc.value += r.saleValue;
+      return acc;
+    }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
+
     res.json({
       success: true,
       data: {
@@ -1418,7 +1428,14 @@ exports.getReadingsForSettlement = async (req, res, next) => {
         },
         linked: {
           count: linkedReadings.length,
-          readings: linkedReadings
+          readings: linkedReadings,
+          totals: {
+            cash: parseFloat(linkedTotals.cash.toFixed(2)),
+            online: parseFloat(linkedTotals.online.toFixed(2)),
+            credit: parseFloat(linkedTotals.credit.toFixed(2)),
+            litres: parseFloat(linkedTotals.litres.toFixed(2)),
+            value: parseFloat(linkedTotals.value.toFixed(2))
+          }
         },
         allReadingsCount: readings.length
       }

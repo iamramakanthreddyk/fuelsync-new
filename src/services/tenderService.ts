@@ -215,11 +215,13 @@ export const cashHandoverService = {
   /**
    * Confirm a handover
    * POST /api/v1/handovers/:id/confirm
+   * ✅ Updated: Supports acceptAsIs flag for quick confirmation
    */
   async confirmHandover(
     handoverId: string,
     data: {
-      actualAmount: number;
+      actualAmount?: number;
+      acceptAsIs?: boolean;  // ✅ NEW: Quick accept without entering amount
       notes?: string;
     }
   ): Promise<CashHandover> {
