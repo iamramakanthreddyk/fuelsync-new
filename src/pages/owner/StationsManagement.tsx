@@ -504,7 +504,7 @@ export default function StationsManagement() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8 pt-6 sm:pt-3 md:pt-0">
+    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
       {/* Header */}
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">

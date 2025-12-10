@@ -157,7 +157,7 @@ export default function OwnerDashboard() {
 
   return (
     <div 
-      className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl pt-6 sm:pt-3 md:pt-0" 
+      className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl" 
       style={{ minHeight: 'calc(100vh - 4rem)', overflow: 'auto' }}
     >
       {/* Header with Quick Actions */}

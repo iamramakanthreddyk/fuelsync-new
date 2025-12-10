@@ -308,7 +308,7 @@ export default function DailySettlement() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6 max-w-4xl pt-6 sm:pt-3 md:pt-0">
+    <div className="container mx-auto p-6 space-y-6 max-w-4xl">
       {/* Header */}
       <div className="flex items-center gap-4">
         <NavButton
