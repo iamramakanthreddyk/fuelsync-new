@@ -632,7 +632,7 @@ export default function QuickDataEntry() {
                                   {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
                                 </Label>
                                 <span className="text-xs text-muted-foreground">
-                                  {safeToFixed(compareValue, 1)}
+                                  <span className="font-medium">Last Reading:</span> {safeToFixed(compareValue, 1)}
                                 </span>
                               </div>
                               <div className="relative">

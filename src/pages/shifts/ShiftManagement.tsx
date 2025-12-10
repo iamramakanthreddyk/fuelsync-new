@@ -261,7 +261,7 @@ export default function ShiftManagement() {
                 <div className="bg-white/50 dark:bg-gray-900/50 rounded-lg p-3 text-center">
                   <TrendingUp className="w-5 h-5 mx-auto mb-1 text-purple-600" />
                   <p className="text-xs text-muted-foreground">Litres</p>
-                  <p className="text-lg font-bold">{(activeShift.totalLitresSold || 0).toFixed(1)}</p>
+                  <p className="text-lg font-bold">{typeof activeShift.totalLitresSold === 'number' && !isNaN(activeShift.totalLitresSold) ? activeShift.totalLitresSold.toFixed(1) : '0.0'}</p>
                 </div>
                 <div className="bg-white/50 dark:bg-gray-900/50 rounded-lg p-3 text-center">
                   <IndianRupee className="w-5 h-5 mx-auto mb-1 text-green-600" />
