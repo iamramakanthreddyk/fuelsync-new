@@ -36,6 +36,43 @@ See `test-results/ci-scan.txt` for full logs and failing stack traces.
 
 ---
 
+## Owner Journey: Expanded Flow & Edge Cases
+
+### Flow Steps
+1. Login & Dashboard: Owner logs in, views dashboard with station, employee, and sales stats.
+2. Quick Data Entry: Owner/manager/employee enters nozzle readings. System calculates liters, sale value, auto-allocates to cash. User can adjust payment split: cash, online, credit.
+3. Posting Readings: Readings saved with payment allocation (cash/online/credit). Credit readings create credit transactions, update creditor balance.
+4. Daily Settlement: Owner/manager enters actual cash collected. Backend calculates variance (expected - actual). Variance flagged: OK (<1%), REVIEW (1-3%), INVESTIGATE (>3%). Notes required for significant variance.
+5. Creditor Management: Owner can add/edit creditors. Credit sales linked to creditors. Payments/settlements recorded, aging tracked.
+6. Reporting & Analytics: Daily/periodic reports show sales, settlements, variance, receivables, creditor aging. Income statement reflects: total sales, less credit pending, less settlement variance, net cash income.
+
+### Edge Cases
+- Reading less than previous (invalid, rejected)
+- Credit entry requires valid creditor
+- Over-crediting blocked by credit limit
+- Negative/zero cash in settlement
+- Large variance triggers audit trail and notes
+- Settlement cannot be finalized if readings missing
+- Payment date mismatch for creditors
+- Creditor inactive status blocks new credit
+- Report must match sum of readings, settlements, and credit transactions
+
+### How Edge Cases Are Saved and Reflected
+- Readings: Saved with payment split, validated for logical errors
+- Credit Entries: Linked to creditor, triggers credit transaction, updates creditor balance
+- Variance: Calculated and stored in settlements table, flagged for review/investigation
+- Cash Entry: Actual cash vs expected, notes required for discrepancies
+- Reports: All edge cases reflected in daily settlements, income statement, and creditor aging
+
+### Integration Test Coverage
+- `backend/tests/integration/owner-journey.test.js`: Tests for reading entry, credit entry, invalid readings, settlement posting, variance calculation, creditor creation, credit sale, payment, aging report. Edge cases: invalid readings, over-crediting, negative cash, large variance, inactive creditor.
+- `backend/tests/integration/settlements.test.js`: Tests POST/GET settlements, backend variance calculation, variance analysis, audit trail.
+- `backend/tests/integration/reading-credit-atomicity.test.js`: Tests atomicity of reading and credit transaction, creditor balance update.
+
+---
+
+---
+
 ## Root cause hypotheses
 Below are likely causes derived from code inspection and test logs. Each item includes rationale and where to check in code.
 
