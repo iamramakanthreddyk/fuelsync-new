@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, usePumps } from '@/hooks/api';
+import { useDashboardData } from '@/hooks/useDashboardData';
 import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { useFuelPricesGlobal } from '../../context/FuelPricesContext';
 import { normalizeFuelType } from '@/hooks/useFuelPricesData';
@@ -176,7 +177,7 @@ export default function QuickDataEntry() {
   }, [readings, pumps, fuelPrices]);
 
   // Fetch backend stats for today's sales
-  const { data: dashboardData, isLoading: statsLoading } = require('@/hooks/useDashboardData').useDashboardData();
+  const { data: dashboardData, isLoading: statsLoading } = useDashboardData();
 
   // Use backend value for today's sales
   const todaySalesValue = dashboardData?.todaySales ?? 0;
@@ -625,7 +626,7 @@ export default function QuickDataEntry() {
                 <Card className="border-2 border-blue-200 bg-blue-50">
                   <CardContent className="p-3 md:p-4 space-y-3">
                     <div>
-                      <p className="text-xs text-muted-foreground">Today's Sales (Backend)</p>
+                      <p className="text-xs text-muted-foreground">Today's Sales</p>
                       <p className="text-xl md:text-2xl font-bold text-blue-600 break-all md:break-normal">
                         ₹{dashboardData.todaySales >= 100000 
                           ? `${safeToFixed(dashboardData.todaySales / 100000, 1)}L`
