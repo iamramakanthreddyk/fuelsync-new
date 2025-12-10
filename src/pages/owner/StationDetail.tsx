@@ -540,7 +540,7 @@ export default function StationDetail() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-4 pt-16 sm:pt-8 md:pt-0">
+    <div className="container mx-auto p-6 space-y-4 pt-6 sm:pt-3 md:pt-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">

@@ -200,14 +200,28 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
   const { data: pricesResponse, isLoading } = useFuelPrices(stationId);
   
   // Extract current prices from response
-  const currentPrices = pricesResponse?.data?.current || [];
+  // Handle both wrapped and unwrapped responses
+  let currentPrices: any[] = [];
+  if (pricesResponse) {
+    if (pricesResponse.data?.current) {
+      currentPrices = pricesResponse.data.current;
+    } else if (Array.isArray(pricesResponse.data)) {
+      currentPrices = pricesResponse.data;
+    } else if (pricesResponse.success && pricesResponse.data) {
+      currentPrices = pricesResponse.data.current || [];
+    }
+  }
   
   // Convert to display array
   const fuelPrices = currentPrices
-    .filter((p: any) => typeof p.price === 'number' && p.price > 0)
+    .filter((p: any) => {
+      // Check both 'price' and 'price_per_litre' fields
+      const priceValue = p.price || p.price_per_litre;
+      return typeof priceValue === 'number' && priceValue > 0;
+    })
     .map((p: any) => ({
-      fuel_type: p.fuelType,
-      price_per_litre: p.price
+      fuel_type: p.fuel_type || p.fuelType,
+      price_per_litre: p.price || p.price_per_litre
     }));
 
   if (isLoading) {
@@ -490,7 +504,7 @@ export default function StationsManagement() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8 pt-16 sm:pt-8 md:pt-0">
+    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8 pt-6 sm:pt-3 md:pt-0">
       {/* Header */}
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">

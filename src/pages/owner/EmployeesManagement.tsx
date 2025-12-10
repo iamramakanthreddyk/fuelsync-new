@@ -363,7 +363,7 @@ export default function EmployeesManagement() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6 pt-16 sm:pt-8 md:pt-0">
+    <div className="container mx-auto p-6 space-y-6 pt-6 sm:pt-3 md:pt-0">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
