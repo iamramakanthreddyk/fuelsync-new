@@ -103,8 +103,6 @@ export default function DailySalesReport() {
     };
   });
 
-  // Calculate average price per liter
-  const avgPrice = report.totalLiters > 0 ? report.totalSaleValue / report.totalLiters : 0;
 
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-6xl print:p-4">
@@ -167,15 +165,6 @@ export default function DailySalesReport() {
           </CardContent>
         </Card>
 
-        <Card className="overflow-hidden">
-          <CardContent className="p-4 md:p-6">
-            <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Avg Price</div>
-            <div className="text-xl md:text-2xl lg:text-3xl font-bold text-purple-600 break-all md:break-normal">
-              ₹{safeToFixed(avgPrice, 2)}/L
-            </div>
-            <div className="text-xs text-muted-foreground mt-2 truncate">Weighted average</div>
-          </CardContent>
-        </Card>
 
         <Card className="overflow-hidden">
           <CardContent className="p-4 md:p-6">
@@ -193,6 +182,15 @@ export default function DailySalesReport() {
       {/* Sales by Fuel Type */}
       <Card>
         <CardHeader>
+              <Card className="overflow-hidden">
+                <CardContent className="p-4 md:p-6">
+                  <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Fuel Type Variants</div>
+                  <div className="text-xl md:text-2xl lg:text-3xl font-bold text-green-600 break-all md:break-normal">
+                    {Object.keys(report.byFuelType).length}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-2 truncate">Fuel types available</div>
+                </CardContent>
+              </Card>
           <CardTitle className="text-lg">Sales by Fuel Type</CardTitle>
         </CardHeader>
         <CardContent>
@@ -241,28 +239,6 @@ export default function DailySalesReport() {
         </CardContent>
       </Card>
 
-      {/* Summary */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Total Readings</div>
-              <div className="text-2xl font-bold text-blue-600">{report.readingsCount}</div>
-            </div>
-            <div className="p-4 bg-green-50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Total Fuel Type Variants</div>
-              <div className="text-2xl font-bold text-green-600">{Object.keys(report.byFuelType).length}</div>
-            </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <div className="text-xs text-muted-foreground mb-1">Average Per Liter</div>
-              <div className="text-2xl font-bold text-purple-600">₹{safeToFixed(avgPrice, 2)}</div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Print Footer */}
       <div className="text-center text-xs text-muted-foreground pt-4 border-t">

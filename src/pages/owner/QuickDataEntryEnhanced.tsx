@@ -627,12 +627,15 @@ export default function QuickDataEntry() {
                           return (
                             <div key={nozzle.id} className="border rounded-lg p-2.5 bg-white">
                               <div className="flex items-center justify-between mb-1.5">
-                                <Label className="text-xs font-semibold">
-                                  Nozzle {nozzle.nozzleNumber} - {nozzle.fuelType}
-                                  {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
-                                </Label>
+                                <div className="flex flex-col">
+                                  <Label className="text-xs font-semibold">
+                                    Nozzle {nozzle.nozzleNumber} - {nozzle.fuelType}
+                                    {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
+                                  </Label>
+                                  <Label className="text-xs text-muted-foreground mt-1">Last Reading</Label>
+                                </div>
                                 <span className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Last Reading:</span> {safeToFixed(compareValue, 1)}
+                                  {safeToFixed(compareValue, 1)}
                                 </span>
                               </div>
                               <div className="relative">
