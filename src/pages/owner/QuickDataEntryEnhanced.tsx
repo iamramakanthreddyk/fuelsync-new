@@ -21,9 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, usePumps } from '@/hooks/api';
 import { useDashboardData } from '@/hooks/useDashboardData';
-import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { useFuelPricesGlobal } from '../../context/FuelPricesContext';
-import { normalizeFuelType } from '@/hooks/useFuelPricesData';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { ReadingSaleCalculation } from '@/components/owner/ReadingSaleCalculation';
@@ -177,10 +175,9 @@ export default function QuickDataEntry() {
   }, [readings, pumps, fuelPrices]);
 
   // Fetch backend stats for today's sales
-  const { data: dashboardData, isLoading: statsLoading } = useDashboardData();
+  const { data: dashboardData } = useDashboardData();
 
   // Use backend value for today's sales
-  const todaySalesValue = dashboardData?.todaySales ?? 0;
 
   // Move default allocation to an effect to avoid side-effects inside useMemo
   useEffect(() => {
@@ -270,6 +267,7 @@ export default function QuickDataEntry() {
           nozzleId: item.entry.nozzleId,
           readingValue: parseFloat(item.entry.readingValue),
           readingDate: item.entry.date,
+          initialReading: nozzle?.initialReading ? parseFloat(String(nozzle.initialReading)) : 0,
           pricePerLitre: price,
           totalAmount: item.saleValue,
           litresSold: litres,

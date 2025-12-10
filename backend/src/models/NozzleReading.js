@@ -1,3 +1,9 @@
+    initialReading: {
+      type: DataTypes.DECIMAL(12, 2),
+      field: 'initial_reading',
+      allowNull: true,
+      comment: 'Initial reading value for this entry (if provided by user)'
+    },
 /**
  * NozzleReading Model
  * Core table: tracks meter readings and calculates sales

@@ -270,7 +270,8 @@ exports.createReading = async (req, res, next) => {
         creditorId: creditorId || null,
         isInitialReading,
         notes,
-        shiftId: activeShift?.id || null
+        shiftId: activeShift?.id || null,
+        initialReading: req.body.initialReading !== undefined ? parseFloat(req.body.initialReading) : nozzle.initialReading
       }, { transaction: t });
 
       // If a credit was recorded as part of this reading, create a CreditTransaction

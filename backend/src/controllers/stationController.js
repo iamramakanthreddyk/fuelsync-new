@@ -118,7 +118,11 @@ exports.getStations = async (req, res, next) => {
         stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.gte]: today
-        }
+        },
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
       },
       group: ['stationId'],
       raw: true
@@ -1144,10 +1148,15 @@ exports.getDailySales = async (req, res, next) => {
     }
 
     // Get all readings for the date
+    const { Op } = require('sequelize');
     const readings = await NozzleReading.findAll({
       where: {
         stationId,
-        readingDate: queryDate
+        readingDate: queryDate,
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
       },
       include: [{
         model: Nozzle,

@@ -32,8 +32,8 @@ export const FuelPricesContext = createContext({
 
 async function fetchFuelPrices(stationId: string) {
   const res: any = stationId
-    ? await apiClient.get(`/stations/${stationId}/prices`)
-    : await apiClient.get('/fuel-prices');
+    ? await apiClient.get(`/api/v1/fuel-prices?stationId=${stationId}`)
+    : await apiClient.get('/api/v1/fuel-prices');
 
   const payload = res && res.data ? res.data : res;
 
@@ -80,7 +80,7 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
         return;
       }
       try {
-        const res = await apiClient.get(`/stations/${stationId}/prices`);
+        const res = await apiClient.get(`/api/v1/fuel-prices?stationId=${stationId}`);
         let items = [];
         if (res && typeof res === 'object') {
           if ('data' in res && res.data && typeof res.data === 'object' && Array.isArray((res.data as any)?.current)) {
