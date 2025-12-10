@@ -51,13 +51,17 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
             items = res;
           }
         }
-        const normalized: PriceRecord = {};
-        items.forEach((cur: any) => {
-          const fuelType = (cur.fuelType ?? cur.fuel_type ?? '').toString().toUpperCase();
-          const rawPrice = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
-          const pricePerLitre = rawPrice !== undefined && rawPrice !== null ? Number(rawPrice) : undefined;
-          if (fuelType && pricePerLitre !== undefined && !Number.isNaN(pricePerLitre)) {
-            normalized[fuelType] = pricePerLitre;
+              const normalized: PriceRecord = {};
+              items.forEach((cur: any) => {
+                // Always normalize to fuel_type (uppercase) and price_per_litre
+                const fuelType = (cur.fuelType ?? cur.fuel_type ?? '').toString().toUpperCase();
+                // Accept price, price_per_litre, or pricePerLitre
+                const pricePerLitre = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
+                if (fuelType && pricePerLitre !== undefined && !Number.isNaN(Number(pricePerLitre))) {
+                  normalized[fuelType] = Number(pricePerLitre);
+                  // Also patch the object for downstream consumers (for array usage)
+                  cur.fuel_type = fuelType;
+                  cur.price_per_litre = Number(pricePerLitre);
           }
         });
         setPrices(normalized);
