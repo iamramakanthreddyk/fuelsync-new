@@ -411,16 +411,16 @@ export const tenderService = {
     // Import and use the actual dashboard summary
     try {
       const { settlementsService } = await import('./settlementsService');
-      const summary = await settlementsService.getDailySummary();
+      const summary = await settlementsService.getDailySummary(stationId, date);
       
       if (summary) {
         return {
-          cash: summary.breakdown?.cash ?? 0,
+          cash: summary.today.cash ?? 0,
           card: 0,
-          upi: summary.breakdown?.upi ?? 0,
-          online: summary.breakdown?.online ?? 0,
-          credit: summary.breakdown?.credit ?? 0,
-          total: summary.sales_total ?? 0
+          upi: summary.today.online ? (summary.today.online * 0.5) : 0,  // Approximate UPI as half of online
+          online: summary.today.online ?? 0,
+          credit: summary.today.credit ?? 0,
+          total: summary.today.amount ?? 0
         };
       }
     } catch (error) {
@@ -431,6 +431,7 @@ export const tenderService = {
       cash: 0,
       card: 0,
       upi: 0,
+      online: 0,
       credit: 0,
       total: 0
     };
