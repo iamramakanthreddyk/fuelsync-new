@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building2, Users, DollarSign, TrendingUp, Activity, CheckCircle2 } from 'lucide-react';
+ import { Building2, Users, IndianRupee, TrendingUp, Activity, CheckCircle2 } from 'lucide-react';
 
 interface StatsGridProps {
   stats: {
@@ -55,7 +55,7 @@ export function StatsGrid({ stats, isLoading }: StatsGridProps) {
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
           <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Today's Sales</CardTitle>
           <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
-            <DollarSign className="h-4 w-4 text-green-600 dark:text-green-400" />
+            <IndianRupee className="h-4 w-4 text-green-600 dark:text-green-400" />
           </div>
         </CardHeader>
         <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">

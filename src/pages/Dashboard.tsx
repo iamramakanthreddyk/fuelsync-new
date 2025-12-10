@@ -1,7 +1,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
-import { DollarSign, TrendingUp, Clock, AlertTriangle, Lock } from "lucide-react";
+import { IndianRupee, TrendingUp, Clock, AlertTriangle, Lock } from "lucide-react";
 import { TrendsChart } from "@/components/dashboard/TrendsChart";
 import { FuelPriceCard } from "@/components/dashboard/FuelPriceCard";
 import { AlertBadges } from "@/components/dashboard/AlertBadges";
@@ -120,7 +120,7 @@ export default function Dashboard() {
         <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
             <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Tender</CardTitle>
-            <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+            <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
             <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayTender)}</div>
@@ -337,7 +337,7 @@ export default function Dashboard() {
             <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
                 <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Tender</CardTitle>
-                <DollarSign className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
+                <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
                 <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayTender)}</div>

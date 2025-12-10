@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { FuelPriceCard } from '@/components/dashboard/FuelPriceCard';
 import { normalizeFuelType } from '@/hooks/useFuelPricesData';
 import { Button } from '@/components/ui/button';
-import { Fuel, DollarSign, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
+ import { Fuel, IndianRupee, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { EquipmentStatusEnum } from '@/core/enums';
 import { TodayReadings } from '@/components/dashboard/TodayReadings';
@@ -225,7 +225,7 @@ const EmployeeDashboard = () => {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Today's Collections</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <IndianRupee className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             {dailySummary?.today ? (

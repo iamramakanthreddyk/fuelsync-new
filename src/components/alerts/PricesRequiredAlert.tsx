@@ -7,7 +7,7 @@
 
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { AlertCircle, DollarSign } from 'lucide-react';
+ import { AlertCircle, IndianRupee } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useFuelPricesStatus } from '@/hooks/useFuelPricesStatus';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
@@ -84,7 +84,7 @@ export function PricesRequiredAlert({
             onClick={onSetPrices || (() => navigate('/prices'))}
             className="gap-2"
           >
-            <DollarSign className="w-4 h-4" />
+            <IndianRupee className="w-4 h-4" />
             Set Fuel Prices Now
           </Button>
           <Button 

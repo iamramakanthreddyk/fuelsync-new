@@ -27,7 +27,7 @@ import { Station } from '@/types/api';
 import {
   TrendingUp,
   TrendingDown,
-  DollarSign,
+  IndianRupee,
   Activity,
   Droplet,
   Users,
@@ -290,7 +290,7 @@ export default function Analytics() {
             <Card className="hover:shadow-lg transition-shadow">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
                 <CardTitle className="text-xs sm:text-sm font-medium">Total Sales</CardTitle>
-                <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <IndianRupee className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent className="px-4 pb-4 sm:px-6 sm:pb-6">
                 <div className="text-lg sm:text-2xl font-bold truncate">

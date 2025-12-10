@@ -42,13 +42,13 @@ import { useToast } from '@/hooks/use-toast';
 import {
   FileText,
   BarChart3,
-  DollarSign,
   Activity,
   Droplet,
   Clock,
   PieChart,
   LineChart,
   TrendingUp,
+  IndianRupee,
 } from 'lucide-react';
 
 // ============================================
@@ -310,7 +310,7 @@ export default function Reports() {
             title="Total Revenue"
             value={`₹${totals.sales.toLocaleString('en-IN')}`}
             trend={{ value: 12.5, direction: 'up' }}
-            icon={DollarSign}
+            icon={IndianRupee}
             variant="green"
           />
           <StatCard

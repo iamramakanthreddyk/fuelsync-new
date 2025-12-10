@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { safeToFixed } from '@/lib/format-utils';
-import { DollarSign, CreditCard } from 'lucide-react';
+ import { IndianRupee, CreditCard } from 'lucide-react';
 
 interface Creditor {
   id: string;
@@ -99,7 +99,7 @@ export function SaleValueSummary({
         {/* Payment Allocation */}
         <div>
           <h4 className="text-xs font-semibold mb-2 text-muted-foreground flex items-center gap-1.5">
-            <DollarSign className="w-3.5 h-3.5" />
+            <IndianRupee className="w-3.5 h-3.5" />
             Payment Allocation
           </h4>
 

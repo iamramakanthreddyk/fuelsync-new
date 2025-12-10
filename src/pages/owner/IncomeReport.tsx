@@ -24,7 +24,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
 } from 'recharts';
 import {
-  TrendingUp, DollarSign, Droplet, AlertTriangle,
+  TrendingUp, IndianRupee, Droplet, AlertTriangle,
   Calendar, Download, Filter
 } from 'lucide-react';
 import {
@@ -353,7 +353,7 @@ export default function IncomeReport() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-orange-600" />
+              <IndianRupee className="w-4 h-4 text-orange-600" />
               Variance
             </CardTitle>
           </CardHeader>

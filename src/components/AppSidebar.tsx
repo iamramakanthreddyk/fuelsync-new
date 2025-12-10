@@ -103,7 +103,7 @@ export function AppSidebar() {
     {
       title: "Income & Receivables",
       url: "/owner/income-report",
-      icon: DollarSign,
+      icon: IndianRupee,
     },
     {
       title: "Settings",

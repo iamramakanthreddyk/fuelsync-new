@@ -43,7 +43,7 @@ import {
   Edit,
   Fuel,
   Settings,
-  DollarSign,
+  IndianRupee,
   CreditCard
 } from 'lucide-react';
 
@@ -570,7 +570,7 @@ export default function StationDetail() {
               <span className="sm:hidden">Pumps</span>
             </TabsTrigger>
             <TabsTrigger value="prices" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-green-600 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 dark:data-[state=active]:border-green-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-green-600 dark:hover:text-green-400 hover:shadow-md flex-shrink-0 group">
-              <DollarSign className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-green-500 transition-colors flex-shrink-0" />
+              <IndianRupee className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-green-500 transition-colors flex-shrink-0" />
               <span className="hidden sm:inline">Prices</span>
               <span className="sm:hidden">Prices</span>
             </TabsTrigger>
@@ -843,7 +843,7 @@ export default function StationDetail() {
             <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
               <DialogTrigger asChild>
                 <Button>
-                  <DollarSign className="w-4 h-4 mr-2" />
+                  <IndianRupee className="w-4 h-4 mr-2" />
                   Set Price
                 </Button>
               </DialogTrigger>
@@ -929,7 +929,7 @@ export default function StationDetail() {
           ) : (
             <Card>
               <CardContent className="py-8 text-center">
-                <DollarSign className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                <IndianRupee className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">No fuel prices set</p>
                 <Button onClick={() => setIsPriceDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
