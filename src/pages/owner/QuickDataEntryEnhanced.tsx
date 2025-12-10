@@ -22,6 +22,7 @@ import { apiClient } from '@/lib/api-client';
 import { useStations, usePumps } from '@/hooks/api';
 import { useDashboardData } from '@/hooks/useDashboardData';
 import { useFuelPricesForStation } from '@/hooks/useFuelPricesForStation';
+import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { ReadingSaleCalculation } from '@/components/owner/ReadingSaleCalculation';
@@ -68,6 +69,7 @@ export default function QuickDataEntry() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { setStationId } = useFuelPricesGlobal();
 
   // Fetch stations
   const { data: stationsResponse } = useStations();
@@ -79,6 +81,13 @@ export default function QuickDataEntry() {
       setSelectedStation(stations[0].id);
     }
   }, [stations, selectedStation]);
+
+  // Update context when selected station changes (loads prices for that station)
+  useEffect(() => {
+    if (selectedStation) {
+      setStationId(selectedStation);
+    }
+  }, [selectedStation, setStationId]);
 
   // Fetch pumps for selected station
   const { data: pumpsResponse, isLoading: pumpsLoading } = usePumps(selectedStation);
