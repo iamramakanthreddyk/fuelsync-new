@@ -187,9 +187,8 @@ export default function Analytics() {
     }
     return null;
   };
-
   return (
-    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl">
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl pt-16 sm:pt-8 md:pt-0">
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-2xl sm:text-3xl font-bold">Analytics Dashboard</h1>

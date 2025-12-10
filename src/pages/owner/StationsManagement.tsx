@@ -44,7 +44,9 @@ import {
   Phone,
   Fuel,
   TrendingUp,
-  IndianRupee
+  IndianRupee,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 
 interface StationFormData {
@@ -194,6 +196,7 @@ interface FuelPricesSectionProps {
 }
 
 const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
   const { data: pricesResponse, isLoading } = useFuelPrices(stationId);
   
   // Extract current prices from response
@@ -233,24 +236,65 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
 
   return (
     <div className="bg-muted/50 p-3 rounded-lg">
-      <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-        <IndianRupee className="w-4 h-4" />
-        <span>Fuel Prices</span>
-      </div>
-      <div className="grid grid-cols-2 gap-2">
-        {fuelPrices.map((price: any) => {
-          return (
-            <div key={price.fuel_type} className="bg-background/50 p-2 rounded border">
-              <div className="text-xs text-muted-foreground capitalize">
-                {price.fuel_type}
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          setIsExpanded(!isExpanded);
+        }}
+        className="flex items-center justify-between w-full text-left md:hidden"
+      >
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+          <IndianRupee className="w-4 h-4" />
+          <span>Fuel Prices</span>
+        </div>
+        {isExpanded ? (
+          <ChevronUp className="w-4 h-4 text-muted-foreground" />
+        ) : (
+          <ChevronDown className="w-4 h-4 text-muted-foreground" />
+        )}
+      </button>
+      
+      {/* Desktop: Always show */}
+      <div className="hidden md:block">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+          <IndianRupee className="w-4 h-4" />
+          <span>Fuel Prices</span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {fuelPrices.map((price: any) => {
+            return (
+              <div key={price.fuel_type} className="bg-background/50 p-2 rounded border">
+                <div className="text-xs text-muted-foreground capitalize">
+                  {price.fuel_type}
+                </div>
+                <div className="text-sm font-semibold text-green-700">
+                  ₹{safeToFixed(price.price_per_litre, 2)}
+                </div>
               </div>
-              <div className="text-sm font-semibold text-green-700">
-                ₹{safeToFixed(price.price_per_litre, 2)}
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
+      
+      {/* Mobile: Show only when expanded */}
+      {isExpanded && (
+        <div className="md:hidden">
+          <div className="grid grid-cols-2 gap-2">
+            {fuelPrices.map((price: any) => {
+              return (
+                <div key={price.fuel_type} className="bg-background/50 p-2 rounded border">
+                  <div className="text-xs text-muted-foreground capitalize">
+                    {price.fuel_type}
+                  </div>
+                  <div className="text-sm font-semibold text-green-700">
+                    ₹{safeToFixed(price.price_per_litre, 2)}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
     </div>
   );
 };
@@ -446,7 +490,7 @@ export default function StationsManagement() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
+    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8 pt-16 sm:pt-8 md:pt-0">
       {/* Header */}
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:items-center sm:justify-between">
         <div className="space-y-1">

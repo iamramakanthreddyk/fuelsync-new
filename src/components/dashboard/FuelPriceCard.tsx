@@ -75,24 +75,24 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({
   }
 
   return (
-    <div className="w-full sm:w-auto min-w-0 flex items-center gap-2 sm:gap-3 px-3 py-2 bg-gradient-to-r from-primary/5 to-primary/10 rounded-lg border border-primary/20 flex-wrap">
-      <div className="flex items-center gap-1.5 flex-shrink-0">
-        <Fuel className="h-4 w-4 text-primary" />
-        <span className="text-xs sm:text-sm font-semibold text-foreground hidden sm:inline">Prices:</span>
+    <div className="w-full sm:w-auto min-w-0 flex items-center gap-1 sm:gap-3 px-2 py-1 sm:px-3 sm:py-2 bg-gradient-to-r from-primary/5 to-primary/10 rounded-md sm:rounded-lg border border-primary/20 flex-wrap">
+      <div className="flex items-center gap-1 flex-shrink-0">
+        <Fuel className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+        <span className="text-xs font-semibold text-foreground hidden sm:inline">Prices:</span>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 sm:gap-2 min-w-0">
+      <div className="flex flex-wrap gap-1 sm:gap-2 min-w-0">
         {setPrices.map(({ key, label }) => {
           const colors = getFuelColors(label);
           return (
             <div
               key={key}
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-full bg-background border shadow-sm hover:shadow transition-all ${colors.ring} ring-1`}
+              className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-full bg-background border shadow-sm hover:shadow transition-all ${colors.ring} ring-1`}
             >
               <div className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
               <span className="text-xs font-medium text-muted-foreground">{label}</span>
               <span className="text-xs font-bold flex items-center text-foreground">
-                <IndianRupee className="w-2.5 h-2.5" />
+                <IndianRupee className="w-2 h-2 sm:w-2.5 sm:h-2.5" />
                 {(() => {
                   const v = prices[key as keyof typeof prices];
                   const num = typeof v === 'number' ? v : (typeof v === 'string' ? Number(v) : NaN);

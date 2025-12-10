@@ -671,6 +671,7 @@ exports.getShiftStatus = async (req, res, next) => {
 exports.getOwnerStats = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.userId);
+    console.log('🔍 getOwnerStats - User:', { id: user.id, name: user.name, role: user.role });
     
     // Only owners can access this
     if (user.role !== 'owner') {
@@ -695,6 +696,13 @@ exports.getOwnerStats = async (req, res, next) => {
     const stationIds = stations.map(s => s.id);
     const totalStations = stations.length;
     const activeStations = stations.filter(s => s.isActive).length;
+
+    console.log('📍 getOwnerStats - Stations:', { 
+      ownerId: user.id, 
+      totalStations, 
+      activeStations,
+      stationIds 
+    });
 
     // Count employees across all owned stations
     const totalEmployees = await User.count({

@@ -403,7 +403,7 @@ export default function QuickDataEntry() {
   const totalNozzles = pumps?.reduce((sum, pump) => sum + (pump.nozzles?.length || 0), 0) || 0;
 
   return (
-    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl">
+    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl pt-16 sm:pt-8 md:pt-0">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

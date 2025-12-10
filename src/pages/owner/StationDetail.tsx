@@ -540,7 +540,7 @@ export default function StationDetail() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-4">
+    <div className="container mx-auto p-6 space-y-4 pt-16 sm:pt-8 md:pt-0">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -693,7 +693,7 @@ export default function StationDetail() {
                           <Fuel className="w-5 h-5 text-primary" />
                           Pump {pump.pumpNumber}
                         </CardTitle>
-                        <CardDescription className="mt-1 space-y-1">
+                        <div className="mt-1 space-y-1 text-sm text-muted-foreground">
                           <div>{pump.name}</div>
                           <div className="flex items-center gap-4 text-xs">
                             <span className="flex items-center gap-1">
@@ -705,7 +705,7 @@ export default function StationDetail() {
                               </span>
                             )}
                           </div>
-                        </CardDescription>
+                        </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
                         <Badge variant={pump.status === EquipmentStatusEnum.ACTIVE ? 'default' : 'secondary'}>

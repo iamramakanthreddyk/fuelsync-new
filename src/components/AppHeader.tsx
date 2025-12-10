@@ -57,7 +57,7 @@ export function AppHeader() {
   return (
     <header style={headerStyle} className="fixed top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       {/* Mobile Header */}
-      <div className="md:hidden flex flex-col h-auto min-h-14 px-3 py-1.5 gap-2">
+      <div className="md:hidden flex flex-col h-auto min-h-14 px-3 py-1 gap-1">
         <div className="flex items-center justify-between gap-2">
           <MobileMenuTrigger />
           <div className="flex-1 flex items-center justify-center -ml-7">

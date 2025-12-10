@@ -65,7 +65,7 @@ export default function OwnerDashboard() {
     success: boolean;
     data: DashboardStats;
   } | null>({
-    queryKey: ['owner-dashboard-stats'],
+    queryKey: ['owner-dashboard-stats', user?.id],
     queryFn: async () => {
       try {
         const response = await apiClient.get<{
@@ -135,7 +135,7 @@ export default function OwnerDashboard() {
 
   // Fetch pending handovers alert for owner (used to show reconcile banner)
   const { data: pendingAlert } = useQuery({
-    queryKey: ['owner-pending-handovers-alert'],
+    queryKey: ['owner-pending-handovers-alert', user?.id],
     queryFn: () => dashboardAlertsService.getPendingHandoversAlert(),
     enabled: !!user,
     refetchInterval: 30000,
@@ -157,7 +157,7 @@ export default function OwnerDashboard() {
 
   return (
     <div 
-      className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl" 
+      className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl pt-16 sm:pt-8 md:pt-0" 
       style={{ minHeight: 'calc(100vh - 4rem)', overflow: 'auto' }}
     >
       {/* Header with Quick Actions */}
