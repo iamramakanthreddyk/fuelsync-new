@@ -1,9 +1,3 @@
-    initialReading: {
-      type: DataTypes.DECIMAL(12, 2),
-      field: 'initial_reading',
-      allowNull: true,
-      comment: 'Initial reading value for this entry (if provided by user)'
-    },
 /**
  * NozzleReading Model
  * Core table: tracks meter readings and calculates sales
@@ -15,6 +9,13 @@ const { PAYMENT_METHODS, FUEL_TYPES } = require('../config/constants');
 
 module.exports = (sequelize) => {
   const NozzleReading = sequelize.define('NozzleReading', {
+    // ...existing fields...
+    initialReading: {
+      type: DataTypes.DECIMAL(12, 2),
+      field: 'initial_reading',
+      allowNull: true,
+      comment: 'Initial reading value for this entry (if provided by user)'
+    },
     id: {
       type: DataTypes.UUID,
       defaultValue: DataTypes.UUIDV4,
