@@ -1363,18 +1363,18 @@ exports.getReadingsForSettlement = async (req, res, next) => {
         id: reading.id,
         nozzleNumber: reading.nozzle?.nozzleNumber,
         fuelType: reading.nozzle?.fuelType,
-        openingReading: parseFloat(reading.openingReading || 0),
-        closingReading: parseFloat(reading.closingReading || 0),
+        openingReading: parseFloat(reading.previousReading || 0),
+        closingReading: parseFloat(reading.readingValue || 0),
         litresSold: parseFloat(reading.litresSold || 0),
-        saleValue: parseFloat(reading.saleValue || 0),
+        saleValue: parseFloat(reading.totalAmount || 0),
         cashAmount: parseFloat(reading.cashAmount || 0),
         onlineAmount: parseFloat(reading.onlineAmount || 0),
         creditAmount: parseFloat(reading.creditAmount || 0),
-        recordedBy: reading.recordedByUser ? {
-          id: reading.recordedByUser.id,
-          name: reading.recordedByUser.name
+        recordedBy: reading.enteredByUser ? {
+          id: reading.enteredByUser.id,
+          name: reading.enteredByUser.name
         } : null,
-        recordedAt: reading.recordedAt,
+        recordedAt: reading.createdAt,
         settlementId: reading.settlementId,
         linkedSettlement: reading.settlement ? {
           id: reading.settlement.id,

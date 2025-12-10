@@ -557,20 +557,35 @@ exports.getReadings = async (req, res, next) => {
     });
 
     // Always return structure with linked/unlinked for compatibility
+    // Always include saleValue = litresSold * pricePerLitre for each reading
+    const addSaleValue = r => ({
+      ...r.toJSON(),
+      saleValue: (parseFloat(r.litresSold) || 0) * (parseFloat(r.pricePerLitre) || 0)
+    });
+    const readingsWithSaleValue = rows.map(addSaleValue);
+    const linkedReadings = readingsWithSaleValue.filter(r => r.settlementId);
+    const unlinkedReadings = readingsWithSaleValue.filter(r => !r.settlementId);
     res.json({
       success: true,
       data: {
         linked: {
-          count: rows.filter(r => r.settlementId).length,
-          readings: rows.filter(r => r.settlementId)
+          count: linkedReadings.length,
+          readings: linkedReadings
         },
         unlinked: {
-          count: rows.filter(r => !r.settlementId).length,
-          readings: rows.filter(r => !r.settlementId)
+          count: unlinkedReadings.length,
+          readings: unlinkedReadings,
+          totals: {
+            cash: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.cashAmount) || 0), 0),
+            online: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.onlineAmount) || 0), 0),
+            credit: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.creditAmount) || 0), 0),
+            litres: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.litresSold) || 0), 0),
+            value: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.saleValue) || 0), 0)
+          }
         },
-        allReadingsCount: rows.length
+        allReadingsCount: readingsWithSaleValue.length
       },
-      readings: rows,
+      readings: readingsWithSaleValue,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
