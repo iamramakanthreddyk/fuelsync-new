@@ -532,7 +532,7 @@ export default function IncomeReport() {
               <p className="text-2xl font-bold text-orange-700">₹0</p>
             </div>
             <div className="bg-red-50 p-4 rounded border border-red-200">
-              <p className="text-sm text-muted-foreground">Very Overdue (>60 days)</p>
+              <p className="text-sm text-muted-foreground">Very Overdue (&gt;60 days)</p>
               <p className="text-2xl font-bold text-red-700">
                 ₹{Math.max(0, reportData.receivables.summary.overdue).toLocaleString('en-IN')}
               </p>
