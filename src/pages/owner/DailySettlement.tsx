@@ -1,6 +1,7 @@
 /**
  * Daily Settlement Page
  * Manager/Owner finalizes daily sales with cash reconciliation
+ * Includes reading selection to link specific employee entries to settlement
  */
 
 import { useState } from 'react';
@@ -11,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
@@ -18,7 +20,10 @@ import {
   TrendingUp,
   AlertCircle,
   CheckCircle2,
-  ArrowLeft
+  ArrowLeft,
+  FileCheck,
+  User,
+  Clock
 } from 'lucide-react';
 import { Button as NavButton } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -45,6 +50,38 @@ interface DailySalesData {
   }>;
 }
 
+interface ReadingForSettlement {
+  id: string;
+  nozzleNumber: number;
+  fuelType: string;
+  openingReading: number;
+  closingReading: number;
+  litresSold: number;
+  saleValue: number;
+  cashAmount: number;
+  onlineAmount: number;
+  creditAmount: number;
+  recordedBy: { id: string; name: string } | null;
+  recordedAt: string;
+  settlementId: string | null;
+  linkedSettlement: { id: string; date: string; isFinal: boolean } | null;
+}
+
+interface ReadingsForSettlementResponse {
+  date: string;
+  stationId: string;
+  unlinked: {
+    count: number;
+    readings: ReadingForSettlement[];
+    totals: { cash: number; online: number; credit: number; litres: number; value: number };
+  };
+  linked: {
+    count: number;
+    readings: ReadingForSettlement[];
+  };
+  allReadingsCount: number;
+}
+
 interface SettlementRecord {
   id?: string;
   date: string;
@@ -52,8 +89,13 @@ interface SettlementRecord {
   expectedCash: number;
   actualCash: number;
   variance: number;
+  employeeCash?: number;
+  employeeOnline?: number;
+  employeeCredit?: number;
   online: number;
   credit: number;
+  varianceOnline?: number;
+  varianceCredit?: number;
   notes: string;
   settledBy?: string;
   settledAt?: string;
@@ -61,6 +103,7 @@ interface SettlementRecord {
   finalizedAt?: string;
   duplicateCount?: number;
   allSettlements?: SettlementRecord[];
+  recordedAt?: string;
 }
 
 export default function DailySettlement() {
@@ -75,6 +118,9 @@ export default function DailySettlement() {
   const [actualCredit, setActualCredit] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedReadingIds, setSelectedReadingIds] = useState<string[]>([]);
+  const [showReadingSelection, setShowReadingSelection] = useState(true); // Always show by default
+  const [markAsFinal, setMarkAsFinal] = useState(true); // Default to final settlement
 
   // Fetch daily sales data
   const { data: dailySales, isLoading: salesLoading } = useQuery({
@@ -88,6 +134,25 @@ export default function DailySettlement() {
       return response?.data || null;
     },
     enabled: !!stationId
+  });
+
+  // Fetch readings for settlement (shows unlinked + linked readings)
+  const { data: readingsForSettlement, isLoading: readingsLoading } = useQuery({
+    queryKey: ['readings-for-settlement', stationId, selectedDate],
+    queryFn: async () => {
+      if (!stationId) return null;
+      try {
+        const response = await apiClient.get<{ success: boolean; data: ReadingsForSettlementResponse }>(
+          `/stations/${stationId}/readings-for-settlement?date=${selectedDate}`
+        );
+        return response?.data || null;
+      } catch (error) {
+        console.warn('Failed to fetch readings for settlement:', error);
+        return null;
+      }
+    },
+    enabled: !!stationId && showReadingSelection,
+    retry: false
   });
 
   // Fetch previous settlement records
@@ -110,18 +175,18 @@ export default function DailySettlement() {
     retry: false
   });
 
-  // Submit settlement mutation
+  // Submit settlement mutation with reading IDs
   const submitSettlementMutation = useMutation({
-    mutationFn: async (data: Partial<SettlementRecord>) => {
+    mutationFn: async (data: Record<string, unknown>) => {
       try {
         const response = await apiClient.post(
           `/stations/${stationId}/settlements`,
           data
         );
         return response;
-      } catch (error: any) {
+      } catch (error: unknown) {
         // If endpoint doesn't exist, just record the intent
-        if (error?.status === 404) {
+        if ((error as { status?: number })?.status === 404) {
           console.warn('Settlements endpoint not yet available, data prepared for submission');
           return { success: true, data };
         }
@@ -138,8 +203,11 @@ export default function DailySettlement() {
       setActualOnline(0);
       setActualCredit(0);
       setNotes('');
+      setSelectedReadingIds([]);
+      setShowReadingSelection(false);
       queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
       queryClient.invalidateQueries({ queryKey: ['settlements'] });
+      queryClient.invalidateQueries({ queryKey: ['readings-for-settlement'] });
     },
     onError: (error) => {
       toast({
@@ -149,6 +217,43 @@ export default function DailySettlement() {
       });
     }
   });
+
+  // Toggle reading selection
+  const handleToggleReading = (readingId: string) => {
+    setSelectedReadingIds(prev => 
+      prev.includes(readingId) 
+        ? prev.filter(id => id !== readingId)
+        : [...prev, readingId]
+    );
+  };
+
+  // Select/deselect all readings
+  const handleSelectAllReadings = (readings: ReadingForSettlement[]) => {
+    const allIds = readings.map(r => r.id);
+    const allSelected = allIds.every(id => selectedReadingIds.includes(id));
+    if (allSelected) {
+      setSelectedReadingIds(prev => prev.filter(id => !allIds.includes(id)));
+    } else {
+      setSelectedReadingIds(prev => [...new Set([...prev, ...allIds])]);
+    }
+  };
+
+  // Calculate totals from selected readings
+  const getSelectedTotals = () => {
+    if (!readingsForSettlement || selectedReadingIds.length === 0) {
+      return { cash: 0, online: 0, credit: 0, litres: 0, value: 0 };
+    }
+    const allReadings = [...readingsForSettlement.unlinked.readings, ...readingsForSettlement.linked.readings];
+    return allReadings
+      .filter(r => selectedReadingIds.includes(r.id))
+      .reduce((acc, r) => ({
+        cash: acc.cash + r.cashAmount,
+        online: acc.online + r.onlineAmount,
+        credit: acc.credit + r.creditAmount,
+        litres: acc.litres + r.litresSold,
+        value: acc.value + r.saleValue
+      }), { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
+  };
 
   const handleSubmitSettlement = async () => {
     if (!dailySales) {
@@ -160,20 +265,31 @@ export default function DailySettlement() {
       return;
     }
 
+    // REQUIRE reading selection - owner must pick which entries to settle
+    if (selectedReadingIds.length === 0) {
+      toast({
+        title: 'Select Readings First',
+        description: 'Please select at least one employee reading entry to include in this settlement',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     // NOTE: Variance is calculated on backend, don't send it
     // Frontend shows it for user info, but backend recalculates to prevent manipulation
     setIsSubmitting(true);
     submitSettlementMutation.mutate({
       date: selectedDate,
       stationId,
-      expectedCash: dailySales.expectedCash,
+      expectedCash: getSelectedTotals().cash, // Use selected readings totals
       actualCash,
-      actualOnline,
-      actualCredit,
+      online: actualOnline,
+      credit: actualCredit,
       // variance: NOT SENT - backend will calculate: expectedCash - actualCash
       notes,
-      settledBy: 'current_user', // Will be replaced with actual user
-      settledAt: new Date().toISOString()
+      // REQUIRED: Include selected reading IDs
+      readingIds: selectedReadingIds,
+      isFinal: markAsFinal
     });
     setIsSubmitting(false);
   };
@@ -338,6 +454,147 @@ export default function DailySettlement() {
             </CardContent>
           </Card>
 
+          {/* Reading Selection Section */}
+          <Card className="border-purple-200">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <FileCheck className="w-5 h-5 text-purple-600" />
+                Employee Readings
+              </CardTitle>
+              <CardDescription>
+                Review and select specific employee entries to include in this settlement
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <Button
+                variant={showReadingSelection ? "secondary" : "outline"}
+                onClick={() => setShowReadingSelection(!showReadingSelection)}
+                className="w-full"
+              >
+                {showReadingSelection ? 'Hide Readings' : 'Show Readings to Review & Select'}
+              </Button>
+
+              {showReadingSelection && (
+                <div className="space-y-4">
+                  {readingsLoading ? (
+                    <div className="text-center py-4 text-muted-foreground">Loading readings...</div>
+                  ) : !readingsForSettlement ? (
+                    <div className="text-center py-4 text-muted-foreground">No readings available</div>
+                  ) : (
+                    <>
+                      {/* Selected readings summary */}
+                      {selectedReadingIds.length > 0 && (
+                        <div className="p-3 bg-purple-50 rounded-lg border border-purple-200">
+                          <div className="text-sm font-semibold text-purple-700 mb-2">
+                            Selected: {selectedReadingIds.length} reading(s)
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 text-xs">
+                            <div>Cash: ₹{safeToFixed(getSelectedTotals().cash, 2)}</div>
+                            <div>Online: ₹{safeToFixed(getSelectedTotals().online, 2)}</div>
+                            <div>Credit: ₹{safeToFixed(getSelectedTotals().credit, 2)}</div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Unlinked Readings */}
+                      {readingsForSettlement.unlinked.count > 0 && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="text-sm font-semibold flex items-center gap-2">
+                              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                                Unlinked
+                              </Badge>
+                              {readingsForSettlement.unlinked.count} readings not yet settled
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleSelectAllReadings(readingsForSettlement.unlinked.readings)}
+                            >
+                              {readingsForSettlement.unlinked.readings.every(r => selectedReadingIds.includes(r.id))
+                                ? 'Deselect All'
+                                : 'Select All'}
+                            </Button>
+                          </div>
+                          <div className="space-y-2 max-h-60 overflow-y-auto">
+                            {readingsForSettlement.unlinked.readings.map(reading => (
+                              <div
+                                key={reading.id}
+                                className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                                  selectedReadingIds.includes(reading.id)
+                                    ? 'bg-purple-100 border-purple-400'
+                                    : 'bg-white hover:bg-gray-50 border-gray-200'
+                                }`}
+                                onClick={() => handleToggleReading(reading.id)}
+                              >
+                                <div className="flex items-center justify-between mb-1">
+                                  <div className="flex items-center gap-2">
+                                    <Checkbox
+                                      checked={selectedReadingIds.includes(reading.id)}
+                                      onCheckedChange={() => handleToggleReading(reading.id)}
+                                    />
+                                    <Badge variant="outline" className="text-xs capitalize">
+                                      {reading.fuelType}
+                                    </Badge>
+                                    <span className="text-sm font-medium">Nozzle #{reading.nozzleNumber}</span>
+                                  </div>
+                                  <span className="text-sm font-bold text-green-600">
+                                    ₹{safeToFixed(reading.saleValue, 2)}
+                                  </span>
+                                </div>
+                                <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground ml-6">
+                                  <div>{safeToFixed(reading.litresSold, 2)} L</div>
+                                  <div className="text-green-600">Cash: ₹{safeToFixed(reading.cashAmount, 0)}</div>
+                                  <div className="text-blue-600">Online: ₹{safeToFixed(reading.onlineAmount, 0)}</div>
+                                  <div className="text-orange-600">Credit: ₹{safeToFixed(reading.creditAmount, 0)}</div>
+                                </div>
+                                {reading.recordedBy && (
+                                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 ml-6">
+                                    <User className="w-3 h-3" />
+                                    {reading.recordedBy.name}
+                                    <Clock className="w-3 h-3 ml-2" />
+                                    {new Date(reading.recordedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="p-2 bg-yellow-50 rounded text-xs">
+                            Unlinked Totals: Cash ₹{safeToFixed(readingsForSettlement.unlinked.totals.cash, 2)} | 
+                            Online ₹{safeToFixed(readingsForSettlement.unlinked.totals.online, 2)} | 
+                            Credit ₹{safeToFixed(readingsForSettlement.unlinked.totals.credit, 2)}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Linked Readings */}
+                      {readingsForSettlement.linked.count > 0 && (
+                        <div className="space-y-2 mt-4">
+                          <div className="text-sm font-semibold flex items-center gap-2">
+                            <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                              Already Settled
+                            </Badge>
+                            {readingsForSettlement.linked.count} readings linked to previous settlements
+                          </div>
+                          <div className="space-y-2 max-h-40 overflow-y-auto opacity-60">
+                            {readingsForSettlement.linked.readings.map(reading => (
+                              <div key={reading.id} className="p-2 bg-gray-50 rounded-lg border text-sm">
+                                <div className="flex justify-between">
+                                  <span>Nozzle #{reading.nozzleNumber} - {reading.fuelType}</span>
+                                  <span className="font-medium">₹{safeToFixed(reading.saleValue, 2)}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Cash Reconciliation */}
           <Card className={`border-2 ${Math.abs(actualCash - dailySales.expectedCash) < 1 ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}>
             <CardHeader>
@@ -346,22 +603,31 @@ export default function DailySettlement() {
                 Owner Settlement Confirmation
               </CardTitle>
               <CardDescription>
-                Confirm and enter the actual amounts received for each payment type
+                {selectedReadingIds.length > 0 
+                  ? `Settling ${selectedReadingIds.length} selected reading(s) - Enter actual amounts received`
+                  : 'Select employee readings above, then enter actual amounts received'}
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="overflow-hidden">
-                  <Label className="text-sm font-semibold truncate">Expected Cash</Label>
-                  <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-2 break-all md:break-normal">
-                    ₹{dailySales.expectedCash >= 100000
-                      ? `${safeToFixed(dailySales.expectedCash / 100000, 1)}L`
-                      : safeToFixed(dailySales.expectedCash, 2)}
+              {/* Expected values from selected readings */}
+              {selectedReadingIds.length > 0 && (
+                <div className="grid grid-cols-3 gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <div>
+                    <div className="text-xs text-purple-600 font-semibold">Expected Cash (Selected)</div>
+                    <div className="text-lg font-bold text-purple-700">₹{safeToFixed(getSelectedTotals().cash, 2)}</div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-2 truncate">
-                    Based on today's cash sales entries
-                  </p>
+                  <div>
+                    <div className="text-xs text-purple-600 font-semibold">Expected Online (Selected)</div>
+                    <div className="text-lg font-bold text-purple-700">₹{safeToFixed(getSelectedTotals().online, 2)}</div>
+                  </div>
+                  <div>
+                    <div className="text-xs text-purple-600 font-semibold">Expected Credit (Selected)</div>
+                    <div className="text-lg font-bold text-purple-700">₹{safeToFixed(getSelectedTotals().credit, 2)}</div>
+                  </div>
                 </div>
+              )}
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="overflow-hidden">
                   <Label htmlFor="actual-cash" className="text-sm font-semibold truncate">
                     Actual Cash Received
@@ -398,7 +664,7 @@ export default function DailySettlement() {
                 </div>
                 <div className="overflow-hidden">
                   <Label htmlFor="actual-credit" className="text-sm font-semibold truncate">
-                    Actual Credit Received
+                    Credit Given
                   </Label>
                   <Input
                     id="actual-credit"
@@ -407,28 +673,28 @@ export default function DailySettlement() {
                     value={actualCredit}
                     onChange={(e) => setActualCredit(parseFloat(e.target.value) || 0)}
                     className="mt-2 border-orange-300 focus:border-orange-500 text-base md:text-lg font-bold"
-                    placeholder="Enter actual credit received"
+                    placeholder="Enter credit given (sales on credit)"
                   />
                   <p className="text-xs text-muted-foreground mt-2 truncate">
-                    Credit settlements from customers
+                    Sales made on credit (creditors' debt, owner's earning)
                   </p>
                 </div>
               </div>
 
-              {/* Variance */}
-              {actualCash > 0 && (
+              {/* Variance - only show when readings selected and cash entered */}
+              {selectedReadingIds.length > 0 && actualCash > 0 && (
                 <div className={`p-4 rounded-lg border-2 ${
-                  Math.abs(dailySales.expectedCash - actualCash) < 1
+                  Math.abs(getSelectedTotals().cash - actualCash) < 1
                     ? 'border-green-300 bg-green-100'
                     : 'border-yellow-300 bg-yellow-100'
                 }`}>
                   <div className="flex items-center justify-between">
                     <span className={`font-bold ${
-                      Math.abs(actualCash - dailySales.expectedCash) < 1
+                      Math.abs(actualCash - getSelectedTotals().cash) < 1
                         ? 'text-green-700'
                         : 'text-yellow-700'
                     }`}>
-                      {Math.abs(dailySales.expectedCash - actualCash) < 1 ? (
+                      {Math.abs(getSelectedTotals().cash - actualCash) < 1 ? (
                         <>
                           <CheckCircle2 className="w-5 h-5 inline mr-2" />
                           Cash Match - No Variance
@@ -441,13 +707,13 @@ export default function DailySettlement() {
                       )}
                     </span>
                     <div className={`text-lg md:text-xl lg:text-2xl font-bold ${
-                      dailySales.expectedCash < actualCash
+                      getSelectedTotals().cash < actualCash
                         ? 'text-green-600'
-                        : dailySales.expectedCash > actualCash
+                        : getSelectedTotals().cash > actualCash
                         ? 'text-red-600'
                         : 'text-green-600'
                     } break-all md:break-normal`}>
-                      {dailySales.expectedCash < actualCash ? '+' : ''}₹{safeToFixed(dailySales.expectedCash - actualCash, 2)}
+                      {getSelectedTotals().cash < actualCash ? '+' : ''}₹{safeToFixed(getSelectedTotals().cash - actualCash, 2)}
                     </div>
                   </div>
                 </div>
@@ -468,14 +734,53 @@ export default function DailySettlement() {
                 />
               </div>
 
+              {/* Mark as Final Checkbox */}
+              <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                <Checkbox
+                  id="mark-final"
+                  checked={markAsFinal}
+                  onCheckedChange={(checked) => setMarkAsFinal(checked === true)}
+                />
+                <div className="flex-1">
+                  <Label htmlFor="mark-final" className="text-sm font-semibold cursor-pointer">
+                    Mark as Final Settlement
+                  </Label>
+                  <p className="text-xs text-muted-foreground">
+                    Final settlements are used for daily reports. Previous final settlements for this date will be unmarked.
+                  </p>
+                </div>
+              </div>
+
+              {/* Selection Status */}
+              {selectedReadingIds.length === 0 && (
+                <div className="p-3 bg-red-50 rounded-lg border border-red-200 text-sm text-red-700">
+                  <AlertCircle className="w-4 h-4 inline mr-2" />
+                  Please select employee readings above before completing settlement
+                </div>
+              )}
+
+              {selectedReadingIds.length > 0 && (
+                <div className="p-3 bg-green-50 rounded-lg border border-green-200 text-sm text-green-700">
+                  <CheckCircle2 className="w-4 h-4 inline mr-2" />
+                  {selectedReadingIds.length} reading(s) selected for settlement
+                  <div className="text-xs mt-1">
+                    Employee Total: Cash ₹{safeToFixed(getSelectedTotals().cash, 2)} | 
+                    Online ₹{safeToFixed(getSelectedTotals().online, 2)} | 
+                    Credit ₹{safeToFixed(getSelectedTotals().credit, 2)}
+                  </div>
+                </div>
+              )}
+
               {/* Submit Button */}
               <Button
                 onClick={handleSubmitSettlement}
-                disabled={isSubmitting || actualCash === 0}
-                className="w-full py-6 text-lg"
+                disabled={isSubmitting || selectedReadingIds.length === 0}
+                className={`w-full py-6 text-lg ${selectedReadingIds.length === 0 ? 'opacity-50' : ''}`}
                 size="lg"
               >
-                {isSubmitting ? 'Saving...' : 'Complete Settlement'}
+                {isSubmitting ? 'Saving...' : selectedReadingIds.length === 0 
+                  ? 'Select Readings First' 
+                  : `Complete Settlement (${selectedReadingIds.length} entries)`}
               </Button>
             </CardContent>
           </Card>
@@ -508,16 +813,32 @@ export default function DailySettlement() {
                           <Badge variant="outline" className="text-red-700 border-red-600">Duplicates: {settlement.duplicateCount}</Badge>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground">
-                        Expected: ₹{settlement.expectedCash >= 100000
-                          ? `${safeToFixed(settlement.expectedCash / 100000, 1)}L`
-                          : safeToFixed(settlement.expectedCash, 2)} | Actual: ₹{settlement.actualCash >= 100000
-                          ? `${safeToFixed(settlement.actualCash / 100000, 1)}L`
-                          : safeToFixed(settlement.actualCash, 2)}
-                        | Online: ₹{safeToFixed(settlement.online, 2)} | Credit: ₹{safeToFixed(settlement.credit, 2)}
+                      {/* Employee-reported vs Owner-confirmed comparison */}
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-blue-50 p-2 rounded border border-blue-200">
+                          <div className="font-semibold text-blue-700 mb-1">Employee Reported</div>
+                          <div>Cash: ₹{safeToFixed(settlement.employeeCash ?? settlement.expectedCash, 2)}</div>
+                          <div>Online: ₹{safeToFixed(settlement.employeeOnline ?? 0, 2)}</div>
+                          <div>Credit: ₹{safeToFixed(settlement.employeeCredit ?? 0, 2)}</div>
+                        </div>
+                        <div className="bg-green-50 p-2 rounded border border-green-200">
+                          <div className="font-semibold text-green-700 mb-1">Owner Confirmed</div>
+                          <div>Cash: ₹{safeToFixed(settlement.actualCash, 2)}</div>
+                          <div>Online: ₹{safeToFixed(settlement.online, 2)}</div>
+                          <div>Credit: ₹{safeToFixed(settlement.credit, 2)}</div>
+                        </div>
                       </div>
-                      <div className={`text-sm font-bold ${settlement.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {settlement.variance >= 0 ? '+' : ''}₹{safeToFixed(settlement.variance, 2)}
+                      {/* Variance per payment type */}
+                      <div className="flex gap-4 text-xs">
+                        <div className={`font-bold ${(settlement.variance ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          Cash Variance: {(settlement.variance ?? 0) >= 0 ? '+' : ''}₹{safeToFixed(settlement.variance ?? 0, 2)}
+                        </div>
+                        <div className={`font-bold ${(settlement.varianceOnline ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          Online Variance: {(settlement.varianceOnline ?? 0) >= 0 ? '+' : ''}₹{safeToFixed(settlement.varianceOnline ?? 0, 2)}
+                        </div>
+                        <div className={`font-bold ${(settlement.varianceCredit ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          Credit Variance: {(settlement.varianceCredit ?? 0) >= 0 ? '+' : ''}₹{safeToFixed(settlement.varianceCredit ?? 0, 2)}
+                        </div>
                       </div>
                       {settlement.notes && (
                         <div className="text-xs text-muted-foreground">Notes: {settlement.notes}</div>

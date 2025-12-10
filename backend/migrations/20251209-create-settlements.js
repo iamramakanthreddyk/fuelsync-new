@@ -57,6 +57,23 @@ module.exports = {
         type: Sequelize.DataTypes.DECIMAL(12,2),
         allowNull: true
       },
+      // Employee-reported values (auto-aggregated from readings)
+      employee_cash: {
+        type: Sequelize.DataTypes.DECIMAL(12,2),
+        allowNull: false,
+        defaultValue: 0
+      },
+      employee_online: {
+        type: Sequelize.DataTypes.DECIMAL(12,2),
+        allowNull: false,
+        defaultValue: 0
+      },
+      employee_credit: {
+        type: Sequelize.DataTypes.DECIMAL(12,2),
+        allowNull: false,
+        defaultValue: 0
+      },
+      // Owner-confirmed values
       online: {
         type: Sequelize.DataTypes.DECIMAL(12,2),
         allowNull: false,
@@ -64,17 +81,28 @@ module.exports = {
       },
       credit: {
         type: Sequelize.DataTypes.DECIMAL(12,2),
-        is_final: {
-          type: Sequelize.DataTypes.BOOLEAN,
-          allowNull: false,
-          defaultValue: false
-        },
-        finalized_at: {
-          type: Sequelize.DataTypes.DATE,
-          allowNull: true
-        },
         allowNull: false,
         defaultValue: 0
+      },
+      // Variance for online and credit
+      variance_online: {
+        type: Sequelize.DataTypes.DECIMAL(12,2),
+        allowNull: true,
+        defaultValue: 0
+      },
+      variance_credit: {
+        type: Sequelize.DataTypes.DECIMAL(12,2),
+        allowNull: true,
+        defaultValue: 0
+      },
+      is_final: {
+        type: Sequelize.DataTypes.BOOLEAN,
+        allowNull: false,
+        defaultValue: false
+      },
+      finalized_at: {
+        type: Sequelize.DataTypes.DATE,
+        allowNull: true
       },
       notes: {
         type: Sequelize.DataTypes.TEXT,

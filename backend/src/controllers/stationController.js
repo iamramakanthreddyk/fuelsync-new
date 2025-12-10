@@ -1254,16 +1254,150 @@ exports.getDailySales = async (req, res, next) => {
 };
 
 /**
+ * Get readings available for settlement (unlinked or for review)
+ * GET /stations/:stationId/readings-for-settlement?date=YYYY-MM-DD
+ * 
+ * Returns readings not yet linked to any settlement for owner to select and review.
+ * Includes employee name, nozzle info, payment breakdown, and timestamps.
+ */
+exports.getReadingsForSettlement = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const { date } = req.query;
+    const user = req.user;
+
+    // Check station access
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const queryDate = date || new Date().toISOString().split('T')[0];
+
+    const { NozzleReading, Nozzle, User, Settlement } = require('../models');
+    const { Op } = require('sequelize');
+
+    // Fetch all readings for this station/date with details
+    const readings = await NozzleReading.findAll({
+      where: {
+        stationId,
+        readingDate: queryDate,
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
+      },
+      include: [
+        { 
+          model: Nozzle, 
+          as: 'nozzle', 
+          attributes: ['nozzleNumber', 'fuelType'] 
+        },
+        { 
+          model: User, 
+          as: 'recordedByUser', 
+          attributes: ['id', 'name', 'email'] 
+        },
+        {
+          model: Settlement,
+          as: 'settlement',
+          attributes: ['id', 'date', 'isFinal', 'recordedAt'],
+          required: false
+        }
+      ],
+      order: [['recordedAt', 'DESC']]
+    });
+
+    // Categorize readings
+    const unlinkedReadings = [];
+    const linkedReadings = [];
+
+    readings.forEach(reading => {
+      const readingData = {
+        id: reading.id,
+        nozzleNumber: reading.nozzle?.nozzleNumber,
+        fuelType: reading.nozzle?.fuelType,
+        openingReading: parseFloat(reading.openingReading || 0),
+        closingReading: parseFloat(reading.closingReading || 0),
+        litresSold: parseFloat(reading.litresSold || 0),
+        saleValue: parseFloat(reading.saleValue || 0),
+        cashAmount: parseFloat(reading.cashAmount || 0),
+        onlineAmount: parseFloat(reading.onlineAmount || 0),
+        creditAmount: parseFloat(reading.creditAmount || 0),
+        recordedBy: reading.recordedByUser ? {
+          id: reading.recordedByUser.id,
+          name: reading.recordedByUser.name
+        } : null,
+        recordedAt: reading.recordedAt,
+        settlementId: reading.settlementId,
+        linkedSettlement: reading.settlement ? {
+          id: reading.settlement.id,
+          date: reading.settlement.date,
+          isFinal: reading.settlement.isFinal
+        } : null
+      };
+
+      if (reading.settlementId) {
+        linkedReadings.push(readingData);
+      } else {
+        unlinkedReadings.push(readingData);
+      }
+    });
+
+    // Calculate totals for unlinked readings
+    const unlinkedTotals = unlinkedReadings.reduce((acc, r) => {
+      acc.cash += r.cashAmount;
+      acc.online += r.onlineAmount;
+      acc.credit += r.creditAmount;
+      acc.litres += r.litresSold;
+      acc.value += r.saleValue;
+      return acc;
+    }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
+
+    res.json({
+      success: true,
+      data: {
+        date: queryDate,
+        stationId,
+        unlinked: {
+          count: unlinkedReadings.length,
+          readings: unlinkedReadings,
+          totals: {
+            cash: parseFloat(unlinkedTotals.cash.toFixed(2)),
+            online: parseFloat(unlinkedTotals.online.toFixed(2)),
+            credit: parseFloat(unlinkedTotals.credit.toFixed(2)),
+            litres: parseFloat(unlinkedTotals.litres.toFixed(2)),
+            value: parseFloat(unlinkedTotals.value.toFixed(2))
+          }
+        },
+        linked: {
+          count: linkedReadings.length,
+          readings: linkedReadings
+        },
+        allReadingsCount: readings.length
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
  * Record daily settlement
  * POST /stations/:stationId/settlements
  * 
  * IMPORTANT: Variance is CALCULATED on backend to prevent manipulation
  * Formula: variance = expectedCash - actualCash
+ * Also stores employee-reported values from readings for comparison.
+ * 
+ * @param {string[]} readingIds - Optional array of reading IDs to link to this settlement.
+ *   If provided, only these readings will be aggregated and linked.
+ *   If not provided, all unlinked readings for the station/date will be used.
  */
 exports.recordSettlement = async (req, res, next) => {
   try {
     const { stationId } = req.params;
-    const { date, actualCash, expectedCash, notes, online, credit, isFinal } = req.body;
+    const { date, actualCash, expectedCash, notes, online, credit, isFinal, readingIds } = req.body;
     const user = req.user;
 
     // Check station access
@@ -1273,12 +1407,50 @@ exports.recordSettlement = async (req, res, next) => {
 
     const settlementDate = date || new Date().toISOString().split('T')[0];
 
-    // Parse amounts to ensure precision
+    // Parse owner-confirmed amounts
     const parsedExpectedCash = parseFloat(expectedCash || 0);
     const parsedActualCash = parseFloat(actualCash || 0);
-    
+    const parsedOnline = parseFloat(online || 0);
+    const parsedCredit = parseFloat(credit || 0);
+
     // CALCULATE VARIANCE on backend (don't trust frontend value)
     const calculatedVariance = parsedExpectedCash - parsedActualCash;
+
+    // Fetch employee-reported totals from readings
+    const { NozzleReading } = require('../models');
+    const { Op, fn, col } = require('sequelize');
+
+    // Build where clause - if readingIds provided, use those; otherwise use all for the date
+    let readingsWhereClause = {
+      stationId,
+      readingDate: settlementDate,
+      [Op.or]: [
+        { isInitialReading: false },
+        { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+      ]
+    };
+
+    // If specific readingIds provided, filter by those
+    if (readingIds && Array.isArray(readingIds) && readingIds.length > 0) {
+      readingsWhereClause.id = { [Op.in]: readingIds };
+    }
+
+    const employeeTotals = await NozzleReading.findOne({
+      attributes: [
+        [fn('SUM', col('cash_amount')), 'employeeCash'],
+        [fn('SUM', col('online_amount')), 'employeeOnline'],
+        [fn('SUM', col('credit_amount')), 'employeeCredit']
+      ],
+      where: readingsWhereClause,
+      raw: true
+    });
+    const employeeCash = parseFloat(employeeTotals?.employeeCash || 0);
+    const employeeOnline = parseFloat(employeeTotals?.employeeOnline || 0);
+    const employeeCredit = parseFloat(employeeTotals?.employeeCredit || 0);
+
+    // Calculate variance for online and credit
+    const varianceOnline = employeeOnline - parsedOnline;
+    const varianceCredit = employeeCredit - parsedCredit;
 
     // Persist settlement
     const sequelize = require('../models').sequelize;
@@ -1301,14 +1473,48 @@ exports.recordSettlement = async (req, res, next) => {
         expectedCash: parsedExpectedCash,
         actualCash: parsedActualCash,
         variance: parseFloat(calculatedVariance.toFixed(2)),
-        online: parseFloat(online || 0),
-        credit: parseFloat(credit || 0),
+        employeeCash,
+        employeeOnline,
+        employeeCredit,
+        online: parsedOnline,
+        credit: parsedCredit,
+        varianceOnline: parseFloat(varianceOnline.toFixed(2)),
+        varianceCredit: parseFloat(varianceCredit.toFixed(2)),
         notes: notes || '',
         recordedBy: user.id,
         recordedAt: new Date(),
         isFinal: !!isFinal,
         finalizedAt
       }, { transaction: t });
+
+      // Link selected readings to this settlement
+      let linkedReadingsCount = 0;
+      if (readingIds && Array.isArray(readingIds) && readingIds.length > 0) {
+        // Link specific readings
+        const [affectedRows] = await NozzleReading.update(
+          { settlementId: record.id },
+          { where: { id: { [Op.in]: readingIds } }, transaction: t }
+        );
+        linkedReadingsCount = affectedRows;
+      } else {
+        // Link all unlinked readings for this station/date
+        const [affectedRows] = await NozzleReading.update(
+          { settlementId: record.id },
+          { 
+            where: { 
+              stationId, 
+              readingDate: settlementDate, 
+              settlementId: null,
+              [Op.or]: [
+                { isInitialReading: false },
+                { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+              ]
+            }, 
+            transaction: t 
+          }
+        );
+        linkedReadingsCount = affectedRows;
+      }
 
       await t.commit();
 
@@ -1317,7 +1523,11 @@ exports.recordSettlement = async (req, res, next) => {
         data: record,
         metadata: {
           message: 'Settlement recorded with ACID compliance',
-          varianceCalculation: `${parsedExpectedCash} - ${parsedActualCash} = ${calculatedVariance}`
+          varianceCalculation: `Cash: ${parsedExpectedCash} - ${parsedActualCash} = ${calculatedVariance}`,
+          employeeReported: { cash: employeeCash, online: employeeOnline, credit: employeeCredit },
+          ownerConfirmed: { cash: parsedActualCash, online: parsedOnline, credit: parsedCredit },
+          variances: { cash: calculatedVariance, online: varianceOnline, credit: varianceCredit },
+          linkedReadings: linkedReadingsCount
         }
       });
     } catch (err) {
@@ -1474,7 +1684,7 @@ exports.getSettlementVsSales = async (req, res, next) => {
       raw: false
     });
 
-    // Calculate sales totals from readings
+    // Calculate sales totals from readings using payment breakdown fields
     let totalSaleValue = 0;
     let totalCashSales = 0;
     let totalOnlineSales = 0;
@@ -1484,14 +1694,10 @@ exports.getSettlementVsSales = async (req, res, next) => {
       const saleValue = parseFloat(reading.totalAmount || 0);
       totalSaleValue += saleValue;
 
-      const paymentMethod = reading.paymentMethod || 'cash';
-      if (paymentMethod === 'cash') {
-        totalCashSales += saleValue;
-      } else if (paymentMethod === 'online') {
-        totalOnlineSales += saleValue;
-      } else if (paymentMethod === 'credit') {
-        totalCreditSales += saleValue;
-      }
+      // Use the actual payment breakdown fields
+      totalCashSales += parseFloat(reading.cashAmount || 0);
+      totalOnlineSales += parseFloat(reading.onlineAmount || 0);
+      totalCreditSales += parseFloat(reading.creditAmount || 0);
     });
 
     res.json({

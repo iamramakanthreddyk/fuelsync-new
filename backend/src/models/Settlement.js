@@ -35,6 +35,23 @@ module.exports = (sequelize) => {
     variance: {
       type: DataTypes.DECIMAL(12,2)
     },
+    // Employee-reported values (auto-aggregated from readings)
+    employeeCash: {
+      type: DataTypes.DECIMAL(12,2),
+      defaultValue: 0,
+      field: 'employee_cash'
+    },
+    employeeOnline: {
+      type: DataTypes.DECIMAL(12,2),
+      defaultValue: 0,
+      field: 'employee_online'
+    },
+    employeeCredit: {
+      type: DataTypes.DECIMAL(12,2),
+      defaultValue: 0,
+      field: 'employee_credit'
+    },
+    // Owner-confirmed values
     online: {
       type: DataTypes.DECIMAL(12,2),
       defaultValue: 0
@@ -42,6 +59,17 @@ module.exports = (sequelize) => {
     credit: {
       type: DataTypes.DECIMAL(12,2),
       defaultValue: 0
+    },
+    // Variance for online and credit
+    varianceOnline: {
+      type: DataTypes.DECIMAL(12,2),
+      defaultValue: 0,
+      field: 'variance_online'
+    },
+    varianceCredit: {
+      type: DataTypes.DECIMAL(12,2),
+      defaultValue: 0,
+      field: 'variance_credit'
     },
     notes: {
       type: DataTypes.TEXT
@@ -78,6 +106,7 @@ module.exports = (sequelize) => {
   Settlement.associate = (models) => {
     Settlement.belongsTo(models.Station, { foreignKey: 'stationId', as: 'station' });
     Settlement.belongsTo(models.User, { foreignKey: 'recordedBy', as: 'recordedByUser' });
+    Settlement.hasMany(models.NozzleReading, { foreignKey: 'settlementId', as: 'readings' });
   };
 
   return Settlement;

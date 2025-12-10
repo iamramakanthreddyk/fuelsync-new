@@ -1106,7 +1106,7 @@ exports.getIncomeReceivablesReport = async (req, res, next) => {
       },
       attributes: [
         'id', 'readingDate', 'fuelType', 'litresSold', 'totalAmount',
-        'paymentMethod', 'cashAmount', 'onlineAmount', 'creditAmount'
+        'cashAmount', 'onlineAmount', 'creditAmount'
       ],
       raw: true
     });

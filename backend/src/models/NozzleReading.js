@@ -145,6 +145,15 @@ module.exports = (sequelize) => {
       comment: 'Links reading to active shift if station requires it'
     },
     
+    // Settlement linkage (set when owner reviews and finalizes)
+    settlementId: {
+      type: DataTypes.UUID,
+      field: 'settlement_id',
+      allowNull: true,
+      references: { model: 'settlements', key: 'id' },
+      comment: 'Links reading to a settlement when owner reviews and finalizes'
+    },
+    
     // Approval workflow
     approvalStatus: {
       type: DataTypes.ENUM('pending', 'approved', 'rejected'),
@@ -189,6 +198,7 @@ module.exports = (sequelize) => {
     NozzleReading.belongsTo(models.Creditor, { foreignKey: 'creditorId', as: 'creditor' });
     NozzleReading.belongsTo(models.Pump, { foreignKey: 'pumpId', as: 'pump' });
     NozzleReading.belongsTo(models.Shift, { foreignKey: 'shiftId', as: 'shift' });
+    NozzleReading.belongsTo(models.Settlement, { foreignKey: 'settlementId', as: 'settlement' });
   };
 
   /**
