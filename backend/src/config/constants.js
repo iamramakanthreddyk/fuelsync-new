@@ -18,7 +18,8 @@ module.exports = {
     PREMIUM_DIESEL: 'premium_diesel',
     CNG: 'cng',
     LPG: 'lpg',
-    EV_CHARGING: 'ev_charging'  // Future: Electric vehicle charging
+    EV_CHARGING: 'ev_charging',  // Electric vehicle charging
+    EV: 'ev' // Accept 'ev' as alias for EV charging
   },
 
   /**
@@ -31,7 +32,8 @@ module.exports = {
     premium_diesel: 'Premium Diesel',
     cng: 'CNG',
     lpg: 'LPG',
-    ev_charging: 'EV Charging'
+    ev_charging: 'EV Charging',
+    ev: 'EV Charging'
   },
 
   /**
