@@ -46,9 +46,8 @@ import {
   Phone,
   Fuel,
   TrendingUp,
-  DollarSign
+  IndianRupee
 } from 'lucide-react';
-  DollarSign
 
 interface StationFormData {
   name: string;
@@ -200,7 +199,7 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
     return (
       <div className="bg-muted/50 p-3 rounded-lg">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <DollarSign className="w-4 h-4" />
+          <IndianRupee className="w-4 h-4" />
           <span>Fuel Prices</span>
         </div>
         <div className="text-sm text-muted-foreground">Loading...</div>
@@ -212,7 +211,7 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
     return (
       <div className="bg-muted/50 p-3 rounded-lg">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <DollarSign className="w-4 h-4" />
+          <IndianRupee className="w-4 h-4" />
           <span>Fuel Prices</span>
         </div>
         <div className="text-sm text-muted-foreground">No prices set</div>
@@ -223,7 +222,7 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
   return (
     <div className="bg-muted/50 p-3 rounded-lg">
       <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-        <DollarSign className="w-4 h-4" />
+        <IndianRupee className="w-4 h-4" />
         <span>Fuel Prices</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
