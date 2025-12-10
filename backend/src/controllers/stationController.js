@@ -135,34 +135,13 @@ exports.getStations = async (req, res, next) => {
     });
 
 
-    // Aggregate all nozzle last readings per station
-    let lastReadingSumMap = new Map();
-    let nozzleReadingsMap = new Map();
-    if (stationIds.length > 0) {
-      const allNozzles = await Nozzle.findAll({
-        where: { stationId: { [Op.in]: stationIds } },
-        attributes: ['stationId', 'nozzleNumber', 'fuelType', 'lastReading', 'lastReadingDate'],
-        order: [['stationId', 'ASC'], ['nozzleNumber', 'ASC']],
-        raw: true
-      });
-      // Group by stationId
-      stationIds.forEach(stationId => {
-        const nozzles = allNozzles.filter(nz => nz.stationId === stationId);
-        nozzleReadingsMap.set(stationId, nozzles);
-        const sum = nozzles.reduce((acc, nz) => acc + (parseFloat(nz.lastReading) || 0), 0);
-        lastReadingSumMap.set(stationId, nozzles.length > 0 ? sum : null);
-      });
-    }
-
     res.json({
       success: true,
       data: stations.map(s => ({
         ...s.toJSON(),
         pumpCount: s.pumps?.length || 0,
         activePumps: s.pumps?.filter(p => p.status === 'active').length || 0,
-        todaySales: todaySalesMap.get(s.id) || 0,
-        lastReadingSum: lastReadingSumMap.get(s.id) || null,
-        nozzleReadings: nozzleReadingsMap.get(s.id) || []
+        todaySales: todaySalesMap.get(s.id) || 0
       }))
     });
 
@@ -558,13 +537,20 @@ exports.getPumps = async (req, res, next) => {
       pumps.map(async (pump) => {
         const nozzles = await Nozzle.findAll({
           where: { pumpId: pump.id },
-          attributes: ['id', 'nozzleNumber', 'fuelType', 'status', 'lastReading', 'lastReadingDate'],
+          attributes: ['id', 'nozzleNumber', 'fuelType', 'status', 'initialReading', 'lastReading', 'lastReadingDate'],
           order: [['nozzleNumber', 'ASC']],
           raw: true
         });
+        
+        // If lastReading is null but initialReading exists, use initialReading as the lastReading
+        const nozzlesWithReading = nozzles.map(nozzle => ({
+          ...nozzle,
+          lastReading: nozzle.lastReading !== null ? nozzle.lastReading : nozzle.initialReading
+        }));
+        
         return {
           ...pump.toJSON(),
-          nozzles
+          nozzles: nozzlesWithReading
         };
       })
     );

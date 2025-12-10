@@ -98,11 +98,18 @@ exports.createReading = async (req, res, next) => {
     // Prefer an explicit previousReading provided by client (tests/old clients send this)
     let previousReading = previousReadingRecord?.readingValue;
     const providedPrevious = req.body.previousReading !== undefined ? parseFloat(req.body.previousReading) : undefined;
-    if (previousReading === undefined || previousReading === null) {
-      previousReading = nozzle.initialReading !== undefined && nozzle.initialReading !== null ? nozzle.initialReading : (providedPrevious || 0);
+    
+    // Determine previousReading: explicit > lastReading > initialReading > 0
+    if (providedPrevious !== undefined) {
+      previousReading = providedPrevious;
+    } else if (previousReading === undefined || previousReading === null) {
+      // No previous reading found and no explicit previousReading provided
+      // For first reading, use initialReading if available, otherwise 0
+      previousReading = nozzle.initialReading !== undefined && nozzle.initialReading !== null
+        ? nozzle.initialReading
+        : 0;
     }
-    // If a client explicitly provided previousReading, prefer it for validation
-    if (providedPrevious !== undefined) previousReading = providedPrevious;
+    
     let isInitialReading = !previousReadingRecord && (providedPrevious === undefined);
 
     // Validate reading value (must be > previous unless initial)
@@ -118,15 +125,36 @@ exports.createReading = async (req, res, next) => {
       });
     }
 
-    // Calculate litres sold
-    const litresSold = isInitialReading ? (currentValue > 0 ? currentValue : 0) : currentValue - prevValue;
+    // Calculate litres sold: always use currentValue - previousReading
+    // For first readings, previousReading is already set to initialReading (or 0)
+    const litresSold = Math.max(0, currentValue - prevValue);
 
     // If client provided litresSold explicitly, validate it matches computed litresSold
     if (req.body.litresSold !== undefined) {
       const providedLitres = parseFloat(req.body.litresSold) || 0;
       if (Math.abs(providedLitres - litresSold) > 0.01) {
-        console.log('[DEBUG] createReading failed: litresSold mismatch', { providedLitres, litresSold });
-        return res.status(400).json({ success: false, error: 'Provided litresSold does not match meter delta' });
+        console.error('❌ [VALIDATION ERROR] litresSold mismatch:', {
+          nozzleId,
+          stationId,
+          isInitialReading,
+          currentReading: currentValue,
+          previousReading: prevValue,
+          meterDelta: litresSold,
+          providedLitres,
+          difference: Math.abs(providedLitres - litresSold),
+          readingDate,
+          fuelType: nozzle.fuelType
+        });
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Provided litresSold does not match meter delta',
+          details: {
+            meterDelta: litresSold,
+            provided: providedLitres,
+            previousReading: prevValue,
+            currentReading: currentValue
+          }
+        });
       }
     }
 
@@ -270,8 +298,7 @@ exports.createReading = async (req, res, next) => {
         creditorId: creditorId || null,
         isInitialReading,
         notes,
-        shiftId: activeShift?.id || null,
-        initialReading: req.body.initialReading !== undefined ? parseFloat(req.body.initialReading) : nozzle.initialReading
+        shiftId: activeShift?.id || null
       }, { transaction: t });
 
       // If a credit was recorded as part of this reading, create a CreditTransaction

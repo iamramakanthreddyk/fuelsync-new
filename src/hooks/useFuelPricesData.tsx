@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import { useRoleAccess } from "./useRoleAccess";
 import { FuelTypeEnum } from "@/core/enums";
-import { useFuelPricesGlobal, setPricesFromDashboard } from "@/context/FuelPricesContext";
+import { useFuelPricesGlobal } from "@/context/FuelPricesContext";
 
 // Backend price format
 interface BackendFuelPrice {
@@ -96,7 +96,7 @@ function transformPrice(price: BackendFuelPrice): FuelPrice {
 
 export function useFuelPricesData(overrideStationId?: string) {
   const { currentStation } = useRoleAccess();
-  const { prices, setPrices } = useFuelPricesGlobal();
+  const { prices, setPrices, setPricesByStation, pricesByStation } = useFuelPricesGlobal();
   const stationId = overrideStationId || currentStation?.id;
 
   // If prices exist in context, use them
@@ -133,8 +133,27 @@ export function useFuelPricesData(overrideStationId?: string) {
           }
         }
         if (currentPrices.length > 0) {
-          // Set in context for reuse
-          setPricesFromDashboard({ fuelPrices: { current: currentPrices } }, setPrices);
+          // Normalize and store in context
+          const normalized: Record<string, number> = {};
+          currentPrices.forEach((price) => {
+            const fuelType = (price.fuelType || '').toString().toUpperCase();
+            const priceValue = Number(price.price || 0);
+            if (fuelType && priceValue > 0) {
+              normalized[fuelType] = priceValue;
+            }
+          });
+          
+          // Update the prices state for this station
+          setPrices(normalized);
+          
+          // Also update pricesByStation if this is the current station
+          if (stationId) {
+            setPricesByStation({
+              ...pricesByStation,
+              [stationId]: normalized
+            });
+          }
+          
           const transformed = currentPrices.map(transformPrice);
           return transformed;
         }

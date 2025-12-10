@@ -55,7 +55,6 @@ export default function Dashboard() {
   const variance = data.todayTender - data.todaySales;
 
   // Build fuel price object for FuelPriceCard - normalize keys using enum
-  const { prices: globalFuelPrices, setPrices: setGlobalFuelPrices } = useFuelPricesGlobal();
   const fuelPricesObj: Record<string, number> = {};
   if (data.fuelPrices) {
     Object.entries(data.fuelPrices).forEach(([key, value]) => {
@@ -73,13 +72,6 @@ export default function Dashboard() {
       }
     });
   }
-
-  // Store prices in global context for other pages
-  useEffect(() => {
-    if (Object.keys(fuelPricesObj).length > 0) {
-      setGlobalFuelPrices(fuelPricesObj);
-    }
-  }, [JSON.stringify(fuelPricesObj)]);
 
   // --- Lock overlay click handler
   const onLockUpgradeClick = () => setShowUpgrade(true);

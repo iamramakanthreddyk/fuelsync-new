@@ -21,7 +21,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, usePumps } from '@/hooks/api';
 import { useDashboardData } from '@/hooks/useDashboardData';
-import { useFuelPricesGlobal } from '../../context/FuelPricesContext';
+import { useFuelPricesForStation } from '@/hooks/useFuelPricesForStation';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { ReadingSaleCalculation } from '@/components/owner/ReadingSaleCalculation';
@@ -73,33 +73,22 @@ export default function QuickDataEntry() {
   const { data: stationsResponse } = useStations();
   const stations = stationsResponse?.data;
 
-  const { prices: globalFuelPrices, setStationId } = useFuelPricesGlobal();
-
-  // Auto-select first station on load and inform global fuel price provider
+  // Auto-select first station on load
   useEffect(() => {
     if (stations && stations.length > 0 && !selectedStation) {
       setSelectedStation(stations[0].id);
     }
   }, [stations, selectedStation]);
 
-  // When selectedStation changes, update global provider so it fetches station prices
-  useEffect(() => {
-    if (selectedStation) {
-      setStationId(selectedStation);
-    }
-  }, [selectedStation, setStationId]);
-
   // Fetch pumps for selected station
   const { data: pumpsResponse, isLoading: pumpsLoading } = usePumps(selectedStation);
   const pumps = pumpsResponse?.data;
 
-  // Always use global fuel prices from context
-  const fuelPrices = Object.entries(globalFuelPrices).map(([fuel_type, price_per_litre]) => ({ fuel_type, price_per_litre }));
-
-  // Debug: Log fuel prices when they load
-  useEffect(() => {
-    // Fuel prices loaded or not
-  }, [fuelPrices, selectedStation]);
+  // Get fuel prices for selected station from global context (preloaded on app init)
+  const { missingFuelTypes: missingPricesFuelTypes, pricesArray } = useFuelPricesForStation(selectedStation);
+  
+  // Convert to array format for compatibility with existing code
+  const fuelPrices = pricesArray;
 
   // Fetch creditors for selected station
   const { data: creditors = [] } = useQuery<Creditor[]>({
@@ -141,13 +130,13 @@ export default function QuickDataEntry() {
             if (reading && reading.readingValue) {
               const enteredValue = parseFloat(reading.readingValue);
               const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-              const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-              const compareValue = lastReading !== null && !isNaN(lastReading) 
-                ? lastReading 
-                : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
+              
+              // Calculate litres: use lastReading for delta, or initialReading for first reading
+              const liters = lastReading !== null && !isNaN(lastReading)
+                ? Math.max(0, enteredValue - lastReading)
+                : Math.max(0, enteredValue - (nozzle.initialReading || 0)); // First reading: use initialReading as baseline
 
-              if (enteredValue > compareValue) {
-                const liters = enteredValue - compareValue;
+              if (liters > 0) {
                 const priceData = fuelPrices.find(p => p.fuel_type.toUpperCase() === nozzle.fuelType.toUpperCase());
                 const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
                 const saleValue = liters * price;
@@ -211,12 +200,12 @@ export default function QuickDataEntry() {
         const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
         const enteredValue = parseFloat(entry.readingValue || '0');
         const lastReading = nozzle?.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-        const initialReading = nozzle?.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-        const compareValue = lastReading !== null && !isNaN(lastReading)
-          ? lastReading
-          : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
-
-        const litres = Math.max(0, enteredValue - (compareValue || 0));
+        
+        // Calculate litres: use lastReading for delta, or initialReading for first reading
+        const litres = lastReading !== null && !isNaN(lastReading)
+          ? Math.max(0, enteredValue - lastReading)
+          : Math.max(0, enteredValue - (nozzle?.initialReading || 0)); // First reading: use initialReading as baseline
+        
         const priceData = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
         const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
         const saleValue = litres * price;
@@ -249,28 +238,22 @@ export default function QuickDataEntry() {
         allocatedOnline = round2(allocatedOnline + onlineAmt);
         allocatedCredit = round2(allocatedCredit + creditAmt);
 
-        // Recalculate price and litres for this entry
+        // Get nozzle and price info for this entry
         const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === item.entry.nozzleId);
-        const enteredValue = parseFloat(item.entry.readingValue || '0');
-        const lastReading = nozzle?.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-        const initialReading = nozzle?.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-        const compareValue = lastReading !== null && !isNaN(lastReading)
-          ? lastReading
-          : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
-
-        const litres = Math.max(0, enteredValue - (compareValue || 0));
         const priceData = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
         const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
+
+        // Calculate litres from the saleValue which was already calculated correctly when user entered the reading
+        const litres = item.saleValue > 0 && price > 0 ? item.saleValue / price : 0;
 
         const readingData: any = {
           stationId: selectedStation,
           nozzleId: item.entry.nozzleId,
           readingValue: parseFloat(item.entry.readingValue),
           readingDate: item.entry.date,
-          initialReading: nozzle?.initialReading ? parseFloat(String(nozzle.initialReading)) : 0,
           pricePerLitre: price,
           totalAmount: item.saleValue,
-          litresSold: litres,
+          litresSold: Math.max(0, litres),
           cashAmount: cashAmt,
           onlineAmount: onlineAmt,
           creditAmount: creditAmt,
@@ -293,8 +276,13 @@ export default function QuickDataEntry() {
         promises.push(apiClient.post('/readings', readingData));
       });
 
-      // Save readings (backend will create credit transactions when creditorId present)
-      const readingsResult = await Promise.all(promises);
+      // Save readings sequentially to avoid race conditions when multiple readings affect the same nozzle/pump
+      // This ensures the backend processes each reading with the correct previous reading value
+      const readingsResult = [];
+      for (const promise of promises) {
+        const result = await promise;
+        readingsResult.push(result);
+      }
       return readingsResult;
     },
     onSuccess: () => {
@@ -353,24 +341,9 @@ export default function QuickDataEntry() {
   };
 
   // Get all fuel types that are in use but missing prices
+  // (Already calculated in the hook, but kept for backward compatibility with getMissingFuelTypes calls)
   const getMissingFuelTypes = (): string[] => {
-    if (!pumps || pumps.length === 0) return [];
-    const allFuelTypes = new Set<string>();
-    pumps.forEach(pump => {
-      pump.nozzles?.forEach(nozzle => {
-        if (nozzle.status === EquipmentStatusEnum.ACTIVE) {
-          allFuelTypes.add(nozzle.fuelType.toUpperCase());
-        }
-      });
-    });
-    
-    const missing: string[] = [];
-    allFuelTypes.forEach(fuelType => {
-      if (!hasPriceForFuelType(fuelType)) {
-        missing.push(fuelType);
-      }
-    });
-    return missing;
+    return missingPricesFuelTypes;
   };
 
   const handleSubmit = () => {
@@ -650,14 +623,6 @@ export default function QuickDataEntry() {
                         </p>
                       </div>
                       <div className="flex gap-2 md:gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground truncate">Liters</p>
-                          <p className="text-base md:text-lg font-semibold truncate">
-                            {saleSummary.totalLiters >= 1000 
-                              ? `${safeToFixed(saleSummary.totalLiters / 1000, 1)}K`
-                              : safeToFixed(saleSummary.totalLiters, 1)}
-                          </p>
-                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-xs text-muted-foreground truncate">Readings</p>
                           <p className="text-base md:text-lg font-semibold truncate">{pendingCount}/{totalNozzles}</p>
