@@ -617,17 +617,6 @@ export default function StationsManagement() {
                   </div>
 
                   {/* Last Reading */}
-                  {/* Settle Button */}
-                  <div className="flex items-center justify-center mt-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full"
-                      onClick={() => navigate(`/owner/daily-settlement/${station.id}`)}
-                    >
-                      Settle
-                    </Button>
-                  </div>
                 </div>
 
                 {/* Fuel Prices */}
@@ -680,6 +669,17 @@ export default function StationsManagement() {
 
                 {/* Action Buttons */}
                 <div className="flex gap-2 pt-2 border-t border-border/30">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      navigate(`/owner/daily-settlement/${station.id}`);
+                    }}
+                  >
+                    Settle
+                  </Button>
                   <Button
                     variant="default"
                     size="sm"
