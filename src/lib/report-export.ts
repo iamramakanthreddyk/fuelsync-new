@@ -98,7 +98,6 @@ export function exportNozzlesReport<T extends Record<string, any>>(
       totalQuantity: n.totalQuantity,
       pricePerLiter: pricePerLiter,
       transactions: n.transactions,
-      avgTransactionValue: n.avgTransactionValue,
     };
   });
 
@@ -110,7 +109,6 @@ export function exportNozzlesReport<T extends Record<string, any>>(
     { key: 'totalQuantity', label: 'Volume (L)', formatter: volumeFmt },
     { key: 'pricePerLiter', label: 'Price/Liter', formatter: currency },
     { key: 'transactions', label: 'Transactions', formatter: numberFmt },
-    { key: 'avgTransactionValue', label: 'Avg Transaction', formatter: currency },
   ];
 
   const csv = toCsv(rowsRaw, cols);
@@ -329,13 +327,13 @@ export function printNozzlesReport<T extends Record<string, any>>(
   </div>`);
 
   w.document.write(
-    `<table><thead><tr><th>Nozzle</th><th>Pump</th><th>Fuel</th><th>Sales</th><th>Volume (L)</th><th>Price/L</th><th>Txns</th><th>Avg Txn</th></tr></thead><tbody>`
+    `<table><thead><tr><th>Nozzle</th><th>Pump</th><th>Fuel</th><th>Sales</th><th>Volume (L)</th><th>Price/L</th><th>Txns</th></tr></thead><tbody>`
   );
   
   data.forEach((n: any) => {
     const pricePerL = n.totalQuantity > 0 ? n.totalSales / n.totalQuantity : 0;
     w.document.write(
-      `<tr><td>${n.nozzleNumber}</td><td>${n.pumpName}</td><td>${n.fuelType}</td><td>${currency(n.totalSales)}</td><td>${safeToFixed(n.totalQuantity ?? 0)}</td><td>${currency(pricePerL)}</td><td><strong>${n.transactions}</strong></td><td>${currency(n.avgTransactionValue)}</td></tr>`
+      `<tr><td>${n.nozzleNumber}</td><td>${n.pumpName}</td><td>${n.fuelType}</td><td>${currency(n.totalSales)}</td><td>${safeToFixed(n.totalQuantity ?? 0)}</td><td>${currency(pricePerL)}</td><td><strong>${n.transactions}</strong></td></tr>`
     );
   });
 

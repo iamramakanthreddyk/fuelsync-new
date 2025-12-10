@@ -45,7 +45,6 @@ export interface NozzleData {
   totalSales: number;
   totalQuantity: number;
   transactions: number;
-  avgTransactionValue?: number;
 }
 
 export interface ShiftData {
