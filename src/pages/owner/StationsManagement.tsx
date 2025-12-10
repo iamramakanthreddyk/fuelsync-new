@@ -549,12 +549,25 @@ export default function StationsManagement() {
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100/50 p-3 rounded-lg border border-purple-200/50">
                     <div className="flex items-center gap-2 mb-2">
                       <Clock className="w-4 h-4 text-purple-600" />
-                      <span className="text-xs font-medium text-purple-800">Reading</span>
+                      <span className="text-xs font-medium text-purple-800">Total Nozzle Readings</span>
                     </div>
                     <div className="text-lg font-bold text-purple-700">
-                      {station.lastReading || 0}L
+                      {station.lastReadingSum != null ? safeToFixed(station.lastReadingSum, 2) : '—'}L
                     </div>
-                    <div className="text-xs text-purple-600/70">Last</div>
+                    <div className="text-xs text-purple-600/70">Sum of all nozzles</div>
+                    {/* Expandable breakdown of all nozzle readings */}
+                    {station.nozzleReadings && station.nozzleReadings.length > 0 && (
+                      <details className="mt-2">
+                        <summary className="text-xs text-purple-700 cursor-pointer">Show all nozzle readings</summary>
+                        <ul className="text-xs mt-1 pl-2">
+                          {station.nozzleReadings.map((nz: any) => (
+                            <li key={nz.nozzleNumber}>
+                              Nozzle {nz.nozzleNumber} ({nz.fuelType}): {nz.lastReading != null ? safeToFixed(nz.lastReading, 2) : '—'}L
+                            </li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
                   </div>
                 </div>
 

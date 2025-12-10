@@ -130,22 +130,23 @@ exports.getStations = async (req, res, next) => {
       todaySalesMap.set(item.stationId, parseFloat(item.todaySales || 0));
     });
 
-    // Aggregate latest cached nozzle reading per station (use denormalized Nozzle.lastReading)
-    let lastReadingMap = new Map();
+
+    // Aggregate all nozzle last readings per station
+    let lastReadingSumMap = new Map();
+    let nozzleReadingsMap = new Map();
     if (stationIds.length > 0) {
-      const nozzleLastReadings = await Nozzle.findAll({
+      const allNozzles = await Nozzle.findAll({
         where: { stationId: { [Op.in]: stationIds } },
-        attributes: [
-          'stationId',
-          [fn('MAX', col('last_reading_date')), 'lastReadingDate'],
-          [fn('MAX', col('last_reading')), 'lastReading']
-        ],
-        group: ['stationId'],
+        attributes: ['stationId', 'nozzleNumber', 'fuelType', 'lastReading', 'lastReadingDate'],
+        order: [['stationId', 'ASC'], ['nozzleNumber', 'ASC']],
         raw: true
       });
-
-      nozzleLastReadings.forEach(item => {
-        lastReadingMap.set(item.stationId, item.lastReading != null ? parseFloat(item.lastReading) : null);
+      // Group by stationId
+      stationIds.forEach(stationId => {
+        const nozzles = allNozzles.filter(nz => nz.stationId === stationId);
+        nozzleReadingsMap.set(stationId, nozzles);
+        const sum = nozzles.reduce((acc, nz) => acc + (parseFloat(nz.lastReading) || 0), 0);
+        lastReadingSumMap.set(stationId, nozzles.length > 0 ? sum : null);
       });
     }
 
@@ -156,7 +157,8 @@ exports.getStations = async (req, res, next) => {
         pumpCount: s.pumps?.length || 0,
         activePumps: s.pumps?.filter(p => p.status === 'active').length || 0,
         todaySales: todaySalesMap.get(s.id) || 0,
-        lastReading: lastReadingMap.get(s.id) || null
+        lastReadingSum: lastReadingSumMap.get(s.id) || null,
+        nozzleReadings: nozzleReadingsMap.get(s.id) || []
       }))
     });
 
