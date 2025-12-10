@@ -46,7 +46,6 @@ import {
   Activity,
   Droplet,
   Clock,
-  Target,
   Zap,
   PieChart,
   LineChart,
@@ -150,55 +149,6 @@ const TopStations: React.FC<TopStationsProps> = ({ stations, className }) => (
   </Card>
 );
 
-const RecentActivity: React.FC<{ className?: string }> = ({ className }) => (
-  <Card className={className}>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <Activity className="w-5 h-5 text-orange-600" />
-        Recent Activity
-      </CardTitle>
-      <CardDescription>Latest transactions</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-3">
-        {[
-          {
-            title: 'Fuel sale completed',
-            subtitle: 'Pump A, Nozzle 1 • 2 mins ago',
-            value: '₹2,450',
-            color: 'bg-green-500',
-            valueColor: 'text-green-600',
-          },
-          {
-            title: 'Shift handover',
-            subtitle: 'Employee: John Doe • 15 mins ago',
-            value: '₹15,230',
-            color: 'bg-blue-500',
-            valueColor: 'text-blue-600',
-          },
-          {
-            title: 'Price updated',
-            subtitle: 'Diesel: ₹87.25/L • 1 hour ago',
-            value: '+₹2.00',
-            color: 'bg-purple-500',
-            valueColor: 'text-purple-600',
-          },
-        ].map((activity, idx) => (
-          <div key={idx} className="flex items-start gap-3">
-            <div className={`w-2 h-2 ${activity.color} rounded-full mt-2`} />
-            <div className="flex-1">
-              <p className="text-sm font-medium">{activity.title}</p>
-              <p className="text-xs text-gray-500">{activity.subtitle}</p>
-            </div>
-            <span className={`text-sm font-bold ${activity.valueColor}`}>
-              {activity.value}
-            </span>
-          </div>
-        ))}
-      </div>
-    </CardContent>
-  </Card>
-);
 
 const PerformanceInsights: React.FC<{ className?: string }> = ({ className }) => {
   const insights = [
@@ -470,13 +420,6 @@ export default function Reports() {
             icon={Activity}
             variant="purple"
           />
-          <StatCard
-            title="Avg Transaction"
-            value={`₹${totals.transactions > 0 ? safeToFixed(totals.sales / totals.transactions, 0) : '0'}`}
-            trend={{ value: -2.1, direction: 'down' }}
-            icon={Target}
-            variant="orange"
-          />
         </div>
 
         {/* Analytics Tabs */}
@@ -525,9 +468,8 @@ export default function Reports() {
               <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 <RevenueTrendChart className="md:col-span-2" />
                 <FuelDistribution />
-                <TopStations stations={Array.isArray(stations) ? stations : []} />
-                <RecentActivity />
-                <PerformanceInsights className="md:col-span-2" />
+                  <TopStations stations={Array.isArray(stations) ? stations : []} />
+                  <PerformanceInsights className="md:col-span-2" />
               </div>
             </TabsContent>
 
