@@ -37,6 +37,7 @@ interface ApiResponse {
 
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
 
+
 export default function DailySalesReport() {
   const navigate = useNavigate();
   const selectedDate = new Date().toISOString().split('T')[0];
@@ -53,6 +54,35 @@ export default function DailySalesReport() {
     }
   });
 
+  // Extract data from response - handle various response formats
+  const responseData = apiResponse?.data;
+  const isValidData = responseData && Array.isArray(responseData) && responseData.length > 0;
+
+  // Always call useState, even if data is not valid
+  const [selectedStationId, setSelectedStationId] = useState<string>(
+    isValidData ? responseData[0]?.stationId || '' : ''
+  );
+
+  // These depend on responseData, but are safe if it's empty
+  const stationOptions = isValidData ? responseData.map(r => ({ id: r.stationId, name: r.stationName })) : [];
+  const report = isValidData
+    ? responseData.find(r => r.stationId === selectedStationId) || responseData[0]
+    : undefined;
+
+  // Convert byFuelType object to array for charts
+  const fuelTypeArray = report && report.byFuelType
+    ? Object.entries(report.byFuelType).map(([name, data]) => {
+        const total = report.totalSaleValue;
+        return {
+          name: name.charAt(0).toUpperCase() + name.slice(1),
+          liters: data.liters,
+          value: data.value,
+          count: data.count,
+          percentage: total > 0 ? (data.value / total) * 100 : 0
+        };
+      })
+    : [];
+
   const handleExportPDF = () => {
     // PDF export functionality
     window.print();
@@ -66,11 +96,7 @@ export default function DailySalesReport() {
     );
   }
 
-  // Extract data from response - handle various response formats
-  const responseData = apiResponse?.data;
-  const isValidData = responseData && Array.isArray(responseData) && responseData.length > 0;
-
-  if (!isValidData) {
+  if (!isValidData || !report) {
     return (
       <div className="container mx-auto p-6">
         <div className="text-center py-12">
@@ -80,24 +106,6 @@ export default function DailySalesReport() {
       </div>
     );
   }
-
-
-  // Add station selector state
-  const [selectedStationId, setSelectedStationId] = useState<string>(responseData[0]?.stationId || '');
-  const stationOptions = responseData.map(r => ({ id: r.stationId, name: r.stationName }));
-  const report = responseData.find(r => r.stationId === selectedStationId) || responseData[0];
-
-  // Convert byFuelType object to array for charts
-  const fuelTypeArray = Object.entries(report.byFuelType).map(([name, data]) => {
-    const total = report.totalSaleValue;
-    return {
-      name: name.charAt(0).toUpperCase() + name.slice(1),
-      liters: data.liters,
-      value: data.value,
-      count: data.count,
-      percentage: total > 0 ? (data.value / total) * 100 : 0
-    };
-  });
 
 
   return (
@@ -135,10 +143,10 @@ export default function DailySalesReport() {
               </div>
             </div>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-base font-semibold text-primary">{report.stationName}</span>
+              <span className="text-base font-semibold text-primary">{report!.stationName}</span>
               <span className="text-muted-foreground">•</span>
               <span className="text-muted-foreground text-sm">
-                {new Date(report.date).toLocaleDateString('en-IN', {
+                {new Date(report!.date).toLocaleDateString('en-IN', {
                   weekday: 'long',
                   day: 'numeric',
                   month: 'long',
@@ -164,9 +172,9 @@ export default function DailySalesReport() {
           <CardContent className="p-6">
             <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Sale Value</div>
             <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-green-600 break-all md:break-normal">
-              ₹{report.totalSaleValue >= 100000 
-                ? `${safeToFixed(report.totalSaleValue / 100000, 1)}L`
-                : safeToFixed(report.totalSaleValue, 2)}
+              ₹{report!.totalSaleValue >= 100000 
+                ? `${safeToFixed(report!.totalSaleValue / 100000, 1)}L`
+                : safeToFixed(report!.totalSaleValue, 2)}
             </div>
             <div className="text-xs text-muted-foreground mt-2 truncate">Today's revenue</div>
           </CardContent>
@@ -176,9 +184,9 @@ export default function DailySalesReport() {
           <CardContent className="p-6">
             <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Liters</div>
             <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-blue-600 break-all md:break-normal">
-              {report.totalLiters >= 1000 
-                ? `${safeToFixed(report.totalLiters / 1000, 1)}K L`
-                : `${safeToFixed(report.totalLiters, 2)} L`}
+              {report!.totalLiters >= 1000 
+                ? `${safeToFixed(report!.totalLiters / 1000, 1)}K L`
+                : `${safeToFixed(report!.totalLiters, 2)} L`}
             </div>
             <div className="text-xs text-muted-foreground mt-2 truncate">Fuel dispensed</div>
           </CardContent>
@@ -191,14 +199,14 @@ export default function DailySalesReport() {
           <div className="flex flex-row gap-6 items-center mr-4 w-full max-w-md">
             <div className="flex-1 flex flex-col items-center justify-center p-4 bg-green-50 rounded-lg border border-green-100 min-w-0">
               <div className="text-xs text-muted-foreground mb-1 truncate">Fuel Types</div>
-              <div className="text-2xl md:text-3xl font-extrabold text-green-700 break-all">{Object.keys(report.byFuelType).length}</div>
+              <div className="text-2xl md:text-3xl font-extrabold text-green-700 break-all">{Object.keys(report!.byFuelType).length}</div>
             </div>
             <div className="flex-1 flex flex-col items-center justify-center p-4 bg-orange-50 rounded-lg border border-orange-100 min-w-0">
               <div className="text-xs text-muted-foreground mb-1 truncate">Readings</div>
               <div className="text-2xl md:text-3xl font-extrabold text-orange-700 break-all">
-                {report.readingsCount >= 1000 
-                  ? `${safeToFixed(report.readingsCount / 1000, 1)}K`
-                  : report.readingsCount.toLocaleString()}
+                {report!.readingsCount >= 1000 
+                  ? `${safeToFixed(report!.readingsCount / 1000, 1)}K`
+                  : report!.readingsCount.toLocaleString()}
               </div>
             </div>
           </div>

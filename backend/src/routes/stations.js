@@ -109,6 +109,7 @@ router.get('/:stationId/handovers/bank-deposits', requireMinRole('owner'), cashH
 // DAILY SALES & SETTLEMENTS
 // ============================================
 router.get('/:stationId/daily-sales', stationController.getDailySales);
+router.get('/:stationId/readings', requireMinRole('manager'), stationController.getStationReadings);
 router.get('/:stationId/readings-for-settlement', requireMinRole('manager'), stationController.getReadingsForSettlement);
 router.post('/:stationId/settlements', requireMinRole('manager'), stationController.recordSettlement);
 router.get('/:stationId/settlements', requireMinRole('manager'), stationController.getSettlements);

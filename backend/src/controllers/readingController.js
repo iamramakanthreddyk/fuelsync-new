@@ -204,70 +204,66 @@ exports.createReading = async (req, res, next) => {
     let finalOnlineAmount = 0;
     let finalCreditAmount = 0;
 
-    if (!isInitialReading && totalAmount > 0) {
-      // Check if detailed payment amounts were provided
-      const hasDetailedAmounts = cashAmount !== undefined || onlineAmount !== undefined || creditAmount !== undefined;
-      
+    // Always use cashAmount as totalAmount if only cashAmount is provided and totalAmount/price are missing
+    const hasDetailedAmounts = cashAmount !== undefined || onlineAmount !== undefined || creditAmount !== undefined;
+    let effectiveTotalAmount = totalAmount;
+    if (!isInitialReading) {
+      // If no totalAmount or price, but cashAmount is provided (and online/credit are not), treat as cash-only
+      if ((totalAmount === undefined || totalAmount === 0) && (pricePerLitre === undefined || pricePerLitre === 0)) {
+        if (cashAmount !== undefined && (onlineAmount === undefined || onlineAmount === 0) && (creditAmount === undefined || creditAmount === 0)) {
+          effectiveTotalAmount = parseFloat(cashAmount) || 0;
+        }
+      }
+    }
+
+    if (effectiveTotalAmount > 0 || hasDetailedAmounts) {
       if (hasDetailedAmounts) {
-        // Use the detailed amounts provided
         const providedCash = cashAmount !== undefined ? parseFloat(cashAmount) || 0 : 0;
         const providedOnline = onlineAmount !== undefined ? parseFloat(onlineAmount) || 0 : 0;
         const providedCredit = creditAmount !== undefined ? parseFloat(creditAmount) || 0 : 0;
-        
         finalCashAmount = providedCash;
         finalOnlineAmount = providedOnline;
         finalCreditAmount = providedCredit;
+        // If only cash is provided, set totalAmount to cashAmount
+        if (providedCash > 0 && providedOnline === 0 && providedCredit === 0 && (!effectiveTotalAmount || effectiveTotalAmount === 0)) {
+          effectiveTotalAmount = providedCash;
+        }
+        const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
+        if (Math.abs(totalPayment - effectiveTotalAmount) > 0.01) {
+          console.log('[DEBUG] createReading failed: payment breakdown mismatch', { finalCashAmount, finalOnlineAmount, finalCreditAmount, effectiveTotalAmount, totalPayment });
+          return res.status(400).json({
+            success: false,
+            error: `Payment breakdown (Cash: ${finalCashAmount}, Online: ${finalOnlineAmount}, Credit: ${finalCreditAmount}) must equal total amount (${effectiveTotalAmount.toFixed(2)})`
+          });
+        }
       } else if (paymentType) {
-        // Convert simple paymentType to amounts
         switch (paymentType) {
           case 'cash':
-            finalCashAmount = totalAmount;
+            finalCashAmount = effectiveTotalAmount;
             finalOnlineAmount = 0;
             finalCreditAmount = 0;
             break;
           case 'digital':
           case 'online':
             finalCashAmount = 0;
-            finalOnlineAmount = totalAmount;
+            finalOnlineAmount = effectiveTotalAmount;
             finalCreditAmount = 0;
             break;
           case 'credit':
             finalCashAmount = 0;
             finalOnlineAmount = 0;
-            finalCreditAmount = totalAmount;
+            finalCreditAmount = effectiveTotalAmount;
             break;
           default:
-            // Default to cash if paymentType is unrecognized
-            finalCashAmount = totalAmount;
+            finalCashAmount = effectiveTotalAmount;
             finalOnlineAmount = 0;
             finalCreditAmount = 0;
         }
       } else {
-        // No payment information provided - default entire amount to cash for backward compatibility
-        finalCashAmount = totalAmount;
+        finalCashAmount = effectiveTotalAmount;
         finalOnlineAmount = 0;
         finalCreditAmount = 0;
       }
-
-      // Only validate payment breakdown if detailed payment amounts were explicitly provided by the client
-      // (not when using paymentType or defaulting to cash)
-      if (hasDetailedAmounts) {
-        const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
-        if (Math.abs(totalPayment - totalAmount) > 0.01) {
-          console.log('[DEBUG] createReading failed: payment breakdown mismatch', { finalCashAmount, finalOnlineAmount, finalCreditAmount, totalAmount, totalPayment });
-          return res.status(400).json({
-            success: false,
-            error: `Payment breakdown (Cash: ${finalCashAmount}, Online: ${finalOnlineAmount}, Credit: ${finalCreditAmount}) must equal total amount (${totalAmount.toFixed(2)})`
-          });
-        }
-      } else {
-        // No payment fields provided - default entire amount to cash for backward compatibility
-        finalCashAmount = totalAmount;
-        finalOnlineAmount = 0;
-        finalCreditAmount = 0;
-      }
-
-      // Enforce that if there is a credit amount provided, a creditorId must be present
       if (finalCreditAmount > 0 && !creditorId) {
         return res.status(400).json({
           success: false,
@@ -280,6 +276,26 @@ exports.createReading = async (req, res, next) => {
     const t = await sequelize.transaction();
     let reading;
     try {
+      console.log('[DEBUG] Saving reading with values:', {
+        nozzleId,
+        stationId,
+        pumpId: nozzle.pumpId,
+        fuelType: nozzle.fuelType,
+        enteredBy: userId,
+        readingDate,
+        readingValue: currentValue,
+        previousReading: prevValue,
+        litresSold,
+        pricePerLitre,
+        totalAmount: effectiveTotalAmount,
+        cashAmount: finalCashAmount,
+        onlineAmount: finalOnlineAmount,
+        creditAmount: finalCreditAmount,
+        creditorId: creditorId || null,
+        isInitialReading,
+        notes,
+        shiftId: activeShift?.id || null
+      });
       reading = await NozzleReading.create({
         nozzleId,
         stationId,
@@ -291,7 +307,7 @@ exports.createReading = async (req, res, next) => {
         previousReading: prevValue,
         litresSold,
         pricePerLitre,
-        totalAmount,
+        totalAmount: effectiveTotalAmount,
         cashAmount: finalCashAmount,
         onlineAmount: finalOnlineAmount,
         creditAmount: finalCreditAmount,
@@ -540,10 +556,20 @@ exports.getReadings = async (req, res, next) => {
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
     });
 
+    // Always return structure with linked/unlinked for compatibility
     res.json({
       success: true,
-      data: rows,
-      // Backwards-compatible alias expected by older tests/clients
+      data: {
+        linked: {
+          count: rows.filter(r => r.settlementId).length,
+          readings: rows.filter(r => r.settlementId)
+        },
+        unlinked: {
+          count: rows.filter(r => !r.settlementId).length,
+          readings: rows.filter(r => !r.settlementId)
+        },
+        allReadingsCount: rows.length
+      },
       readings: rows,
       pagination: {
         page: parseInt(page),

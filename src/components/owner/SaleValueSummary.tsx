@@ -30,11 +30,15 @@ interface SaleSummaryData {
   byFuelType: Record<string, { liters: number; value: number }>;
 }
 
+interface CreditAllocation {
+  creditorId: string;
+  amount: number;
+}
+
 interface PaymentAllocation {
   cash: number;
   online: number;
-  credit: number;
-  creditorId?: string;
+  credits: CreditAllocation[];
 }
 
 interface SaleValueSummaryProps {
@@ -43,15 +47,19 @@ interface SaleValueSummaryProps {
   onPaymentChange: (allocation: PaymentAllocation) => void;
   creditors?: Creditor[];
   isLoading?: boolean;
+  multiCredit?: boolean;
 }
 
-export function SaleValueSummary({
-  summary,
-  paymentAllocation,
-  onPaymentChange,
-  creditors = [],
-  isLoading = false
-}: SaleValueSummaryProps) {
+export function SaleValueSummary(
+  {
+    summary,
+    paymentAllocation,
+    onPaymentChange,
+    creditors = [],
+    isLoading = false,
+    multiCredit = false
+  }: SaleValueSummaryProps
+) {
   const handleCashChange = (value: number) => {
     onPaymentChange({
       ...paymentAllocation,
@@ -66,30 +74,31 @@ export function SaleValueSummary({
     });
   };
 
-  const handleCreditChange = (value: number) => {
-    // Only allow credit if creditor is selected
-    if (!paymentAllocation.creditorId && value > 0) {
-      return;
-    }
+  // Multi-credit logic
+  const handleCreditChange = (idx: number, value: number) => {
+    const credits = paymentAllocation.credits.map((c, i) => i === idx ? { ...c, amount: value } : c);
+    onPaymentChange({ ...paymentAllocation, credits });
+  };
+
+  const handleCreditorChange = (idx: number, creditorId: string) => {
+    const credits = paymentAllocation.credits.map((c, i) => i === idx ? { ...c, creditorId } : c);
+    onPaymentChange({ ...paymentAllocation, credits });
+  };
+
+  const handleAddCredit = () => {
     onPaymentChange({
       ...paymentAllocation,
-      credit: value
+      credits: [...paymentAllocation.credits, { creditorId: '', amount: 0 }]
     });
   };
 
-  const handleCreditorChange = (creditorId: string) => {
-    onPaymentChange({
-      ...paymentAllocation,
-      creditorId
-    });
+  const handleRemoveCredit = (idx: number) => {
+    const credits = paymentAllocation.credits.filter((_, i) => i !== idx);
+    onPaymentChange({ ...paymentAllocation, credits });
   };
 
-  const selectedCreditor = creditors.find(c => c.id === paymentAllocation.creditorId);
-  const canAddCredit = paymentAllocation.creditorId && selectedCreditor;
-  const creditExceedsLimit = canAddCredit && selectedCreditor && 
-    (parseFloat(String(selectedCreditor.currentBalance)) + paymentAllocation.credit) > parseFloat(String(selectedCreditor.creditLimit));
-
-  const allocated = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credit;
+  const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+  const allocated = paymentAllocation.cash + paymentAllocation.online + totalCredit;
   const remaining = Math.max(0, summary.totalSaleValue - allocated);
   const isBalanced = Math.abs(allocated - summary.totalSaleValue) < 0.01;
 
@@ -141,62 +150,72 @@ export function SaleValueSummary({
               />
             </div>
 
-            {/* Credit */}
-            <div className="space-y-1.5 p-2.5 bg-orange-50 border border-orange-200 rounded-lg">
-              <div>
-                <Label htmlFor="creditor-select" className="text-xs font-semibold flex items-center gap-1.5">
-                  <CreditCard className="w-3.5 h-3.5" />
-                  Creditor
-                </Label>
-                <Select 
-                  value={paymentAllocation.creditorId || ''} 
-                  onValueChange={handleCreditorChange}
-                  disabled={isLoading || creditors.length === 0}
-                >
-                  <SelectTrigger className="mt-0.5 text-xs h-8 bg-white border-orange-300">
-                    <SelectValue placeholder="Select..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {creditors.length === 0 ? (
-                      <SelectItem value="no-creditors" disabled>
-                        No creditors
-                      </SelectItem>
-                    ) : (
-                      creditors.map(creditor => (
-                        <SelectItem key={creditor.id} value={creditor.id}>
-                          <span className="text-xs truncate block">
-                            {creditor.name} - ₹{creditor.currentBalance >= 1000 ? `${(creditor.currentBalance / 1000).toFixed(1)}K` : creditor.currentBalance}/₹{creditor.creditLimit >= 1000 ? `${(creditor.creditLimit / 1000).toFixed(1)}K` : creditor.creditLimit}
-                          </span>
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {paymentAllocation.creditorId && (
-                <div>
-                  <Label htmlFor="credit-amount" className="text-xs font-semibold flex items-center justify-between">
-                    <span>Credit {paymentAllocation.credit > 0 && `₹${paymentAllocation.credit >= 1000 ? `${(paymentAllocation.credit / 1000).toFixed(1)}K` : safeToFixed(paymentAllocation.credit, 2)}`}</span>
+            {/* Multi-credit allocation */}
+            {multiCredit && (
+              <div className="space-y-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg">
+                <div className="flex items-center justify-between mb-1">
+                  <Label className="text-xs font-semibold flex items-center gap-1.5">
+                    <CreditCard className="w-3.5 h-3.5" />
+                    Creditors
                   </Label>
-                  <Input
-                    id="credit-amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={summary.totalSaleValue}
-                    value={paymentAllocation.credit}
-                    onChange={(e) => handleCreditChange(parseFloat(e.target.value) || 0)}
-                    className={`mt-0.5 text-xs h-8 border-orange-300 focus:border-orange-500 ${creditExceedsLimit ? 'border-red-500 bg-red-50' : ''}`}
-                    disabled={isLoading}
-                    placeholder="0.00"
-                  />
-                  {creditExceedsLimit && (
-                    <p className="text-xs text-red-600 mt-0.5">⚠ Exceeds limit</p>
-                  )}
+                  <button type="button" className="text-xs text-orange-600 font-bold" onClick={handleAddCredit} disabled={isLoading || creditors.length === 0}>
+                    + Add
+                  </button>
                 </div>
-              )}
-            </div>
+                {paymentAllocation.credits.length === 0 && (
+                  <div className="text-xs text-muted-foreground">No credit allocations</div>
+                )}
+                {paymentAllocation.credits.map((credit, idx) => {
+                  const selectedCreditor = creditors.find(c => c.id === credit.creditorId);
+                  const creditExceedsLimit = selectedCreditor && (parseFloat(String(selectedCreditor.currentBalance)) + credit.amount) > parseFloat(String(selectedCreditor.creditLimit));
+                  return (
+                    <div key={idx} className="flex items-center gap-2 mb-1">
+                      <Select
+                        value={credit.creditorId}
+                        onValueChange={val => handleCreditorChange(idx, val)}
+                        disabled={isLoading || creditors.length === 0}
+                      >
+                        <SelectTrigger className="text-xs h-8 bg-white border-orange-300 min-w-[120px]">
+                          <SelectValue placeholder="Select..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {creditors.length === 0 ? (
+                            <SelectItem value="no-creditors" disabled>
+                              No creditors
+                            </SelectItem>
+                          ) : (
+                            creditors.map(creditor => (
+                              <SelectItem key={creditor.id} value={creditor.id}>
+                                <span className="text-xs truncate block">
+                                  {creditor.name} - ₹{creditor.currentBalance >= 1000 ? `${(creditor.currentBalance / 1000).toFixed(1)}K` : creditor.currentBalance}/₹{creditor.creditLimit >= 1000 ? `${(creditor.creditLimit / 1000).toFixed(1)}K` : creditor.creditLimit}
+                                </span>
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        min="0"
+                        max={summary.totalSaleValue}
+                        value={credit.amount}
+                        onChange={e => handleCreditChange(idx, parseFloat(e.target.value) || 0)}
+                        className={`text-xs h-8 border-orange-300 focus:border-orange-500 ${creditExceedsLimit ? 'border-red-500 bg-red-50' : ''}`}
+                        disabled={isLoading}
+                        placeholder="0.00"
+                      />
+                      <button type="button" className="text-xs text-red-500 font-bold ml-1" onClick={() => handleRemoveCredit(idx)} disabled={isLoading}>
+                        ×
+                      </button>
+                      {creditExceedsLimit && (
+                        <span className="text-xs text-red-600 ml-1">⚠ Exceeds limit</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
 

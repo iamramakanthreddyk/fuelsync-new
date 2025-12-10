@@ -42,11 +42,15 @@ interface ReadingEntry {
   paymentType: string;
 }
 
+interface CreditAllocation {
+  creditorId: string;
+  amount: number;
+}
+
 interface PaymentAllocation {
   cash: number;
   online: number;
-  credit: number;
-  creditorId?: string;
+  credits: CreditAllocation[];
 }
 
 interface Creditor {
@@ -64,7 +68,7 @@ export default function QuickDataEntry() {
   const [paymentAllocation, setPaymentAllocation] = useState<PaymentAllocation>({
     cash: 0,
     online: 0,
-    credit: 0
+    credits: []
   });
 
   const { toast } = useToast();
@@ -180,8 +184,9 @@ export default function QuickDataEntry() {
   // Move default allocation to an effect to avoid side-effects inside useMemo
   useEffect(() => {
     if (saleSummary.totalSaleValue > 0) {
-      // Always adjust cash to make up the difference: total - online - credit
-      const allocated = paymentAllocation.online + paymentAllocation.credit;
+      // Always adjust cash to make up the difference: total - online - total credit - online
+      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+      const allocated = paymentAllocation.online + totalCredit;
       const newCash = Math.max(0, saleSummary.totalSaleValue - allocated);
       if (newCash !== paymentAllocation.cash) {
         setPaymentAllocation(prev => ({
@@ -191,13 +196,14 @@ export default function QuickDataEntry() {
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saleSummary.totalSaleValue, paymentAllocation.online, paymentAllocation.credit]);
+  }, [saleSummary.totalSaleValue, paymentAllocation.online, paymentAllocation.credits]);
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
     mutationFn: async (data: ReadingEntry[]) => {
       // Validate payment allocation matches sale value
-      const totalPayment = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credit;
+      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+      const totalPayment = paymentAllocation.cash + paymentAllocation.online + totalCredit;
       if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
         throw new Error(
           `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
@@ -209,12 +215,10 @@ export default function QuickDataEntry() {
         const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
         const enteredValue = parseFloat(entry.readingValue || '0');
         const lastReading = nozzle?.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-        
         // Calculate litres: use lastReading for delta, or initialReading for first reading
         const litres = lastReading !== null && !isNaN(lastReading)
           ? Math.max(0, enteredValue - lastReading)
           : Math.max(0, enteredValue - (nozzle?.initialReading || 0)); // First reading: use initialReading as baseline
-        
         const priceData = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
         const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
         const saleValue = litres * price;
@@ -226,26 +230,40 @@ export default function QuickDataEntry() {
 
       const cashRatio = totalSale > 0 ? (paymentAllocation.cash / totalSale) : 0;
       const onlineRatio = totalSale > 0 ? (paymentAllocation.online / totalSale) : 0;
-      const creditRatio = totalSale > 0 ? (paymentAllocation.credit / totalSale) : 0;
+      // For credit, distribute proportionally if multiple creditors
+      // We'll use the first credit allocation for each reading for now (can be improved for per-reading split)
 
       const promises: Promise<any>[] = [];
-      let allocatedCash = 0, allocatedOnline = 0, allocatedCredit = 0;
+      let allocatedCash = 0, allocatedOnline = 0;
 
       entriesWithSale.forEach((item, idx) => {
         const isLast = idx === entriesWithSale.length - 1;
         let cashAmt = round2(item.saleValue * cashRatio);
         let onlineAmt = round2(item.saleValue * onlineRatio);
-        let creditAmt = round2(item.saleValue * creditRatio);
+        let creditAmts: CreditAllocation[] = [];
 
         if (isLast) {
           cashAmt = round2(paymentAllocation.cash - allocatedCash);
           onlineAmt = round2(paymentAllocation.online - allocatedOnline);
-          creditAmt = round2(paymentAllocation.credit - allocatedCredit);
         }
 
         allocatedCash = round2(allocatedCash + cashAmt);
         allocatedOnline = round2(allocatedOnline + onlineAmt);
-        allocatedCredit = round2(allocatedCredit + creditAmt);
+
+        // Distribute credit among creditors proportionally for each reading
+        let creditTotal = 0;
+        if (totalCredit > 0) {
+          paymentAllocation.credits.forEach((creditAlloc, cidx) => {
+            let amt = round2(item.saleValue * (creditAlloc.amount / totalCredit));
+            if (isLast && cidx === paymentAllocation.credits.length - 1) {
+              amt = round2(creditAlloc.amount - creditTotal);
+            }
+            creditTotal += amt;
+            if (amt > 0) {
+              creditAmts.push({ creditorId: creditAlloc.creditorId, amount: amt });
+            }
+          });
+        }
 
         // Get nozzle and price info for this entry
         const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === item.entry.nozzleId);
@@ -260,18 +278,15 @@ export default function QuickDataEntry() {
           nozzleId: item.entry.nozzleId,
           readingValue: parseFloat(item.entry.readingValue),
           readingDate: item.entry.date,
-          pricePerLitre: price,
-          totalAmount: item.saleValue,
-          litresSold: Math.max(0, litres),
           cashAmount: cashAmt,
           onlineAmount: onlineAmt,
-          creditAmount: creditAmt,
-          notes: `Reading entered with cash: ₹${safeToFixed(cashAmt, 2)}, online: ₹${safeToFixed(onlineAmt, 2)}, credit: ₹${safeToFixed(creditAmt, 2)}`
+          creditAllocations: creditAmts,
+          notes: `Reading entered with cash: ₹${safeToFixed(cashAmt, 2)}, online: ₹${safeToFixed(onlineAmt, 2)}, credit: ₹${safeToFixed(creditAmts.reduce((s, c) => s + c.amount, 0), 2)}`
         };
 
-        // Only include creditorId if there's credit amount and a valid creditor selected
-        if (creditAmt > 0 && paymentAllocation.creditorId && paymentAllocation.creditorId.trim()) {
-          readingData.creditorId = paymentAllocation.creditorId;
+        // Only include creditAllocations if any
+        if (creditAmts.length === 0) {
+          delete readingData.creditAllocations;
         }
 
         // Validate required fields
@@ -302,7 +317,7 @@ export default function QuickDataEntry() {
       });
       // Clear the form
       setReadings({});
-      setPaymentAllocation({ cash: 0, online: 0, credit: 0 });
+      setPaymentAllocation({ cash: 0, online: 0, credits: [] });
       // Invalidate and refetch pumps data
       queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
       queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
@@ -369,7 +384,8 @@ export default function QuickDataEntry() {
     }
 
     // Validate payment allocation
-    const allocated = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credit;
+    const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+    const allocated = paymentAllocation.cash + paymentAllocation.online + totalCredit;
     if (Math.abs(allocated - saleSummary.totalSaleValue) > 0.01) {
       toast({
         title: 'Payment Not Allocated',
@@ -380,10 +396,10 @@ export default function QuickDataEntry() {
     }
 
     // Validate credit requires creditor
-    if (paymentAllocation.credit > 0 && !paymentAllocation.creditorId) {
+    if (totalCredit > 0 && paymentAllocation.credits.some(c => !c.creditorId)) {
       toast({
         title: 'Creditor Required',
-        description: 'Please select a creditor to record credit sales',
+        description: 'Please select a creditor for each credit allocation',
         variant: 'destructive'
       });
       return;
@@ -649,6 +665,7 @@ export default function QuickDataEntry() {
                     onPaymentChange={setPaymentAllocation}
                     creditors={creditors}
                     isLoading={submitReadingsMutation.isPending}
+                    multiCredit
                   />
 
                   {/* Submit Button */}
@@ -658,7 +675,7 @@ export default function QuickDataEntry() {
                       submitReadingsMutation.isPending ||
                       pendingCount === 0 ||
                       Math.abs(
-                        (paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credit) -
+                        (paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0)) -
                         saleSummary.totalSaleValue
                       ) > 0.01
                     }

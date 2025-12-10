@@ -187,8 +187,71 @@ const recordCreditSale = async (req, res) => {
       await t.rollback();
       return res.status(403).json({ success: false, error: { message: 'Not authorized to record credit sale' } });
     }
-    const { creditorId, fuelType, litres, pricePerLitre, amount, transactionDate, vehicleNumber, referenceNumber, notes, nozzleReadingId } = req.body;
-    // Validate creditor (lock only for non-SQLite databases)
+    const { creditAllocations, fuelType, litres, pricePerLitre, amount, transactionDate, vehicleNumber, referenceNumber, notes, nozzleReadingId } = req.body;
+    // If creditAllocations is present and is an array, process each allocation
+    if (Array.isArray(creditAllocations) && creditAllocations.length > 0) {
+      const transactions = [];
+      for (const alloc of creditAllocations) {
+        const { creditorId, amount: allocAmount } = alloc;
+        if (!creditorId || !allocAmount || allocAmount <= 0) continue;
+        // Validate creditor
+        const findOptions = { transaction: t };
+        if (sequelize.getDialect() !== 'sqlite') {
+          findOptions.lock = t.LOCK.UPDATE;
+        }
+        const creditor = await Creditor.findByPk(creditorId, findOptions);
+        if (!creditor || String(creditor.stationId) !== String(stationId)) {
+          await t.rollback();
+          return res.status(404).json({ success: false, error: { message: `Creditor not found for ID ${creditorId}` } });
+        }
+        // Check credit limit
+        if (!creditor.canTakeCredit(allocAmount)) {
+          await t.rollback();
+          return res.status(400).json({
+            success: false,
+            error: {
+              message: `Credit limit exceeded for ${creditor.name}. Current balance: ₹${creditor.currentBalance}, Limit: ₹${creditor.creditLimit}`,
+              code: 'CREDIT_LIMIT_EXCEEDED'
+            }
+          });
+        }
+        const transaction = await CreditTransaction.create({
+          stationId,
+          creditorId,
+          transactionType: 'credit',
+          fuelType,
+          litres,
+          pricePerLitre,
+          amount: allocAmount,
+          transactionDate: transactionDate || new Date().toISOString().split('T')[0],
+          vehicleNumber,
+          referenceNumber,
+          notes,
+          nozzleReadingId,
+          enteredBy: req.user.id
+        }, { transaction: t });
+        // Update creditor balance atomically
+        await creditor.update({
+          currentBalance: parseFloat(creditor.currentBalance) + parseFloat(allocAmount),
+          lastTransactionDate: new Date()
+        }, { transaction: t });
+        transactions.push(transaction);
+      }
+      await t.commit();
+      res.status(201).json({
+        success: true,
+        data: {
+          transactions
+        }
+      });
+      return;
+    }
+    // Fallback: legacy single-creditor logic
+    const { creditorId } = req.body;
+    if (!creditorId) {
+      await t.rollback();
+      return res.status(400).json({ success: false, error: { message: 'Creditor ID is required' } });
+    }
     const findOptions = { transaction: t };
     if (sequelize.getDialect() !== 'sqlite') {
       findOptions.lock = t.LOCK.UPDATE;
@@ -198,9 +261,7 @@ const recordCreditSale = async (req, res) => {
       await t.rollback();
       return res.status(404).json({ success: false, error: { message: 'Creditor not found' } });
     }
-    // Calculate amount if not provided
     const calculatedAmount = amount || (parseFloat(litres) * parseFloat(pricePerLitre));
-    // Check credit limit
     if (!creditor.canTakeCredit(calculatedAmount)) {
       await t.rollback();
       return res.status(400).json({
@@ -226,7 +287,6 @@ const recordCreditSale = async (req, res) => {
       nozzleReadingId,
       enteredBy: req.user.id
     }, { transaction: t });
-    // Update creditor balance atomically
     await creditor.update({
       currentBalance: parseFloat(creditor.currentBalance) + calculatedAmount,
       lastTransactionDate: new Date()

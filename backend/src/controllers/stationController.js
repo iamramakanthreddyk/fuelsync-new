@@ -1,4 +1,56 @@
 /**
+ * Get readings for a station (test compatibility)
+ * GET /stations/:stationId/readings
+ */
+exports.getStationReadings = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const { page = 1, limit = 50 } = req.query;
+    const offset = (page - 1) * limit;
+    const user = req.user;
+
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const where = { stationId };
+    const include = [
+      { model: Nozzle, as: 'nozzle', attributes: ['id', 'nozzleNumber', 'fuelType'] },
+      { model: User, as: 'enteredByUser', attributes: ['id', 'name'] }
+    ];
+    const { count, rows } = await NozzleReading.findAndCountAll({
+      where,
+      include,
+      offset: parseInt(offset),
+      limit: parseInt(limit),
+      order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
+    });
+    res.json({
+      success: true,
+      data: {
+        linked: {
+          count: rows.filter(r => r.settlementId).length,
+          readings: rows.filter(r => r.settlementId)
+        },
+        unlinked: {
+          count: rows.filter(r => !r.settlementId).length,
+          readings: rows.filter(r => !r.settlementId)
+        },
+        allReadingsCount: rows.length
+      },
+      readings: rows,
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        totalPages: Math.ceil(count / limit)
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+/**
  * Station Controller
  * Station, Pump, and Nozzle management
  * 
@@ -1289,7 +1341,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
         },
         { 
           model: User, 
-          as: 'recordedByUser', 
+          as: 'enteredByUser', 
           attributes: ['id', 'name', 'email'] 
         },
         {
@@ -1299,7 +1351,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
           required: false
         }
       ],
-      order: [['recordedAt', 'DESC']]
+      order: [['createdAt', 'DESC']]
     });
 
     // Categorize readings
