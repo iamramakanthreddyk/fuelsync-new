@@ -299,6 +299,8 @@ export default function QuickDataEntry() {
       queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
       // Invalidate sales report
       queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
+      // Invalidate stations to update todaySales
+      queryClient.invalidateQueries({ queryKey: ['stations'] });
     },
     onError: (error: unknown) => {
       let message = 'Failed to save readings';

@@ -212,6 +212,8 @@ export function useCreatePump() {
       apiClient.post<ApiResponse<Pump>>(`/stations/${stationId}/pumps`, data),
     onSuccess: (_, { stationId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pumps(stationId) });
+      // Also invalidate stations to update pumpCount
+      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
     },
   });
 }
@@ -227,6 +229,8 @@ export function useUpdatePump() {
       if (stationId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.pumps(stationId) });
       }
+      // Also invalidate stations to update pump status
+      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
     },
   });
 }
@@ -299,6 +303,8 @@ export function useSetFuelPrice() {
     onSuccess: (_, { stationId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.prices(stationId) });
       queryClient.invalidateQueries({ queryKey: ['prices', 'check'] });
+      // Also invalidate stations to update displayed data
+      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
     },
   });
 }

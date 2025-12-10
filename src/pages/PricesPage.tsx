@@ -164,6 +164,8 @@ export default function PricesPage() {
         setSelectedFuelType(undefined);
         setSelectedPrice("");
         queryClient.invalidateQueries({ queryKey: ["fuel-prices", defaultStationId] });
+        // Also invalidate stations to update displayed data
+        queryClient.invalidateQueries({ queryKey: ["stations"] });
       })
       .catch((error: unknown) => {
         let errorMessage = "Failed to update fuel price";

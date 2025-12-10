@@ -3,9 +3,10 @@
  * Complete CRUD for managing stations
  */
 
+import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -31,10 +32,8 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, queryKeys } from '@/hooks/api';
-import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { safeToFixed } from '@/lib/format-utils';
 import { Station } from '@/types/api';
-import type { ApiResponse } from '@/lib/api-client';
 import { 
   Plus, 
   Building2, 
@@ -188,33 +187,46 @@ const StationFormContent = ({ formData, onChange }: StationFormProps) => (
 
 // Fuel Prices Section Component
 
+import { useFuelPrices } from '@/hooks/api';
 
-import React, { useEffect, useState } from 'react';
-const FuelPricesSection = () => {
-  const { prices: globalFuelPrices, setPrices } = useFuelPricesGlobal();
-  const [dummySet, setDummySet] = useState(false);
-  useEffect(() => {
-    if (!dummySet && (!globalFuelPrices || Object.keys(globalFuelPrices).length === 0)) {
-      setDummySet(true);
-    } else if (globalFuelPrices && Object.keys(globalFuelPrices).length > 0) {
-    }
-  }, [globalFuelPrices, setPrices, dummySet]);
-  // Convert context prices to display array
-  const fuelPrices = Object.entries(globalFuelPrices || {})
-    .filter(([_, price]) => typeof price === 'number' && price > 0)
-    .map(([fuelType, price]) => ({
-      fuel_type: fuelType,
-      price_per_litre: price
+interface FuelPricesSectionProps {
+  stationId: string;
+}
+
+const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
+  const { data: pricesResponse, isLoading } = useFuelPrices(stationId);
+  
+  // Extract current prices from response
+  const currentPrices = pricesResponse?.data?.current || [];
+  
+  // Convert to display array
+  const fuelPrices = currentPrices
+    .filter((p: any) => typeof p.price === 'number' && p.price > 0)
+    .map((p: any) => ({
+      fuel_type: p.fuelType,
+      price_per_litre: p.price
     }));
 
-  if (!fuelPrices || fuelPrices.length === 0) {
-      return (
-        <div className="bg-muted/50 p-3 rounded-lg">
+  if (isLoading) {
+    return (
+      <div className="bg-muted/50 p-3 rounded-lg">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
           <IndianRupee className="w-4 h-4" />
           <span>Fuel Prices</span>
         </div>
         <div className="text-sm text-muted-foreground">Loading fuel prices...</div>
+      </div>
+    );
+  }
+
+  if (!fuelPrices || fuelPrices.length === 0) {
+    return (
+      <div className="bg-muted/50 p-3 rounded-lg">
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+          <IndianRupee className="w-4 h-4" />
+          <span>Fuel Prices</span>
+        </div>
+        <div className="text-sm text-muted-foreground">No prices set</div>
       </div>
     );
   }
@@ -561,7 +573,7 @@ export default function StationsManagement() {
                 </div>
 
                 {/* Fuel Prices */}
-                <FuelPricesSection />
+                <FuelPricesSection stationId={station.id} />
 
                 {/* Location & Contact Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
