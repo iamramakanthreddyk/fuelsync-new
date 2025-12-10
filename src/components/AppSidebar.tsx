@@ -28,7 +28,8 @@ import {
   BarChart3,
   Zap,
   Scale3d,
-  LineChart
+  LineChart,
+  IndianRupee
 } from 'lucide-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
