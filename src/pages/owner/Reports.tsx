@@ -46,7 +46,6 @@ import {
   Activity,
   Droplet,
   Clock,
-  Zap,
   PieChart,
   LineChart,
   TrendingUp,
@@ -150,98 +149,6 @@ const TopStations: React.FC<TopStationsProps> = ({ stations, className }) => (
 );
 
 
-const PerformanceInsights: React.FC<{ className?: string }> = ({ className }) => {
-  const insights = [
-    {
-      title: 'Peak Hours',
-      description:
-        'Your station performs best between 6-8 AM and 5-7 PM. Consider staffing adjustments.',
-      colorScheme: 'green',
-    },
-    {
-      title: 'Fuel Mix',
-      description:
-        'Diesel sales are up 15% this month. Consider increasing diesel inventory.',
-      colorScheme: 'blue',
-    },
-    {
-      title: 'Price Optimization',
-      description:
-        'Petrol prices are 2% below market average. Consider a ₹1 increase.',
-      colorScheme: 'orange',
-    },
-    {
-      title: 'Efficiency',
-      description:
-        'Pump utilization is at 78%. Target is 85% for optimal performance.',
-      colorScheme: 'purple',
-    },
-  ];
-
-  const colorStyles: Record<string, { bg: string; border: string; text: string; dot: string }> = {
-    green: {
-      bg: 'bg-gradient-to-br from-green-50 to-emerald-50',
-      border: 'border-green-200',
-      text: 'text-green-700',
-      dot: 'bg-green-500',
-    },
-    blue: {
-      bg: 'bg-gradient-to-br from-blue-50 to-cyan-50',
-      border: 'border-blue-200',
-      text: 'text-blue-700',
-      dot: 'bg-blue-500',
-    },
-    orange: {
-      bg: 'bg-gradient-to-br from-orange-50 to-red-50',
-      border: 'border-orange-200',
-      text: 'text-orange-700',
-      dot: 'bg-orange-500',
-    },
-    purple: {
-      bg: 'bg-gradient-to-br from-purple-50 to-violet-50',
-      border: 'border-purple-200',
-      text: 'text-purple-700',
-      dot: 'bg-purple-500',
-    },
-  };
-
-  return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base md:text-lg">
-          <Zap className="w-4 h-4 md:w-5 md:h-5 text-yellow-600" />
-          Performance Insights
-        </CardTitle>
-        <CardDescription>AI-powered insights and recommendations</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2">
-          {insights.map((insight) => {
-            const styles = colorStyles[insight.colorScheme];
-            return (
-              <div
-                key={insight.title}
-                className={`p-3 md:p-4 rounded-lg border ${styles.bg} ${styles.border}`}
-              >
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`w-2 h-2 ${styles.dot} rounded-full`} />
-                  <span
-                    className={`font-medium ${styles.text.replace('700', '800')} text-sm`}
-                  >
-                    {insight.title}
-                  </span>
-                </div>
-                <p className={`text-xs md:text-sm ${styles.text}`}>
-                  {insight.description}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
 
 const RevenueTrendChart: React.FC<{ className?: string }> = ({ className }) => (
   <Card className={className}>
@@ -468,8 +375,7 @@ export default function Reports() {
               <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 <RevenueTrendChart className="md:col-span-2" />
                 <FuelDistribution />
-                  <TopStations stations={Array.isArray(stations) ? stations : []} />
-                  <PerformanceInsights className="md:col-span-2" />
+                <TopStations stations={Array.isArray(stations) ? stations : []} />
               </div>
             </TabsContent>
 

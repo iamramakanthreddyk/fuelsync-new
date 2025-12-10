@@ -169,9 +169,6 @@ export const NozzleCard: React.FC<NozzleCardProps> = ({ nozzle, className }) => 
   const totalSales = nozzle?.totalSales ?? 0;
   const totalQuantity = nozzle?.totalQuantity ?? 0;
   const transactions = nozzle?.transactions ?? 0;
-  const avgTransactionValue =
-    nozzle?.avgTransactionValue ??
-    (transactions > 0 ? totalSales / transactions : 0);
 
   return (
     <Card className={className}>
@@ -211,10 +208,6 @@ export const NozzleCard: React.FC<NozzleCardProps> = ({ nozzle, className }) => 
           <div>
             <p className="text-xs text-muted-foreground">Transactions</p>
             <p className="text-lg font-bold">{transactions}</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Avg. Value</p>
-            <p className="text-lg font-bold">₹{safeToFixed(avgTransactionValue)}</p>
           </div>
         </div>
       </CardContent>
