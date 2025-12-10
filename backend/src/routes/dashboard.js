@@ -42,4 +42,7 @@ router.get('/owner/stats', requireRole('owner'), dashboardController.getOwnerSta
 // Owner analytics
 router.get('/owner/analytics', requireRole('owner'), dashboardController.getOwnerAnalytics);
 
+// Comprehensive income & receivables report (NEW)
+router.get('/income-receivables', requireMinRole('manager'), dashboardController.getIncomeReceivablesReport);
+
 module.exports = router;

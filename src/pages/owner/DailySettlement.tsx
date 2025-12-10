@@ -152,15 +152,15 @@ export default function DailySettlement() {
       return;
     }
 
-    const variance = dailySales.expectedCash - actualCash;
-
+    // NOTE: Variance is calculated on backend, don't send it
+    // Frontend shows it for user info, but backend recalculates to prevent manipulation
     setIsSubmitting(true);
     submitSettlementMutation.mutate({
       date: selectedDate,
       stationId,
       expectedCash: dailySales.expectedCash,
       actualCash,
-      variance,
+      // variance: NOT SENT - backend will calculate: expectedCash - actualCash
       online: dailySales.paymentSplit.online,
       credit: dailySales.paymentSplit.credit,
       notes,

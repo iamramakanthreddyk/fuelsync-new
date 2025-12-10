@@ -111,5 +111,6 @@ router.get('/:stationId/handovers/bank-deposits', requireMinRole('owner'), cashH
 router.get('/:stationId/daily-sales', stationController.getDailySales);
 router.post('/:stationId/settlements', requireMinRole('manager'), stationController.recordSettlement);
 router.get('/:stationId/settlements', requireMinRole('manager'), stationController.getSettlements);
+router.get('/:stationId/settlement-vs-sales', requireMinRole('manager'), stationController.getSettlementVsSales);
 
 module.exports = router;

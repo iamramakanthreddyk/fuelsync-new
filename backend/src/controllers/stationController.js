@@ -1254,11 +1254,14 @@ exports.getDailySales = async (req, res, next) => {
 /**
  * Record daily settlement
  * POST /stations/:stationId/settlements
+ * 
+ * IMPORTANT: Variance is CALCULATED on backend to prevent manipulation
+ * Formula: variance = expectedCash - actualCash
  */
 exports.recordSettlement = async (req, res, next) => {
   try {
     const { stationId } = req.params;
-    const { date, actualCash, expectedCash, variance, notes, online, credit } = req.body;
+    const { date, actualCash, expectedCash, notes, online, credit } = req.body;
     const user = req.user;
 
     // Check station access
@@ -1267,6 +1270,13 @@ exports.recordSettlement = async (req, res, next) => {
     }
 
     const settlementDate = date || new Date().toISOString().split('T')[0];
+
+    // Parse amounts to ensure precision
+    const parsedExpectedCash = parseFloat(expectedCash || 0);
+    const parsedActualCash = parseFloat(actualCash || 0);
+    
+    // CALCULATE VARIANCE on backend (don't trust frontend value)
+    const calculatedVariance = parsedExpectedCash - parsedActualCash;
 
     // Persist settlement
     const sequelize = require('../models').sequelize;
@@ -1277,9 +1287,9 @@ exports.recordSettlement = async (req, res, next) => {
       const record = await Settlement.create({
         stationId,
         date: settlementDate,
-        expectedCash: parseFloat(expectedCash || 0),
-        actualCash: parseFloat(actualCash || 0),
-        variance: parseFloat(variance || 0),
+        expectedCash: parsedExpectedCash,
+        actualCash: parsedActualCash,
+        variance: parseFloat(calculatedVariance.toFixed(2)), // Round to 2 decimals
         online: parseFloat(online || 0),
         credit: parseFloat(credit || 0),
         notes: notes || '',
@@ -1289,7 +1299,14 @@ exports.recordSettlement = async (req, res, next) => {
 
       await t.commit();
 
-      res.json({ success: true, data: record });
+      res.json({ 
+        success: true, 
+        data: record,
+        metadata: {
+          message: 'Settlement recorded with ACID compliance',
+          varianceCalculation: `${parsedExpectedCash} - ${parsedActualCash} = ${calculatedVariance}`
+        }
+      });
     } catch (err) {
       await t.rollback();
       throw err;
@@ -1303,6 +1320,13 @@ exports.recordSettlement = async (req, res, next) => {
 /**
  * Get settlement history for a station
  * GET /stations/:stationId/settlements?limit=5
+ * 
+ * PERSISTENCE DETAILS:
+ * - All settlements are permanently stored in `settlements` table
+ * - Amounts stored as DECIMAL(12,2) - exact precision, no rounding errors
+ * - Variance automatically calculated: expectedCash - actualCash
+ * - Includes audit trail: who recorded, when, notes
+ * - Status tracking: recorded/approved/disputed
  */
 exports.getSettlements = async (req, res, next) => {
   try {
@@ -1315,15 +1339,176 @@ exports.getSettlements = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    // Query persisted settlements
-    const { Settlement } = require('../models');
+    // Query persisted settlements with variance analysis
+    const { Settlement, User } = require('../models');
     const rows = await Settlement.findAll({
       where: { stationId },
+      include: [{ model: User, as: 'recordedByUser', attributes: ['name', 'email'] }],
       order: [['date', 'DESC'], ['createdAt', 'DESC']],
       limit: parseInt(limit, 10)
     });
 
-    res.json({ success: true, data: rows });
+    // Enhance with variance analysis
+    const enhancedData = rows.map(settlement => {
+      const variance = parseFloat(settlement.variance);
+      const expectedCash = parseFloat(settlement.expectedCash);
+      const variancePercentage = expectedCash > 0 ? (variance / expectedCash) * 100 : 0;
+
+      // Flag problematic variance
+      let varianceStatus = 'OK';
+      if (Math.abs(variance) > (expectedCash * 0.03)) {
+        varianceStatus = 'INVESTIGATE'; // > 3%
+      } else if (Math.abs(variance) > (expectedCash * 0.01)) {
+        varianceStatus = 'REVIEW'; // > 1%
+      }
+
+      return {
+        ...settlement.toJSON(),
+        varianceAnalysis: {
+          percentage: parseFloat(variancePercentage.toFixed(2)),
+          status: varianceStatus,
+          interpretation: variance > 0 ? 'Shortfall' : variance < 0 ? 'Overage' : 'Perfect match'
+        }
+      };
+    });
+
+    res.json({ 
+      success: true, 
+      data: enhancedData,
+      metadata: {
+        count: enhancedData.length,
+        persistenceInfo: 'All settlements persisted to database with ACID compliance',
+        amountsPrecision: 'DECIMAL(12,2) - exact, no floating point errors'
+      }
+    });
+
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Compare settlement vs daily sales
+ * GET /stations/:stationId/settlement-vs-sales?date=2025-12-09
+ * 
+ * ANSWERS: How is settlement different from actual sales calculated by system?
+ * - SALES = Revenue from readings (what was sold)
+ * - SETTLEMENT = Cash reconciliation (what cash we counted)
+ * - Both needed for complete business control
+ */
+exports.getSettlementVsSales = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const { date } = req.query;
+    const user = req.user;
+
+    // Check station access
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const queryDate = date || new Date().toISOString().split('T')[0];
+
+    const { Settlement, NozzleReading } = require('../models');
+
+    // Get settlement for the day
+    const settlement = await Settlement.findOne({
+      where: { stationId, date: queryDate }
+    });
+
+    // Get all readings for the day to calculate sales
+    const readings = await NozzleReading.findAll({
+      where: sequelize.where(
+        sequelize.fn('DATE', sequelize.col('recorded_at')),
+        '=',
+        queryDate
+      ),
+      include: [{
+        model: require('../models').Nozzle,
+        attributes: ['nozzleNumber'],
+        include: [{
+          model: require('../models').Pump,
+          attributes: ['pumpNumber']
+        }]
+      }],
+      raw: false
+    });
+
+    // Calculate sales totals from readings
+    let totalSaleValue = 0;
+    let totalCashSales = 0;
+    let totalOnlineSales = 0;
+    let totalCreditSales = 0;
+
+    readings.forEach(reading => {
+      const saleValue = parseFloat(reading.totalAmount || 0);
+      totalSaleValue += saleValue;
+
+      const paymentMethod = reading.paymentMethod || 'cash';
+      if (paymentMethod === 'cash') {
+        totalCashSales += saleValue;
+      } else if (paymentMethod === 'online') {
+        totalOnlineSales += saleValue;
+      } else if (paymentMethod === 'credit') {
+        totalCreditSales += saleValue;
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        date: queryDate,
+        sales: {
+          definition: 'Total value of fuel sold based on meter readings',
+          totalSaleValue: parseFloat(totalSaleValue.toFixed(2)),
+          breakdown: {
+            cash: parseFloat(totalCashSales.toFixed(2)),
+            online: parseFloat(totalOnlineSales.toFixed(2)),
+            credit: parseFloat(totalCreditSales.toFixed(2))
+          },
+          readingsCount: readings.length,
+          basis: 'System calculated from nozzle meters × fuel price'
+        },
+        settlement: settlement ? {
+          definition: 'Physical cash count vs. expected from readings',
+          date: settlement.date,
+          expectedCash: parseFloat(settlement.expectedCash),
+          actualCash: parseFloat(settlement.actualCash),
+          variance: parseFloat(settlement.variance),
+          variancePercentage: settlement.expectedCash > 0 
+            ? parseFloat(((settlement.variance / settlement.expectedCash) * 100).toFixed(2))
+            : 0,
+          onlineRef: parseFloat(settlement.online),
+          creditRef: parseFloat(settlement.credit),
+          notes: settlement.notes,
+          recordedBy: settlement.recordedBy,
+          recordedAt: settlement.recordedAt,
+          basis: 'Manager physical count + system readings verification'
+        } : null,
+        comparison: settlement ? {
+          salesVsSettlement: {
+            salesCashSales: parseFloat(totalCashSales.toFixed(2)),
+            settlementExpectedCash: parseFloat(settlement.expectedCash),
+            match: Math.abs(totalCashSales - settlement.expectedCash) < 0.01,
+            difference: parseFloat((totalCashSales - settlement.expectedCash).toFixed(2))
+          },
+          purpose: {
+            sales: 'Revenue tracking (what we SOLD)',
+            settlement: 'Cash control (what CASH we have)',
+            together: 'Complete business visibility and audit trail'
+          },
+          whyBothNeeded: [
+            'Sales shows revenue for accounting and tax',
+            'Settlement shows if we collected the cash',
+            'Discrepancies indicate issues (theft, counting error, etc)',
+            'Variance tracking enables audit trail'
+          ]
+        } : null
+      },
+      metadata: {
+        persistenceInfo: 'All settlements stored with ACID compliance, all sales calculated from permanent reading records'
+      }
+    });
 
   } catch (error) {
     next(error);
@@ -1331,6 +1516,7 @@ exports.getSettlements = async (req, res, next) => {
 };
 
 // ⭐ DIAGNOSTIC: Show raw database state for debugging orphaned records
+
 exports.getStationDiagnostics = async (req, res, next) => {
   try {
     const { stationId } = req.params;

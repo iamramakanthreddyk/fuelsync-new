@@ -101,6 +101,11 @@ export function AppSidebar() {
       icon: BarChart3,
     },
     {
+      title: "Income & Receivables",
+      url: "/owner/income-report",
+      icon: DollarSign,
+    },
+    {
       title: "Settings",
       url: "/settings",
       icon: Settings,

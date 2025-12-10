@@ -41,6 +41,7 @@ import StationDetail from '@/pages/owner/StationDetail';
 import EmployeesManagement from '@/pages/owner/EmployeesManagement';
 import OwnerReports from '@/pages/owner/Reports';
 import OwnerAnalytics from '@/pages/owner/Analytics';
+import IncomeReport from '@/pages/owner/IncomeReport';
 import QuickDataEntry from '@/pages/owner/QuickDataEntryEnhanced';
 import SettlementStationSelector from '@/pages/owner/SettlementStationSelector';
 import DailySettlement from '@/pages/owner/DailySettlement';
@@ -305,6 +306,7 @@ function AppContent() {
                     <Route path="/owner/employees" element={<EmployeesManagement />} />
                     <Route path="/owner/reports" element={<OwnerReports />} />
                     <Route path="/owner/analytics" element={<OwnerAnalytics />} />
+                    <Route path="/owner/income-report" element={<IncomeReport />} />
                     <Route path="/owner/shifts" element={<ShiftManagement />} />
                     <Route path="/owner/cash-handovers" element={<CashHandoverConfirmation />} />
                     <Route path="/owner/cash-report" element={<CashReconciliationReport />} />

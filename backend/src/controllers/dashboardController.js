@@ -1074,3 +1074,251 @@ exports.getOwnerAnalytics = async (req, res, next) => {
   }
 };
 
+/**
+ * GET COMPREHENSIVE INCOME & RECEIVABLES REPORT
+ * GET /api/v1/dashboard/income-receivables?stationId=xxx&startDate=2025-12-01&endDate=2025-12-31
+ * 
+ * Returns:
+ * 1. Summary metrics (total liters, fuel breakdown)
+ * 2. Income breakdown (sales, cash, online, credit pending)
+ * 3. Daily settlements with variances
+ * 4. Receivables status (credit sales aging, amounts due)
+ * 5. Creditor settlements (payments received from credit sales)
+ * 6. Income statement (actual cash income)
+ */
+exports.getIncomeReceivablesReport = async (req, res, next) => {
+  try {
+    const { stationId, startDate, endDate } = req.query;
+    const user = await User.findByPk(req.userId);
+
+    if (!stationId) {
+      return res.status(400).json({ success: false, error: 'stationId required' });
+    }
+
+    const queryStart = startDate || new Date().toISOString().split('T')[0];
+    const queryEnd = endDate || new Date().toISOString().split('T')[0];
+
+    // Get all readings for the period
+    const readings = await NozzleReading.findAll({
+      where: {
+        stationId,
+        readingDate: { [Op.between]: [queryStart, queryEnd] }
+      },
+      attributes: [
+        'id', 'readingDate', 'fuelType', 'litresSold', 'totalAmount',
+        'paymentMethod', 'cashAmount', 'onlineAmount', 'creditAmount'
+      ],
+      raw: true
+    });
+
+    // Get settlements for the period
+    const settlements = await sequelize.models.Settlement.findAll({
+      where: {
+        stationId,
+        date: { [Op.between]: [queryStart, queryEnd] }
+      },
+      attributes: ['date', 'expectedCash', 'actualCash', 'variance', 'online', 'credit', 'notes'],
+      raw: true
+    });
+
+    // Get credit transactions for the period
+    const creditTransactions = await CreditTransaction.findAll({
+      where: {
+        stationId,
+        transactionDate: { [Op.between]: [queryStart, queryEnd] }
+      },
+      include: [{ model: Creditor, as: 'creditor', attributes: ['id', 'name'] }],
+      attributes: ['transactionType', 'amount', 'transactionDate', 'creditorId', 'notes'],
+      raw: true
+    });
+
+    // === 1. SUMMARY METRICS ===
+    let totalLiters = 0;
+    let totalSaleValue = 0;
+    const fuelBreakdown = {};
+
+    readings.forEach(r => {
+      totalLiters += parseFloat(r.litresSold || 0);
+      totalSaleValue += parseFloat(r.totalAmount || 0);
+
+      if (!fuelBreakdown[r.fuelType]) {
+        fuelBreakdown[r.fuelType] = { liters: 0, value: 0 };
+      }
+      fuelBreakdown[r.fuelType].liters += parseFloat(r.litresSold || 0);
+      fuelBreakdown[r.fuelType].value += parseFloat(r.totalAmount || 0);
+    });
+
+    // === 2. INCOME BREAKDOWN ===
+    let totalCashReceived = 0;
+    let totalOnlineReceived = 0;
+    let totalCreditPending = 0;
+
+    readings.forEach(r => {
+      totalCashReceived += parseFloat(r.cashAmount || 0);
+      totalOnlineReceived += parseFloat(r.onlineAmount || 0);
+      totalCreditPending += parseFloat(r.creditAmount || 0);
+    });
+
+    // === 3. SETTLEMENT DATA (with variance analysis) ===
+    const settlementData = settlements.map(s => {
+      const variance = parseFloat(s.variance);
+      const expectedCash = parseFloat(s.expectedCash);
+      const variancePercent = expectedCash > 0 ? (variance / expectedCash) * 100 : 0;
+
+      let varianceStatus = 'OK';
+      if (Math.abs(variancePercent) > 3) varianceStatus = 'INVESTIGATE';
+      else if (Math.abs(variancePercent) > 1) varianceStatus = 'REVIEW';
+
+      return {
+        date: s.date,
+        expectedCash: parseFloat(s.expectedCash),
+        actualCash: parseFloat(s.actualCash),
+        variance: variance,
+        variancePercent: parseFloat(variancePercent.toFixed(2)),
+        varianceStatus,
+        onlineRef: parseFloat(s.online),
+        creditRef: parseFloat(s.credit),
+        notes: s.notes
+      };
+    });
+
+    // === 4. CREDIT RECEIVABLES AGING ===
+    const allCreditors = await Creditor.findAll({
+      where: { stationId },
+      attributes: ['id', 'name', 'currentBalance', 'creditPeriodDays', 'lastTransactionDate'],
+      raw: true
+    });
+
+    const receivablesAging = [];
+    let totalOverdue = 0;
+    let totalCurrent = 0;
+
+    allCreditors.forEach(creditor => {
+      const balance = parseFloat(creditor.currentBalance || 0);
+      if (balance <= 0) return;
+
+      const lastTxDate = creditor.lastTransactionDate ? new Date(creditor.lastTransactionDate) : null;
+      const dueDate = lastTxDate ? new Date(lastTxDate.getTime() + (creditor.creditPeriodDays * 24 * 60 * 60 * 1000)) : null;
+      const today = new Date();
+
+      let agingBucket = 'Current';
+      if (dueDate && dueDate < today) {
+        const daysOverdue = Math.floor((today - dueDate) / (24 * 60 * 60 * 1000));
+        if (daysOverdue > 60) agingBucket = 'Over60Days';
+        else if (daysOverdue > 30) agingBucket = 'Over30Days';
+        else agingBucket = 'Overdue';
+        totalOverdue += balance;
+      } else {
+        totalCurrent += balance;
+      }
+
+      receivablesAging.push({
+        creditorId: creditor.id,
+        creditorName: creditor.name,
+        balance: balance,
+        dueDate: dueDate ? dueDate.toISOString().split('T')[0] : null,
+        agingBucket
+      });
+    });
+
+    // === 5. CREDITOR SETTLEMENTS (payments received) ===
+    const creditorSettlements = {};
+
+    creditTransactions.forEach(tx => {
+      if (tx.transactionType === 'settlement') {
+        const creditorName = tx['creditor.name'] || tx.creditorId;
+        if (!creditorSettlements[creditorName]) {
+          creditorSettlements[creditorName] = {
+            totalCredited: 0,
+            totalSettled: 0,
+            outstanding: 0,
+            transactions: []
+          };
+        }
+        creditorSettlements[creditorName].totalSettled += parseFloat(tx.amount || 0);
+        creditorSettlements[creditorName].transactions.push({
+          date: tx.transactionDate,
+          amount: parseFloat(tx.amount),
+          notes: tx.notes
+        });
+      } else if (tx.transactionType === 'credit') {
+        const creditorName = tx['creditor.name'] || tx.creditorId;
+        if (!creditorSettlements[creditorName]) {
+          creditorSettlements[creditorName] = {
+            totalCredited: 0,
+            totalSettled: 0,
+            outstanding: 0,
+            transactions: []
+          };
+        }
+        creditorSettlements[creditorName].totalCredited += parseFloat(tx.amount || 0);
+      }
+    });
+
+    // Calculate outstanding for each creditor
+    Object.keys(creditorSettlements).forEach(creditorName => {
+      const cs = creditorSettlements[creditorName];
+      cs.outstanding = cs.totalCredited - cs.totalSettled;
+    });
+
+    // === FINAL REPORT ===
+    res.json({
+      success: true,
+      data: {
+        period: { startDate: queryStart, endDate: queryEnd },
+        
+        summaryMetrics: {
+          totalLiters: parseFloat(totalLiters.toFixed(2)),
+          totalSaleValue: parseFloat(totalSaleValue.toFixed(2)),
+          fuelBreakdown: Object.keys(fuelBreakdown).map(fuelType => ({
+            fuelType,
+            liters: parseFloat(fuelBreakdown[fuelType].liters.toFixed(2)),
+            value: parseFloat(fuelBreakdown[fuelType].value.toFixed(2)),
+            percentage: ((fuelBreakdown[fuelType].liters / totalLiters) * 100).toFixed(1)
+          }))
+        },
+
+        incomeBreakdown: {
+          calculatedSaleValue: parseFloat(totalSaleValue.toFixed(2)),
+          cashReceived: parseFloat(totalCashReceived.toFixed(2)),
+          onlineReceived: parseFloat(totalOnlineReceived.toFixed(2)),
+          creditPending: parseFloat(totalCreditPending.toFixed(2)),
+          verification: {
+            total: parseFloat((totalCashReceived + totalOnlineReceived + totalCreditPending).toFixed(2)),
+            match: Math.abs((totalCashReceived + totalOnlineReceived + totalCreditPending) - totalSaleValue) < 0.01
+          }
+        },
+
+        settlements: settlementData,
+        settlementSummary: {
+          count: settlementData.length,
+          totalVariance: parseFloat(settlementData.reduce((sum, s) => sum + s.variance, 0).toFixed(2)),
+          avgVariancePercent: parseFloat((settlementData.reduce((sum, s) => sum + s.variancePercent, 0) / (settlementData.length || 1)).toFixed(2))
+        },
+
+        receivables: {
+          aging: receivablesAging,
+          summary: {
+            totalOutstanding: parseFloat((totalCurrent + totalOverdue).toFixed(2)),
+            current: parseFloat(totalCurrent.toFixed(2)),
+            overdue: parseFloat(totalOverdue.toFixed(2))
+          }
+        },
+
+        creditorSettlements: creditorSettlements,
+
+        incomeStatement: {
+          totalSalesGenerated: parseFloat(totalSaleValue.toFixed(2)),
+          lessCreditPending: parseFloat(totalCreditPending.toFixed(2)),
+          lessCashVariance: parseFloat(settlementData.reduce((sum, s) => sum + Math.max(0, s.variance), 0).toFixed(2)),
+          netCashIncome: parseFloat(((totalCashReceived + totalOnlineReceived) - settlementData.reduce((sum, s) => sum + Math.max(0, s.variance), 0)).toFixed(2)),
+          actualCashBasis: parseFloat((totalCashReceived + totalOnlineReceived - settlementData.reduce((sum, s) => sum + Math.max(0, s.variance), 0)).toFixed(2))
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('Income receivables report error:', error);
+    next(error);
+  }
+};
