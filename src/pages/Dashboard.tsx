@@ -63,7 +63,7 @@ export default function Dashboard() {
         fuelPricesObj[normalizeFuelType(key)] = value;
       }
     });
-  } else if (fuelPricesList) {
+  } else if (Array.isArray(fuelPricesList)) {
     fuelPricesList.forEach((cur) => {
       // Get fuel type from any available field and normalize using enum helper
       const fuelType = cur.fuel_type ?? cur.fuelType;

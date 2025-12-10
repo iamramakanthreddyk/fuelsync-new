@@ -1,3 +1,22 @@
+// Helper to set prices from dashboard API response
+export function setPricesFromDashboard(payload: any, setPrices: (prices: PriceRecord) => void) {
+  let items: any[] = [];
+  if (payload && payload.fuelPrices && Array.isArray(payload.fuelPrices.current)) {
+    items = payload.fuelPrices.current;
+  } else if (payload && payload.data && Array.isArray(payload.data.current)) {
+    items = payload.data.current;
+  }
+  const priceObj: PriceRecord = {};
+  items.forEach((cur: any) => {
+    const fuelType = (cur.fuelType ?? cur.fuel_type ?? '').toString().toUpperCase();
+    const rawPrice = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
+    const pricePerLitre = rawPrice !== undefined && rawPrice !== null ? Number(rawPrice) : undefined;
+    if (fuelType && pricePerLitre !== undefined && !Number.isNaN(pricePerLitre)) {
+      priceObj[fuelType] = pricePerLitre;
+    }
+  });
+  setPrices(priceObj);
+}
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import useSWR from 'swr';
 import { apiClient } from '@/lib/api-client';
@@ -53,26 +72,39 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
   const { data } = useSWR(['fuel-prices', stationId], () => fetchFuelPrices(stationId), { revalidateOnFocus: true });
 
   useEffect(() => {
-    const pricesArr: any[] = data ?? [];
-    const priceObj: PriceRecord = {};
 
-    pricesArr.forEach((cur: any) => {
-      const fuelType = cur.fuel_type ?? cur.fuelType ?? '';
-      const rawPrice = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
-      // Coerce strings to numbers and ignore invalid values
-      const pricePerLitre = rawPrice !== undefined && rawPrice !== null ? Number(rawPrice) : undefined;
-      if (fuelType && pricePerLitre !== undefined && !Number.isNaN(pricePerLitre)) {
-        priceObj[fuelType] = pricePerLitre;
+
+    async function fetchAndNormalizePrices() {
+      if (!stationId) {
+        setPrices({});
+        return;
       }
-    });
-
-    if (Object.keys(priceObj).length > 0) {
-      console.log('[FuelPricesContext] Setting prices for station', stationId, priceObj);
-      setPrices(priceObj);
-    } else {
-      console.log('[FuelPricesContext] No prices found in API response, clearing prices. Data:', data);
-      setPrices({});
+      try {
+        const res = await apiClient.get(`/stations/${stationId}/prices`);
+        let items = [];
+        if (res && typeof res === 'object') {
+          if ('data' in res && res.data && typeof res.data === 'object' && Array.isArray((res.data as any)?.current)) {
+            items = (res.data as any).current;
+          } else if (Array.isArray(res)) {
+            items = res;
+          }
+        }
+        const normalized: PriceRecord = {};
+        items.forEach((cur: any) => {
+          // Normalize fuel type to uppercase
+          const fuelType = (cur.fuelType ?? cur.fuel_type ?? '').toString().toUpperCase();
+          const rawPrice = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
+          const pricePerLitre = rawPrice !== undefined && rawPrice !== null ? Number(rawPrice) : undefined;
+          if (fuelType && pricePerLitre !== undefined && !Number.isNaN(pricePerLitre)) {
+            normalized[fuelType] = pricePerLitre;
+          }
+        });
+        setPrices(normalized);
+      } catch {
+        setPrices({});
+      }
     }
+    fetchAndNormalizePrices();
   }, [data, stationId]);
 
   return (

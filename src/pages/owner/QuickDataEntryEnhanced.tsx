@@ -74,15 +74,14 @@ export default function QuickDataEntry() {
   const { data: stationsResponse } = useStations();
   const stations = stationsResponse?.data;
 
-  const { prices: globalFuelPrices, setStationId, setPrices: setGlobalFuelPrices, stationId: ctxStationId } = useFuelPricesGlobal();
+  const { prices: globalFuelPrices, setStationId } = useFuelPricesGlobal();
 
   // Auto-select first station on load and inform global fuel price provider
   useEffect(() => {
     if (stations && stations.length > 0 && !selectedStation) {
       setSelectedStation(stations[0].id);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stations]);
+  }, [stations, selectedStation]);
 
   // When selectedStation changes, update global provider so it fetches station prices
   useEffect(() => {
@@ -91,94 +90,17 @@ export default function QuickDataEntry() {
     }
   }, [selectedStation, setStationId]);
 
-  // Proactively fetch prices for selected station to avoid race where provider hasn't set prices yet
-  useEffect(() => {
-    let cancelled = false;
-    async function fetchAndSet() {
-      if (!selectedStation) return;
-
-      // If the global context already has prices, always reuse them (prefer single source-of-truth)
-      const hasGlobalPrices = Object.keys(globalFuelPrices || {}).length > 0;
-      const canReuseGlobal = hasGlobalPrices;
-      if (canReuseGlobal) {
-        try {
-          const normalizedFromCtx = Object.entries(globalFuelPrices).map(([fuel_type, price_per_litre]) => ({ fuel_type, price_per_litre }));
-          console.debug('[QuickDataEntry] Reusing global prices for station', selectedStation, 'prices:', normalizedFromCtx);
-          queryClient.setQueryData(['fuel-prices', selectedStation], normalizedFromCtx);
-        } catch (e) {
-          // ignore cache set errors
-        }
-        return;
-      }
-
-      try {
-        const resp = await apiClient.get(`/stations/${selectedStation}/prices`);
-        const payload = resp && (resp as any).data ? (resp as any).data : resp;
-        let pricesArr: any[] = [];
-        if (Array.isArray(payload)) pricesArr = payload;
-        else if (payload.current && Array.isArray(payload.current)) pricesArr = payload.current;
-        else if (payload.fuelPrices && payload.fuelPrices.current && Array.isArray(payload.fuelPrices.current)) pricesArr = payload.fuelPrices.current;
-        else if (payload.data) {
-          const inner = payload.data;
-          if (Array.isArray(inner)) pricesArr = inner;
-          else if (inner.current && Array.isArray(inner.current)) pricesArr = inner.current;
-        }
-
-        if (!cancelled && pricesArr.length > 0) {
-          // Normalize to frontend shape used elsewhere
-          const normalized = pricesArr.map((p: any) => ({
-            id: p.id,
-            station_id: p.stationId || p.station_id,
-            fuel_type: (p.fuelType ?? p.fuel_type ?? '').toString(),
-            price_per_litre: p.price_per_litre ?? p.pricePerLitre ?? p.price
-          }));
-          // If global prices are available, set them so UI reads immediately
-          const pricesObj: Record<string, number> = {};
-          normalized.forEach((x: any) => {
-            const key = normalizeFuelType(x.fuel_type ?? x.fuelType ?? '');
-            if (key && x.price_per_litre !== undefined) {
-              pricesObj[key] = x.price_per_litre;
-            }
-          });
-          if (Object.keys(pricesObj).length > 0) {
-            // set global prices directly to avoid the 'Prices Required' race
-            setGlobalFuelPrices(pricesObj);
-            // ensure the context knows these prices belong to the selected station
-            try { setStationId(selectedStation); } catch (e) { /* ignore */ }
-            // Also populate React Query cache so useFuelPricesData and status hook re-render immediately
-            try {
-              queryClient.setQueryData(['fuel-prices', selectedStation], normalized);
-            } catch (e) {
-              // ignore
-            }
-          }
-        }
-      } catch (err) {
-        // ignore
-      }
-    }
-    fetchAndSet();
-    return () => { cancelled = true; };
-  }, [selectedStation, setGlobalFuelPrices, ctxStationId, globalFuelPrices, queryClient]);
-
   // Fetch pumps for selected station
   const { data: pumpsResponse, isLoading: pumpsLoading } = usePumps(selectedStation);
   const pumps = pumpsResponse?.data;
 
-  // Fetch global fuel prices (matches Dashboard)
-  const { data: fuelPricesRaw, isLoading: pricesLoading } = useFuelPricesData();
-  const fuelPrices = (ctxStationId === selectedStation && Object.keys(globalFuelPrices).length > 0)
-    ? Object.entries(globalFuelPrices).map(([fuel_type, price_per_litre]) => ({ fuel_type, price_per_litre }))
-    : fuelPricesRaw;
+  // Always use global fuel prices from context
+  const fuelPrices = Object.entries(globalFuelPrices).map(([fuel_type, price_per_litre]) => ({ fuel_type, price_per_litre }));
 
   // Debug: Log fuel prices when they load
   useEffect(() => {
-    if (fuelPrices && fuelPrices.length > 0) {
-      // Fuel prices loaded
-    } else if (selectedStation && !pricesLoading) {
-      // No fuel prices available
-    }
-  }, [fuelPrices, selectedStation, pricesLoading]);
+    // Fuel prices loaded or not
+  }, [fuelPrices, selectedStation]);
 
   // Fetch creditors for selected station
   const { data: creditors = [] } = useQuery<Creditor[]>({
@@ -206,7 +128,7 @@ export default function QuickDataEntry() {
     enabled: !!selectedStation
   });
 
-  // Calculate sale value summary
+  // Calculate sale value summary for current entry (for validation only)
   const saleSummary = useMemo(() => {
     let totalLiters = 0;
     let totalSaleValue = 0;
@@ -252,6 +174,12 @@ export default function QuickDataEntry() {
       byFuelType
     };
   }, [readings, pumps, fuelPrices]);
+
+  // Fetch backend stats for today's sales
+  const { data: dashboardData, isLoading: statsLoading } = require('@/hooks/useDashboardData').useDashboardData();
+
+  // Use backend value for today's sales
+  const todaySalesValue = dashboardData?.todaySales ?? 0;
 
   // Move default allocation to an effect to avoid side-effects inside useMemo
   useEffect(() => {
@@ -569,7 +497,7 @@ export default function QuickDataEntry() {
       </Card>
 
       {/* Readings Entry */}
-      {selectedStation && (pumpsLoading || pricesLoading) ? (
+      {selectedStation && pumpsLoading ? (
         <Card>
           <CardContent className="py-12">
             <div className="text-center text-sm text-muted-foreground">
@@ -631,12 +559,9 @@ export default function QuickDataEntry() {
                                   <Label className="text-xs font-semibold">
                                     Nozzle {nozzle.nozzleNumber} - {nozzle.fuelType}
                                     {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
+                                    <span className="text-xs text-muted-foreground ml-2">Last Reading: {safeToFixed(compareValue, 1)}</span>
                                   </Label>
-                                  <Label className="text-xs text-muted-foreground mt-1">Last Reading</Label>
                                 </div>
-                                <span className="text-xs text-muted-foreground">
-                                  {safeToFixed(compareValue, 1)}
-                                </span>
                               </div>
                               <div className="relative">
                                 <Input
@@ -651,6 +576,11 @@ export default function QuickDataEntry() {
                                 {reading?.readingValue && enteredValue > compareValue && (
                                   <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
                                     <Check className="w-4 h-4" />
+                                  </div>
+                                )}
+                                {reading?.readingValue && enteredValue <= compareValue && (
+                                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-red-500 text-xs">
+                                    Incorrect reading
                                   </div>
                                 )}
                               </div>
@@ -688,14 +618,32 @@ export default function QuickDataEntry() {
             </div>
 
             {/* Right: Payment Summary (1 col) */}
+
             <div className="lg:col-span-1 space-y-3">
+              {/* Show backend stats for today's sales */}
+              {pendingCount === 0 && dashboardData?.todaySales > 0 && (
+                <Card className="border-2 border-blue-200 bg-blue-50">
+                  <CardContent className="p-3 md:p-4 space-y-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Today's Sales (Backend)</p>
+                      <p className="text-xl md:text-2xl font-bold text-blue-600 break-all md:break-normal">
+                        ₹{dashboardData.todaySales >= 100000 
+                          ? `${safeToFixed(dashboardData.todaySales / 100000, 1)}L`
+                          : safeToFixed(dashboardData.todaySales, 2)}
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Show local calculation only for entry validation */}
               {pendingCount > 0 && saleSummary.totalSaleValue > 0 && (
                 <>
                   {/* Quick Summary Card */}
                   <Card className="border-2 border-green-200 bg-green-50">
                     <CardContent className="p-3 md:p-4 space-y-3">
                       <div>
-                        <p className="text-xs text-muted-foreground">Total Sale Value</p>
+                        <p className="text-xs text-muted-foreground">Current Entry Sale Value</p>
                         <p className="text-xl md:text-2xl font-bold text-green-600 break-all md:break-normal">
                           ₹{saleSummary.totalSaleValue >= 100000 
                             ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`

@@ -3,7 +3,6 @@
  * Complete CRUD for managing stations
  */
 
-import { useState } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,7 +31,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, queryKeys } from '@/hooks/api';
-import { useFuelPricesData } from '@/hooks/useFuelPricesData';
+import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { safeToFixed } from '@/lib/format-utils';
 import { Station } from '@/types/api';
 import type { ApiResponse } from '@/lib/api-client';
@@ -188,33 +187,34 @@ const StationFormContent = ({ formData, onChange }: StationFormProps) => (
 );
 
 // Fuel Prices Section Component
-interface FuelPricesSectionProps {
-  stationId: string;
-}
 
-const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
-  const { data: fuelPrices = [], isLoading } = useFuelPricesData(stationId);
 
-  if (isLoading) {
-    return (
-      <div className="bg-muted/50 p-3 rounded-lg">
+import React, { useEffect, useState } from 'react';
+const FuelPricesSection = () => {
+  const { prices: globalFuelPrices, setPrices } = useFuelPricesGlobal();
+  const [dummySet, setDummySet] = useState(false);
+  useEffect(() => {
+    if (!dummySet && (!globalFuelPrices || Object.keys(globalFuelPrices).length === 0)) {
+      setDummySet(true);
+    } else if (globalFuelPrices && Object.keys(globalFuelPrices).length > 0) {
+    }
+  }, [globalFuelPrices, setPrices, dummySet]);
+  // Convert context prices to display array
+  const fuelPrices = Object.entries(globalFuelPrices || {})
+    .filter(([_, price]) => typeof price === 'number' && price > 0)
+    .map(([fuelType, price]) => ({
+      fuel_type: fuelType,
+      price_per_litre: price
+    }));
+
+  if (!fuelPrices || fuelPrices.length === 0) {
+      return (
+        <div className="bg-muted/50 p-3 rounded-lg">
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
           <IndianRupee className="w-4 h-4" />
           <span>Fuel Prices</span>
         </div>
-        <div className="text-sm text-muted-foreground">Loading...</div>
-      </div>
-    );
-  }
-
-  if (!fuelPrices || !Array.isArray(fuelPrices) || fuelPrices.length === 0) {
-    return (
-      <div className="bg-muted/50 p-3 rounded-lg">
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <IndianRupee className="w-4 h-4" />
-          <span>Fuel Prices</span>
-        </div>
-        <div className="text-sm text-muted-foreground">No prices set</div>
+        <div className="text-sm text-muted-foreground">Loading fuel prices...</div>
       </div>
     );
   }
@@ -226,16 +226,18 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
         <span>Fuel Prices</span>
       </div>
       <div className="grid grid-cols-2 gap-2">
-        {fuelPrices.map((price) => (
-          <div key={price.id} className="bg-background/50 p-2 rounded border">
-            <div className="text-xs text-muted-foreground capitalize">
-              {price.fuel_type}
+        {fuelPrices.map((price: any) => {
+          return (
+            <div key={price.fuel_type} className="bg-background/50 p-2 rounded border">
+              <div className="text-xs text-muted-foreground capitalize">
+                {price.fuel_type}
+              </div>
+              <div className="text-sm font-semibold text-green-700">
+                ₹{safeToFixed(price.price_per_litre, 2)}
+              </div>
             </div>
-            <div className="text-sm font-semibold text-green-700">
-              ₹{safeToFixed(price.price_per_litre, 2)}
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -559,7 +561,7 @@ export default function StationsManagement() {
                 </div>
 
                 {/* Fuel Prices */}
-                <FuelPricesSection stationId={station.id} />
+                <FuelPricesSection />
 
                 {/* Location & Contact Info */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

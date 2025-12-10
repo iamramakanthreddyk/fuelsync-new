@@ -533,10 +533,10 @@ export default function DailySettlement() {
                                       checked={selectedReadingIds.includes(reading.id)}
                                       onCheckedChange={() => handleToggleReading(reading.id)}
                                     />
-                                    <Badge variant="outline" className="text-xs capitalize">
-                                      {reading.fuelType}
-                                    </Badge>
-                                    <span className="text-sm font-medium">Nozzle #{reading.nozzleNumber}</span>
+                                    <span className="text-sm font-medium">
+                                      Nozzle #{reading.nozzleNumber} - {reading.fuelType} &nbsp;
+                                      <span className="text-xs text-muted-foreground">Last Reading: {safeToFixed(reading.closingReading, 2)}</span>
+                                    </span>
                                   </div>
                                   <span className="text-sm font-bold text-green-600">
                                     ₹{safeToFixed(reading.saleValue, 2)}

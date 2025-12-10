@@ -6,6 +6,7 @@
  */
 
 import { useState } from 'react';
+import { useFuelPricesGlobal } from '../../context/FuelPricesContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStations } from '@/hooks/api';
@@ -86,19 +87,28 @@ const FuelDistribution: React.FC<FuelDistributionProps> = ({ className }) => (
     </CardHeader>
     <CardContent>
       <div className="space-y-4">
-        {[
-          { name: 'Petrol', percentage: 65, color: 'bg-blue-500' },
-          { name: 'Diesel', percentage: 30, color: 'bg-green-500' },
-          { name: 'CNG', percentage: 5, color: 'bg-orange-500' },
-        ].map((fuel) => (
-          <div key={fuel.name} className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 ${fuel.color} rounded-full`} />
-              <span className="text-sm">{fuel.name}</span>
-            </div>
-            <span className="font-medium">{fuel.percentage}%</span>
-          </div>
-        ))}
+        {(() => {
+          const { prices } = useFuelPricesGlobal();
+          const total = Object.values(prices).reduce((sum, price) => sum + price, 0);
+          return Object.entries(prices).map(([fuelType, price]) => {
+            // Assign color based on fuel type
+            let color = 'bg-gray-400';
+            if (fuelType === 'PETROL') color = 'bg-blue-500';
+            else if (fuelType === 'DIESEL') color = 'bg-green-500';
+            else if (fuelType === 'CNG') color = 'bg-orange-500';
+            // Calculate percentage
+            const percentage = total > 0 ? Math.round((price / total) * 100) : 0;
+            return (
+              <div key={fuelType} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className={`w-3 h-3 ${color} rounded-full`} />
+                  <span className="text-sm">{fuelType}</span>
+                </div>
+                <span className="font-medium">{percentage}%</span>
+              </div>
+            );
+          });
+        })()}
       </div>
     </CardContent>
   </Card>

@@ -9,6 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import { useRoleAccess } from "./useRoleAccess";
 import { FuelTypeEnum } from "@/core/enums";
+import { useFuelPricesGlobal, setPricesFromDashboard } from "@/context/FuelPricesContext";
 
 // Backend price format
 interface BackendFuelPrice {
@@ -95,44 +96,45 @@ function transformPrice(price: BackendFuelPrice): FuelPrice {
 
 export function useFuelPricesData(overrideStationId?: string) {
   const { currentStation } = useRoleAccess();
-  // Use provided stationId or fall back to currentStation
+  const { prices, setPrices } = useFuelPricesGlobal();
   const stationId = overrideStationId || currentStation?.id;
+
+  // If prices exist in context, use them
+  const contextPrices = Object.entries(prices || {}).map(([fuelType, price]) => ({
+    id: fuelType,
+    station_id: stationId,
+    fuel_type: fuelType,
+    price_per_litre: price,
+  }));
 
   return useQuery<FuelPrice[]>({
     queryKey: ['fuel-prices', stationId],
     queryFn: async () => {
-      // Prevent API call if stationId is undefined
+      if (contextPrices.length > 0) {
+        return contextPrices;
+      }
       if (!stationId) {
         return [];
       }
       try {
-        // Use the correct endpoint: /stations/:stationId/prices
         const url = `/stations/${stationId}/prices`;
-        // apiClient.get returns the full response: {success, data}
         const response = await apiClient.get<ApiResponse<{ current: BackendFuelPrice[], history: BackendFuelPrice[] }>>(url);
-
-        // Extract current prices from the API response
-        // Handle the specific structure: {success, data: {current: [...]}, fuelPrices: {current: [...]}}
         let currentPrices: BackendFuelPrice[] = [];
-        
-        // The apiClient returns the wrapped response: {success, data, ...}
-        // For fuel prices, data contains {current: [...], history: [...]}
         if (response && typeof response === 'object' && 'data' in response) {
           const data = response.data;
           if (data && typeof data === 'object' && 'current' in data && Array.isArray(data.current)) {
             currentPrices = data.current;
           }
         }
-        
-        // Fallback: check if response has fuelPrices directly
         if (currentPrices.length === 0 && response && typeof response === 'object' && 'fuelPrices' in response) {
           const fuelPrices = response.fuelPrices;
           if (fuelPrices && typeof fuelPrices === 'object' && 'current' in fuelPrices && Array.isArray(fuelPrices.current)) {
             currentPrices = fuelPrices.current;
           }
         }
-        
         if (currentPrices.length > 0) {
+          // Set in context for reuse
+          setPricesFromDashboard({ fuelPrices: { current: currentPrices } }, setPrices);
           const transformed = currentPrices.map(transformPrice);
           return transformed;
         }
