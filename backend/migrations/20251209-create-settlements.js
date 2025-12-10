@@ -64,6 +64,15 @@ module.exports = {
       },
       credit: {
         type: Sequelize.DataTypes.DECIMAL(12,2),
+        is_final: {
+          type: Sequelize.DataTypes.BOOLEAN,
+          allowNull: false,
+          defaultValue: false
+        },
+        finalized_at: {
+          type: Sequelize.DataTypes.DATE,
+          allowNull: true
+        },
         allowNull: false,
         defaultValue: 0
       },

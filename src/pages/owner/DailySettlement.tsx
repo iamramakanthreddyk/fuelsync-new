@@ -55,8 +55,12 @@ interface SettlementRecord {
   online: number;
   credit: number;
   notes: string;
-  settledBy: string;
-  settledAt: string;
+  settledBy?: string;
+  settledAt?: string;
+  isFinal?: boolean;
+  finalizedAt?: string;
+  duplicateCount?: number;
+  allSettlements?: SettlementRecord[];
 }
 
 export default function DailySettlement() {
@@ -67,6 +71,8 @@ export default function DailySettlement() {
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [actualCash, setActualCash] = useState<number>(0);
+  const [actualOnline, setActualOnline] = useState<number>(0);
+  const [actualCredit, setActualCredit] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -91,7 +97,7 @@ export default function DailySettlement() {
       if (!stationId) return [];
       try {
         const response = await apiClient.get<{ success: boolean; data: SettlementRecord[] }>(
-          `/stations/${stationId}/settlements?limit=5`
+          `/stations/${stationId}/settlements` // get all for audit
         );
         return response?.data || [];
       } catch (error) {
@@ -129,6 +135,8 @@ export default function DailySettlement() {
         variant: 'success'
       });
       setActualCash(0);
+      setActualOnline(0);
+      setActualCredit(0);
       setNotes('');
       queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
       queryClient.invalidateQueries({ queryKey: ['settlements'] });
@@ -160,9 +168,9 @@ export default function DailySettlement() {
       stationId,
       expectedCash: dailySales.expectedCash,
       actualCash,
+      actualOnline,
+      actualCredit,
       // variance: NOT SENT - backend will calculate: expectedCash - actualCash
-      online: dailySales.paymentSplit.online,
-      credit: dailySales.paymentSplit.credit,
       notes,
       settledBy: 'current_user', // Will be replaced with actual user
       settledAt: new Date().toISOString()
@@ -335,14 +343,14 @@ export default function DailySettlement() {
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" />
-                Cash Reconciliation
+                Owner Settlement Confirmation
               </CardTitle>
               <CardDescription>
-                Verify the actual cash collected vs expected
+                Confirm and enter the actual amounts received for each payment type
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="overflow-hidden">
                   <Label className="text-sm font-semibold truncate">Expected Cash</Label>
                   <div className="text-2xl md:text-3xl font-bold text-blue-600 mt-2 break-all md:break-normal">
@@ -356,7 +364,7 @@ export default function DailySettlement() {
                 </div>
                 <div className="overflow-hidden">
                   <Label htmlFor="actual-cash" className="text-sm font-semibold truncate">
-                    Actual Cash Collected
+                    Actual Cash Received
                   </Label>
                   <Input
                     id="actual-cash"
@@ -365,10 +373,44 @@ export default function DailySettlement() {
                     value={actualCash}
                     onChange={(e) => setActualCash(parseFloat(e.target.value) || 0)}
                     className="mt-2 border-green-300 focus:border-green-500 text-base md:text-lg font-bold"
-                    placeholder="Enter the cash in your register"
+                    placeholder="Enter actual cash received"
                   />
                   <p className="text-xs text-muted-foreground mt-2 truncate">
                     Physical cash from pump/register
+                  </p>
+                </div>
+                <div className="overflow-hidden">
+                  <Label htmlFor="actual-online" className="text-sm font-semibold truncate">
+                    Actual Online Received
+                  </Label>
+                  <Input
+                    id="actual-online"
+                    type="number"
+                    step="0.01"
+                    value={actualOnline}
+                    onChange={(e) => setActualOnline(parseFloat(e.target.value) || 0)}
+                    className="mt-2 border-blue-300 focus:border-blue-500 text-base md:text-lg font-bold"
+                    placeholder="Enter actual online received"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2 truncate">
+                    UPI, card, netbanking, etc.
+                  </p>
+                </div>
+                <div className="overflow-hidden">
+                  <Label htmlFor="actual-credit" className="text-sm font-semibold truncate">
+                    Actual Credit Received
+                  </Label>
+                  <Input
+                    id="actual-credit"
+                    type="number"
+                    step="0.01"
+                    value={actualCredit}
+                    onChange={(e) => setActualCredit(parseFloat(e.target.value) || 0)}
+                    className="mt-2 border-orange-300 focus:border-orange-500 text-base md:text-lg font-bold"
+                    placeholder="Enter actual credit received"
+                  />
+                  <p className="text-xs text-muted-foreground mt-2 truncate">
+                    Credit settlements from customers
                   </p>
                 </div>
               </div>
@@ -443,32 +485,59 @@ export default function DailySettlement() {
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg">Recent Settlements</CardTitle>
+                <CardDescription>
+                  {previousSettlements.some(s => s.duplicateCount && s.duplicateCount > 1) && (
+                    <span className="text-red-600 font-bold">Duplicate settlements detected for some days!</span>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="space-y-3">
-                  {previousSettlements.slice(0, 5).map((settlement: SettlementRecord) => (
-                    <div key={settlement.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 bg-muted/50 rounded-lg border gap-2">
-                      <div className="overflow-hidden">
-                        <div className="font-semibold text-sm truncate">
+                <div className="space-y-6">
+                  {previousSettlements.map((settlement: SettlementRecord) => (
+                    <div key={settlement.id} className={`border rounded-lg p-3 ${settlement.isFinal ? 'border-green-600 bg-green-50' : 'border-muted'} space-y-2`}>
+                      <div className="flex items-center gap-2">
+                        <div className="font-semibold text-sm">
                           {new Date(settlement.date).toLocaleDateString('en-IN', {
-                            day: 'numeric',
-                            month: 'short',
-                            year: '2-digit'
+                            day: 'numeric', month: 'short', year: '2-digit'
                           })}
                         </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          Expected: ₹{settlement.expectedCash >= 100000
-                            ? `${safeToFixed(settlement.expectedCash / 100000, 1)}L`
-                            : safeToFixed(settlement.expectedCash, 2)} | Actual: ₹{settlement.actualCash >= 100000
-                            ? `${safeToFixed(settlement.actualCash / 100000, 1)}L`
-                            : safeToFixed(settlement.actualCash, 2)}
-                        </div>
+                        {settlement.isFinal && (
+                          <Badge variant="outline" className="text-green-700 border-green-600">Final</Badge>
+                        )}
+                        {settlement.duplicateCount && settlement.duplicateCount > 1 && (
+                          <Badge variant="outline" className="text-red-700 border-red-600">Duplicates: {settlement.duplicateCount}</Badge>
+                        )}
                       </div>
-                      <div className={`text-sm font-bold break-all md:break-normal ${
-                        settlement.variance >= 0 ? 'text-green-600' : 'text-red-600'
-                      }`}>
+                      <div className="text-xs text-muted-foreground">
+                        Expected: ₹{settlement.expectedCash >= 100000
+                          ? `${safeToFixed(settlement.expectedCash / 100000, 1)}L`
+                          : safeToFixed(settlement.expectedCash, 2)} | Actual: ₹{settlement.actualCash >= 100000
+                          ? `${safeToFixed(settlement.actualCash / 100000, 1)}L`
+                          : safeToFixed(settlement.actualCash, 2)}
+                        | Online: ₹{safeToFixed(settlement.online, 2)} | Credit: ₹{safeToFixed(settlement.credit, 2)}
+                      </div>
+                      <div className={`text-sm font-bold ${settlement.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                         {settlement.variance >= 0 ? '+' : ''}₹{safeToFixed(settlement.variance, 2)}
                       </div>
+                      {settlement.notes && (
+                        <div className="text-xs text-muted-foreground">Notes: {settlement.notes}</div>
+                      )}
+                      {/* Show all settlements for this date if duplicates exist */}
+                      {settlement.duplicateCount && settlement.duplicateCount > 1 && settlement.allSettlements && (
+                        <div className="mt-2">
+                          <div className="text-xs font-semibold mb-1">All settlements for this date:</div>
+                          <div className="space-y-1">
+                            {settlement.allSettlements.map((s, idx) => (
+                              <div key={s.id || idx} className={`border rounded p-2 text-xs ${s.isFinal ? 'border-green-600 bg-green-50' : 'border-muted'}`}>
+                                {new Date(s.settledAt || s.finalizedAt || s.recordedAt || s.date).toLocaleString('en-IN')}
+                                {s.isFinal && <span className="ml-2 text-green-700">(Final)</span>}
+                                | Actual: ₹{safeToFixed(s.actualCash, 2)} | Online: ₹{safeToFixed(s.online, 2)} | Credit: ₹{safeToFixed(s.credit, 2)} | Variance: {safeToFixed(s.variance, 2)}
+                                {s.notes && <span className="ml-2">Notes: {s.notes}</span>}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

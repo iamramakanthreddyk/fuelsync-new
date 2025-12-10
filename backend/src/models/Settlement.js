@@ -55,10 +55,20 @@ module.exports = (sequelize) => {
       type: DataTypes.DATE,
       field: 'recorded_at'
     },
-    status: {
-      type: DataTypes.ENUM('recorded','approved','disputed'),
-      defaultValue: 'recorded'
-    }
+      isFinal: {
+        type: DataTypes.BOOLEAN,
+        defaultValue: false,
+        field: 'is_final'
+      },
+      finalizedAt: {
+        type: DataTypes.DATE,
+        field: 'finalized_at',
+        allowNull: true
+      },
+      status: {
+        type: DataTypes.ENUM('recorded','approved','disputed'),
+        defaultValue: 'recorded'
+      }
   }, {
     tableName: 'settlements',
     underscored: true,
