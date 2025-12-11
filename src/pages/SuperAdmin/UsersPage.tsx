@@ -927,15 +927,15 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                     className="mt-2"
                     onClick={async () => {
                       if (!editForm.newPassword || editForm.newPassword.length < 6) {
-                        alert('Password must be at least 6 characters');
+                        toast({ title: "Error", description: 'Password must be at least 6 characters', variant: "destructive" });
                         return;
                       }
                       try {
                         await apiClient.post(`/users/${editForm.id}/reset-password`, { newPassword: editForm.newPassword });
-                        alert('Password changed successfully');
+                        toast({ title: "Success", description: "Password changed successfully", variant: "success" });
                         setEditForm({ ...editForm, newPassword: '' });
                       } catch (err) {
-                        alert('Failed to change password');
+                        toast({ title: "Error", description: "Failed to change password", variant: "destructive" });
                       }
                     }}
                   >

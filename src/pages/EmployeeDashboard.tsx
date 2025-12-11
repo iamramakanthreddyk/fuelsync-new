@@ -13,9 +13,11 @@ import { Button } from '@/components/ui/button';
 import { safeToFixed } from '@/lib/format-utils';
 import { EquipmentStatusEnum } from '@/core/enums';
 import { TodayReadings } from '@/components/dashboard/TodayReadings';
+import { useToast } from '@/hooks/use-toast';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [fuelPrices, setFuelPrices] = useState<FuelPrice[]>([]);
   const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
@@ -51,7 +53,7 @@ const EmployeeDashboard = () => {
         setActiveShift((shiftStatus && (shiftStatus as any).myActiveShift) || null);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
-        alert('Error fetching dashboard data: ' + (error instanceof Error ? error.message : String(error)));
+        toast({ title: "Error", description: 'Error fetching dashboard data: ' + (error instanceof Error ? error.message : String(error)), variant: "destructive" });
       } finally {
         setLoading(false);
       }
@@ -74,7 +76,7 @@ const EmployeeDashboard = () => {
       setActiveShift(shift);
     } catch (error: unknown) {
       console.error('Failed to start shift:', error);
-      alert(error instanceof Error ? error.message : 'Failed to start shift');
+      toast({ title: "Error", description: error instanceof Error ? error.message : 'Failed to start shift', variant: "destructive" });
     } finally {
       setShiftLoading(false);
     }
@@ -108,7 +110,7 @@ const EmployeeDashboard = () => {
       }
     } catch (error: unknown) {
       console.error('Failed to end shift:', error);
-      alert(error instanceof Error ? error.message : 'Failed to end shift');
+      toast({ title: "Error", description: error instanceof Error ? error.message : 'Failed to end shift', variant: "destructive" });
     } finally {
       setShiftLoading(false);
     }
