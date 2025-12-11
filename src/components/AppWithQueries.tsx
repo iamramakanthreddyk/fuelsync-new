@@ -51,6 +51,7 @@ import DailySalesReport from '@/pages/owner/DailySalesReport';
 import ShiftManagement from '@/pages/shifts/ShiftManagement';
 import CashHandoverConfirmation from '@/pages/cash/CashHandoverConfirmation';
 import CashReconciliationReport from '@/pages/cash/CashReconciliationReport';
+import AddCreditor from '@/pages/owner/AddCreditor';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
@@ -302,6 +303,7 @@ function AppContent() {
                     <Route path="/owner/daily-reports" element={<DailySalesReport />} />
                     <Route path="/owner/stations" element={<StationsManagement />} />
                     <Route path="/owner/stations/:id" element={<StationDetail />} />
+                    <Route path="/owner/stations/:id/add-creditor" element={<AddCreditor />} />
                     <Route path="/owner/stations/:id/prices" element={<Prices />} />
                     <Route path="/owner/employees" element={<EmployeesManagement />} />
                     <Route path="/owner/reports" element={<OwnerReports />} />

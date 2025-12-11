@@ -4,7 +4,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toFixedNumber } from '@/lib/numberFormat';
@@ -944,81 +944,12 @@ export default function StationDetail() {
         <TabsContent value="creditors" className="space-y-4">
           <div className="flex justify-between items-center">
             <h2 className="text-xl font-semibold">Credit Customers</h2>
-            <Dialog open={isCreditorDialogOpen} onOpenChange={setIsCreditorDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Creditor
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Creditor</DialogTitle>
-                  <DialogDescription>Create a new credit customer for this station</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="creditorName">Name *</Label>
-                    <Input
-                      id="creditorName"
-                      value={creditorForm.name}
-                      onChange={(e) => debouncedSetCreditorName(e.target.value)}
-                      placeholder="Customer name"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="creditorPhone">Phone *</Label>
-                    <Input
-                      id="creditorPhone"
-                      value={creditorForm.phone}
-                      onChange={e => debouncedSetCreditorPhone(e.target.value)}
-                      placeholder="+91-9876543210"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="creditorEmail">Email</Label>
-                    <Input
-                      id="creditorEmail"
-                      type="email"
-                      value={creditorForm.email}
-                      onChange={e => debouncedSetCreditorEmail(e.target.value)}
-                      placeholder="customer@example.com"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="creditLimit">Credit Limit *</Label>
-                    <Input
-                      id="creditLimit"
-                      type="number"
-                      step="0.01"
-                      value={creditorForm.creditLimit}
-                      onChange={(e) => setCreditorForm({ ...creditorForm, creditLimit: e.target.value })}
-                      placeholder="10000.00"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="vehicleNumber">Vehicle Number</Label>
-                    <Input
-                      id="vehicleNumber"
-                      value={creditorForm.vehicleNumber}
-                      onChange={e => debouncedSetCreditorVehicle(e.target.value)}
-                      placeholder="MH-12-AB-1234"
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsCreditorDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleCreateCreditor}
-                    disabled={!creditorForm.name || !creditorForm.phone || !creditorForm.creditLimit || createCreditorMutation.isPending}
-                  >
-                    {createCreditorMutation.isPending ? 'Creating...' : 'Create Creditor'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <Link to={`/owner/stations/${id}/add-creditor`}>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Creditor
+              </Button>
+            </Link>
           </div>
 
           {creditorsLoading ? (
@@ -1073,10 +1004,12 @@ export default function StationDetail() {
               <CardContent className="py-8 text-center">
                 <CreditCard className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">No creditors added yet</p>
-                <Button onClick={() => setIsCreditorDialogOpen(true)}>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add First Creditor
-                </Button>
+                <Link to={`/owner/stations/${id}/add-creditor`}>
+                  <Button>
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add First Creditor
+                  </Button>
+                </Link>
               </CardContent>
             </Card>
           )}

@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,7 +17,6 @@ export default function Login() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  // Redirect after successful login when user state is updated
   useEffect(() => {
     if (user?.role) {
       const normalizedRole = typeof user.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
@@ -50,7 +48,6 @@ export default function Login() {
         description: "Welcome back!",
         variant: "success",
       });
-      // Navigation will be handled by useEffect when user state updates
     } catch (error: unknown) {
       console.error('Login error:', error);
       let message = "Invalid credentials. Please check your email and password.";
@@ -68,33 +65,37 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-100 via-indigo-100 to-blue-200 relative overflow-hidden p-4">
-      {/* Decorative SVG background */}
-      <svg className="absolute left-0 top-0 w-full h-full opacity-20 pointer-events-none" viewBox="0 0 800 600" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <ellipse cx="400" cy="300" rx="340" ry="180" fill="#60A5FA" />
-        <ellipse cx="600" cy="100" rx="120" ry="60" fill="#6366F1" />
-        <ellipse cx="200" cy="500" rx="100" ry="40" fill="#818CF8" />
-      </svg>
-      <div className="w-full max-w-md space-y-6 relative z-10">
-        <div className="text-center">
-          <div className="flex justify-center mb-4">
-            {/* Modern fuel station SVG illustration */}
-            <svg width="64" height="64" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="10" y="24" width="28" height="28" rx="4" fill="#2563EB"/>
-              <rect x="18" y="32" width="12" height="12" rx="2" fill="#FBBF24"/>
-              <rect x="44" y="28" width="10" height="24" rx="3" fill="#F87171"/>
-              <rect x="48" y="20" width="4" height="8" rx="2" fill="#60A5FA"/>
-              <rect x="12" y="20" width="24" height="4" rx="2" fill="#6366F1"/>
-              <circle cx="24" cy="44" r="2" fill="#1E293B"/>
-              <circle cx="28" cy="44" r="2" fill="#1E293B"/>
-            </svg>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-white via-slate-50 to-blue-50 relative overflow-hidden p-4">
+      {/* Subtle pattern overlay */}
+      <div
+        className="absolute inset-0 pointer-events-none z-0"
+        style={{
+          backgroundImage:
+            "radial-gradient(circle at 60% 10%, #e0e7ef 0%, transparent 70%)," +
+            "radial-gradient(circle at 20% 80%, #c7d2fe 0%, transparent 70%)",
+          opacity: 0.35,
+        }}
+      />
+      <div className="w-full max-w-md space-y-6 relative z-10 animate-fade-in">
+        {/* Logo and Title */}
+        <div className="flex flex-col items-center mb-2">
+          <div className="rounded-full bg-white shadow-lg p-2 mb-2 border border-slate-100">
+            <img
+              src="/logo.jpeg"
+              alt="FuelSync Logo"
+              className="h-20 w-20 object-contain"
+              draggable={false}
+            />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">FuelSync</h1>
-          <p className="text-gray-600">Fuel Station Management System</p>
+          <h1 className="text-4xl font-extrabold text-gray-900 tracking-tight">
+            Fuel<span className="text-green-600">Sync</span>
+          </h1>
+          <p className="text-gray-500 text-base mt-1">Fuel Station Management System</p>
         </div>
-        <Card>
+        {/* Glassmorphism Card */}
+        <div className="rounded-2xl shadow-2xl border border-slate-100 bg-white/80 backdrop-blur-md">
           <CardHeader>
-            <CardTitle>Welcome Back</CardTitle>
+            <CardTitle className="text-2xl font-semibold">Welcome Back</CardTitle>
             <CardDescription>
               Sign in to your account to continue
             </CardDescription>
@@ -143,9 +144,9 @@ export default function Login() {
                   </Button>
                 </div>
               </div>
-              <Button 
-                type="submit" 
-                className="w-full" 
+              <Button
+                type="submit"
+                className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold text-lg py-2 rounded-lg transition"
                 disabled={isLoading}
               >
                 {isLoading ? (
@@ -159,23 +160,20 @@ export default function Login() {
               </Button>
             </form>
           </CardContent>
-        </Card>
-        <div className="mt-4 text-center">
-          <span className="text-sm text-gray-600">Don't have an account? </span>
-          <a href="/signup" className="text-blue-600 hover:underline">Sign Up</a>
         </div>
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="pt-4">
-            <div className="flex items-center space-x-2 text-green-800">
-              <CheckCircle className="h-4 w-4" />
-              <span className="text-sm font-medium">No Email Confirmation Required</span>
-            </div>
-            <p className="text-xs text-green-700 mt-1">
-              New users can log in immediately after signing up.
-            </p>
-          </CardContent>
-        </Card>
       </div>
+      {/* Fade-in animation */}
+      <style>
+        {`
+          .animate-fade-in {
+            animation: fadeIn 0.7s cubic-bezier(.4,0,.2,1) both;
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(24px);}
+            to { opacity: 1; transform: translateY(0);}
+          }
+        `}
+      </style>
     </div>
   );
 }
