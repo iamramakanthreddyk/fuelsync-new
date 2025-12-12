@@ -25,7 +25,6 @@ const creditRoutes = require('./routes/credits');
 const expenseRoutes = require('./routes/expenses');
 const tankRoutes = require('./routes/tanks');
 const shiftRoutes = require('./routes/shifts');
-const handoverRoutes = require('./routes/handovers');
 const configRoutes = require('./routes/config');
 const planRoutes = require('./routes/plans');
 const activityLogRoutes = require('./routes/activityLogs');
@@ -195,7 +194,6 @@ app.use('/api/v1/reports', reportRoutes); // Comprehensive reports
 app.use('/api/v1/dashboard', dashboardRoutes);
 app.use('/api/v1/tanks', tankRoutes);   // Tanks management
 app.use('/api/v1/shifts', shiftRoutes); // Shift management
-app.use('/api/v1/handovers', handoverRoutes); // Cash handover management
 app.use('/api/v1/config', configRoutes); // Configuration/dropdown endpoints
 app.use('/api/v1/plans', planRoutes); // Subscription plans
 app.use('/api/v1/activity-logs', activityLogRoutes); // Activity logging
@@ -245,7 +243,6 @@ app.get('/api/dashboard/metrics', (req, res, next) => {
 });
 app.use('/api/tanks', tankRoutes);
 app.use('/api/shifts', shiftRoutes);
-app.use('/api/handovers', handoverRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
