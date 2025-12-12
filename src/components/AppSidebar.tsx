@@ -1,5 +1,6 @@
 // React import not required with new JSX transform
 import { Link, useLocation } from 'react-router-dom';
+import FuelSyncLogo from './FuelSyncLogo';
 import {
   Sidebar,
   SidebarContent,
@@ -209,10 +210,9 @@ export function AppSidebar() {
         } as React.CSSProperties )
       }
     >
-      <SidebarHeader className="flex items-center justify-between py-2 px-2">
-        <Link to={dashboardUrl} className="flex items-center gap-3">
-          {/* Branding moved to header - keep a small spacer here for alignment */}
-          <span className={state === 'collapsed' ? 'hidden' : 'text-sm text-slate-500'} />
+      <SidebarHeader className="flex flex-col items-center pt-0 pb-2 px-2 gap-2">
+        <Link to={dashboardUrl} className="flex items-center justify-center w-full">
+          <FuelSyncLogo size={44} showText={state !== 'collapsed'} />
         </Link>
       </SidebarHeader>
       {/* Compact profile block to utilize header/space */}

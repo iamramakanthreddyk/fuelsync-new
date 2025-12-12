@@ -55,7 +55,7 @@ export function AppHeader() {
   const [showDropdown, setShowDropdown] = React.useState(false);
 
   return (
-    <header style={headerStyle} className="fixed top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+    <header style={headerStyle} className="fixed top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       {/* Mobile Header */}
       <div className="md:hidden flex flex-col h-auto min-h-14 px-3 py-1 gap-1">
         <div className="flex items-center justify-between gap-2">
@@ -123,10 +123,8 @@ export function AppHeader() {
       </div>
       {/* Desktop Header */}
       <div className="hidden md:flex items-center h-16 w-full px-6 justify-between">
-        <div className="flex items-center gap-4">
-          <FuelSyncLogo size={40} variant="brand" showText={true} />
-        </div>
-        <div className="flex items-center gap-6">
+        <div className="flex-1" />
+        <div className="flex items-center gap-6 flex-shrink-0">
           <div className="text-sm text-muted-foreground hidden lg:flex items-center">
             {user?.name && (
               <span>Welcome back, <strong className="text-foreground ml-1">{user.name}</strong> 👋</span>
