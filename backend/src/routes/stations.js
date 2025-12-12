@@ -9,7 +9,6 @@ const stationController = require('../controllers/stationController');
 const userController = require('../controllers/userController');
 const tankController = require('../controllers/tankController');
 const shiftController = require('../controllers/shiftController');
-const cashHandoverController = require('../controllers/cashHandoverController');
 const { authenticate, requireRole, requireMinRole } = require('../middleware/auth');
 const { validate, stationValidators, pumpValidators, tankValidators } = require('../validators');
 const { enforcePlanLimit } = require('../middleware/planLimits');
@@ -100,10 +99,6 @@ router.get('/:stationId/shifts/discrepancies', requireMinRole('manager'), shiftC
 // ============================================
 // CASH HANDOVERS (nested under stations)
 // ============================================
-router.get('/:stationId/handovers', cashHandoverController.getStationHandovers);
-router.get('/:stationId/handovers/summary', cashHandoverController.getCashFlowSummary);
-router.get('/:stationId/handovers/unconfirmed', cashHandoverController.getUnconfirmed);
-router.get('/:stationId/handovers/bank-deposits', requireMinRole('owner'), cashHandoverController.getBankDeposits);
 
 // ============================================
 // DAILY SALES & SETTLEMENTS
