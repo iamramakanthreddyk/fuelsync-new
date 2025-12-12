@@ -164,7 +164,7 @@ exports.getStations = async (req, res, next) => {
     const todaySalesData = await NozzleReading.findAll({
       attributes: [
         'stationId',
-        [fn('SUM', col('total_amount')), 'todaySales']
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'todaySales']
       ],
       where: {
         stationId: { [Op.in]: stationIds },
@@ -393,7 +393,7 @@ exports.getStation = async (req, res, next) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todaySalesResult = await NozzleReading.findOne({
-      attributes: [[fn('SUM', col('total_amount')), 'todaySales']],
+      attributes: [[sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'todaySales']],
       where: {
         stationId: id,
         readingDate: { [Op.gte]: today }
@@ -1232,7 +1232,7 @@ exports.getDailySales = async (req, res, next) => {
     const readingsList = [];
 
     readings.forEach(reading => {
-      const saleValue = parseFloat(reading.totalAmount || 0);
+      const saleValue = parseFloat(reading.litresSold || 0) * parseFloat(reading.pricePerLitre || 0);
       const liters = parseFloat(reading.litresSold || 0);
       const fuelType = reading.fuelType || reading.Nozzle?.fuelType || 'unknown';
       let cash = parseFloat(reading.cashAmount || 0);
@@ -1755,7 +1755,7 @@ exports.getSettlementVsSales = async (req, res, next) => {
     let totalCreditSales = 0;
 
     readings.forEach(reading => {
-      const saleValue = parseFloat(reading.totalAmount || 0);
+      const saleValue = parseFloat(reading.litresSold || 0) * parseFloat(reading.pricePerLitre || 0);
       totalSaleValue += saleValue;
 
       // Use the actual payment breakdown fields

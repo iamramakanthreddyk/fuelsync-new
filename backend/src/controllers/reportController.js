@@ -68,7 +68,7 @@ exports.getSalesReports = async (req, res, next) => {
       attributes: [
         [fn('DATE', col('reading_date')), 'date'],
         'stationId',
-        [fn('SUM', col('NozzleReading.total_amount')), 'totalSales'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
         [fn('SUM', col('NozzleReading.litres_sold')), 'totalQuantity'],
         [fn('COUNT', col('NozzleReading.id')), 'totalTransactions']
       ],
@@ -88,7 +88,7 @@ exports.getSalesReports = async (req, res, next) => {
         [fn('DATE', col('reading_date')), 'date'],
         'stationId',
         'fuelType',
-        [fn('SUM', col('NozzleReading.total_amount')), 'sales'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
         [fn('SUM', col('NozzleReading.litres_sold')), 'quantity'],
         [fn('COUNT', col('NozzleReading.id')), 'transactions']
       ],
@@ -451,7 +451,7 @@ exports.getDailySalesReport = async (req, res, next) => {
       attributes: [
         'stationId',
         'fuelType',
-        [fn('SUM', col('NozzleReading.total_amount')), 'totalValue'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalValue'],
         [fn('SUM', col('NozzleReading.litres_sold')), 'totalLiters'],
         [fn('COUNT', col('NozzleReading.id')), 'readingsCount']
       ],

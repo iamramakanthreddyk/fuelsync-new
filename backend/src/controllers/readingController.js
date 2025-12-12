@@ -13,12 +13,41 @@ const { canAccessStation, verifyNozzleAccess, getAccessibleStationIds } = requir
  */
 exports.createReading = async (req, res, next) => {
   try {
-    const { nozzleId, readingDate, readingValue, cashAmount, onlineAmount, creditAmount, creditorId, notes, paymentType } = req.body;
+const { 
+      nozzleId, nozzle_id,
+      readingDate, reading_date,
+      readingValue, reading_value,
+      cashAmount, cash_amount,
+      onlineAmount, online_amount,
+      creditAmount, credit_allocations, creditorId, 
+      notes, paymentType,
+      total_amount,
+      price_per_litre,
+      previous_reading,
+      litres_sold
+    } = req.body;
     const userId = req.userId;
 
+    console.log('[DEBUG] createReading received params:', {
+      nozzleId, nozzle_id,
+      readingDate, reading_date,
+      readingValue, reading_value,
+      cashAmount, cash_amount,
+      onlineAmount, online_amount,
+      creditAmount, credit_allocations, creditorId,
+      totalAmount: req.body.totalAmount, total_amount,
+      pricePerLitre: req.body.pricePerLitre, price_per_litre,
+      previousReading: req.body.previousReading, previous_reading,
+      litresSold: req.body.litresSold, litres_sold
+    });
+
     // Validate required fields
-    if (!nozzleId || !readingDate || readingValue === undefined) {
-      console.log('[DEBUG] createReading validation failed: missing required fields', { nozzleId, readingDate, readingValue });
+    const finalNozzleId = nozzleId || nozzle_id;
+    const finalReadingDate = readingDate || reading_date;
+    const finalReadingValue = readingValue !== undefined ? readingValue : reading_value;
+    
+    if (!finalNozzleId || !finalReadingDate || finalReadingValue === undefined) {
+      console.log('[DEBUG] createReading validation failed: missing required fields', { finalNozzleId, finalReadingDate, finalReadingValue });
       return res.status(400).json({
         success: false,
         error: 'nozzleId, readingDate, and readingValue are required'
@@ -26,7 +55,7 @@ exports.createReading = async (req, res, next) => {
     }
 
     // Get nozzle with pump and station info
-    const nozzle = await Nozzle.findByPk(nozzleId, {
+    const nozzle = await Nozzle.findByPk(finalNozzleId, {
       include: [{
         model: Pump,
         as: 'pump',
@@ -35,7 +64,7 @@ exports.createReading = async (req, res, next) => {
     });
 
     if (!nozzle) {
-      console.log('[DEBUG] createReading failed: nozzle not found', { nozzleId });
+      console.log('[DEBUG] createReading failed: nozzle not found', { nozzleId: finalNozzleId });
       return res.status(404).json({
         success: false,
         error: 'Nozzle not found'
@@ -44,7 +73,7 @@ exports.createReading = async (req, res, next) => {
 
     // Check nozzle is active
     if (nozzle.status !== 'active') {
-      console.log('[DEBUG] createReading failed: nozzle inactive', { nozzleId, status: nozzle.status });
+      console.log('[DEBUG] createReading failed: nozzle inactive', { nozzleId: finalNozzleId, status: nozzle.status });
       return res.status(400).json({
         success: false,
         error: `Nozzle is ${nozzle.status}. Cannot enter reading.`
@@ -85,19 +114,20 @@ exports.createReading = async (req, res, next) => {
     }
 
     // Get previous reading - for backdated entries we need the last reading before the provided date
-    console.log(`[DEBUG] Resolving previous reading for nozzleId=${nozzleId}, readingDate=${readingDate}`);
+    console.log(`[DEBUG] Resolving previous reading for nozzleId=${finalNozzleId}, readingDate=${finalReadingDate}`);
     // Determine if the provided readingDate is before today (backdated)
     const todayStr = new Date().toISOString().split('T')[0];
-    const isBackdated = new Date(readingDate + 'T00:00:00Z') < new Date(todayStr + 'T00:00:00Z');
+    const isBackdated = new Date(finalReadingDate + 'T00:00:00Z') < new Date(todayStr + 'T00:00:00Z');
     let previousReadingRecord;
     if (isBackdated) {
-      previousReadingRecord = await NozzleReading.getPreviousReading(nozzleId, readingDate);
+      previousReadingRecord = await NozzleReading.getPreviousReading(finalNozzleId, finalReadingDate);
     } else {
-      previousReadingRecord = await NozzleReading.getLatestReading(nozzleId);
+      previousReadingRecord = await NozzleReading.getLatestReading(finalNozzleId);
     }
     // Prefer an explicit previousReading provided by client (tests/old clients send this)
     let previousReading = previousReadingRecord?.readingValue;
-    const providedPrevious = req.body.previousReading !== undefined ? parseFloat(req.body.previousReading) : undefined;
+    const providedPrevious = (req.body.previousReading !== undefined ? parseFloat(req.body.previousReading) : undefined) ||
+                             (req.body.previous_reading !== undefined ? parseFloat(req.body.previous_reading) : undefined);
     
     // Determine previousReading: explicit > lastReading > initialReading > 0
     if (providedPrevious !== undefined) {
@@ -113,7 +143,7 @@ exports.createReading = async (req, res, next) => {
     let isInitialReading = !previousReadingRecord && (providedPrevious === undefined);
 
     // Validate reading value (must be > previous unless initial)
-    const currentValue = parseFloat(readingValue);
+    const currentValue = parseFloat(finalReadingValue);
     const prevValue = parseFloat(previousReading);
 
     if (!isInitialReading && currentValue <= prevValue) {
@@ -130,8 +160,9 @@ exports.createReading = async (req, res, next) => {
     const litresSold = Math.max(0, currentValue - prevValue);
 
     // If client provided litresSold explicitly, validate it matches computed litresSold
-    if (req.body.litresSold !== undefined) {
-      const providedLitres = parseFloat(req.body.litresSold) || 0;
+    const providedLitresSold = req.body.litresSold !== undefined ? req.body.litresSold : litres_sold;
+    if (providedLitresSold !== undefined) {
+      const providedLitres = parseFloat(providedLitresSold) || 0;
       if (Math.abs(providedLitres - litresSold) > 0.01) {
         console.error('❌ [VALIDATION ERROR] litresSold mismatch:', {
           nozzleId,
@@ -159,23 +190,17 @@ exports.createReading = async (req, res, next) => {
     }
 
     // Get fuel price for the reading date
-    const fuelPrice = await FuelPrice.getPriceForDate(stationId, nozzle.fuelType, readingDate);
+    const fuelPrice = await FuelPrice.getPriceForDate(stationId, nozzle.fuelType, finalReadingDate);
 
     // Allow legacy clients/tests to supply `pricePerLitre` or `totalAmount` explicitly.
     // Prefer client-provided pricePerLitre, then fuelPrice from DB, then sensible defaults.
-    const clientPrice = req.body.pricePerLitre !== undefined ? parseFloat(req.body.pricePerLitre) : undefined;
-    const clientTotal = req.body.totalAmount !== undefined ? parseFloat(req.body.totalAmount) : undefined;
+    const clientPrice = (req.body.pricePerLitre !== undefined ? req.body.pricePerLitre : price_per_litre) !== undefined ? 
+      parseFloat(req.body.pricePerLitre || price_per_litre) : undefined;
+    const clientTotal = (req.body.totalAmount !== undefined ? req.body.totalAmount : total_amount) !== undefined ? 
+      parseFloat(req.body.totalAmount || total_amount) : undefined;
 
+    // Initialize pricePerLitre - will be recalculated later if needed
     let pricePerLitre = clientPrice || fuelPrice || (isInitialReading ? 100 : 0);
-
-    // If no DB price and the client did not provide pricePerLitre but provided totalAmount,
-    // derive pricePerLitre from totalAmount/litresSold when possible (avoid divide by zero).
-    if (!fuelPrice && clientTotal !== undefined && litresSold > 0) {
-      pricePerLitre = clientTotal / litresSold;
-    }
-
-    // If still no price (and not initial reading), allow usage of clientTotal if provided, otherwise validation will fail
-    const totalAmount = clientTotal !== undefined ? clientTotal : (litresSold * pricePerLitre);
 
     // Backdated reading validation based on owner's plan (backdatedDays)
     try {
@@ -205,36 +230,57 @@ exports.createReading = async (req, res, next) => {
     let finalCreditAmount = 0;
 
     // Always use cashAmount as totalAmount if only cashAmount is provided and totalAmount/price are missing
-    const hasDetailedAmounts = cashAmount !== undefined || onlineAmount !== undefined || creditAmount !== undefined;
-    let effectiveTotalAmount = totalAmount;
+    const hasDetailedAmounts = (cashAmount !== undefined || cash_amount !== undefined) || 
+                              (onlineAmount !== undefined || online_amount !== undefined) || 
+                              creditAmount !== undefined || 
+                              (credit_allocations && credit_allocations.length > 0);
+    let effectiveTotalAmount = req.body.totalAmount;
     if (!isInitialReading) {
       // If no totalAmount or price, but cashAmount is provided (and online/credit are not), treat as cash-only
-      if ((totalAmount === undefined || totalAmount === 0) && (pricePerLitre === undefined || pricePerLitre === 0)) {
-        if (cashAmount !== undefined && (onlineAmount === undefined || onlineAmount === 0) && (creditAmount === undefined || creditAmount === 0)) {
-          effectiveTotalAmount = parseFloat(cashAmount) || 0;
+      if ((req.body.totalAmount === undefined || req.body.totalAmount === 0) && (req.body.pricePerLitre === undefined || req.body.pricePerLitre === 0)) {
+        const finalCash = req.body.cashAmount !== undefined ? req.body.cashAmount : cash_amount;
+        const finalOnline = req.body.onlineAmount !== undefined ? req.body.onlineAmount : online_amount;
+        if (finalCash !== undefined && (finalOnline === undefined || finalOnline === 0) && (req.body.creditAmount === undefined || req.body.creditAmount === 0) && (!credit_allocations || credit_allocations.length === 0)) {
+          effectiveTotalAmount = parseFloat(finalCash) || 0;
         }
       }
     }
 
     if (effectiveTotalAmount > 0 || hasDetailedAmounts) {
       if (hasDetailedAmounts) {
-        const providedCash = cashAmount !== undefined ? parseFloat(cashAmount) || 0 : 0;
-        const providedOnline = onlineAmount !== undefined ? parseFloat(onlineAmount) || 0 : 0;
-        const providedCredit = creditAmount !== undefined ? parseFloat(creditAmount) || 0 : 0;
+        const providedCash = req.body.cashAmount !== undefined ? parseFloat(req.body.cashAmount) || 0 : (cash_amount !== undefined ? parseFloat(cash_amount) || 0 : 0);
+        const providedOnline = req.body.onlineAmount !== undefined ? parseFloat(req.body.onlineAmount) || 0 : (online_amount !== undefined ? parseFloat(online_amount) || 0 : 0);
+        const providedCredit = req.body.creditAmount !== undefined ? parseFloat(req.body.creditAmount) || 0 : 0;
+        
+        // Handle credit_allocations array if provided
+        let creditFromAllocations = 0;
+        if (credit_allocations && Array.isArray(credit_allocations)) {
+          creditFromAllocations = credit_allocations.reduce((sum, alloc) => sum + (parseFloat(alloc.amount) || 0), 0);
+          console.log('[DEBUG] credit_allocations processed:', { credit_allocations, creditFromAllocations });
+        }
+        
         finalCashAmount = providedCash;
         finalOnlineAmount = providedOnline;
-        finalCreditAmount = providedCredit;
+        finalCreditAmount = providedCredit + creditFromAllocations;
+        
+        console.log('[DEBUG] final amounts calculated:', { finalCashAmount, finalOnlineAmount, finalCreditAmount, providedCredit, creditFromAllocations });
+        
         // If only cash is provided, set totalAmount to cashAmount
-        if (providedCash > 0 && providedOnline === 0 && providedCredit === 0 && (!effectiveTotalAmount || effectiveTotalAmount === 0)) {
+        if (providedCash > 0 && providedOnline === 0 && finalCreditAmount === 0 && (!effectiveTotalAmount || effectiveTotalAmount === 0)) {
           effectiveTotalAmount = providedCash;
         }
         const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
+        if (!effectiveTotalAmount) effectiveTotalAmount = totalPayment;
         if (Math.abs(totalPayment - effectiveTotalAmount) > 0.01) {
           console.log('[DEBUG] createReading failed: payment breakdown mismatch', { finalCashAmount, finalOnlineAmount, finalCreditAmount, effectiveTotalAmount, totalPayment });
           return res.status(400).json({
             success: false,
             error: `Payment breakdown (Cash: ${finalCashAmount}, Online: ${finalOnlineAmount}, Credit: ${finalCreditAmount}) must equal total amount (${effectiveTotalAmount.toFixed(2)})`
           });
+        }
+        // Recalculate pricePerLitre based on the final total amount and litres sold
+        if (litresSold > 0 && !clientPrice && !fuelPrice) {
+          pricePerLitre = effectiveTotalAmount / litresSold;
         }
       } else if (paymentType) {
         switch (paymentType) {
@@ -317,28 +363,57 @@ exports.createReading = async (req, res, next) => {
         shiftId: activeShift?.id || null
       }, { transaction: t });
 
-      // If a credit was recorded as part of this reading, create a CreditTransaction
+      // If a credit was recorded as part of this reading, create CreditTransactions
       if (finalCreditAmount > 0) {
         const { CreditTransaction, Creditor } = require('../models');
 
-        // Support legacy clients/tests that may send `creditAmount` without a `creditorId`.
-        // If `creditorId` is provided, create a CreditTransaction and update the creditor balance.
-        // Otherwise, store the creditAmount on the reading only and log a warning.
-        if (creditorId) {
+        // Handle credit_allocations array (new format) or legacy single creditorId
+        if (credit_allocations && Array.isArray(credit_allocations) && credit_allocations.length > 0) {
+          // Process multiple credit allocations
+          for (const allocation of credit_allocations) {
+            const creditorId = allocation.creditor_id || allocation.creditorId;
+            const amount = parseFloat(allocation.amount) || 0;
+            
+            if (creditorId && amount > 0) {
+              await CreditTransaction.create({
+                stationId,
+                creditorId,
+                transactionType: 'credit',
+                fuelType: nozzle.fuelType,
+                litres: litresSold * (amount / finalCreditAmount), // Pro-rate litres based on allocation
+                pricePerLitre,
+                amount,
+                transactionDate: readingDate,
+                vehicleNumber: null,
+                referenceNumber: null,
+                notes: `Credit allocation from reading ${reading.id}`,
+                nozzleReadingId: reading.id,
+                enteredBy: userId
+              }, { transaction: t });
+
+              const findOptions = { transaction: t };
+              if (sequelize.getDialect() !== 'sqlite') findOptions.lock = t.LOCK.UPDATE;
+              const creditor = await Creditor.findByPk(creditorId, findOptions);
+              if (!creditor) throw new Error(`Creditor ${creditorId} not found`);
+              await creditor.update({ currentBalance: parseFloat(creditor.currentBalance || 0) + amount }, { transaction: t });
+            }
+          }
+        } else if (creditorId) {
+          // Legacy support for single creditorId
           await CreditTransaction.create({
-          stationId,
-          creditorId,
-          transactionType: 'credit',
-          fuelType: nozzle.fuelType,
-          litres: litresSold,
-          pricePerLitre,
-          amount: finalCreditAmount,
-          transactionDate: readingDate,
-          vehicleNumber: null,
-          referenceNumber: null,
-          notes: `Credit from reading ${reading.id}`,
-          nozzleReadingId: reading.id,
-          enteredBy: userId
+            stationId,
+            creditorId,
+            transactionType: 'credit',
+            fuelType: nozzle.fuelType,
+            litres: litresSold,
+            pricePerLitre,
+            amount: finalCreditAmount,
+            transactionDate: readingDate,
+            vehicleNumber: null,
+            referenceNumber: null,
+            notes: `Credit from reading ${reading.id}`,
+            nozzleReadingId: reading.id,
+            enteredBy: userId
           }, { transaction: t });
 
           const findOptions = { transaction: t };
@@ -347,7 +422,7 @@ exports.createReading = async (req, res, next) => {
           if (!creditor) throw new Error('Creditor not found');
           await creditor.update({ currentBalance: parseFloat(creditor.currentBalance || 0) + parseFloat(finalCreditAmount) }, { transaction: t });
         } else {
-          console.warn(`[WARN] Reading recorded with creditAmount=${finalCreditAmount} but no creditorId provided. CreditTransaction not created.`);
+          console.warn(`[WARN] Reading recorded with creditAmount=${finalCreditAmount} but no creditor information provided. CreditTransaction not created.`);
         }
       }
 

@@ -14,7 +14,6 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { dashboardAlertsService } from '@/services/shiftService';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { extractApiData } from '@/lib/api-response';
@@ -133,15 +132,7 @@ export default function OwnerDashboard() {
     return null;
   }
 
-  // Fetch pending actions for owner (used to show reconcile banner)
-  const { data: pendingActions } = useQuery({
-    queryKey: ['owner-pending-actions', user?.id],
-    queryFn: () => dashboardAlertsService.getPendingActions(),
-    enabled: !!user,
-    refetchInterval: 30000,
-  });
-
-  const showReconcileBanner = (pendingActions?.handoversToConfirm ?? 0) > 0;
+  // Note: Pending actions functionality removed as handover concept doesn't exist
 
   // Defensive: stats may be null/undefined and may not have expected properties
   function isDashboardStats(obj: any): obj is DashboardStats {
@@ -170,25 +161,6 @@ export default function OwnerDashboard() {
           </div>
         </div>
         <QuickActionsGrid navigate={navigate} />
-
-        {showReconcileBanner && (
-          <div className="mt-4 p-4 rounded-lg bg-gradient-to-r from-yellow-50 to-yellow-100 border border-yellow-200">
-            <div className="flex items-center justify-between gap-4">
-              <div>
-                <h3 className="text-lg font-semibold">Daily Reconciliation</h3>
-                <p className="text-sm text-muted-foreground">You have {pendingActions?.handoversToConfirm || 0} pending handover(s) to confirm.</p>
-              </div>
-              <div className="flex items-center gap-2">
-                <button
-                  className="btn btn-primary px-4 py-2 rounded bg-yellow-600 text-white"
-                  onClick={() => navigate('/owner/cash-handovers')}
-                >
-                  Go To Reconcile
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Plan Info Alert */}

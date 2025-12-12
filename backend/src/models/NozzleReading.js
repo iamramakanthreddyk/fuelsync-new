@@ -241,7 +241,7 @@ module.exports = (sequelize) => {
       attributes: [
         ...groupFields[groupBy],
         [sequelize.fn('SUM', sequelize.col('litres_sold')), 'totalLitres'],
-        [sequelize.fn('SUM', sequelize.col('total_amount')), 'totalSales'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
         [sequelize.fn('SUM', sequelize.col('cash_amount')), 'totalCash'],
         [sequelize.fn('SUM', sequelize.col('online_amount')), 'totalOnline'],
         [sequelize.fn('SUM', sequelize.col('credit_amount')), 'totalCredit'],

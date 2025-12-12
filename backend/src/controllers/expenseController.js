@@ -283,7 +283,7 @@ const getProfitLoss = async (req, res) => {
     // Get total sales (from readings)
     const salesResult = await NozzleReading.findOne({
       attributes: [
-        [fn('SUM', col('total_amount')), 'totalSales'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
         [fn('SUM', col('litres_sold')), 'totalLitres'],
         [fn('SUM', col('cash_amount')), 'totalCash'],
         [fn('SUM', col('online_amount')), 'totalOnline'],

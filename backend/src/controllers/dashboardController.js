@@ -77,7 +77,7 @@ exports.getSummary = async (req, res, next) => {
       },
       attributes: [
         [fn('SUM', col('litres_sold')), 'totalLitres'],
-        [fn('SUM', col('total_amount')), 'totalAmount'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalAmount'],
         [fn('SUM', col('cash_amount')), 'totalCash'],
         [fn('SUM', col('online_amount')), 'totalOnline'],
         [fn('SUM', col('credit_amount')), 'totalCredit'],
@@ -109,7 +109,7 @@ exports.getSummary = async (req, res, next) => {
       }],
       attributes: [
         [fn('SUM', col('litres_sold')), 'litres'],
-        [fn('SUM', col('total_amount')), 'amount']
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'amount']
       ],
       group: ['nozzle.pump.id', 'nozzle.pump.name', 'nozzle.pump.pump_number', 'nozzle.pump.status', 'nozzle.id', 'nozzle.fuel_type'],
       raw: true, nest: true
@@ -263,7 +263,7 @@ exports.getDailySummary = async (req, res, next) => {
       attributes: [
         'readingDate',
         [fn('SUM', col('litres_sold')), 'litres'],
-        [fn('SUM', col('total_amount')), 'amount'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'amount'],
         [fn('SUM', col('cash_amount')), 'cash'],
         [fn('SUM', col('online_amount')), 'online'],
         [fn('SUM', col('credit_amount')), 'credit'],
@@ -323,7 +323,7 @@ exports.getFuelBreakdown = async (req, res, next) => {
       attributes: [
         'fuelType',
         [fn('SUM', col('litres_sold')), 'litres'],
-        [fn('SUM', col('total_amount')), 'amount'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'amount'],
         [fn('SUM', col('cash_amount')), 'cash'],
         [fn('SUM', col('online_amount')), 'online'],
         [fn('SUM', col('credit_amount')), 'credit']
@@ -384,7 +384,7 @@ exports.getPumpPerformance = async (req, res, next) => {
       include: [{ model: Pump, as: 'pump', attributes: ['id', 'name', 'pumpNumber', 'status'] }],
       attributes: [
         [fn('SUM', col('NozzleReading.litres_sold')), 'litres'],
-        [fn('SUM', col('NozzleReading.total_amount')), 'amount'],
+        [sequelize.literal(`SUM(NozzleReading.litres_sold * NozzleReading.price_per_litre)`), 'amount'],
         [fn('SUM', col('NozzleReading.cash_amount')), 'cash'],
         [fn('SUM', col('NozzleReading.online_amount')), 'online'],
         [fn('SUM', col('NozzleReading.credit_amount')), 'credit'],
@@ -716,7 +716,7 @@ exports.getOwnerStats = async (req, res, next) => {
     
     const todaySalesData = await NozzleReading.findAll({
       attributes: [
-        [fn('SUM', col('NozzleReading.total_amount')), 'totalAmount']
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalAmount']
       ],
       include: [{
         model: Nozzle,
@@ -744,7 +744,7 @@ exports.getOwnerStats = async (req, res, next) => {
     
     const monthSalesData = await NozzleReading.findAll({
       attributes: [
-        [fn('SUM', col('NozzleReading.total_amount')), 'totalAmount']
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalAmount']
       ],
       include: [{
         model: Nozzle,
@@ -847,7 +847,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     // Overview - current period
     const currentPeriod = await NozzleReading.findOne({
       attributes: [
-        [fn('SUM', col('NozzleReading.total_amount')), 'totalSales'],
+        [sequelize.literal(`SUM(NozzleReading.litres_sold * NozzleReading.price_per_litre)`), 'totalSales'],
         [fn('SUM', col('NozzleReading.litres_sold')), 'totalQuantity'],
         [fn('COUNT', col('NozzleReading.id')), 'totalTransactions']
       ],
@@ -868,7 +868,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     // Overview - previous period for growth calculation
     const previousPeriod = await NozzleReading.findOne({
       attributes: [
-        [fn('SUM', col('NozzleReading.total_amount')), 'totalSales'],
+        [sequelize.literal(`SUM(NozzleReading.litres_sold * NozzleReading.price_per_litre)`), 'totalSales'],
         [fn('SUM', col('NozzleReading.litres_sold')), 'totalQuantity']
       ],
       include: [{
@@ -899,7 +899,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     const salesByStation = await NozzleReading.findAll({
       attributes: [
         'stationId',
-        [fn('SUM', col('NozzleReading.total_amount')), 'sales']
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales']
       ],
       where: {
         stationId: { [Op.in]: stationIds },
@@ -928,7 +928,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     const salesByFuelType = await NozzleReading.findAll({
       attributes: [
         'fuelType',
-        [fn('SUM', col('NozzleReading.total_amount')), 'sales'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
         [fn('SUM', col('NozzleReading.litres_sold')), 'quantity']
       ],
       where: {
@@ -955,7 +955,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     const dailyTrend = await NozzleReading.findAll({
       attributes: [
         [fn('DATE', col('reading_date')), 'date'],
-        [fn('SUM', col('NozzleReading.total_amount')), 'sales'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
         [fn('SUM', col('NozzleReading.litres_sold')), 'quantity'],
         [fn('COUNT', col('NozzleReading.id')), 'transactions']
       ],
@@ -982,7 +982,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       salesByStation.map(async (s) => {
         const prevStationSales = await NozzleReading.findOne({
           attributes: [
-            [fn('SUM', col('NozzleReading.total_amount')), 'sales']
+            [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales']
           ],
           where: {
             stationId: s.stationId,
