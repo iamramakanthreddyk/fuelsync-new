@@ -474,7 +474,7 @@ const {
       reading: readingJson,
       message: isInitialReading 
         ? 'Initial reading recorded. This nozzle is now ready for daily entries.'
-        : `Sale recorded: ${litresSold}L = ₹${totalAmount.toFixed(2)}`
+        : `Sale recorded: ${litresSold}L = ₹${effectiveTotalAmount.toFixed(2)}`
     });
 
   } catch (error) {
