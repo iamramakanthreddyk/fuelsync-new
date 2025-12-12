@@ -14,6 +14,7 @@ import {
 import Login from '@/pages/Login';
 import Signup from '@/pages/Signup';
 import Dashboard from '@/pages/Dashboard';
+import EmployeeDashboard from '@/pages/EmployeeDashboard';
 import Settings from '@/pages/Settings';
 import AdminUsers from '@/pages/AdminUsers';
 import AdminStations from '@/pages/AdminStations';
@@ -49,7 +50,6 @@ import DailySalesReport from '@/pages/owner/DailySalesReport';
 
 // Cash Management pages
 import ShiftManagement from '@/pages/shifts/ShiftManagement';
-import CashHandoverConfirmation from '@/pages/cash/CashHandoverConfirmation';
 import CashReconciliationReport from '@/pages/cash/CashReconciliationReport';
 import AddCreditor from '@/pages/owner/AddCreditor';
 
@@ -223,6 +223,18 @@ function RoleBasedPumps() {
   return <Pumps />;
 }
 
+function RoleBasedDashboard() {
+  const { user } = useAuth();
+
+  // Employees get the full employee dashboard with shift management
+  if (user?.role === 'employee') {
+    return <EmployeeDashboard />;
+  }
+
+  // Managers and owners get the main dashboard
+  return <Dashboard />;
+}
+
 function AppContent() {
   const stationsQuery = useStationsForSuperAdmin();
 
@@ -285,7 +297,7 @@ function AppContent() {
                 <AppLayout>
                   <Routes>
                     {/* Default dashboard for managers/employees */}
-                    <Route path="/dashboard" element={<Dashboard />} />
+                    <Route path="/dashboard" element={<RoleBasedDashboard />} />
                     
                     {/* Owner Routes - New comprehensive UI */}
                     <Route path="/owner/dashboard" element={<OwnerDashboard />} />
@@ -310,7 +322,6 @@ function AppContent() {
                     <Route path="/owner/analytics" element={<OwnerAnalytics />} />
                     <Route path="/owner/income-report" element={<IncomeReport />} />
                     <Route path="/owner/shifts" element={<ShiftManagement />} />
-                    <Route path="/owner/cash-handovers" element={<CashHandoverConfirmation />} />
                     <Route path="/owner/cash-report" element={<CashReconciliationReport />} />
                     <Route path="/owner/reading-approvals" element={
                       <ManagerOrOwnerRoute>
@@ -332,20 +343,9 @@ function AppContent() {
                         <CreditLedger />
                       </ManagerOrOwnerRoute>
                     } />
-                    <Route path="/owner/cash-handovers" element={
-                      <ManagerOrOwnerRoute>
-                        <CashHandoverConfirmation />
-                      </ManagerOrOwnerRoute>
-                    } />
-                    <Route path="/cash-handovers" element={
-                      <ManagerOrOwnerRoute>
-                        <CashHandoverConfirmation />
-                      </ManagerOrOwnerRoute>
-                    } />
                     
                     {/* Cash/Shift routes for employees and managers */}
                     <Route path="/shifts" element={<ShiftManagement />} />
-                    <Route path="/cash-handovers" element={<CashHandoverConfirmation />} />
                     <Route path="/cash-report" element={<CashReconciliationReport />} />
                     <Route path="/reading-approvals" element={<ReadingApprovalList />} />
                     <Route path="/credit-ledger" element={<CreditLedger />} />

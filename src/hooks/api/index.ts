@@ -18,7 +18,6 @@ import type {
   Expense,
   Tank,
   TankRefill,
-  CashHandover,
   User,
   DashboardSummary,
   ConfigResponse,
@@ -523,26 +522,6 @@ export function useRecordRefill() {
 // ============================================
 // CASH HANDOVER HOOKS
 // ============================================
-
-export function useStationHandovers(stationId: string) {
-  return useQuery({
-    queryKey: queryKeys.handovers(stationId),
-    queryFn: () => apiClient.get<ApiResponse<CashHandover[]>>(`/stations/${stationId}/handovers`),
-    enabled: !!stationId,
-  });
-}
-
-export function useConfirmHandover() {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: ({ id, notes }: { id: string; notes?: string }) => 
-      apiClient.put<ApiResponse<CashHandover>>(`/handovers/${id}/confirm`, { notes }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['handovers'] });
-    },
-  });
-}
 
 // ============================================
 // DASHBOARD HOOKS

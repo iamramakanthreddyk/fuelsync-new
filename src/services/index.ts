@@ -28,7 +28,7 @@ export type { NozzleReading, SubmitReadingRequest, PreviousReadingInfo, ReadingF
 export { dashboardService } from './dashboardService';
 export type { DashboardSummary, DailyTotals, FuelBreakdown, PumpPerformance, FinancialOverview, DashboardAlert, DateRangeParams } from './dashboardService';
 
-export { shiftService, cashHandoverService, dashboardAlertsService } from './tenderService';
+export { shiftService, dashboardAlertsService } from './tenderService';
 export { fuelPriceService } from './fuelPriceService';
 export { settlementsService } from './settlementsService';
 

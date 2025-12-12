@@ -184,28 +184,6 @@ export interface Shift {
   readings?: NozzleReading[];
 }
 
-export interface CashHandover {
-  id: string;
-  shiftId: number;
-  stationId: string;
-  employeeId: string;
-  handoverDate: string;
-  expectedCash: number;
-  actualCash: number;
-  expectedOnline: number;
-  actualOnline: number;
-  discrepancy: number;
-  status: HandoverStatus;
-  confirmedBy?: string;
-  confirmedAt?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  // Relations
-  shift?: Shift;
-  employee?: User;
-}
-
 export interface Tank {
   id: string;
   stationId: string;

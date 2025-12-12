@@ -127,7 +127,6 @@ const Tank = require('./Tank')(sequelize);
 const TankRefill = require('./TankRefill')(sequelize);
 const Shift = require('./Shift')(sequelize);
 const AuditLog = require('./AuditLog')(sequelize);
-const CashHandover = require('./CashHandover')(sequelize);
 const Settlement = require('./Settlement')(sequelize);
 
 // Create models object for associations
@@ -147,7 +146,6 @@ const models = {
   TankRefill,
   Shift,
   AuditLog,
-  CashHandover,
   Settlement
 };
 
@@ -183,14 +181,6 @@ Shift.belongsTo(User, { foreignKey: 'endedBy', as: 'endedByUser' });
 // AuditLog associations
 AuditLog.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 AuditLog.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
-
-// CashHandover associations
-CashHandover.belongsTo(Station, { foreignKey: 'stationId', as: 'station' });
-Station.hasMany(CashHandover, { foreignKey: 'stationId', as: 'cashHandovers' });
-CashHandover.belongsTo(User, { foreignKey: 'fromUserId', as: 'fromUser' });
-CashHandover.belongsTo(User, { foreignKey: 'toUserId', as: 'toUser' });
-CashHandover.belongsTo(User, { foreignKey: 'confirmedBy', as: 'confirmedByUser' });
-CashHandover.belongsTo(Shift, { foreignKey: 'shiftId', as: 'shift' });
 
 // NozzleReading-Shift association (Shift.hasMany only - belongsTo is in model's associate)
 Shift.hasMany(NozzleReading, { foreignKey: 'shiftId', as: 'readings' });

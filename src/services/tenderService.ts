@@ -31,38 +31,6 @@ export interface Shift {
 }
 
 /**
- * Cash Handover interface matching backend CashHandover model
- * Maps to: /api/v1/handovers/*
- */
-export interface CashHandover {
-  id: string;
-  stationId: string;
-  handoverType: 'shift_collection' | 'employee_to_manager' | 'manager_to_owner' | 'deposit_to_bank';
-  handoverDate: string;
-  fromUserId: string | null;
-  toUserId: string | null;
-  expectedAmount: number;
-  actualAmount: number | null;
-  difference: number | null;
-  shiftId: number | null;
-  previousHandoverId: string | null;
-  status: 'pending' | 'confirmed' | 'disputed' | 'resolved';
-  confirmedAt: string | null;
-  confirmedBy: string | null;
-  bankName: string | null;
-  depositReference: string | null;
-  depositReceiptUrl: string | null;
-  notes: string | null;
-  disputeNotes: string | null;
-  resolutionNotes: string | null;
-  fromUser?: { id: string; name: string };
-  toUser?: { id: string; name: string };
-  station?: { id: string; name: string };
-  createdAt: string;
-  updatedAt: string;
-}
-
-/**
  * Shift Service
  * Handles shift management and cash collections
  * Backend: /api/v1/shifts/*
@@ -168,154 +136,10 @@ export const shiftService = {
 };
 
 /**
- * Cash Handover Service
- * Handles cash handover chain management
- * Backend: /api/v1/handovers/*
- */
-export const cashHandoverService = {
-  /**
-   * Get pending handovers for current user
-   * GET /api/v1/handovers/pending
-   */
-  async getPendingHandovers(): Promise<CashHandover[]> {
-    try {
-      const response = await apiClient.get<ApiResponse<CashHandover[]>>('/handovers/pending');
-
-      if (response.success && response.data) {
-        return response.data;
-      }
-      return [];
-    } catch (error) {
-      console.error('Failed to fetch pending handovers:', error);
-      return [];
-    }
-  },
-
-  /**
-   * Create a new handover (manager+ only)
-   * POST /api/v1/handovers
-   */
-  async createHandover(data: {
-    stationId: string;
-    handoverType: 'shift_collection' | 'employee_to_manager' | 'manager_to_owner' | 'deposit_to_bank';
-    handoverDate?: string;
-    fromUserId?: string;
-    expectedAmount?: number;
-    notes?: string;
-  }): Promise<CashHandover> {
-    const response = await apiClient.post<ApiResponse<CashHandover>>('/handovers', data);
-
-    if (!response.success || !response.data) {
-      throw new Error('Failed to create handover');
-    }
-
-    return response.data;
-  },
-
-  /**
-   * Confirm a handover
-   * POST /api/v1/handovers/:id/confirm
-   * ✅ Updated: Supports acceptAsIs flag for quick confirmation
-   */
-  async confirmHandover(
-    handoverId: string,
-    data: {
-      actualAmount?: number;
-      acceptAsIs?: boolean;  // ✅ NEW: Quick accept without entering amount
-      notes?: string;
-    }
-  ): Promise<CashHandover> {
-    const response = await apiClient.post<ApiResponse<CashHandover>>(
-      `/handovers/${handoverId}/confirm`,
-      data
-    );
-
-    if (!response.success || !response.data) {
-      throw new Error('Failed to confirm handover');
-    }
-
-    return response.data;
-  },
-
-  /**
-   * Resolve a disputed handover (owner+ only)
-   * POST /api/v1/handovers/:id/resolve
-   */
-  async resolveDispute(
-    handoverId: string,
-    resolutionNotes: string
-  ): Promise<CashHandover> {
-    const response = await apiClient.post<ApiResponse<CashHandover>>(
-      `/handovers/${handoverId}/resolve`,
-      { resolutionNotes }
-    );
-
-    if (!response.success || !response.data) {
-      throw new Error('Failed to resolve dispute');
-    }
-
-    return response.data;
-  },
-
-  /**
-   * Record bank deposit (owner+ only)
-   * POST /api/v1/handovers/bank-deposit
-   */
-  async recordBankDeposit(data: {
-    stationId: string;
-    handoverDate?: string;
-    amount: number;
-    bankName?: string;
-    depositReference?: string;
-    depositReceiptUrl?: string;
-    notes?: string;
-  }): Promise<CashHandover> {
-    const response = await apiClient.post<ApiResponse<CashHandover>>(
-      '/handovers/bank-deposit',
-      data
-    );
-
-    if (!response.success || !response.data) {
-      throw new Error('Failed to record bank deposit');
-    }
-
-    return response.data;
-  }
-};
-
-/**
  * Dashboard Alerts Service
  * Backend: /api/v1/dashboard/alerts/*
  */
 export const dashboardAlertsService = {
-  /**
-   * Get pending handovers alert
-   * GET /api/v1/dashboard/alerts/pending-handovers
-   */
-  async getPendingHandoversAlert(): Promise<{
-    pendingCount: number;
-    disputedCount: number;
-    pendingHandovers: CashHandover[];
-    hasAlerts: boolean;
-  }> {
-    try {
-      const response = await apiClient.get<ApiResponse<{
-        pendingCount: number;
-        disputedCount: number;
-        pendingHandovers: CashHandover[];
-        hasAlerts: boolean;
-      }>>('/dashboard/alerts/pending-handovers');
-
-      if (response.success && response.data) {
-        return response.data;
-      }
-      return { pendingCount: 0, disputedCount: 0, pendingHandovers: [], hasAlerts: false };
-    } catch (error) {
-      console.error('Failed to fetch pending handovers alert:', error);
-      return { pendingCount: 0, disputedCount: 0, pendingHandovers: [], hasAlerts: false };
-    }
-  },
-
   /**
    * Get shift status
    * GET /api/v1/dashboard/shift-status
@@ -368,7 +192,7 @@ export const dashboardAlertsService = {
 };
 
 // Re-export for backwards compatibility with existing imports
-// NOTE: tenderService is deprecated, use shiftService and cashHandoverService instead
+// NOTE: tenderService is deprecated, use shiftService and settlementsService instead
 export const tenderService = {
   /**
    * @deprecated Use dashboardAlertsService.getShiftStatus() and daily closure service instead
@@ -384,23 +208,6 @@ export const tenderService = {
     // Return empty data as tender entries endpoint doesn't exist
     // Frontend should migrate to using shift/handover endpoints
     return { data: [], total: 0 };
-  },
-
-  /**
-   * @deprecated Use cashHandoverService instead
-   */
-  async createTenderEntry(
-    stationId: string,
-    entryData: {
-      type: 'cash' | 'card' | 'upi' | 'credit';
-      payer: string;
-      amount: number;
-      entry_date: string;
-      user_id: string;
-    }
-  ): Promise<unknown> {
-    console.warn('tenderService.createTenderEntry is deprecated. Use cashHandoverService instead.');
-    throw new Error('This endpoint is deprecated. Use cash handover workflow instead.');
   },
 
   /**

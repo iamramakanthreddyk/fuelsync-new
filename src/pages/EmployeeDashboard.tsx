@@ -74,6 +74,7 @@ const EmployeeDashboard = () => {
         stationId: currentStation.id
       });
       setActiveShift(shift);
+      toast({ title: "Success", description: "Shift started successfully", variant: "success" });
     } catch (error: unknown) {
       console.error('Failed to start shift:', error);
       toast({ title: "Error", description: error instanceof Error ? error.message : 'Failed to start shift', variant: "destructive" });
@@ -87,16 +88,25 @@ const EmployeeDashboard = () => {
 
     setShiftLoading(true);
     try {
-      const cashCollected = prompt('Enter cash collected amount:');
-      if (cashCollected === null) {
+      // For testing - use a simple prompt. In production, this should be a proper form
+      const cashCollected = prompt('Enter cash collected amount (₹):', '1500');
+      if (cashCollected === null || cashCollected.trim() === '') {
+        setShiftLoading(false);
+        return;
+      }
+
+      const amount = parseFloat(cashCollected);
+      if (isNaN(amount) || amount < 0) {
+        toast({ title: "Error", description: "Please enter a valid amount", variant: "destructive" });
         setShiftLoading(false);
         return;
       }
 
       await shiftService.endShift(activeShift.id, {
-        cashCollected: parseFloat(cashCollected) || 0,
+        cashCollected: amount,
       });
 
+      toast({ title: "Success", description: "Shift ended successfully.", variant: "success" });
       setActiveShift(null);
 
       // Refresh summary (use stationId & today's date if available)
