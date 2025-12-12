@@ -456,9 +456,10 @@ export default function Analytics() {
                           cx="50%"
                           cy="50%"
                           labelLine={false}
-                          label={({ stationName, percentage }) =>
-                            `${stationName} (${safeToFixed(percentage, 0)}%)`
-                          }
+                          label={({ stationName, percentage }) => {
+                            const truncatedName = stationName.length > 15 ? stationName.substring(0, 15) + '...' : stationName;
+                            return `${truncatedName} (${safeToFixed(percentage, 0)}%)`;
+                          }}
                           outerRadius={window.innerWidth < 640 ? 80 : 100}
                           fill="#8884d8"
                           dataKey="sales"

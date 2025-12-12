@@ -78,11 +78,6 @@ export function AppSidebar() {
       icon: LineChart,
     },
     {
-      title: "Cash Handovers",
-      url: "/owner/cash-handovers",
-      icon: Banknote,
-    },
-    {
       title: "Stations",
       url: "/owner/stations",
       icon: Building2,

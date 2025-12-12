@@ -133,15 +133,15 @@ export default function OwnerDashboard() {
     return null;
   }
 
-  // Fetch pending handovers alert for owner (used to show reconcile banner)
-  const { data: pendingAlert } = useQuery({
-    queryKey: ['owner-pending-handovers-alert', user?.id],
-    queryFn: () => dashboardAlertsService.getPendingHandoversAlert(),
+  // Fetch pending actions for owner (used to show reconcile banner)
+  const { data: pendingActions } = useQuery({
+    queryKey: ['owner-pending-actions', user?.id],
+    queryFn: () => dashboardAlertsService.getPendingActions(),
     enabled: !!user,
     refetchInterval: 30000,
   });
 
-  const showReconcileBanner = (pendingAlert?.pendingCount ?? 0) > 0;
+  const showReconcileBanner = (pendingActions?.handoversToConfirm ?? 0) > 0;
 
   // Defensive: stats may be null/undefined and may not have expected properties
   function isDashboardStats(obj: any): obj is DashboardStats {
@@ -176,7 +176,7 @@ export default function OwnerDashboard() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <h3 className="text-lg font-semibold">Daily Reconciliation</h3>
-                <p className="text-sm text-muted-foreground">You have {pendingAlert?.pendingCount || 0} pending handover(s) to confirm.</p>
+                <p className="text-sm text-muted-foreground">You have {pendingActions?.handoversToConfirm || 0} pending handover(s) to confirm.</p>
               </div>
               <div className="flex items-center gap-2">
                 <button
@@ -192,7 +192,7 @@ export default function OwnerDashboard() {
       </div>
 
       {/* Plan Info Alert */}
-      <PlanInfoAlert user={user} stats={{ totalStations: safeStats.totalStations, totalEmployees: safeStats.totalEmployees }} />
+      <PlanInfoAlert user={user} stats={{ totalStations: stations.length, totalEmployees: safeStats.totalEmployees }} />
 
       {/* Setup Warnings - Chain: Stations → Prices → Pumps → Nozzles */}
       <SetupWarningsAlert 

@@ -38,13 +38,31 @@ exports.getSummary = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.userId);
     const today = new Date().toISOString().split('T')[0];
+    const { stationId } = req.query;
     
-    const stationFilter = await getStationFilter(user);
-    if (stationFilter === null) {
+    // Get base station filter
+    const baseStationFilter = await getStationFilter(user);
+    if (baseStationFilter === null) {
       return res.json({
         success: true,
         data: { today: { litres: 0, amount: 0, cash: 0, online: 0, credit: 0, readings: 0 }, pumps: [] }
       });
+    }
+    
+    // Apply stationId filter if provided
+    let stationFilter = baseStationFilter;
+    if (stationId) {
+      // Verify user has access to this station
+      if (user.role === 'owner') {
+        const ownerStations = await Station.findAll({ where: { ownerId: user.id }, attributes: ['id'] });
+        const ownerStationIds = ownerStations.map(s => s.id);
+        if (!ownerStationIds.includes(stationId)) {
+          return res.status(403).json({ success: false, error: 'Not authorized' });
+        }
+      } else if (user.role !== 'super_admin' && user.stationId !== stationId) {
+        return res.status(403).json({ success: false, error: 'Not authorized' });
+      }
+      stationFilter = { stationId: stationId };
     }
 
     // Today's sales totals (include initial readings that represent sales)
@@ -894,12 +912,13 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     });
 
     const stationMap = new Map(stations.map(s => [s.id, s]));
-    const salesByStationData = salesByStation.map(s => {
-      const station = stationMap.get(s.stationId);
-      const sales = parseFloat(s.sales || 0);
+    const salesMap = new Map(salesByStation.map(s => [s.stationId, parseFloat(s.sales || 0)]));
+    
+    const salesByStationData = stations.map(station => {
+      const sales = salesMap.get(station.id) || 0;
       return {
-        stationId: s.stationId,
-        stationName: station?.name || 'Unknown',
+        stationId: station.id,
+        stationName: station.name,
         sales,
         percentage: totalSales > 0 ? (sales / totalSales) * 100 : 0
       };

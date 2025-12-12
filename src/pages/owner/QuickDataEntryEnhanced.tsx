@@ -1,3 +1,88 @@
+// Child component for a single nozzle row, to allow hook usage per nozzle
+interface NozzleReadingRowProps {
+  nozzle: any;
+  readings: Record<string, ReadingEntry>;
+  handleReadingChange: (nozzleId: string, value: string) => void;
+  hasPriceForFuelType: (fuelType: string) => boolean;
+  getPrice: (fuelType: string) => number;
+}
+function NozzleReadingRow({
+  nozzle,
+  readings,
+  handleReadingChange,
+  hasPriceForFuelType,
+  getPrice
+}: NozzleReadingRowProps) {
+  const { data: trueLastReading, isLoading: lastReadingLoading } = useNozzleLastReading(nozzle.id);
+  const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+  const compareValue = (trueLastReading !== null && trueLastReading !== undefined && !isNaN(trueLastReading))
+    ? parseFloat(trueLastReading)
+    : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
+
+  const reading = readings[nozzle.id];
+  const enteredValue = reading?.readingValue ? parseFloat(reading.readingValue) : 0;
+  const price = getPrice(nozzle.fuelType);
+  const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
+
+  return (
+    <div key={nozzle.id} className="border rounded-lg p-2 bg-white">
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex flex-col">
+          <Label className="text-xs font-semibold">
+            Nozzle {nozzle.nozzleNumber} - {nozzle.fuelType}
+            {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
+            <span className="text-xs text-muted-foreground ml-2">Last: {safeToFixed(compareValue, 1)}L</span>
+          </Label>
+        </div>
+      </div>
+      <div className="relative">
+        <Input
+          type="number"
+          step="any"
+          placeholder="0.00"
+          value={reading?.readingValue || ''}
+          onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
+          disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice || lastReadingLoading}
+          className={`text-xs h-7 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
+        />
+        {lastReadingLoading && (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-blue-500 text-xs">
+            Loading...
+          </div>
+        )}
+        {reading?.readingValue && !lastReadingLoading && enteredValue > compareValue && (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
+            <Check className="w-4 h-4" />
+          </div>
+        )}
+        {reading?.readingValue && !lastReadingLoading && enteredValue <= compareValue && (
+          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-red-500 text-xs">
+            Incorrect reading
+          </div>
+        )}
+      </div>
+      {!hasFuelPrice && (
+        <p className="text-xs text-red-600 mt-1">
+          Price not set for this fuel type.<br />
+          Set prices in the <b>Prices</b> page. Prices update automatically.
+        </p>
+      )}
+      {/* Show calculation below input if reading is valid */}
+      {reading?.readingValue && enteredValue > compareValue && hasFuelPrice && (
+        <div className="mt-2 pt-2 border-t border-gray-200">
+          <ReadingSaleCalculation
+            nozzleNumber={nozzle.nozzleNumber}
+            fuelType={nozzle.fuelType}
+            lastReading={compareValue}
+            enteredReading={enteredValue}
+            fuelPrice={price}
+            status={nozzle.status as EquipmentStatusEnum}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
 /**
  * Quick Data Entry with Sale Calculations
  * Enhanced version with per-nozzle sale value calculations
@@ -19,6 +104,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
+import { useNozzleLastReading } from '@/hooks/useNozzleLastReading';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -49,6 +135,16 @@ import {
   Fuel,
   Check
 } from 'lucide-react';
+
+// Utility function to calculate litres and sale value for a nozzle
+const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: number | null, fuelPrices: any[]) => {
+  const enteredValue = parseFloat(readingValue || '0');
+  const last = lastReading !== null && lastReading !== undefined ? lastReading : (nozzle?.initialReading || 0);
+  const litres = Math.max(0, enteredValue - last);
+  const price = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase())?.price_per_litre || 0;
+  const saleValue = litres * price;
+  return { litres, saleValue };
+};
 
 interface ReadingEntry {
   nozzleId: string;
@@ -86,6 +182,8 @@ export default function QuickDataEntry() {
     credits: []
   });
 
+  // ...existing code...
+
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { setStationId } = useFuelPricesGlobal();
@@ -114,9 +212,32 @@ export default function QuickDataEntry() {
 
   // Get fuel prices for selected station from global context (preloaded on app init)
   const { missingFuelTypes: missingPricesFuelTypes, pricesArray } = useFuelPricesForStation(selectedStation);
-  
   // Convert to array format for compatibility with existing code
   const fuelPrices = pricesArray;
+
+  // Fetch true last readings for all nozzles to use in payment allocation calculation
+  const { data: allLastReadings } = useQuery({
+    queryKey: ['allNozzleLastReadings', selectedStation],
+    queryFn: async () => {
+      if (!selectedStation || !pumps) return {};
+      const readings: Record<string, number> = {};
+      const promises = pumps.flatMap(pump =>
+        (pump.nozzles || []).map(async (nozzle) => {
+          try {
+            const res: any = await apiClient.get(`/readings/last?nozzleId=${nozzle.id}`);
+            if (res && res.success && res.data) {
+              readings[nozzle.id] = res.data.readingValue;
+            }
+          } catch (error) {
+            // Ignore errors, will fall back to nozzle.lastReading
+          }
+        })
+      );
+      await Promise.all(promises);
+      return readings;
+    },
+    enabled: !!selectedStation && !!pumps
+  });
 
   // Fetch creditors for selected station
   const { data: creditors = [] } = useQuery<Creditor[]>({
@@ -156,28 +277,20 @@ export default function QuickDataEntry() {
           pump.nozzles.forEach(nozzle => {
             const reading = readings[nozzle.id];
             if (reading && reading.readingValue) {
-              const enteredValue = parseFloat(reading.readingValue);
-              const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-              
-              // Calculate litres: use lastReading for delta, or initialReading for first reading
-              const liters = lastReading !== null && !isNaN(lastReading)
-                ? Math.max(0, enteredValue - lastReading)
-                : Math.max(0, enteredValue - (nozzle.initialReading || 0)); // First reading: use initialReading as baseline
+              const trueLastReading = allLastReadings ? allLastReadings[nozzle.id] : undefined;
+              const lastReading = (trueLastReading !== undefined && trueLastReading !== null)
+                ? trueLastReading
+                : (nozzle?.initialReading || 0);
+              const { litres, saleValue } = calculateNozzleSale(nozzle, reading.readingValue, lastReading, fuelPrices);
 
-              if (liters > 0) {
-                const priceData = fuelPrices.find(p => p.fuel_type.toUpperCase() === nozzle.fuelType.toUpperCase());
-                const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
-                const saleValue = liters * price;
+              totalLiters += litres;
+              totalSaleValue += saleValue;
 
-                totalLiters += liters;
-                totalSaleValue += saleValue;
-
-                if (!byFuelType[nozzle.fuelType]) {
-                  byFuelType[nozzle.fuelType] = { liters: 0, value: 0 };
-                }
-                byFuelType[nozzle.fuelType].liters += liters;
-                byFuelType[nozzle.fuelType].value += saleValue;
+              if (!byFuelType[nozzle.fuelType]) {
+                byFuelType[nozzle.fuelType] = { liters: 0, value: 0 };
               }
+              byFuelType[nozzle.fuelType].liters += litres;
+              byFuelType[nozzle.fuelType].value += saleValue;
             }
           });
         }
@@ -189,7 +302,16 @@ export default function QuickDataEntry() {
       totalSaleValue,
       byFuelType
     };
-  }, [readings, pumps, fuelPrices]);
+  }, [readings, pumps, fuelPrices, allLastReadings]);
+
+  // Default payment allocation to total sale value (all cash) when no allocation exists
+  useEffect(() => {
+    const totalSaleValue = saleSummary.totalSaleValue;
+    const currentTotal = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credits.reduce((s, c) => s + c.amount, 0);
+    if (totalSaleValue > 0 && currentTotal === 0) {
+      setPaymentAllocation({ cash: totalSaleValue, online: 0, credits: [] });
+    }
+  }, [saleSummary.totalSaleValue, paymentAllocation.cash, paymentAllocation.online, paymentAllocation.credits]);
 
   // Fetch backend stats for today's sales (reactive to selectedStation)
   const { data: dashboardData } = useDashboardData(selectedStation);
@@ -219,6 +341,11 @@ export default function QuickDataEntry() {
       // Validate payment allocation matches sale value
       const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
       const totalPayment = paymentAllocation.cash + paymentAllocation.online + totalCredit;
+      if (totalPayment > saleSummary.totalSaleValue) {
+        throw new Error(
+          `Total payment (₹${safeToFixed(totalPayment, 2)}) cannot exceed sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
+        );
+      }
       if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
         throw new Error(
           `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
@@ -228,15 +355,11 @@ export default function QuickDataEntry() {
       // Build per-entry sale values so we can distribute payments proportionally
       const entriesWithSale = data.map(entry => {
         const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
-        const enteredValue = parseFloat(entry.readingValue || '0');
-        const lastReading = nozzle?.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-        // Calculate litres: use lastReading for delta, or initialReading for first reading
-        const litres = lastReading !== null && !isNaN(lastReading)
-          ? Math.max(0, enteredValue - lastReading)
-          : Math.max(0, enteredValue - (nozzle?.initialReading || 0)); // First reading: use initialReading as baseline
-        const priceData = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
-        const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
-        const saleValue = litres * price;
+        const trueLastReading = allLastReadings ? allLastReadings[entry.nozzleId] : undefined;
+        const lastReading = (trueLastReading !== undefined && trueLastReading !== null)
+          ? trueLastReading
+          : (nozzle?.initialReading || 0);
+        const { saleValue } = calculateNozzleSale(nozzle, entry.readingValue, lastReading, fuelPrices);
         return { entry, saleValue };
       });
 
@@ -280,13 +403,7 @@ export default function QuickDataEntry() {
           });
         }
 
-        // Get nozzle and price info for this entry
-        const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === item.entry.nozzleId);
-        const priceData = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
-        const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
-
-        // Calculate litres from the saleValue which was already calculated correctly when user entered the reading
-        const litres = item.saleValue > 0 && price > 0 ? item.saleValue / price : 0;
+        // ...existing code...
 
         const readingData: any = {
           stationId: selectedStation,
@@ -443,12 +560,12 @@ export default function QuickDataEntry() {
   const totalNozzles = pumps?.reduce((sum, pump) => sum + (pump.nozzles?.length || 0), 0) || 0;
 
   return (
-    <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl">
+    <div className="container mx-auto p-2 sm:p-4 space-y-3 sm:space-y-4 max-w-7xl">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+            <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
             Quick Entry
           </h1>
           <p className="text-sm sm:text-base text-muted-foreground">
@@ -533,7 +650,7 @@ export default function QuickDataEntry() {
           {/* Two Column Layout: Pumps + Summary */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* Left: Pump Nozzles (2 cols) */}
-            <div className="lg:col-span-2 space-y-3">
+            <div className="lg:col-span-2 space-y-2">
               {pumps.map((pump) => (
                 <Card key={pump.id} className="hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2">
@@ -550,76 +667,19 @@ export default function QuickDataEntry() {
                       <Badge variant="outline" className="text-xs">{pump.status}</Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-3">
+                  <CardContent className="space-y-2">
                     {pump.nozzles && pump.nozzles.length > 0 ? (
-                      <div className="space-y-3">
-                        {pump.nozzles.map((nozzle) => {
-                          const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-                          const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-                          const compareValue = lastReading !== null && !isNaN(lastReading)
-                            ? lastReading
-                            : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
-
-                          const reading = readings[nozzle.id];
-                          const enteredValue = reading?.readingValue ? parseFloat(reading.readingValue) : 0;
-                          const price = getPrice(nozzle.fuelType);
-                          const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
-
-                          // Always show input field
-                          return (
-                            <div key={nozzle.id} className="border rounded-lg p-2.5 bg-white">
-                              <div className="flex items-center justify-between mb-1.5">
-                                <div className="flex flex-col">
-                                  <Label className="text-xs font-semibold">
-                                    Nozzle {nozzle.nozzleNumber} - {nozzle.fuelType}
-                                    {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
-                                    <span className="text-xs text-muted-foreground ml-2">Last Reading: {safeToFixed(compareValue, 1)}</span>
-                                  </Label>
-                                </div>
-                              </div>
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  step="any"
-                                  placeholder="0.00"
-                                  value={reading?.readingValue || ''}
-                                  onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
-                                  disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
-                                  className={`text-sm h-8 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
-                                />
-                                {reading?.readingValue && enteredValue > compareValue && (
-                                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
-                                    <Check className="w-4 h-4" />
-                                  </div>
-                                )}
-                                {reading?.readingValue && enteredValue <= compareValue && (
-                                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-red-500 text-xs">
-                                    Incorrect reading
-                                  </div>
-                                )}
-                              </div>
-                              {!hasFuelPrice && (
-                                <p className="text-xs text-red-600 mt-1">
-                                  Price not set for this fuel type.<br />
-                                  Set prices in the <b>Prices</b> page. Prices update automatically.
-                                </p>
-                              )}
-                              {/* Show calculation below input if reading is valid */}
-                              {reading?.readingValue && enteredValue > compareValue && hasFuelPrice && (
-                                <div className="mt-2 pt-2 border-t border-gray-200">
-                                  <ReadingSaleCalculation
-                                    nozzleNumber={nozzle.nozzleNumber}
-                                    fuelType={nozzle.fuelType}
-                                    lastReading={compareValue}
-                                    enteredReading={enteredValue}
-                                    fuelPrice={price}
-                                    status={nozzle.status as EquipmentStatusEnum}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          );
-                        })}
+                      <div className="grid grid-cols-2 gap-2">
+                        {pump.nozzles.map((nozzle) => (
+                          <NozzleReadingRow
+                            key={nozzle.id}
+                            nozzle={nozzle}
+                            readings={readings}
+                            handleReadingChange={handleReadingChange}
+                            hasPriceForFuelType={hasPriceForFuelType}
+                            getPrice={getPrice}
+                          />
+                        ))}
                       </div>
                     ) : (
                       <p className="text-xs text-muted-foreground text-center py-3">
