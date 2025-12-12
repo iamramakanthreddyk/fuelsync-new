@@ -3,7 +3,7 @@
  */
 
 const sequelize = require('./src/config/database');
-const { User, Station, NozzleReading, Nozzle, Pump, CashHandover } = require('./src/models');
+const { User, Station, NozzleReading, Nozzle, Pump } = require('./src/models');
 const { Op, fn, col } = require('sequelize');
 
 async function testOwnerStats() {
@@ -110,14 +110,7 @@ async function testOwnerStats() {
       const monthSales = parseFloat(monthSalesData[0]?.totalAmount || 0);
       console.log(`✓ Month's Sales: ₹${monthSales.toFixed(2)}`);
       
-      // Pending actions
-      const pendingActions = await CashHandover.count({
-        where: {
-          stationId: { [Op.in]: stationIds },
-          status: 'pending'
-        }
-      });
-      console.log(`✓ Pending Actions: ${pendingActions}`);
+      // Pending actions removed (CashHandover logic no longer present)
     }
     
     console.log('\n✅ Test completed!\n');

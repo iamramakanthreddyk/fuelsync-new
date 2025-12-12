@@ -3,7 +3,7 @@
  * Employee shift management with cash reconciliation
  */
 
-const { Shift, User, Station, NozzleReading, CashHandover, sequelize } = require('../models');
+const { Shift, User, Station, NozzleReading, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { canAccessStation, getAccessibleStationIds } = require('../middleware/accessControl');
 
@@ -146,10 +146,7 @@ exports.endShift = async (req, res, next) => {
       endedBy: req.userId
     }, t);
     
-    // Auto-create cash handover for manager confirmation
-    if (shift.cashCollected && parseFloat(shift.cashCollected) > 0) {
-      await CashHandover.createFromShift(shift, t);
-    }
+    // Cash handover logic removed
     
     await t.commit();
     

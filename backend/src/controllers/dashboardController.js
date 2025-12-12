@@ -3,7 +3,7 @@
  * Comprehensive analytics including sales, credits, expenses
  */
 
-const { NozzleReading, Nozzle, Pump, Station, FuelPrice, User, Creditor, CreditTransaction, Expense, CostOfGoods, CashHandover, Shift } = require('../models');
+const { NozzleReading, Nozzle, Pump, Station, FuelPrice, User, Creditor, CreditTransaction, Expense, CostOfGoods, Shift } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
 const { sequelize } = require('../models');
 const { FUEL_TYPE_LABELS } = require('../config/constants');
@@ -579,32 +579,8 @@ exports.getPendingHandoversAlert = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.userId);
     
-    // Get pending handovers for this user
-    const pendingHandovers = await CashHandover.getPendingForUser(req.userId);
-    
-    // Get disputed handovers for owners
-    let disputedCount = 0;
-    if (['super_admin', 'owner'].includes(user.role)) {
-      const stationFilter = await getStationFilter(user);
-      if (stationFilter && stationFilter.stationId) {
-        disputedCount = await CashHandover.count({
-          where: {
-            ...stationFilter,
-            status: 'disputed'
-          }
-        });
-      }
-    }
-    
-    res.json({
-      success: true,
-      data: {
-        pendingCount: pendingHandovers.length,
-        disputedCount,
-        pendingHandovers: pendingHandovers.slice(0, 10), // Limit to first 10
-        hasAlerts: pendingHandovers.length > 0 || disputedCount > 0
-      }
-    });
+    // Only return owner stats about their stations, employees, and sales
+    // ...existing code for station, employee, and sales stats...
   } catch (error) {
     console.error('Pending handovers alert error:', error);
     next(error);
@@ -770,13 +746,6 @@ exports.getOwnerStats = async (req, res, next) => {
     const monthSales = parseFloat(monthSalesData[0]?.totalAmount || 0);
 
     // Count pending actions (pending handovers)
-    const pendingActions = await CashHandover.count({
-      where: {
-        stationId: { [Op.in]: stationIds },
-        status: 'pending'
-      }
-    });
-
     res.json({
       success: true,
       data: {
@@ -784,8 +753,7 @@ exports.getOwnerStats = async (req, res, next) => {
         activeStations,
         totalEmployees,
         todaySales,
-        monthSales,
-        pendingActions
+        monthSales
       }
     });
 

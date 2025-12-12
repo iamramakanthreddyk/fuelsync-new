@@ -66,7 +66,6 @@ const {
   Tank,
   TankRefill,
   Shift,
-  CashHandover,
   AuditLog
 } = require('../src/models');
 
@@ -91,7 +90,6 @@ async function clearExistingData() {
   
   // Clear in proper order to respect foreign keys
   await AuditLog.destroy({ where: {}, truncate: true, cascade: true });
-  await CashHandover.destroy({ where: {}, truncate: true, cascade: true });
   await Shift.destroy({ where: {}, truncate: true, cascade: true });
   await TankRefill.destroy({ where: {}, truncate: true, cascade: true });
   await Tank.destroy({ where: {}, truncate: true, cascade: true });
