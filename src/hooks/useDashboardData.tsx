@@ -46,7 +46,7 @@ interface DashboardData {
   }>;
 }
 
-export const useDashboardData = () => {
+export const useDashboardData = (stationId?: string) => {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData>({
     todaySales: 0,
@@ -62,11 +62,10 @@ export const useDashboardData = () => {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  const currentStation = user?.stations?.[0];
-
   useEffect(() => {
-    // If user has no stations, stop loading and show empty state
-    if (user && (!user.stations || user.stations.length === 0)) {
+    // If no stationId, try to use user's first station
+    const effectiveStationId = stationId || user?.stations?.[0]?.id;
+    if (!effectiveStationId) {
       setIsLoading(false);
       setData(prev => ({
         ...prev,
@@ -80,116 +79,108 @@ export const useDashboardData = () => {
       }));
       return;
     }
-    
-    if (currentStation) {
-      loadDashboardData();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, currentStation]);
 
-  const loadDashboardData = async () => {
-    if (!currentStation) {
-      console.warn("No currentStation selected in useDashboardData");
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      setIsLoading(true);
-      const today = new Date().toISOString().split('T')[0];
-
-      // Fetch dashboard summary from backend
-      const summary = await apiClient.get<{
-        date: string;
-        today: {
-          litres: number;
-          amount: number;
-          cash: number;
-          online: number;
-          credit: number;
-          readings: number;
-        };
-        creditOutstanding: number;
-        pumps: Array<{
-          id: string;
-          name: string;
-          number: number;
-          status: string;
-          nozzleCount: number;
-          activeNozzles: number;
-          today: { litres: number; amount: number };
-        }>;
-      }>(`/dashboard/summary?stationId=${currentStation.id}&startDate=${today}&endDate=${today}`);
-
-      // The apiClient returns the envelope { success, data } — unwrap it safely
-      const summaryData = extractApiData(summary, null) as {
-        date: string;
-        today?: {
-          litres: number;
-          amount: number;
-          cash: number;
-          online: number;
-          credit: number;
-          readings: number;
-        };
-        creditOutstanding?: number;
-        pumps?: Array<{
-          id: string;
-          name: string;
-          number: number;
-          status: string;
-          nozzleCount: number;
-          activeNozzles: number;
-          today?: { litres: number; amount: number };
-        }>;
-      } | null;
-
-      // Extract fuel prices from current prices endpoint
-      const fuelPrices: DashboardData['fuelPrices'] = {};
+    const loadDashboardData = async () => {
       try {
-        type Price = { fuelType: string; price: number };
-        const response = await apiClient.get<{ success: boolean; data: { current: Price[]; history: Price[] } }>(`/stations/${currentStation.id}/prices`);
-        // Extract nested 'current' array from the wrapped response
-        const currentPrices = extractNestedData(response, 'current', []);
-        if (Array.isArray(currentPrices)) {
-          currentPrices.forEach((p: Price) => {
-            fuelPrices[p.fuelType as keyof typeof fuelPrices] = p.price;
-          });
-        }
-      } catch (e) {
-        console.warn('Could not load fuel prices:', e);
-      }
+        setIsLoading(true);
+        const today = new Date().toISOString().split('T')[0];
 
-      setData({
-        todaySales: summaryData?.today?.amount ?? 0,
-        todayPayments: (summaryData?.today?.cash ?? 0) + (summaryData?.today?.online ?? 0) + (summaryData?.today?.credit ?? 0),
-        totalReadings: summaryData?.today?.readings ?? 0,
-        today: summaryData?.today ?? null,
-        pumps: summaryData?.pumps ?? [],
-        lastReading: null, // Not available in current API
-        pendingClosures: 0, // Not implemented yet
-        trendsData: [],
-        fuelPrices,
-        alerts: []
-      });
-    } catch (error: unknown) {
-      console.error('Error loading dashboard data:', error);
-      setData(prev => ({
-        ...prev,
-        alerts: [
-          {
-            id: 'load_error',
-            type: 'error',
-            message: error && typeof error === 'object' && 'message' in error ? (error as { message?: string }).message || 'Failed to load dashboard data' : 'Failed to load dashboard data',
-            severity: 'high',
-            tags: ['system']
+        // Fetch dashboard summary from backend
+        const summary = await apiClient.get<{
+          date: string;
+          today: {
+            litres: number;
+            amount: number;
+            cash: number;
+            online: number;
+            credit: number;
+            readings: number;
+          };
+          creditOutstanding: number;
+          pumps: Array<{
+            id: string;
+            name: string;
+            number: number;
+            status: string;
+            nozzleCount: number;
+            activeNozzles: number;
+            today: { litres: number; amount: number };
+          }>;
+        }>(`/dashboard/summary?stationId=${effectiveStationId}&startDate=${today}&endDate=${today}`);
+
+        // The apiClient returns the envelope { success, data } — unwrap it safely
+        const summaryData = extractApiData(summary, null) as {
+          date: string;
+          today?: {
+            litres: number;
+            amount: number;
+            cash: number;
+            online: number;
+            credit: number;
+            readings: number;
+          };
+          creditOutstanding?: number;
+          pumps?: Array<{
+            id: string;
+            name: string;
+            number: number;
+            status: string;
+            nozzleCount: number;
+            activeNozzles: number;
+            today?: { litres: number; amount: number };
+          }>;
+        } | null;
+
+        // Extract fuel prices from current prices endpoint
+        const fuelPrices: DashboardData['fuelPrices'] = {};
+        try {
+          type Price = { fuelType: string; price: number };
+          const response = await apiClient.get<{ success: boolean; data: { current: Price[]; history: Price[] } }>(`/stations/${effectiveStationId}/prices`);
+          // Extract nested 'current' array from the wrapped response
+          const currentPrices = extractNestedData(response, 'current', []);
+          if (Array.isArray(currentPrices)) {
+            currentPrices.forEach((p: Price) => {
+              fuelPrices[p.fuelType as keyof typeof fuelPrices] = p.price;
+            });
           }
-        ]
-      }));
-    } finally {
-      setIsLoading(false);
-    }
-  };
+        } catch (e) {
+          console.warn('Could not load fuel prices:', e);
+        }
 
-  return { data, isLoading, refetch: loadDashboardData };
+        setData({
+          todaySales: summaryData?.today?.amount ?? 0,
+          todayPayments: (summaryData?.today?.cash ?? 0) + (summaryData?.today?.online ?? 0) + (summaryData?.today?.credit ?? 0),
+          totalReadings: summaryData?.today?.readings ?? 0,
+          today: summaryData?.today ?? null,
+          pumps: summaryData?.pumps ?? [],
+          lastReading: null, // Not available in current API
+          pendingClosures: 0, // Not implemented yet
+          trendsData: [],
+          fuelPrices,
+          alerts: []
+        });
+      } catch (error: unknown) {
+        console.error('Error loading dashboard data:', error);
+        setData(prev => ({
+          ...prev,
+          alerts: [
+            {
+              id: 'load_error',
+              type: 'error',
+              message: error && typeof error === 'object' && 'message' in error ? (error as { message?: string }).message || 'Failed to load dashboard data' : 'Failed to load dashboard data',
+              severity: 'high',
+              tags: ['system']
+            }
+          ]
+        }));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadDashboardData();
+    // Only re-run when stationId or user changes
+  }, [stationId, user]);
+
+  return { data, isLoading };
 };

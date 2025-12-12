@@ -191,8 +191,8 @@ export default function QuickDataEntry() {
     };
   }, [readings, pumps, fuelPrices]);
 
-  // Fetch backend stats for today's sales
-  const { data: dashboardData } = useDashboardData();
+  // Fetch backend stats for today's sales (reactive to selectedStation)
+  const { data: dashboardData } = useDashboardData(selectedStation);
 
   // Use backend value for today's sales
 
