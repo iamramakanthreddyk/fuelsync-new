@@ -97,9 +97,13 @@ exports.getSummary = async (req, res, next) => {
       raw: true, nest: true
     });
 
-    // All pumps
+    // All pumps (use same stationFilter as readings/credits)
+    let pumpWhere = {};
+    if (stationFilter && stationFilter.stationId) {
+      pumpWhere.stationId = stationFilter.stationId;
+    }
     const allPumps = await Pump.findAll({
-      where: user.role === 'super_admin' ? {} : { stationId: user.stationId },
+      where: user.role === 'super_admin' ? {} : pumpWhere,
       attributes: ['id', 'name', 'pumpNumber', 'status'],
       include: [{ model: Nozzle, as: 'nozzles', attributes: ['id', 'nozzleNumber', 'fuelType', 'status'] }],
       order: [['pumpNumber', 'ASC']]
