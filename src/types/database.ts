@@ -131,22 +131,10 @@ export interface Sale {
   created_at: string;
 }
 
-export interface TenderEntry {
-  id: number;
-  station_id: number | null;
-  entry_date: string;
-  type: 'cash' | 'card' | 'upi' | 'credit' | null;
-  payer: string | null;
-  amount: number | null;
-  user_id: number | null;
-  created_at: string;
-}
-
 export interface Settlement {
   station_id: number;
   date: string;
   sales_total: number | null;
-  tender_total: number | null;
   difference: number | null;
   closed_by: number | null;
   closed_at: string;
@@ -178,14 +166,6 @@ export interface ManualEntryData {
   cumulative_vol: number;
   reading_date: string;
   reading_time: string;
-}
-
-export interface TenderEntryData {
-  station_id: number;
-  entry_date: string;
-  type: 'cash' | 'card' | 'upi' | 'credit';
-  payer: string;
-  amount: number;
 }
 
 export interface RefillData {

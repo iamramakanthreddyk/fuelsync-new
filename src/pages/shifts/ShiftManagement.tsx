@@ -59,7 +59,7 @@ import {
 
 import { useAuth } from '@/hooks/useAuth';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
-import { shiftService, dashboardAlertsService } from '@/services/tenderService';
+import { shiftService, dashboardAlertsService } from '@/services/shiftService';
 import { cn } from '@/lib/utils';
 
 export default function ShiftManagement() {

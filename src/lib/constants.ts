@@ -15,7 +15,6 @@ export function getSourceBadgeClasses(source?: string) {
   if (!source) return 'bg-gray-100 text-gray-800';
   const s = source.toLowerCase();
   if (s === 'manual') return 'bg-orange-100 text-orange-700';
-  if (s === 'tender') return 'bg-green-100 text-green-700';
   if (s === 'refill') return 'bg-purple-100 text-purple-700';
   return 'bg-gray-100 text-gray-800';
 }

@@ -5,7 +5,7 @@ import { extractNestedData, extractApiData } from "@/lib/api-response";
 
 interface DashboardData {
   todaySales: number;
-  todayTender: number;
+  todayPayments: number;
   totalReadings: number;
   // Preserve API 'today' object for components expecting the original shape
   today?: {
@@ -50,7 +50,7 @@ export const useDashboardData = () => {
   const { user } = useAuth();
   const [data, setData] = useState<DashboardData>({
     todaySales: 0,
-    todayTender: 0,
+    todayPayments: 0,
     totalReadings: 0,
     today: null,
     lastReading: null,
@@ -162,7 +162,7 @@ export const useDashboardData = () => {
 
       setData({
         todaySales: summaryData?.today?.amount ?? 0,
-        todayTender: (summaryData?.today?.cash ?? 0) + (summaryData?.today?.online ?? 0) + (summaryData?.today?.credit ?? 0),
+        todayPayments: (summaryData?.today?.cash ?? 0) + (summaryData?.today?.online ?? 0) + (summaryData?.today?.credit ?? 0),
         totalReadings: summaryData?.today?.readings ?? 0,
         today: summaryData?.today ?? null,
         pumps: summaryData?.pumps ?? [],

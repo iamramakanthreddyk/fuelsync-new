@@ -6,7 +6,7 @@ import { safeToFixed } from '@/lib/format-utils';
 
 interface KeyMetricsCardsProps {
   todaySales: number;
-  todayTender: number;
+  todayPayments: number;
   pendingClosures: number;
   premiumRequired: boolean;
   variance: number;
@@ -16,7 +16,7 @@ interface KeyMetricsCardsProps {
 
 export function KeyMetricsCards({
   todaySales,
-  todayTender,
+  todayPayments,
   pendingClosures,
   premiumRequired,
   variance,
@@ -45,7 +45,7 @@ export function KeyMetricsCards({
           <IndianRupee className="h-4 w-4 text-muted-foreground" />
         </CardHeader>
         <CardContent>
-          <div className="text-2xl font-bold text-blue-600">₹{safeToFixed(todayTender, 2)}</div>
+          <div className="text-2xl font-bold text-blue-600">₹{safeToFixed(todayPayments, 2)}</div>
           <p className="text-xs text-muted-foreground">
             Cash, card, UPI & credit
           </p>

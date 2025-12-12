@@ -4,12 +4,10 @@ export * from './api';
 // Explicitly re-export only non-conflicting types from database
 export type {
   ManualReading,
-  TenderEntry,
   Settlement,
   PlanUsage,
   EventLog,
   ManualEntryData,
-  TenderEntryData,
   RefillData
 } from './database';
 export type { ApiResponse, PaginatedResponse } from './apiResponses';

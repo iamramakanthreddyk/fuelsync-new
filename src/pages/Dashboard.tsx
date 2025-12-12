@@ -52,7 +52,7 @@ export default function Dashboard() {
   const checklist = useSetupChecklist();
 
   const premiumRequired = false; // Premium features not implemented yet
-  const variance = data.todayTender - data.todaySales;
+  const variance = data.todayPayments - data.todaySales;
 
   // Build fuel price object for FuelPriceCard - normalize keys using enum
   const fuelPricesObj: Record<string, number> = {};
@@ -108,14 +108,14 @@ export default function Dashboard() {
           </CardContent>
         </Card>
         
-        {/* Total Tender */}
+        {/* Total Payments */}
         <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Tender</CardTitle>
+            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Payments</CardTitle>
             <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayTender)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayPayments)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Cash, card, UPI & credit
             </p>
@@ -325,14 +325,14 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Total Tender */}
+            {/* Total Payments */}
             <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Tender</CardTitle>
+                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Payments</CardTitle>
                 <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayTender)}</div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayPayments)}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Cash, card, UPI & credit
                 </p>

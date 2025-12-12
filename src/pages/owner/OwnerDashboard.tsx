@@ -14,7 +14,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { dashboardAlertsService } from '@/services/tenderService';
+import { dashboardAlertsService } from '@/services/shiftService';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { extractApiData } from '@/lib/api-response';

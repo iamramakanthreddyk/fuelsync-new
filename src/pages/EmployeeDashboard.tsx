@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useAuth } from '@/hooks/useAuth';
 import { fuelPriceService, FuelPrice } from '@/services/fuelPriceService';
 import { settlementsService, DailySummary } from '@/services/settlementsService';
-import { shiftService, dashboardAlertsService, Shift } from '@/services/tenderService';
+import { shiftService, dashboardAlertsService, Shift } from '@/services/shiftService';
 import { Badge } from '@/components/ui/badge';
 import { FuelPriceCard } from '@/components/dashboard/FuelPriceCard';
 import { normalizeFuelType } from '@/hooks/useFuelPricesData';
