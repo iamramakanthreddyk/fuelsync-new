@@ -33,7 +33,7 @@ export default function Settlements() {
         stationId: currentStation.id,
         date: selectedDate,
         amount: summary.breakdown.cash, // Cash to be deposited
-        notes: closureNotes || `Daily closure for ${selectedDate}. Sales: ₹${safeToFixed(summary.sales_total)}, Tender: ₹${safeToFixed(summary.tender_total)}, Difference: ₹${safeToFixed(summary.difference)}`
+        notes: closureNotes || `Daily closure for ${selectedDate}. Sales: ₹${safeToFixed(summary.sales_total)}, Payments: ₹${safeToFixed(summary.breakdown.cash + summary.breakdown.card + summary.breakdown.upi + summary.breakdown.credit)}, Difference: ₹${safeToFixed(summary.difference)}`
       };
 
       return await apiClient.post<ApiResponse<unknown>>('/handovers/bank-deposit', depositData);
@@ -138,7 +138,7 @@ export default function Settlements() {
             <ClipboardCheck className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium mb-2">No data available</h3>
             <p className="text-muted-foreground">
-              No sales or tender data found for {new Date(selectedDate).toLocaleDateString()}
+              No sales or payment data found for {new Date(selectedDate).toLocaleDateString()}
             </p>
           </CardContent>
         </Card>

@@ -15,7 +15,7 @@ import { useRoleAccess } from "./useRoleAccess";
 
 interface DailySummaryData {
   sales_total: number;
-  tender_total: number;
+  payments_total: number;
   difference: number;
   breakdown: {
     cash: number;
@@ -84,12 +84,12 @@ export function useDailySummary(date: string) {
         const cardAmount = onlineAmount * 0.5;  // Approximate
         const upiAmount = onlineAmount * 0.5;   // Approximate
         
-        const tenderTotal = cashAmount + onlineAmount + creditAmount;
-        const difference = salesTotal - tenderTotal;
+        const paymentsTotal = cashAmount + onlineAmount + creditAmount;
+        const difference = salesTotal - paymentsTotal;
 
         return {
           sales_total: salesTotal,
-          tender_total: tenderTotal,
+          payments_total: paymentsTotal,
           difference,
           breakdown: {
             cash: cashAmount,
@@ -104,7 +104,7 @@ export function useDailySummary(date: string) {
         // Return empty data on error
         return {
           sales_total: 0,
-          tender_total: 0,
+          payments_total: 0,
           difference: 0,
           breakdown: { cash: 0, card: 0, upi: 0, credit: 0 },
           date

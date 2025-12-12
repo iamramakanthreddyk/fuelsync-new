@@ -21,7 +21,7 @@ interface DashboardData {
   trendsData: Array<{
     date: string;
     sales: number;
-    tender: number;
+    payments: number;
   }>;
   fuelPrices: {
     petrol?: number;

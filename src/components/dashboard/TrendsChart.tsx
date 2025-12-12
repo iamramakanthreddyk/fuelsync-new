@@ -8,7 +8,7 @@ import { safeToFixed } from '@/lib/format-utils';
 interface TrendsData {
   date: string;
   sales: number;
-  tender: number;
+  payments: number;
 }
 
 interface TrendsChartProps {
@@ -81,11 +81,11 @@ export const TrendsChart: React.FC<TrendsChartProps> = ({ data, isLoading }) => 
               />
               <Line 
                 type="monotone" 
-                dataKey="tender" 
+                dataKey="payments" 
                 stroke="#3b82f6" 
                 strokeWidth={2}
                 dot={{ r: 4 }}
-                name="tender"
+                name="payments"
               />
             </LineChart>
           </ResponsiveContainer>
