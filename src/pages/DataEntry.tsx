@@ -19,7 +19,6 @@ import { IndianRupee, Fuel, Gauge } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { useFuelPricesData } from '@/hooks/useFuelPricesData';
-import { cashHandoverService } from '@/services/tenderService';
 import { getFuelColors } from '@/lib/fuelColors';
 import { PaymentSplit, SaleCalculation } from '@/components/readings';
 import type { PaymentSplitData } from '@/components/readings';
@@ -35,14 +34,6 @@ interface ManualEntryData {
   cumulative_vol: number;
   reading_date: string;
   reading_time: string;
-}
-
-interface TenderEntryData {
-  station_id: string;
-  entry_date: string;
-  type: PaymentMethod;
-  payer: string;
-  amount: string;
 }
 
 interface RefillData {
@@ -181,23 +172,6 @@ export default function DataEntry() {
   });
 
   const {
-    register: registerTender,
-    handleSubmit: handleSubmitTender,
-    formState: { errors: tenderErrors },
-    reset: resetTender,
-    setValue: setTenderValue,
-    watch: watchTender
-  } = useForm<TenderEntryData>({
-    defaultValues: {
-      station_id: availableStations[0]?.id || '',
-      entry_date: format(new Date(), 'yyyy-MM-dd'),
-      type: PaymentMethodEnum.CASH,
-      payer: '',
-      amount: ''
-    }
-  });
-
-  const {
     register: registerRefill,
     handleSubmit: handleSubmitRefill,
     formState: { errors: refillErrors },
@@ -217,10 +191,9 @@ export default function DataEntry() {
     // sync forms when stations are ready
     if (availableStations.length > 0) {
       setManualValue('station_id', availableStations[0].id);
-      setTenderValue('station_id', availableStations[0].id);
       setRefillValue('station_id', availableStations[0].id);
     }
-  }, [availableStations, setManualValue, setTenderValue, setRefillValue]);
+  }, [availableStations, setManualValue, setRefillValue]);
 
   // -- Manual entry handlers --
   const onSubmitManual = async (data: ManualEntryData) => {
@@ -314,41 +287,6 @@ export default function DataEntry() {
     }
   };
 
-  const onSubmitTender = async (data: TenderEntryData) => {
-    try {
-      setIsSubmitting(true);
-      
-      // Create a cash handover record for tender entry
-      // This records cash/card/upi/credit collections
-      const amount = parseFloat(data.amount) || 0;
-      if (amount <= 0) {
-        toast.error('Please enter a valid amount');
-        return;
-      }
-
-      await cashHandoverService.createHandover({
-        stationId: data.station_id,
-        handoverType: 'shift_collection',
-        handoverDate: data.entry_date,
-        expectedAmount: amount,
-        notes: `${data.type.toUpperCase()} collection from ${data.payer || 'unknown'}`
-      });
-
-      toast.success(`Tender entry recorded: ₹${safeToFixed(amount)} (${data.type})`);
-      resetTender();
-      queryClient.invalidateQueries({ queryKey: ['handovers'] });
-      queryClient.invalidateQueries({ queryKey: ['dashboard'] });
-    } catch (error: unknown) {
-      let message = 'Error adding tender entry';
-      if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
-        message = (error as { message: string }).message;
-      }
-      toast.error(message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
   const onSubmitRefill = async (_data: RefillData) => {
     try {
       setIsSubmitting(true);
@@ -413,10 +351,9 @@ export default function DataEntry() {
   useEffect(() => {
     if (selectedStation) {
       setManualValue('station_id', selectedStation);
-      setTenderValue('station_id', selectedStation);
       setRefillValue('station_id', selectedStation);
     }
-  }, [selectedStation, setManualValue, setTenderValue, setRefillValue]);
+  }, [selectedStation, setManualValue, setRefillValue]);
 
   // UI Render
   return (
@@ -430,8 +367,8 @@ export default function DataEntry() {
             </div>
             <div className="mt-1 text-muted-foreground text-base">
               {availableStations.length === 1 
-                ? `Add readings, tenders, or tank refills for ${availableStations[0].name}`
-                : 'Add readings, tenders, or tank refills quickly.'
+                ? `Add readings or tank refills for ${availableStations[0].name}`
+                : 'Add readings or tank refills quickly.'
               }
             </div>
           </div>
@@ -445,14 +382,10 @@ export default function DataEntry() {
         
         <Tabs defaultValue="manual" className="space-y-6 w-full">
           {/* TabsList */}
-          <TabsList className="grid grid-cols-3 gap-2 md:gap-4 w-full mx-auto mb-4">
+          <TabsList className="grid grid-cols-2 gap-2 md:gap-4 w-full mx-auto mb-4">
             <TabsTrigger value="manual" className="flex flex-col items-center gap-1 text-sm font-medium">
               <Gauge className="w-5 h-5 text-fuel-orange" />
               <span className="hidden md:inline text-fuel-orange">Manual Reading</span>
-            </TabsTrigger>
-            <TabsTrigger value="tender" className="flex flex-col items-center gap-1 text-sm font-medium">
-              <IndianRupee className="w-5 h-5 text-green-600" />
-              <span className="hidden md:inline text-green-700">Tender Entry</span>
             </TabsTrigger>
             <TabsTrigger value="refill" className="flex flex-col items-center gap-1 text-sm font-medium">
               <Fuel className="w-5 h-5 text-yellow-500" />
@@ -607,93 +540,6 @@ export default function DataEntry() {
                   className="w-full text-base py-2"
                 >
                   {isSubmitting ? 'Submitting...' : 'Add Manual Reading'}
-                </Button>
-              </form>
-            </div>
-          </TabsContent>
-          {/* --- Tender Entry --- */}
-          <TabsContent value="tender">
-            <div className="rounded-xl p-6 mb-6 shadow-sm bg-green-50 border border-border/30">
-              <h3 className="text-green-700 text-xl font-semibold mb-4 flex items-center gap-2">
-                <IndianRupee className="w-6 h-6 text-green-700" />
-                Tender Entry
-              </h3>
-              <form onSubmit={handleSubmitTender(onSubmitTender)} className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  <div className="space-y-2">
-                    <Label htmlFor="tender-station">Station</Label>
-                    <Select 
-                      value={watchTender('station_id') || ''} 
-                      onValueChange={(value) => setTenderValue('station_id', value)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select station" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {availableStations.map((station) => (
-                          <SelectItem key={station.id} value={station.id}>
-                            {station.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tender-date">Date</Label>
-                    <Input
-                      id="tender-date"
-                      type="date"
-                      {...registerTender('entry_date', { required: 'Date is required' })}
-                    />
-                    {tenderErrors.entry_date && (
-                      <p className="text-sm text-red-600">{tenderErrors.entry_date.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tender-type">Payment Type</Label>
-                    <Select 
-                      value={watchTender('type') || ''} 
-                      onValueChange={value => setTenderValue('type', value as PaymentMethod)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select payment type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={PaymentMethodEnum.CASH}>Cash</SelectItem>
-                        <SelectItem value={PaymentMethodEnum.CARD}>Card</SelectItem>
-                        <SelectItem value={PaymentMethodEnum.UPI}>UPI</SelectItem>
-                        <SelectItem value={PaymentMethodEnum.CREDIT}>Credit</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {tenderErrors.type && (
-                      <p className="text-sm text-red-600">{tenderErrors.type.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tender-amount">Amount</Label>
-                    <CurrencyInput
-                      value={watchTender('amount')}
-                      onChange={value => setTenderValue('amount', value)}
-                      placeholder="₹0.00"
-                    />
-                    {tenderErrors.amount && (
-                      <p className="text-sm text-red-600">{tenderErrors.amount.message}</p>
-                    )}
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="tender-payer">Payer Name</Label>
-                    <Input
-                      id="tender-payer"
-                      placeholder="Enter payer name"
-                      {...registerTender('payer', { required: 'Payer name is required' })}
-                    />
-                    {tenderErrors.payer && (
-                      <p className="text-sm text-red-600">{tenderErrors.payer.message}</p>
-                    )}
-                  </div>
-                </div>
-                <Button disabled={isSubmitting} className="w-full text-base py-2">
-                  {isSubmitting ? 'Submitting...' : 'Add Tender Entry'}
                 </Button>
               </form>
             </div>

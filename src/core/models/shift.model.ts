@@ -53,48 +53,6 @@ export interface ShiftWithRelations extends Shift {
     litresSold: number;
     totalAmount: number;
   }>;
-  handover?: CashHandover;
-}
-
-// ============================================
-// CASH HANDOVER ENTITY
-// ============================================
-
-/**
- * Cash handover entity - represents end-of-shift cash reconciliation
- */
-export interface CashHandover extends BaseEntity, Notable {
-  shiftId: number;
-  stationId: string;
-  employeeId: string;
-  handoverDate: string;
-  expectedCash: number;
-  actualCash: number;
-  expectedOnline: number;
-  actualOnline: number;
-  discrepancy: number;
-  status: HandoverStatus;
-  confirmedBy?: string;
-  confirmedAt?: string;
-  disputeReason?: string;
-  resolutionNotes?: string;
-  resolvedBy?: string;
-  resolvedAt?: string;
-}
-
-/**
- * Handover with related data
- */
-export interface HandoverWithRelations extends CashHandover {
-  shift?: Shift;
-  employee?: {
-    id: string;
-    name: string;
-  };
-  confirmer?: {
-    id: string;
-    name: string;
-  };
 }
 
 // ============================================

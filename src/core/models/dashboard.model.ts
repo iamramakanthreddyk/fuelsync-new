@@ -335,7 +335,6 @@ export interface DailyClosureReport {
     employeeName: string;
     sales: number;
     volume: number;
-    cashHandover: number;
     status: string;
   }>;
   fuelBreakdown: FuelBreakdown[];

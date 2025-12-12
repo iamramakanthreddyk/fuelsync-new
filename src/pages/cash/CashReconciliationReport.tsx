@@ -50,7 +50,6 @@ import {
 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
-import { cashHandoverService } from '@/services/tenderService';
 import { apiClient } from '@/lib/api-client';
 import { cn } from '@/lib/utils';
 
@@ -106,19 +105,6 @@ export default function CashReconciliationReport() {
       }
       const response = await apiClient.get<any[]>(`/shifts?${params.toString()}`);
       return response || [];
-    },
-  });
-
-  // Fetch handovers for the period
-  const { data: handovers = [], isLoading: handoversLoading } = useQuery({
-    queryKey: ['handovers-report', period, selectedStation],
-    queryFn: async () => {
-      try {
-        const pending = await cashHandoverService.getPendingHandovers();
-        return pending || [];
-      } catch {
-        return [];
-      }
     },
   });
 
