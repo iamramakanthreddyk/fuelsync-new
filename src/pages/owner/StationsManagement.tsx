@@ -4,6 +4,8 @@
  */
 
 import { useState } from 'react';
+import { Info } from 'lucide-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -79,18 +81,30 @@ interface StationFormProps {
   onChange: (data: StationFormData) => void;
 }
 
-const StationFormContent = ({ formData, onChange }: StationFormProps) => (
+const StationFormContent = ({ formData, onChange, formErrors = {} }: StationFormProps & { formErrors?: Record<string, string> }) => (
   <div className="grid gap-4">
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       <div>
-        <Label htmlFor="name">Station Name *</Label>
+        <div className="flex items-center gap-1">
+          <Label htmlFor="name">Station Name *</Label>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+            </TooltipTrigger>
+            <TooltipContent>
+              Required. Min 2 characters.
+            </TooltipContent>
+          </Tooltip>
+        </div>
         <Input
           id="name"
           value={formData.name}
           onChange={(e) => onChange({ ...formData, name: e.target.value })}
           placeholder="Main Station"
           autoComplete="off"
+          className={formErrors.name ? 'border-red-500' : ''}
         />
+        {formErrors.name && <p className="text-xs text-red-500 mt-1">{formErrors.name}</p>}
       </div>
       <div>
         <Label htmlFor="code">Station Code</Label>
@@ -146,7 +160,9 @@ const StationFormContent = ({ formData, onChange }: StationFormProps) => (
           onChange={(e) => onChange({ ...formData, pincode: e.target.value })}
           placeholder="400001"
           autoComplete="off"
+          className={formErrors.pincode ? 'border-red-500' : ''}
         />
+        {formErrors.pincode && <p className="text-xs text-red-500 mt-1">{formErrors.pincode}</p>}
       </div>
     </div>
 
@@ -159,7 +175,9 @@ const StationFormContent = ({ formData, onChange }: StationFormProps) => (
           onChange={(e) => onChange({ ...formData, phone: e.target.value })}
           placeholder="+91-9876543210"
           autoComplete="off"
+          className={formErrors.phone ? 'border-red-500' : ''}
         />
+        {formErrors.phone && <p className="text-xs text-red-500 mt-1">{formErrors.phone}</p>}
       </div>
       <div>
         <Label htmlFor="email">Email</Label>
@@ -170,7 +188,9 @@ const StationFormContent = ({ formData, onChange }: StationFormProps) => (
           onChange={(e) => onChange({ ...formData, email: e.target.value })}
           placeholder="station@example.com"
           autoComplete="off"
+          className={formErrors.email ? 'border-red-500' : ''}
         />
+        {formErrors.email && <p className="text-xs text-red-500 mt-1">{formErrors.email}</p>}
       </div>
     </div>
 
@@ -182,7 +202,9 @@ const StationFormContent = ({ formData, onChange }: StationFormProps) => (
         onChange={(e) => onChange({ ...formData, gstNumber: e.target.value })}
         placeholder="27AABCU9603R1ZX"
         autoComplete="off"
+        className={formErrors.gstNumber ? 'border-red-500' : ''}
       />
+      {formErrors.gstNumber && <p className="text-xs text-red-500 mt-1">{formErrors.gstNumber}</p>}
     </div>
   </div>
 );
@@ -215,13 +237,14 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
   // Convert to display array
   const fuelPrices = currentPrices
     .filter((p: any) => {
-      // Check both 'price' and 'price_per_litre' fields
-      const priceValue = p.price || p.price_per_litre;
-      return typeof priceValue === 'number' && priceValue > 0;
+      // Check both 'price' and 'price_per_litre' fields, parse as number if string
+      let priceValue = p.price || p.price_per_litre;
+      if (typeof priceValue === 'string') priceValue = parseFloat(priceValue);
+      return typeof priceValue === 'number' && !isNaN(priceValue) && priceValue > 0;
     })
     .map((p: any) => ({
       fuel_type: p.fuel_type || p.fuelType,
-      price_per_litre: p.price || p.price_per_litre
+      price_per_litre: typeof p.price === 'string' ? parseFloat(p.price) : (p.price || p.price_per_litre)
     }));
 
   if (isLoading) {
@@ -318,6 +341,7 @@ export default function StationsManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteStationId, setDeleteStationId] = useState<string | null>(null);
   const [formData, setFormData] = useState<StationFormData>(initialFormData);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [editingStation, setEditingStation] = useState<Station | null>(null);
 
   const { toast } = useToast();
@@ -447,7 +471,48 @@ export default function StationsManagement() {
     }
   });
 
+  // Validation logic
+  const validateForm = (data: StationFormData) => {
+    const errors: Record<string, string> = {};
+    if (!data.name.trim()) {
+      errors.name = 'Station name is required';
+    } else if (data.name.trim().length < 2) {
+      errors.name = 'Station name must be at least 2 characters';
+    }
+    if (!data.phone.trim()) {
+      errors.phone = 'Phone number is required';
+    } else if (!/^\d{10}$/.test(data.phone.trim())) {
+      errors.phone = 'Enter a valid 10-digit phone number';
+    }
+    if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email.trim())) {
+      errors.email = 'Enter a valid email address';
+    }
+    if (data.pincode && !/^\d{6}$/.test(data.pincode.trim())) {
+      errors.pincode = 'Pincode must be 6 digits';
+    }
+    if (data.gstNumber) {
+      const gst = data.gstNumber.trim().toUpperCase();
+      const gstRegex = /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}Z[0-9A-Z]{1}$/;
+      if (!gstRegex.test(gst)) {
+        errors.gstNumber = 'Invalid GST number format';
+      }
+    }
+    return errors;
+  };
+
+  const isFormValid = Object.keys(validateForm(formData)).length === 0;
+
   const handleCreate = () => {
+    const errors = validateForm(formData);
+    setFormErrors(errors);
+    if (Object.keys(errors).length > 0) {
+      toast({
+        title: 'Validation Error',
+        description: Object.values(errors).join('; '),
+        variant: 'destructive',
+      });
+      return;
+    }
     createMutation.mutate(formData);
   };
 
@@ -525,19 +590,27 @@ export default function StationsManagement() {
                 Create a new fuel station
               </DialogDescription>
             </DialogHeader>
-            <StationFormContent formData={formData} onChange={setFormData} />
+            <StationFormContent formData={formData} onChange={setFormData} formErrors={formErrors} />
             <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => handleAddDialogOpenChange(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
               <Button
                 onClick={handleCreate}
-                disabled={createMutation.isPending || !formData.name}
+                disabled={createMutation.isPending || !isFormValid}
                 className="w-full sm:w-auto"
               >
                 {createMutation.isPending ? 'Creating...' : 'Create Station'}
               </Button>
             </div>
+            {/* Show all validation errors below the button if form is invalid */}
+            {!isFormValid && (
+              <ul className="text-xs text-red-500 mt-2 space-y-1 list-disc list-inside">
+                {Object.values(validateForm(formData)).map((err, idx) => (
+                  <li key={idx}>{err}</li>
+                ))}
+              </ul>
+            )}
           </DialogContent>
         </Dialog>
       </div>
