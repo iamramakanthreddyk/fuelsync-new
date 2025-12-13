@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
-import { Download, ArrowLeft } from 'lucide-react';
+import { Download, ArrowLeft, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface FuelTypeData {
@@ -126,20 +126,25 @@ export default function DailySalesReport() {
             <span className="text-xs bg-gray-700 text-white rounded px-2 py-1 absolute left-10 top-1/2 -translate-y-1/2 hidden group-hover:block">Back</span>
           </UITooltip>
           <div className="flex flex-col gap-1 w-full">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:gap-4">
+            <div className="flex flex-row items-center gap-6 flex-wrap">
               <h1 className="text-2xl sm:text-3xl font-bold whitespace-nowrap">Daily Sales Report</h1>
-              <div className="flex items-center gap-2 mt-2 sm:mt-0">
-                <label htmlFor="station-select" className="text-muted-foreground text-sm font-medium">Station:</label>
-                <select
-                  id="station-select"
-                  className="border rounded px-2 py-1 text-sm font-semibold bg-white focus:outline-none focus:ring-2 focus:ring-primary"
-                  value={selectedStationId}
-                  onChange={e => setSelectedStationId(e.target.value)}
-                >
-                  {stationOptions.map(opt => (
-                    <option key={opt.id} value={opt.id}>{opt.name}</option>
-                  ))}
-                </select>
+              {/* Station Selector - horizontally aligned */}
+              <div className="flex flex-col justify-center">
+                <label htmlFor="station-select" className="text-muted-foreground text-sm font-medium mb-1 text-center">Station</label>
+                <div className="relative flex items-center bg-white border border-gray-200 rounded-lg px-3 py-2 min-w-[170px] max-w-[200px] shadow-sm">
+                  <Building2 className="w-5 h-5 text-gray-400 mr-2" />
+                  <select
+                    id="station-select"
+                    className="appearance-none bg-transparent outline-none text-base font-semibold flex-1 pr-6"
+                    value={selectedStationId}
+                    onChange={e => setSelectedStationId(e.target.value)}
+                  >
+                    {stationOptions.map(opt => (
+                      <option key={opt.id} value={opt.id}>{opt.name}</option>
+                    ))}
+                  </select>
+                  <svg className="w-4 h-4 text-gray-400 absolute right-3 pointer-events-none" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" /></svg>
+                </div>
               </div>
             </div>
             <div className="flex items-center gap-2 mt-1">
