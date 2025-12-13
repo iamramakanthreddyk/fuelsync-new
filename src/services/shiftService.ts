@@ -177,18 +177,6 @@ export const dashboardAlertsService = {
       shiftType: string;
       status: string;
     }>;
-    pendingHandovers: Array<{
-      id: number;
-      employeeId: string;
-      employeeName: string;
-      stationId: string;
-      stationName: string;
-      shiftDate: string;
-      cashCollected: number;
-      onlineCollected: number;
-      expectedCash: number;
-      difference: number;
-    }>;
   }> {
     const response = await apiClient.get<ApiResponse<any>>('/dashboard/shift-status');
 
@@ -207,7 +195,7 @@ export const dashboardAlertsService = {
     unreadCount: number;
     alerts: Array<{
       id: string;
-      type: 'shift_end' | 'handover_pending' | 'settlement_required' | 'variance_alert';
+      type: 'shift_end' | 'settlement_required' | 'variance_alert';
       title: string;
       message: string;
       stationId: string;
@@ -245,7 +233,6 @@ export const dashboardAlertsService = {
    */
   async getPendingActions(): Promise<{
     shiftsToEnd: number;
-    handoversToConfirm: number;
     settlementsToReview: number;
     variancesToInvestigate: number;
   }> {

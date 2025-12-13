@@ -70,27 +70,6 @@ export interface ReadingFilters {
 }
 
 export const readingService = {
-    /**
-     * Approve a reading
-     * POST /api/v1/readings/:id/approve
-     */
-    async approveReading(id: string): Promise<void> {
-      const response = await apiClient.post<ApiResponse<void>>(`/readings/${id}/approve`, {});
-      if (!response.success) {
-        throw new Error('Failed to approve reading');
-      }
-    },
-
-    /**
-     * Reject a reading
-     * POST /api/v1/readings/:id/reject
-     */
-    async rejectReading(id: string, reason: string): Promise<void> {
-      const response = await apiClient.post<ApiResponse<void>>(`/readings/${id}/reject`, { reason });
-      if (!response.success) {
-        throw new Error('Failed to reject reading');
-      }
-    },
   /**
    * Get readings with filters
    * GET /api/v1/readings

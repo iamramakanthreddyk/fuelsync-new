@@ -180,18 +180,6 @@ export enum CreditStatusEnum {
 export type CreditStatus = `${CreditStatusEnum}`;
 
 /**
- * Cash handover status
- */
-export enum HandoverStatusEnum {
-  PENDING = 'pending',
-  CONFIRMED = 'confirmed',
-  DISPUTED = 'disputed',
-  RESOLVED = 'resolved',
-}
-
-export type HandoverStatus = `${HandoverStatusEnum}`;
-
-/**
  * Transaction types
  */
 export enum TransactionTypeEnum {

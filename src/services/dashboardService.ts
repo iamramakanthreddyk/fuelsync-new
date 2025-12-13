@@ -18,7 +18,6 @@ export interface DashboardSummary {
   totalSales: number;
   totalVolume: number;
   activeShifts: number;
-  pendingHandovers: number;
   alerts: number;
   lastUpdated: string;
 }
