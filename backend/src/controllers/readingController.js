@@ -322,6 +322,21 @@ const {
     const t = await sequelize.transaction();
     let reading;
     try {
+      // Build payment breakdown for JSONB field
+      const paymentBreakdown = {
+        cash: finalCashAmount,
+        online: finalOnlineAmount,
+        credit: finalCreditAmount
+      };
+      
+      // If credit allocations exist, include detailed breakdown
+      if (credit_allocations && Array.isArray(credit_allocations) && credit_allocations.length > 0) {
+        paymentBreakdown.creditAllocations = credit_allocations.map(alloc => ({
+          creditorId: alloc.creditor_id || alloc.creditorId,
+          amount: parseFloat(alloc.amount) || 0
+        }));
+      }
+      
       console.log('[DEBUG] Saving reading with values:', {
         nozzleId,
         stationId,
@@ -340,7 +355,8 @@ const {
         creditorId: creditorId || null,
         isInitialReading,
         notes,
-        shiftId: activeShift?.id || null
+        shiftId: activeShift?.id || null,
+        paymentBreakdown
       });
       reading = await NozzleReading.create({
         nozzleId,
@@ -358,6 +374,7 @@ const {
         onlineAmount: finalOnlineAmount,
         creditAmount: finalCreditAmount,
         creditorId: creditorId || null,
+        paymentBreakdown,
         isInitialReading,
         notes,
         shiftId: activeShift?.id || null
@@ -620,6 +637,11 @@ exports.getReadings = async (req, res, next) => {
         model: User,
         as: 'enteredByUser',
         attributes: ['id', 'name']
+      },
+      {
+        model: require('../models').Creditor,
+        as: 'creditor',
+        attributes: ['id', 'name', 'businessName', 'currentBalance']
       }
     ];
 
@@ -694,6 +716,11 @@ exports.getReadingById = async (req, res, next) => {
           model: User,
           as: 'enteredByUser',
           attributes: ['id', 'name']
+        },
+        {
+          model: require('../models').Creditor,
+          as: 'creditor',
+          attributes: ['id', 'name', 'businessName', 'currentBalance']
         }
       ]
     });

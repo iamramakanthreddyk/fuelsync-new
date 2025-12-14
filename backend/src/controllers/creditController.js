@@ -59,6 +59,76 @@ const getCreditors = async (req, res) => {
 };
 
 /**
+ * Get credit ledger with outstanding balances and last sale dates
+ * Used by frontend for Credit Ledger page
+ * GET /api/v1/creditors/ledger?search=...
+ */
+const getCreditLedger = async (req, res) => {
+  try {
+    const { search, stationId } = req.query;
+    
+    // Get station from user if not provided
+    let finalStationId = stationId;
+    if (!finalStationId && req.user?.stations?.length > 0) {
+      finalStationId = req.user.stations[0].id;
+    }
+    
+    // Build where clause
+    const where = { 
+      stationId: finalStationId,
+      isActive: true 
+    };
+    if (search) {
+      where[Op.or] = [
+        { name: { [Op.iLike]: `%${search}%` } },
+        { businessName: { [Op.iLike]: `%${search}%` } },
+        { phone: { [Op.iLike]: `%${search}%` } }
+      ];
+    }
+    
+    // Get creditors with outstanding balances
+    const creditors = await Creditor.findAll({
+      where,
+      attributes: ['id', 'name', 'businessName', 'currentBalance', 'creditLimit', 'phone', 'lastTransactionDate'],
+      order: [['currentBalance', 'DESC']]
+    });
+    
+    // Enrich with last sale date from nozzle_readings (most recent credit_amount > 0)
+    const enrichedCreditors = await Promise.all(
+      creditors.map(async (c) => {
+        const lastReading = await NozzleReading.findOne({
+          where: {
+            creditorId: c.id,
+            creditAmount: { [Op.gt]: 0 }
+          },
+          attributes: ['readingDate'],
+          order: [['readingDate', 'DESC']],
+          raw: true
+        });
+        
+        return {
+          id: c.id,
+          name: c.name,
+          businessName: c.businessName,
+          mobile: c.phone,
+          creditLimit: c.creditLimit,
+          outstanding: parseFloat(c.currentBalance) || 0,
+          lastSaleDate: lastReading?.readingDate || null
+        };
+      })
+    );
+    
+    // Filter out creditors with no outstanding balance if search not applied
+    const filtered = search ? enrichedCreditors : enrichedCreditors.filter(c => c.outstanding > 0);
+    
+    res.json(filtered);
+  } catch (error) {
+    console.error('Get credit ledger error:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to fetch credit ledger' } });
+  }
+};
+
+/**
  * Get single creditor with transaction history
  */
 const getCreditor = async (req, res) => {
@@ -589,6 +659,7 @@ const unflagCreditor = async (req, res) => {
 
 module.exports = {
   getCreditors,
+  getCreditLedger,
   getCreditor,
   createCreditor,
   updateCreditor,

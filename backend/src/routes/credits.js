@@ -14,6 +14,7 @@ router.use(authenticate);
 
 // Creditor routes
 router.get('/stations/:stationId/creditors', creditController.getCreditors);
+router.get('/creditors/ledger', creditController.getCreditLedger);
 router.get('/creditors/:id', creditController.getCreditor);
 router.post('/stations/:stationId/creditors', requireMinRole('manager'), creditController.createCreditor);
 router.put('/creditors/:id', requireMinRole('manager'), creditController.updateCreditor);

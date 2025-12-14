@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { CreditCard, CheckCircle2 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -21,11 +22,13 @@ import { notificationService } from '@/services/notificationService';
 export default function CreditLedger() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
+  const [selectedStationId, setSelectedStationId] = useState<string | undefined>(user?.stations?.[0]?.id);
 
-  // Fetch creditors and outstanding credits
+  // Fetch creditors and outstanding credits for the selected station
   const { data: creditors = [], isLoading } = useQuery({
-    queryKey: ['creditors-ledger', search],
-    queryFn: () => creditService.getCreditLedger(search),
+    queryKey: ['creditors-ledger', search, selectedStationId],
+    queryFn: () => creditService.getCreditLedger(search, selectedStationId),
+    enabled: !!selectedStationId, // Only run query if we have a stationId
     refetchInterval: 60000,
   });
 
@@ -56,16 +59,47 @@ export default function CreditLedger() {
       <Card>
         <CardHeader>
           <CardTitle>Outstanding Credits</CardTitle>
+          <div className="text-sm text-muted-foreground mt-2">
+            {selectedStationId && user?.stations && (
+              <p>
+                Station: <span className="font-medium text-foreground">
+                  {user.stations.find(s => s.id === selectedStationId)?.name || 'Select Station'}
+                </span>
+              </p>
+            )}
+          </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="mb-4 flex gap-2 items-center">
-            <Input
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search customer name or mobile"
-              className="max-w-xs"
-            />
-            <Button variant="outline" onClick={() => setSearch('')}>Clear</Button>
+          <div className="mb-4 space-y-3 p-4 pb-0">
+            {/* Station Selector - Show if user has multiple stations */}
+            {user?.stations && user.stations.length > 1 && (
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium">Select Station</label>
+                <Select value={selectedStationId || ''} onValueChange={setSelectedStationId}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Choose a station" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {user.stations.map(station => (
+                      <SelectItem key={station.id} value={station.id}>
+                        {station.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            
+            {/* Search Input */}
+            <div className="flex gap-2 items-center">
+              <Input
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search customer name or mobile"
+                className="max-w-xs"
+              />
+              <Button variant="outline" onClick={() => setSearch('')}>Clear</Button>
+            </div>
           </div>
           {isLoading ? (
             <div className="flex justify-center py-12">
