@@ -847,9 +847,9 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     // Overview - current period
     const currentPeriod = await NozzleReading.findOne({
       attributes: [
-        [sequelize.literal(`SUM(NozzleReading.litres_sold * NozzleReading.price_per_litre)`), 'totalSales'],
-        [fn('SUM', col('NozzleReading.litres_sold')), 'totalQuantity'],
-        [fn('COUNT', col('NozzleReading.id')), 'totalTransactions']
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
+        [fn('SUM', col('litres_sold')), 'totalQuantity'],
+        [fn('COUNT', col('id')), 'totalTransactions']
       ],
       include: [{
         model: Pump,
@@ -868,8 +868,8 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     // Overview - previous period for growth calculation
     const previousPeriod = await NozzleReading.findOne({
       attributes: [
-        [sequelize.literal(`SUM(NozzleReading.litres_sold * NozzleReading.price_per_litre)`), 'totalSales'],
-        [fn('SUM', col('NozzleReading.litres_sold')), 'totalQuantity']
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
+        [fn('SUM', col('litres_sold')), 'totalQuantity']
       ],
       include: [{
         model: Pump,
@@ -929,7 +929,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       attributes: [
         'fuelType',
         [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
-        [fn('SUM', col('NozzleReading.litres_sold')), 'quantity']
+        [fn('SUM', col('litres_sold')), 'quantity']
       ],
       where: {
         stationId: { [Op.in]: stationIds },
@@ -956,8 +956,8 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       attributes: [
         [fn('DATE', col('reading_date')), 'date'],
         [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
-        [fn('SUM', col('NozzleReading.litres_sold')), 'quantity'],
-        [fn('COUNT', col('NozzleReading.id')), 'transactions']
+        [fn('SUM', col('litres_sold')), 'quantity'],
+        [fn('COUNT', col('id')), 'transactions']
       ],
       where: {
         stationId: { [Op.in]: stationIds },
