@@ -23,27 +23,30 @@ export default function Settlements() {
   const { data: summary, isLoading } = useDailySummary(selectedDate);
   const { currentStation, isOwner, isAdmin } = useRoleAccess();
 
-  // Close day mutation - uses bank deposit endpoint to record daily closure
-  // Note: Backend currently supports handovers/bank-deposit for end-of-day settlements
+  // Close day mutation - records daily closure and settlement
   const closeDayMutation = useMutation({
     mutationFn: async () => {
       if (!currentStation?.id || !summary) throw new Error('No station or summary data');
 
-      const depositData = {
+      const settlementData = {
         stationId: currentStation.id,
         date: selectedDate,
-        amount: summary.breakdown.cash, // Cash to be deposited
-        notes: closureNotes || `Daily closure for ${selectedDate}. Sales: ₹${safeToFixed(summary.sales_total)}, Payments: ₹${safeToFixed(summary.breakdown.cash + summary.breakdown.card + summary.breakdown.upi + summary.breakdown.credit)}, Difference: ₹${safeToFixed(summary.difference)}`
+        totalSales: summary.sales_total,
+        cashAmount: summary.breakdown.cash,
+        cardAmount: summary.breakdown.card,
+        upiAmount: summary.breakdown.upi,
+        creditAmount: summary.breakdown.credit,
+        notes: closureNotes || `Daily closure for ${selectedDate}`
       };
 
-      return await apiClient.post<ApiResponse<unknown>>('/handovers/bank-deposit', depositData);
+      return await apiClient.post<ApiResponse<unknown>>('/settlements/daily-close', settlementData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['daily-summary'] });
-      queryClient.invalidateQueries({ queryKey: ['handovers'] });
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
       toast({
         title: "Success",
-        description: "Day closed successfully. Bank deposit recorded.",
+        description: "Day closed successfully. Settlement recorded.",
       });
       setClosureNotes('');
     },

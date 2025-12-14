@@ -32,7 +32,6 @@ import Reports from '@/pages/Reports';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
 import type { Station } from '@/types/api';
-import { ReadingApprovalList } from '@/pages/readings';
 import { CreditLedger } from '@/pages/credit';
 
 // Owner pages
@@ -323,16 +322,6 @@ function AppContent() {
                     <Route path="/owner/income-report" element={<IncomeReport />} />
                     <Route path="/owner/shifts" element={<ShiftManagement />} />
                     <Route path="/owner/cash-report" element={<CashReconciliationReport />} />
-                    <Route path="/owner/reading-approvals" element={
-                      <ManagerOrOwnerRoute>
-                        <ReadingApprovalList />
-                      </ManagerOrOwnerRoute>
-                    } />
-                    <Route path="/reading-approvals" element={
-                      <ManagerOrOwnerRoute>
-                        <ReadingApprovalList />
-                      </ManagerOrOwnerRoute>
-                    } />
                     <Route path="/owner/credit-ledger" element={
                       <ManagerOrOwnerRoute>
                         <CreditLedger />
@@ -347,7 +336,6 @@ function AppContent() {
                     {/* Cash/Shift routes for employees and managers */}
                     <Route path="/shifts" element={<ShiftManagement />} />
                     <Route path="/cash-report" element={<CashReconciliationReport />} />
-                    <Route path="/reading-approvals" element={<ReadingApprovalList />} />
                     <Route path="/credit-ledger" element={<CreditLedger />} />
                     
                     {/* Employee Quick Entry - replaces old DataEntry */}

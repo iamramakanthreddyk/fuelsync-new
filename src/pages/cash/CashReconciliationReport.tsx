@@ -63,8 +63,6 @@ interface CashSummary {
   totalCreditGiven: number;
   cashDiscrepancy: number;
   shiftsCount: number;
-  pendingHandovers: number;
-  disputedHandovers: number;
 }
 
 export default function CashReconciliationReport() {
@@ -127,8 +125,6 @@ export default function CashReconciliationReport() {
       totalCreditGiven: acc.totalCreditGiven + 0, // Would come from readings
       cashDiscrepancy: acc.cashDiscrepancy + (shift.cashDifference || 0),
       shiftsCount: acc.shiftsCount + 1,
-      pendingHandovers: acc.pendingHandovers,
-      disputedHandovers: acc.disputedHandovers,
     };
   }, {
     totalSales: 0,

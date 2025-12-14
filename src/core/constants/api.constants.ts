@@ -122,8 +122,6 @@ export const SHIFT_ENDPOINTS = {
   CURRENT: '/shifts/current',
   START: '/shifts/start',
   END: (id: string) => `/shifts/${id}/end`,
-  HANDOVER: (id: string) => `/shifts/${id}/handover`,
-  CONFIRM_HANDOVER: (id: string) => `/shifts/${id}/confirm-handover`,
 } as const;
 
 // ============================================

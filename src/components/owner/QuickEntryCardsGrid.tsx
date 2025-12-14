@@ -4,7 +4,7 @@
  */
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building2, Users, Zap, ArrowRight, Clock, Banknote, Fuel, CreditCard, TrendingUp, Scale3d } from 'lucide-react';
+import { Building2, Users, Zap, ArrowRight, Clock, CreditCard, TrendingUp, Scale3d } from 'lucide-react';
 import { NavigateFunction } from 'react-router-dom';
 
 interface QuickEntryCardsGridProps {
@@ -122,33 +122,6 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         </CardContent>
       </Card>
 
-      {/* Cash Handovers */}
-      <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-green-500/50 bg-gradient-to-br from-green-50/50 to-transparent dark:from-green-950/20"
-        onClick={() => navigate('/owner/cash-handovers')}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/cash-handovers')}
-      >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-green-600 transition-colors">
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Banknote className="w-5 h-5 text-green-600 dark:text-green-400" />
-            </div>
-            <span>Cash Handovers</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Confirm cash received from employees
-          </p>
-          <div className="mt-3 flex items-center text-xs text-green-600 font-medium">
-            <span>View handovers</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Manage Stations */}
       <Card 
         className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20"
@@ -198,33 +171,6 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
           </p>
           <div className="mt-3 flex items-center text-xs text-primary font-medium">
             <span>View team</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Reading Approval */}
-      <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-yellow-500/50 bg-gradient-to-br from-yellow-50/50 to-transparent dark:from-yellow-950/20"
-        onClick={() => navigate('/owner/reading-approvals')}
-        role="button"
-        tabIndex={0}
-        onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/reading-approvals')}
-      >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-yellow-600 transition-colors">
-            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Fuel className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
-            </div>
-            <span>Reading Approval</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Approve or reject pending nozzle readings
-          </p>
-          <div className="mt-3 flex items-center text-xs text-yellow-600 font-medium">
-            <span>Review readings</span>
             <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
           </div>
         </CardContent>

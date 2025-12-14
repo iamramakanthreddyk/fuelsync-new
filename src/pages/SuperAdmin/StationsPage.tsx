@@ -14,7 +14,8 @@ import { getStatusBadgeClasses } from '@/lib/badgeColors';
 import { getUserMessage, getValidationErrors } from "@/lib/error-utils";
 import { handleApiCall } from "@/lib/handleApiCall";
 import { Station } from '@/types/api';
-import { Plus, Search, Edit, Trash2, Fuel } from "lucide-react";
+import { Plus, Search, Edit, Trash2, Fuel, Info } from "lucide-react";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface Owner {
   id: string;
@@ -168,6 +169,12 @@ export default function StationsPage() {
     const validationErrors = validateCreateForm(formData);
     if (Object.keys(validationErrors).length > 0) {
       setFormErrors(validationErrors);
+      // Show all errors in a toast
+      toast({
+        title: "Validation Error",
+        description: Object.values(validationErrors).join("; "),
+        variant: "destructive",
+      });
       return;
     }
     setFormErrors({});
@@ -310,7 +317,17 @@ export default function StationsPage() {
             </DialogHeader>
             <div className="grid gap-4 py-4">
               <div>
-                <Label htmlFor="name">Station Name *</Label>
+                <div className="flex items-center gap-1">
+                  <Label htmlFor="name">Station Name *</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Required. Min 2 characters.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <Input
                   id="name"
                   value={formData.name}
@@ -326,7 +343,17 @@ export default function StationsPage() {
               </div>
               
               <div>
-                <Label htmlFor="owner">Owner *</Label>
+                <div className="flex items-center gap-1">
+                  <Label htmlFor="owner">Owner *</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Required. Select an owner for this station.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <Select 
                   value={formData.ownerId} 
                   onValueChange={(value) => {
@@ -389,7 +416,17 @@ export default function StationsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="pincode">Pincode</Label>
+                  <div className="flex items-center gap-1">
+                    <Label htmlFor="pincode">Pincode</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Optional. 6-digit number (India).
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <Input
                     id="pincode"
                     value={formData.pincode}
@@ -402,7 +439,17 @@ export default function StationsPage() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="phone">Phone *</Label>
+                  <div className="flex items-center gap-1">
+                    <Label htmlFor="phone">Phone *</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Required. 10-digit number.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <Input
                     id="phone"
                     value={formData.phone}
@@ -417,7 +464,17 @@ export default function StationsPage() {
                   {formErrors.phone && <p className="text-sm text-red-500 mt-1">{formErrors.phone}</p>}
                 </div>
                 <div>
-                  <Label htmlFor="email">Email</Label>
+                  <div className="flex items-center gap-1">
+                    <Label htmlFor="email">Email</Label>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Optional. Must be a valid email address.
+                      </TooltipContent>
+                    </Tooltip>
+                  </div>
                   <Input
                     id="email"
                     type="email"
@@ -430,7 +487,17 @@ export default function StationsPage() {
               </div>
 
               <div>
-                <Label htmlFor="gstNumber">GST Number</Label>
+                <div className="flex items-center gap-1">
+                  <Label htmlFor="gstNumber">GST Number</Label>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="w-4 h-4 text-muted-foreground cursor-pointer" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      Optional. Must be a valid Indian GSTIN format.
+                    </TooltipContent>
+                  </Tooltip>
+                </div>
                 <Input
                   id="gstNumber"
                   value={formData.gstNumber}
@@ -444,7 +511,20 @@ export default function StationsPage() {
               <Button variant="outline" onClick={() => { setIsCreateOpen(false); resetForm(); }}>
                 Cancel
               </Button>
-              <Button onClick={handleCreateStation}>Create Station</Button>
+              <Button
+                onClick={handleCreateStation}
+                disabled={Object.keys(validateCreateForm(formData)).length > 0}
+              >
+                Create Station
+              </Button>
+              {/* Inline error if button is disabled */}
+              {Object.keys(validateCreateForm(formData)).length > 0 && (
+                <ul className="text-xs text-red-500 mt-2 space-y-1 list-disc list-inside">
+                  {Object.values(validateCreateForm(formData)).map((err, idx) => (
+                    <li key={idx}>{err}</li>
+                  ))}
+                </ul>
+              )}
             </DialogFooter>
           </DialogContent>
         </Dialog>
