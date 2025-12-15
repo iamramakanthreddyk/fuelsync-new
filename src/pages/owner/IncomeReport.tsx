@@ -254,7 +254,11 @@ export default function IncomeReport() {
   }
 
   const incomeData = reportData.incomeBreakdown;
-  const fuelData = reportData.summaryMetrics.fuelBreakdown;
+  // Map fuelType null or 'null' to 'Unknown' for display
+  const fuelData = reportData.summaryMetrics.fuelBreakdown.map(fb => ({
+    ...fb,
+    fuelType: (!fb.fuelType || fb.fuelType === 'null' || fb.fuelType === null) ? 'Unknown' : fb.fuelType
+  }));
   const receivablesData = reportData.receivables.aging;
   const settlementData = reportData.settlements;
 
@@ -342,7 +346,9 @@ export default function IncomeReport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              ₹{(reportData.summaryMetrics.totalSaleValue / 100000).toFixed(1)}L
+              ₹{reportData.summaryMetrics.totalSaleValue && reportData.summaryMetrics.totalSaleValue > 0
+                ? reportData.summaryMetrics.totalSaleValue.toLocaleString('en-IN')
+                : reportData.incomeBreakdown.calculatedSaleValue.toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
               Calculated from readings

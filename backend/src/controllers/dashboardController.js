@@ -1158,6 +1158,21 @@ exports.getIncomeReceivablesReport = async (req, res, next) => {
       totalCreditPending += parseFloat(r.creditAmount || 0);
     });
 
+    // Aggregate settled (owner) values for the period
+    let settledCash = 0;
+    let settledOnline = 0;
+    let settledCredit = 0;
+    settlements.forEach(s => {
+      settledCash += parseFloat(s.actualCash || 0);
+      settledOnline += parseFloat(s.online || 0);
+      settledCredit += parseFloat(s.credit || 0);
+    });
+
+    // Calculate differences
+    const diffCash = settledCash - totalCashReceived;
+    const diffOnline = settledOnline - totalOnlineReceived;
+    const diffCredit = settledCredit - totalCreditPending;
+
     // === 3. SETTLEMENT DATA (with variance analysis) ===
     const settlementData = settlements.map(s => {
       const variance = parseFloat(s.variance);
@@ -1279,9 +1294,18 @@ exports.getIncomeReceivablesReport = async (req, res, next) => {
 
         incomeBreakdown: {
           calculatedSaleValue: parseFloat(totalSaleValue.toFixed(2)),
+          // Raw (employee-entered) values
           cashReceived: parseFloat(totalCashReceived.toFixed(2)),
           onlineReceived: parseFloat(totalOnlineReceived.toFixed(2)),
           creditPending: parseFloat(totalCreditPending.toFixed(2)),
+          // Settled (owner-approved) values
+          settledCash: parseFloat(settledCash.toFixed(2)),
+          settledOnline: parseFloat(settledOnline.toFixed(2)),
+          settledCredit: parseFloat(settledCredit.toFixed(2)),
+          // Difference (settled - raw)
+          diffCash: parseFloat(diffCash.toFixed(2)),
+          diffOnline: parseFloat(diffOnline.toFixed(2)),
+          diffCredit: parseFloat(diffCredit.toFixed(2)),
           verification: {
             total: parseFloat((totalCashReceived + totalOnlineReceived + totalCreditPending).toFixed(2)),
             match: Math.abs((totalCashReceived + totalOnlineReceived + totalCreditPending) - totalSaleValue) < 0.01

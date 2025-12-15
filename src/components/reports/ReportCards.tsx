@@ -136,7 +136,7 @@ export const SalesReportCard: React.FC<SalesReportCardProps> = ({
             >
               <div className="flex items-center gap-3">
                 <Badge className={getFuelBadgeClasses(fuel.fuelType)}>
-                  {fuel.fuelType.toUpperCase()}
+                  {(fuel.fuelType || 'UNKNOWN').toUpperCase()}
                 </Badge>
                 <div>
                   <div className="font-medium">
@@ -188,7 +188,7 @@ export const NozzleCard: React.FC<NozzleCardProps> = ({ nozzle, className }) => 
             className={getFuelBadgeClasses(nozzle.fuelType)}
             variant="outline"
           >
-            {nozzle.fuelType.toUpperCase()}
+            {(nozzle.fuelType || 'UNKNOWN').toUpperCase()}
           </Badge>
         </div>
       </CardHeader>
@@ -313,7 +313,7 @@ export const PumpCard: React.FC<PumpCardProps> = ({ pump, className }) => (
             <div className="flex items-center gap-3">
               <Badge variant="outline">Nozzle {nozzle.nozzleNumber}</Badge>
               <Badge className={getFuelBadgeClasses(nozzle.fuelType)}>
-                {nozzle.fuelType.toUpperCase()}
+                {(nozzle.fuelType || 'UNKNOWN').toUpperCase()}
               </Badge>
             </div>
             <div className="text-right">

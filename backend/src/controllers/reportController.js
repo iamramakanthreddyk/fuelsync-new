@@ -448,7 +448,8 @@ exports.getDailySalesReport = async (req, res, next) => {
 
     const stationIds = stations.map(s => s.id);
 
-    // Get all readings for the date
+
+    // Get all readings for the date (for sale/liters/fuel breakdown)
     const readings = await NozzleReading.findAll({
       attributes: [
         'stationId',
@@ -465,7 +466,18 @@ exports.getDailySalesReport = async (req, res, next) => {
       raw: true
     });
 
-    // Build report with fuel type breakdown
+    // Get settlements for the date
+    const { Settlement } = require('../models');
+    const settlements = await Settlement.findAll({
+      where: {
+        stationId: { [Op.in]: stationIds },
+        date: queryDate,
+        isFinal: true
+      },
+      raw: true
+    });
+
+    // Build report with fuel type breakdown and settled values
     const stationMap = new Map(stations.map(s => [s.id, s]));
     const reportData = {};
 
@@ -480,7 +492,11 @@ exports.getDailySalesReport = async (req, res, next) => {
           totalSaleValue: 0,
           totalLiters: 0,
           readingsCount: 0,
-          byFuelType: {}
+          byFuelType: {},
+          settledCash: null,
+          settledOnline: null,
+          settledCredit: null,
+          settlementStatus: null
         };
       }
 
@@ -496,6 +512,17 @@ exports.getDailySalesReport = async (req, res, next) => {
         liters,
         count
       };
+    });
+
+    // Attach settlement values if present
+    settlements.forEach(settlement => {
+      const stationId = settlement.stationId;
+      if (reportData[stationId]) {
+        reportData[stationId].settledCash = parseFloat(settlement.actualCash || 0);
+        reportData[stationId].settledOnline = parseFloat(settlement.online || 0);
+        reportData[stationId].settledCredit = parseFloat(settlement.credit || 0);
+        reportData[stationId].settlementStatus = settlement.status;
+      }
     });
 
     // Convert to array and round values
