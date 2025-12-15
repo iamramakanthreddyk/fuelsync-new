@@ -1,6 +1,21 @@
 /**
  * Reading Controller
  * Core business logic for nozzle readings and sales calculation
+ * 
+ * ARCHITECTURE (Dec 2025):
+ * 1. Nozzle Reading = What was SOLD (meter reading + calculated liters/value)
+ *    - Only contains: readingValue, previousReading, litresSold, totalAmount, notes
+ *    - NO payment breakdown (cash/online/credit) - these are ALWAYS 0
+ * 
+ * 2. Daily Transaction = How it was PAID (payment breakdown allocation)
+ *    - Created AFTER readings are submitted
+ *    - Contains: paymentBreakdown (cash/online/credit) + creditAllocations
+ *    - Groups all readings from a day with one payment summary
+ *    - Example: 5 readings totaling ₹5000 → 1 transaction with cash:₹3000 + credit:₹2000
+ * 
+ * 3. Settlement = RECONCILIATION (what owner confirms as correct)
+ *    - Owner reviews expected (from readings) vs actual (from cash entry)
+ *    - Settles discrepancies and approves transactions
  */
 
 const { NozzleReading, Nozzle, Pump, Station, FuelPrice, User, Shift, sequelize } = require('../models');
@@ -326,7 +341,8 @@ exports.createReading = async (req, res, next) => {
       reading: readingJson,
       message: isInitialReading 
         ? 'Initial reading recorded. This nozzle is now ready for daily entries.'
-        : `Sale recorded: ${litresSold}L = ₹${effectiveTotalAmount.toFixed(2)}`
+        : `Sale recorded: ${calculatedLitresSold.toFixed(3)}L = ₹${effectiveTotalAmount.toFixed(2)}. Payment breakdown recorded separately via DailyTransaction.`,
+      note: 'Payment breakdown (cash/online/credit) is NOT stored in readings. Use DailyTransaction API to record payment allocation.'
     });
 
   } catch (error) {

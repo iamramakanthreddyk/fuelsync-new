@@ -3,7 +3,7 @@
  * Handles creditors and credit transactions with proper transactions
  */
 
-const { Creditor, CreditTransaction, Station, User, NozzleReading, sequelize } = require('../models');
+const { Creditor, CreditTransaction, CreditSettlementLink, Station, User, NozzleReading, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { hasPermission, CREDIT_STATUS } = require('../config/constants');
 const { canAccessStation } = require('../middleware/accessControl');
@@ -257,7 +257,7 @@ const recordCreditSale = async (req, res) => {
       await t.rollback();
       return res.status(403).json({ success: false, error: { message: 'Not authorized to record credit sale' } });
     }
-    const { creditAllocations, fuelType, litres, pricePerLitre, amount, transactionDate, vehicleNumber, referenceNumber, notes, nozzleReadingId } = req.body;
+    const { creditAllocations, fuelType, litres, pricePerLitre, amount, transactionDate, vehicleNumber, referenceNumber, notes, nozzleReadingId, invoiceNumber } = req.body;
     // If creditAllocations is present and is an array, process each allocation
     if (Array.isArray(creditAllocations) && creditAllocations.length > 0) {
       const transactions = [];
@@ -296,6 +296,7 @@ const recordCreditSale = async (req, res) => {
           transactionDate: transactionDate || new Date().toISOString().split('T')[0],
           vehicleNumber,
           referenceNumber,
+          invoiceNumber,
           notes,
           nozzleReadingId,
           enteredBy: req.user.id
@@ -353,6 +354,7 @@ const recordCreditSale = async (req, res) => {
       transactionDate: transactionDate || new Date().toISOString().split('T')[0],
       vehicleNumber,
       referenceNumber,
+      invoiceNumber,
       notes,
       nozzleReadingId,
       enteredBy: req.user.id
@@ -396,7 +398,8 @@ const recordSettlement = async (req, res) => {
       await t.rollback();
       return res.status(403).json({ success: false, error: { message: 'Only owner or manager can record settlements' } });
     }
-    const { amount, transactionDate, referenceNumber, notes } = req.body;
+    const { amount, transactionDate, referenceNumber, notes, invoiceNumber } = req.body;
+    const allocations = Array.isArray(req.body.allocations) ? req.body.allocations : [];
     // Validate creditor (lock only for non-SQLite databases)
     const findOptions = { transaction: t };
     if (sequelize.getDialect() !== 'sqlite') {
@@ -407,12 +410,28 @@ const recordSettlement = async (req, res) => {
       await t.rollback();
       return res.status(404).json({ success: false, error: { message: 'Creditor not found' } });
     }
-    // Validate amount
-    if (!amount || parseFloat(amount) <= 0) {
+    // Calculate and validate settlement amount (supports allocation-driven settlements)
+    let settlementAmount = amount !== undefined && amount !== null ? parseFloat(amount) : 0;
+    if (allocations.length > 0) {
+      const totalAllocAmount = allocations.reduce((sum, alloc) => {
+        const val = parseFloat(alloc?.amount || 0);
+        return sum + (isNaN(val) ? 0 : val);
+      }, 0);
+      if (totalAllocAmount <= 0) {
+        await t.rollback();
+        return res.status(400).json({ success: false, error: { message: 'Allocation amounts must be positive' } });
+      }
+      // If client provided amount, ensure it matches allocation sum
+      if (settlementAmount > 0 && Math.abs(totalAllocAmount - settlementAmount) > 0.01) {
+        await t.rollback();
+        return res.status(400).json({ success: false, error: { message: 'Settlement amount must match allocation totals' } });
+      }
+      settlementAmount = totalAllocAmount;
+    }
+    if (!settlementAmount || settlementAmount <= 0 || Number.isNaN(settlementAmount)) {
       await t.rollback();
       return res.status(400).json({ success: false, error: { message: 'Settlement amount must be positive' } });
     }
-    const settlementAmount = parseFloat(amount);
     const transaction = await CreditTransaction.create({
       stationId,
       creditorId,
@@ -420,9 +439,47 @@ const recordSettlement = async (req, res) => {
       amount: settlementAmount,
       transactionDate: transactionDate || new Date().toISOString().split('T')[0],
       referenceNumber,
+      invoiceNumber,
       notes,
       enteredBy: req.user.id
     }, { transaction: t });
+
+    // Persist allocation links for partial settlements
+    if (allocations.length > 0) {
+      for (const alloc of allocations) {
+        const creditTransactionId = alloc?.creditTransactionId;
+        const allocAmount = parseFloat(alloc?.amount || 0);
+        if (!creditTransactionId || !allocAmount || allocAmount <= 0) {
+          await t.rollback();
+          return res.status(400).json({ success: false, error: { message: 'Each allocation needs creditTransactionId and positive amount' } });
+        }
+
+        const lockOptions = { transaction: t };
+        if (sequelize.getDialect() !== 'sqlite') {
+          lockOptions.lock = t.LOCK.UPDATE;
+        }
+
+        const creditTxn = await CreditTransaction.findByPk(creditTransactionId, lockOptions);
+        if (!creditTxn || creditTxn.transactionType !== 'credit' || String(creditTxn.creditorId) !== String(creditorId) || String(creditTxn.stationId) !== String(stationId)) {
+          await t.rollback();
+          return res.status(404).json({ success: false, error: { message: 'Referenced credit transaction is invalid' } });
+        }
+
+        // Prevent over-settlement on a specific credit transaction
+        const alreadySettled = await CreditSettlementLink.sum('amount', { where: { creditTransactionId }, transaction: t }) || 0;
+        const creditTxnAmount = parseFloat(creditTxn.amount || 0);
+        if (parseFloat(alreadySettled) + allocAmount - creditTxnAmount > 0.01) {
+          await t.rollback();
+          return res.status(400).json({ success: false, error: { message: 'Allocation exceeds remaining amount for the credit transaction' } });
+        }
+
+        await CreditSettlementLink.create({
+          settlementId: transaction.id,
+          creditTransactionId,
+          amount: allocAmount
+        }, { transaction: t });
+      }
+    }
     // Update creditor balance atomically
     const newBalance = parseFloat(creditor.currentBalance) - settlementAmount;
     await creditor.update({

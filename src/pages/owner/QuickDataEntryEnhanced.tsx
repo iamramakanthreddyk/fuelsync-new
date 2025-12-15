@@ -405,21 +405,15 @@ export default function QuickDataEntry() {
 
         // ...existing code...
 
+        // SIMPLIFIED: Reading should only contain reading data, no payment breakdown
+        // Payment breakdown is handled separately via DailyTransaction after readings are saved
         const readingData: any = {
           stationId: selectedStation,
           nozzleId: item.entry.nozzleId,
           readingValue: parseFloat(item.entry.readingValue),
           readingDate: item.entry.date,
-          cashAmount: cashAmt,
-          onlineAmount: onlineAmt,
-          creditAllocations: creditAmts,
-          notes: `Reading entered with cash: ₹${safeToFixed(cashAmt, 2)}, online: ₹${safeToFixed(onlineAmt, 2)}, credit: ₹${safeToFixed(creditAmts.reduce((s, c) => s + c.amount, 0), 2)}`
+          notes: ''
         };
-
-        // Only include creditAllocations if any
-        if (creditAmts.length === 0) {
-          delete readingData.creditAllocations;
-        }
 
         // Validate required fields
         if (!readingData.stationId) {
@@ -439,6 +433,38 @@ export default function QuickDataEntry() {
         const result = await promise;
         readingsResult.push(result);
       }
+
+      // STEP 2: After readings are saved, create a daily transaction with payment breakdown
+      // This separates reading entry (what was sold) from payment settlement (how it was paid)
+      const savedReadingIds = readingsResult
+        .map(r => r?.data?.id || r?.id)
+        .filter(Boolean);
+
+      // Use a different variable name to avoid redeclaration
+      const totalCreditTxn = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+
+      const transactionPayload: any = {
+        stationId: selectedStation,
+        transactionDate: readingDate,
+        readingIds: savedReadingIds,
+        paymentBreakdown: {
+          cash: paymentAllocation.cash,
+          online: paymentAllocation.online,
+          credit: totalCreditTxn
+        }
+      };
+
+      // Add credit allocations if any
+      if (totalCreditTxn > 0) {
+        transactionPayload.creditAllocations = paymentAllocation.credits.map(c => ({
+          creditorId: c.creditorId,
+          amount: c.amount
+        }));
+      }
+
+      // Submit transaction
+      await apiClient.post('/transactions', transactionPayload);
+
       return readingsResult;
     },
     onSuccess: () => {

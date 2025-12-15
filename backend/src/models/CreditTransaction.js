@@ -56,6 +56,12 @@ module.exports = (sequelize) => {
       field: 'price_per_litre',
       comment: 'Price at time of credit'
     },
+
+    // Optional invoice/document reference for legal/tax traceability
+    invoiceNumber: {
+      type: DataTypes.STRING(50),
+      field: 'invoice_number'
+    },
     
     // Amount
     amount: {
@@ -97,6 +103,14 @@ module.exports = (sequelize) => {
     notes: {
       type: DataTypes.TEXT
     },
+
+    // Invoice/document reference (optional)
+    invoiceNumber: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      field: 'invoice_number',
+      comment: 'Invoice or document number for legal/tax tracking'
+    },
     
     // Who entered
     enteredBy: {
@@ -127,6 +141,8 @@ module.exports = (sequelize) => {
     CreditTransaction.belongsTo(models.Creditor, { foreignKey: 'creditorId', as: 'creditor' });
     CreditTransaction.belongsTo(models.User, { foreignKey: 'enteredBy', as: 'enteredByUser' });
     CreditTransaction.belongsTo(models.NozzleReading, { foreignKey: 'nozzleReadingId', as: 'reading' });
+    CreditTransaction.hasMany(models.CreditSettlementLink, { foreignKey: 'settlementId', as: 'settlementLinks' });
+    CreditTransaction.hasMany(models.CreditSettlementLink, { foreignKey: 'creditTransactionId', as: 'appliedSettlements' });
   };
 
   /**

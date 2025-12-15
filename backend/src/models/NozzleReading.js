@@ -87,21 +87,26 @@ module.exports = (sequelize) => {
       comment: 'Flexible payment split: { cash: 1000, upi: 500, card: 200, credit: 300 }'
     },
     
-    // Legacy fields for backward compatibility
+    // Legacy fields for backward compatibility - DEPRECATED
+    // As of Dec 2025, payment breakdown is tracked in DailyTransaction model, not per-reading
+    // These fields should always be 0 and are kept only for schema compatibility
     cashAmount: {
       type: DataTypes.DECIMAL(12, 2),
       defaultValue: 0,
-      field: 'cash_amount'
+      field: 'cash_amount',
+      comment: 'DEPRECATED: Always 0. Use DailyTransaction.paymentBreakdown instead'
     },
     onlineAmount: {
       type: DataTypes.DECIMAL(12, 2),
       defaultValue: 0,
-      field: 'online_amount'
+      field: 'online_amount',
+      comment: 'DEPRECATED: Always 0. Use DailyTransaction.paymentBreakdown instead'
     },
     creditAmount: {
       type: DataTypes.DECIMAL(12, 2),
       defaultValue: 0,
-      field: 'credit_amount'
+      field: 'credit_amount',
+      comment: 'DEPRECATED: Always 0. Use DailyTransaction.creditAllocations instead'
     },
     
     // Credit reference (if any amount is on credit)
@@ -111,7 +116,8 @@ module.exports = (sequelize) => {
       references: {
         model: 'creditors',
         key: 'id'
-      }
+      },
+      comment: 'DEPRECATED: Kept for schema only. Credit tracking is in DailyTransaction'
     },
     
     // Metadata
