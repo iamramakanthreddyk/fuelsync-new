@@ -138,7 +138,9 @@ import {
 // Utility function to calculate litres and sale value for a nozzle
 const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: number | null, fuelPrices: any[]) => {
   const enteredValue = parseFloat(readingValue || '0');
-  const last = lastReading !== null && lastReading !== undefined ? lastReading : (nozzle?.initialReading || 0);
+    const nozzleLast = nozzle?.lastReading !== undefined && nozzle?.lastReading !== null ? parseFloat(String(nozzle.lastReading)) : undefined;
+    const initial = nozzle?.initialReading !== undefined && nozzle?.initialReading !== null ? parseFloat(String(nozzle.initialReading)) : 0;
+    const last = lastReading !== null && lastReading !== undefined ? Number(lastReading) : (nozzleLast !== undefined ? nozzleLast : initial);
   const litres = Math.max(0, enteredValue - last);
   const price = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase())?.price_per_litre || 0;
   const saleValue = litres * price;
@@ -365,8 +367,8 @@ export default function QuickDataEntry() {
       // For credit, distribute proportionally if multiple creditors
       // We'll use the first credit allocation for each reading for now (can be improved for per-reading split)
 
-      const promises: Promise<any>[] = [];
       let allocatedCash = 0, allocatedOnline = 0;
+      const readingsPayload: Array<{ nozzleId: string; readingValue: number; readingDate: string; notes: string }> = [];
 
       entriesWithSale.forEach((item, idx) => {
         const isLast = idx === entriesWithSale.length - 1;
@@ -399,72 +401,37 @@ export default function QuickDataEntry() {
 
         // ...existing code...
 
-        // SIMPLIFIED: Reading should only contain reading data, no payment breakdown
-        // Payment breakdown is handled separately via DailyTransaction after readings are saved
-        const readingData: any = {
-          stationId: selectedStation,
+        // Build readings payload for quick-entry endpoint
+        readingsPayload.push({
           nozzleId: item.entry.nozzleId,
           readingValue: parseFloat(item.entry.readingValue),
           readingDate: item.entry.date,
           notes: ''
-        };
-
-        // Validate required fields
-        if (!readingData.stationId) {
-          throw new Error('Station ID is required');
-        }
-        if (!readingData.nozzleId) {
-          throw new Error('Nozzle ID is required');
-        }
-
-        promises.push(apiClient.post('/readings', readingData));
+        });
       });
-
-      // Save readings sequentially to avoid race conditions when multiple readings affect the same nozzle/pump
-      // This ensures the backend processes each reading with the correct previous reading value
-      const readingsResult = [];
-      for (const promise of promises) {
-        const result = await promise;
-        readingsResult.push(result);
-      }
-
-      // STEP 2: After readings are saved, create a daily transaction with payment breakdown
-      // This separates reading entry (what was sold) from payment settlement (how it was paid)
-      const savedReadingIds = readingsResult
-        .map(r => r?.data?.id || r?.id)
-        .filter(Boolean);
-
-      // Use a different variable name to avoid redeclaration
+      // Build combined quick-entry payload
       const totalCreditTxn = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
-
-      const transactionPayload: any = {
+      const stationPrices = Array.isArray(fuelPrices) ? fuelPrices.map(p => ({ fuelType: p.fuel_type, price: p.price_per_litre })) : [];
+      const quickEntryPayload: any = {
         stationId: selectedStation,
         transactionDate: readingDate,
-        readingIds: savedReadingIds,
+        readings: readingsPayload,
         paymentBreakdown: {
           cash: paymentAllocation.cash,
           online: paymentAllocation.online,
           credit: totalCreditTxn
-        }
+        },
+        creditAllocations: totalCreditTxn > 0 ? paymentAllocation.credits.map(c => ({ creditorId: c.creditorId, amount: c.amount })) : [],
+        stationPrices
       };
 
-      // Add credit allocations if any
-      if (totalCreditTxn > 0) {
-        transactionPayload.creditAllocations = paymentAllocation.credits.map(c => ({
-          creditorId: c.creditorId,
-          amount: c.amount
-        }));
-      }
-
-      // Submit transaction
-      await apiClient.post('/transactions', transactionPayload);
-
-      return readingsResult;
+      const response = await apiClient.post('/transactions/quick-entry', quickEntryPayload);
+      return response;
     },
     onSuccess: () => {
       toast({
         title: 'Success ✓',
-        description: `${Object.keys(readings).length} reading(s) saved. Sale value: ₹${safeToFixed(saleSummary.totalSaleValue, 2)}`,
+        description: `${Object.keys(readings).length} reading(s) saved with transaction. Sale value: ₹${safeToFixed(saleSummary.totalSaleValue, 2)}`,
         variant: 'success'
       });
       // Clear the form
@@ -479,17 +446,24 @@ export default function QuickDataEntry() {
       queryClient.invalidateQueries({ queryKey: ['stations'] });
     },
     onError: (error: unknown) => {
-      let message = 'Failed to save readings';
-      if (error instanceof Error) {
-        message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
+      let title = 'Error';
+      let description = 'Failed to save readings';
+      // Try to extract backend response details
+      const anyErr = error as any;
+      const backendError = anyErr?.response?.data;
+      if (backendError) {
+        if (backendError.error) description = String(backendError.error);
+        if (backendError.details) {
+          try {
+            description += `\nDetails: ${JSON.stringify(backendError.details)}`;
+          } catch (_) {}
+        }
+      } else if (error instanceof Error) {
+        description = error.message;
+      } else if (typeof error === 'object' && error && 'message' in (error as any)) {
+        description = String((error as { message?: string }).message);
       }
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive'
-      });
+      toast({ title, description, variant: 'destructive' });
     }
   });
 

@@ -19,6 +19,12 @@ router.use(authenticate);
 router.post('/', requireMinRole('employee'), transactionController.createTransaction);
 
 /**
+ * POST /api/v1/transactions/quick-entry
+ * Create readings and transaction in a single request (quick entry)
+ */
+router.post('/quick-entry', requireMinRole('employee'), transactionController.createQuickEntry);
+
+/**
  * GET /api/v1/transactions/:stationId/:date
  * Get transaction for a station on a specific date
  */
