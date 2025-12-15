@@ -14,12 +14,14 @@ function NozzleReadingRow({
   handleReadingChange,
   hasPriceForFuelType,
   getPrice,
-  lastReading
-  , lastReadingLoading
+  lastReading,
+  lastReadingLoading
 }: NozzleReadingRowProps) {
   const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-  const compareValue = (lastReading !== null && lastReading !== undefined && !isNaN(lastReading))
-    ? parseFloat(String(lastReading))
+  // Always parse lastReading as float if present
+  const parsedLastReading = (lastReading !== null && lastReading !== undefined && lastReading !== '') ? parseFloat(String(lastReading)) : null;
+  const compareValue = (parsedLastReading !== null && !isNaN(parsedLastReading))
+    ? parsedLastReading
     : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
 
   const reading = readings[nozzle.id];
@@ -672,7 +674,7 @@ export default function QuickDataEntry() {
                             handleReadingChange={handleReadingChange}
                             hasPriceForFuelType={hasPriceForFuelType}
                             getPrice={getPrice}
-                            lastReading={allLastReadings ? allLastReadings[nozzle.id] : null}
+                            lastReading={allLastReadings && allLastReadings.data ? allLastReadings.data[nozzle.id] : (allLastReadings ? allLastReadings[nozzle.id] : null)}
                             lastReadingLoading={allLastReadingsIsLoading}
                           />
                         ))}
