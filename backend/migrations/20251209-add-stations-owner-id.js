@@ -13,30 +13,36 @@ module.exports = {
     const transaction = await queryInterface.sequelize.transaction();
     try {
       // 1) add the owner_id column if it doesn't exist
-      await queryInterface.addColumn(
-        'stations',
-        'owner_id',
-        {
-          type: Sequelize.UUID,
-          allowNull: true,
-          references: { model: 'users', key: 'id' },
-          onUpdate: 'CASCADE',
-          onDelete: 'SET NULL'
-        },
-        { transaction }
-      );
+      const desc = await queryInterface.describeTable('stations');
+      if (!desc.owner_id) {
+        await queryInterface.addColumn(
+          'stations',
+          'owner_id',
+          {
+            type: Sequelize.UUID,
+            allowNull: true,
+            references: { model: 'users', key: 'id' },
+            onUpdate: 'CASCADE',
+            onDelete: 'SET NULL'
+          },
+          { transaction }
+        );
+      }
 
       // 2) add index for owner_id
-      await queryInterface.addIndex('stations', ['owner_id'], { name: 'idx_stations_owner_id', transaction });
+      try {
+        await queryInterface.addIndex('stations', ['owner_id'], { name: 'idx_stations_owner_id', transaction });
+      } catch (e) {
+        // ignore if exists
+      }
 
-      // 3) Best-effort backfill: if a user has station_id = stations.id and role owner/pump_owner, set as owner
-      // Support both 'owner' and legacy 'pump_owner' roles to cover older DBs
+      // 3) Best-effort backfill: if a user has station_id = stations.id and role owner, set as owner
       await queryInterface.sequelize.query(
         `UPDATE stations SET owner_id = u.id
          FROM users u
          WHERE stations.owner_id IS NULL
            AND u.station_id = stations.id
-           AND (u.role = 'owner' OR u.role = 'pump_owner')`
+           AND (u.role = 'owner')`
         , { transaction }
       );
 

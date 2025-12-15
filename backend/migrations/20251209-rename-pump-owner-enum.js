@@ -23,6 +23,32 @@ module.exports = {
 
     const transaction = await queryInterface.sequelize.transaction();
     try {
+      // Detect existing enum values to avoid referencing a missing label (which would error)
+      const [enumRows] = await queryInterface.sequelize.query(
+        `SELECT enumlabel FROM pg_enum e
+         JOIN pg_type t ON e.enumtypid = t.oid
+         WHERE t.typname = 'enum_users_role';`,
+        { transaction }
+      );
+
+      const enumLabels = enumRows.map(r => r.enumlabel);
+      const hasPumpOwner = enumLabels.includes('pump_owner');
+      const hasOwner = enumLabels.includes('owner');
+
+      // Ensure the new value exists even if we skip the rename flow below
+      if (!hasOwner) {
+        await queryInterface.sequelize.query(
+          "ALTER TYPE \"enum_users_role\" ADD VALUE IF NOT EXISTS 'owner';",
+          { transaction }
+        );
+      }
+
+      // If the old value is already absent, there's nothing to rename; exit early
+      if (!hasPumpOwner) {
+        await transaction.commit();
+        return;
+      }
+
       // Step 1: add new enum value 'owner' to the existing enum type
       // The enum type name is created by Sequelize when the table was created.
       // By default, it's 'enum_users_role' for the users.role column.
@@ -81,6 +107,21 @@ module.exports = {
 
     const transaction = await queryInterface.sequelize.transaction();
     try {
+      // If the enum already contains pump_owner, rollback not needed
+      const [enumRows] = await queryInterface.sequelize.query(
+        `SELECT enumlabel FROM pg_enum e
+         JOIN pg_type t ON e.enumtypid = t.oid
+         WHERE t.typname = 'enum_users_role';`,
+        { transaction }
+      );
+      const enumLabels = enumRows.map(r => r.enumlabel);
+      const hasPumpOwner = enumLabels.includes('pump_owner');
+      // If pump_owner isn't present, the up migration was a no-op; nothing to roll back
+      if (!hasPumpOwner) {
+        await transaction.commit();
+        return;
+      }
+
       // Rollback steps: re-create the previous enum including 'pump_owner',
       // convert rows back, then restore type name.
 

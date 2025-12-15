@@ -32,10 +32,7 @@ module.exports = {
           allowNull: false,
           unique: true
         },
-        upload_limit: {
-          type: Sequelize.INTEGER,
-          allowNull: false
-        },
+            // upload_limit removed
         features: {
           type: Sequelize.JSONB,
           allowNull: false,
@@ -86,11 +83,7 @@ module.exports = {
         },
         owner_id: {
           type: Sequelize.UUID,
-          allowNull: true,
-          references: {
-            model: 'users',
-            key: 'id'
-          }
+          allowNull: true
         },
         plan_id: {
           type: Sequelize.UUID,

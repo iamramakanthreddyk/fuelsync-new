@@ -136,7 +136,7 @@ async function seedEssentials() {
       // Don't hash here - User model's beforeCreate hook will hash it
       await User.create({
         email: 'admin@fuelsync.com',
-        password: 'admin123',
+        password: process.env.ADMIN_PASSWORD || 'admin123', // Use env or fallback for dev
         name: 'System Administrator',
         phone: '+919999999999',
         role: 'super_admin',

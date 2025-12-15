@@ -20,6 +20,7 @@
     "test:integration:employee": "jest tests/integration/employee-journey.test.js --verbose --detectOpenHandles",
     "test:all-journeys": "node tests/integration/run-all-tests.js",
     "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:status": "sequelize-cli db:migrate:status",
     "db:migrate:undo": "sequelize-cli db:migrate:undo",
     "db:migrate:undo:all": "sequelize-cli db:migrate:undo:all",
     "db:seed": "sequelize-cli db:seed:all",
