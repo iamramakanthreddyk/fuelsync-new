@@ -54,7 +54,6 @@ module.exports = (sequelize) => {
   }, {
     tableName: 'fuel_prices',
     timestamps: true,
-    updatedAt: false, // Only track creation
     underscored: true,
     indexes: [
       {

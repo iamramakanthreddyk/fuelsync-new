@@ -97,7 +97,9 @@ async function main() {
     const adminEmail = 'admin@fuelsync.com';
     const adminPassword = 'admin123';
     const hashedPassword = await bcrypt.hash(adminPassword, 10);
-    await User.findOrCreate({
+
+    // Upsert super admin: update password if user exists, else create
+    const [adminUser, created] = await User.findOrCreate({
       where: { email: adminEmail },
       defaults: {
         name: 'Super Administrator',
@@ -107,7 +109,19 @@ async function main() {
         isActive: true
       }
     });
-    console.log('✅ Super admin seeded');
+    if (!created) {
+      // User existed, update password and role
+      adminUser.password = hashedPassword;
+      adminUser.role = 'super_admin';
+      adminUser.isActive = true;
+      await adminUser.save();
+      console.log('✅ Super admin password reset');
+    } else {
+      console.log('✅ Super admin seeded');
+    }
+    // Print the new password hash for verification
+    const updatedUser = await User.findOne({ where: { email: adminEmail } });
+    console.log('Current admin@fuelsync.com password hash:', updatedUser.password);
 
     console.log('\nMinimal seed complete!\nLogin: admin@fuelsync.com / admin123');
     process.exit(0);
