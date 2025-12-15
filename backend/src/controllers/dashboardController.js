@@ -944,7 +944,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     const salesByFuelTypeData = salesByFuelType.map(f => {
       const sales = parseFloat(f.sales || 0);
       return {
-        fuelType: f.fuelType,
+        fuelType: f.fuelType ? f.fuelType : 'Unknown',
         sales,
         quantity: parseFloat(f.quantity || 0),
         percentage: totalSales > 0 ? (sales / totalSales) * 100 : 0
