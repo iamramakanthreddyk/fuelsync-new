@@ -44,7 +44,7 @@ const commonSchemas = {
 const readingSchemas = {
   create: Joi.object({
     nozzleId: commonSchemas.id.required(),
-    stationId: commonSchemas.id.required(),
+    stationId: commonSchemas.id.optional(),
     readingValue: commonSchemas.positiveNumber.required(),
     readingDate: commonSchemas.date.optional(),
     previousReading: commonSchemas.nonNegativeNumber.optional(),
@@ -56,9 +56,10 @@ const readingSchemas = {
     creditAmount: commonSchemas.nonNegativeNumber.optional(),
     creditorId: commonSchemas.id.optional(),
     paymentType: Joi.string().valid('cash', 'digital', 'online', 'credit').optional(),
-    notes: Joi.string().max(500).optional().messages({
+    notes: Joi.string().allow('').max(500).optional().messages({
       'string.max': 'Notes must be less than 500 characters'
     })
+
   }),
   
   update: Joi.object({
@@ -156,7 +157,12 @@ const pumpSchemas = {
  */
 function validateSchema(schema, source = 'body') {
   return (req, res, next) => {
-    const data = req[source];
+    let data = req[source];
+    // Run key normalization for reading create payloads (accept snake_case from UI)
+    if (schema === readingSchemas.create && source === 'body') {
+      data = normalizeKeys(data);
+      req[source] = data;
+    }
     const { error, value } = schema.validate(data, {
       abortEarly: false,
       stripUnknown: true
@@ -180,6 +186,39 @@ function validateSchema(schema, source = 'body') {
     req[source] = value;
     next();
   };
+}
+
+// Normalize common snake_case keys from clients to camelCase expected by Joi schemas
+function normalizeKeys(obj) {
+  if (!obj || typeof obj !== 'object') return obj;
+  const res = { ...obj };
+
+  const map = {
+    'nozzle_id': 'nozzleId',
+    'station_id': 'stationId',
+    'reading_value': 'readingValue',
+    'current_reading': 'readingValue',
+    'cumulative_volume': 'readingValue',
+    'reading_date': 'readingDate',
+    'previous_reading': 'previousReading',
+    'litres_sold': 'litresSold',
+    'price_per_litre': 'pricePerLitre',
+    'total_amount': 'totalAmount',
+    'cash_amount': 'cashAmount',
+    'online_amount': 'onlineAmount',
+    'credit_amount': 'creditAmount',
+    'creditor_id': 'creditorId',
+    'reference_number': 'referenceNumber'
+  };
+
+  Object.keys(map).forEach(k => {
+    if (Object.prototype.hasOwnProperty.call(res, k) && !Object.prototype.hasOwnProperty.call(res, map[k])) {
+      res[map[k]] = res[k];
+      delete res[k];
+    }
+  });
+
+  return res;
 }
 
 module.exports = {
