@@ -931,7 +931,7 @@ module.exports = {
           allowNull: true
         },
         status: {
-          type: Sequelize.ENUM('active', 'completed', 'cancelled'),
+          type: Sequelize.ENUM('active', 'ended', 'cancelled'),
           allowNull: false,
           defaultValue: 'active'
         },

@@ -81,7 +81,7 @@ exports.getSummary = async (req, res, next) => {
         [fn('SUM', col('cash_amount')), 'totalCash'],
         [fn('SUM', col('online_amount')), 'totalOnline'],
         [fn('SUM', col('credit_amount')), 'totalCredit'],
-        [fn('COUNT', col('id')), 'readingCount']
+        [fn('COUNT', col('NozzleReading.id')), 'readingCount']
       ],
       raw: true
     });
@@ -267,7 +267,7 @@ exports.getDailySummary = async (req, res, next) => {
         [fn('SUM', col('cash_amount')), 'cash'],
         [fn('SUM', col('online_amount')), 'online'],
         [fn('SUM', col('credit_amount')), 'credit'],
-        [fn('COUNT', col('id')), 'readings']
+        [fn('COUNT', col('NozzleReading.id')), 'readings']
       ],
       group: ['readingDate'],
       order: [['readingDate', 'ASC']],
@@ -849,7 +849,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       attributes: [
         [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
         [fn('SUM', col('litres_sold')), 'totalQuantity'],
-        [fn('COUNT', col('id')), 'totalTransactions']
+        [fn('COUNT', col('NozzleReading.id')), 'totalTransactions']
       ],
       include: [{
         model: Pump,

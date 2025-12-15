@@ -98,6 +98,7 @@ const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4'
 
 // Get chart colors from fuel color system
 const getFuelChartColor = (fuelType: string): string => {
+  if (!fuelType) return '#6b7280';
   const colors = getFuelColors(fuelType);
   const colorMap: Record<string, string> = {
     'petrol': '#22c55e',  // green-500
