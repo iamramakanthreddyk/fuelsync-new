@@ -5,18 +5,21 @@ interface NozzleReadingRowProps {
   handleReadingChange: (nozzleId: string, value: string) => void;
   hasPriceForFuelType: (fuelType: string) => boolean;
   getPrice: (fuelType: string) => number;
+  lastReading?: number | null;
+  lastReadingLoading?: boolean;
 }
 function NozzleReadingRow({
   nozzle,
   readings,
   handleReadingChange,
   hasPriceForFuelType,
-  getPrice
+  getPrice,
+  lastReading
+  , lastReadingLoading
 }: NozzleReadingRowProps) {
-  const { data: trueLastReading, isLoading: lastReadingLoading } = useNozzleLastReading(nozzle.id);
   const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-  const compareValue = (trueLastReading !== null && trueLastReading !== undefined && !isNaN(trueLastReading))
-    ? parseFloat(trueLastReading)
+  const compareValue = (lastReading !== null && lastReading !== undefined && !isNaN(lastReading))
+    ? parseFloat(String(lastReading))
     : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
 
   const reading = readings[nozzle.id];
@@ -42,14 +45,10 @@ function NozzleReadingRow({
           placeholder="0.00"
           value={reading?.readingValue || ''}
           onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
-          disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice || lastReadingLoading}
+          disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
           className={`text-xs h-7 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
         />
-        {lastReadingLoading && (
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-blue-500 text-xs">
-            Loading...
-          </div>
-        )}
+        {/* Batched last readings used; no per-row loading indicator */}
         {reading?.readingValue && !lastReadingLoading && enteredValue > compareValue && (
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
             <Check className="w-4 h-4" />
@@ -104,7 +103,7 @@ function NozzleReadingRow({
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { useNozzleLastReading } from '@/hooks/useNozzleLastReading';
+// Batched last readings are fetched in-component; per-nozzle hook removed to avoid N requests
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -216,25 +215,20 @@ export default function QuickDataEntry() {
   const fuelPrices = pricesArray;
 
   // Fetch true last readings for all nozzles to use in payment allocation calculation
-  const { data: allLastReadings } = useQuery({
+  const { data: allLastReadings, isLoading: allLastReadingsIsLoading } = useQuery({
     queryKey: ['allNozzleLastReadings', selectedStation],
     queryFn: async () => {
       if (!selectedStation || !pumps) return {};
-      const readings: Record<string, number> = {};
-      const promises = pumps.flatMap(pump =>
-        (pump.nozzles || []).map(async (nozzle) => {
-          try {
-            const res: any = await apiClient.get(`/readings/last?nozzleId=${nozzle.id}`);
-            if (res && res.success && res.data) {
-              readings[nozzle.id] = res.data.readingValue;
-            }
-          } catch (error) {
-            // Ignore errors, will fall back to nozzle.lastReading
-          }
-        })
-      );
-      await Promise.all(promises);
-      return readings;
+      const nozzleIds = pumps.flatMap(p => p.nozzles || []).map(n => n.id);
+      if (nozzleIds.length === 0) return {};
+      try {
+        const idsParam = nozzleIds.join(',');
+        const res: any = await apiClient.get(`/readings/latest?ids=${encodeURIComponent(idsParam)}`);
+        // Backend returns an object map: { [nozzleId]: readingValue }
+        return res || {};
+      } catch (err) {
+        return {};
+      }
     },
     enabled: !!selectedStation && !!pumps
   });
@@ -704,6 +698,8 @@ export default function QuickDataEntry() {
                             handleReadingChange={handleReadingChange}
                             hasPriceForFuelType={hasPriceForFuelType}
                             getPrice={getPrice}
+                            lastReading={allLastReadings ? allLastReadings[nozzle.id] : null}
+                            lastReadingLoading={allLastReadingsIsLoading}
                           />
                         ))}
                       </div>
