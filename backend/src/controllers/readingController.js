@@ -8,23 +8,26 @@ const { Op } = require('sequelize');
 const { canAccessStation, verifyNozzleAccess, getAccessibleStationIds } = require('../middleware/accessControl');
 
 /**
- * Enter a new nozzle reading
+ * Enter a new nozzle reading (SIMPLIFIED - payment tracking moved to transactions)
  * POST /api/v1/readings
+ * 
+ * Now only accepts reading data:
+ * - nozzleId, readingDate, readingValue
+ * - Optional: pricePerLitre, totalAmount, litresSold, notes
+ * 
+ * Payment breakdown is now handled via DailyTransaction model
  */
 exports.createReading = async (req, res, next) => {
   try {
-const { 
+    const { 
       nozzleId, nozzle_id,
       readingDate, reading_date,
       readingValue, reading_value,
-      cashAmount, cash_amount,
-      onlineAmount, online_amount,
-      creditAmount, credit_allocations, creditorId, 
-      notes, paymentType,
-      total_amount,
-      price_per_litre,
-      previous_reading,
-      litres_sold
+      notes,
+      pricePerLitre, price_per_litre,
+      totalAmount, total_amount,
+      litresSold, litres_sold,
+      previousReading, previous_reading
     } = req.body;
     const userId = req.userId;
 
@@ -32,9 +35,6 @@ const {
       nozzleId, nozzle_id,
       readingDate, reading_date,
       readingValue, reading_value,
-      cashAmount, cash_amount,
-      onlineAmount, online_amount,
-      creditAmount, credit_allocations, creditorId,
       totalAmount: req.body.totalAmount, total_amount,
       pricePerLitre: req.body.pricePerLitre, price_per_litre,
       previousReading: req.body.previousReading, previous_reading,
@@ -45,6 +45,10 @@ const {
     const finalNozzleId = nozzleId || nozzle_id;
     const finalReadingDate = readingDate || reading_date;
     const finalReadingValue = readingValue !== undefined ? readingValue : reading_value;
+    const finalPricePerLitre = pricePerLitre !== undefined ? pricePerLitre : price_per_litre;
+    const finalTotalAmount = totalAmount !== undefined ? totalAmount : total_amount;
+    const finalLitresSold = litresSold !== undefined ? litresSold : litres_sold;
+    const finalPreviousReading = previousReading !== undefined ? previousReading : previous_reading;
     
     if (!finalNozzleId || !finalReadingDate || finalReadingValue === undefined) {
       console.log('[DEBUG] createReading validation failed: missing required fields', { finalNozzleId, finalReadingDate, finalReadingValue });
@@ -125,17 +129,16 @@ const {
       previousReadingRecord = await NozzleReading.getLatestReading(finalNozzleId);
     }
     // Prefer an explicit previousReading provided by client (tests/old clients send this)
-    let previousReading = previousReadingRecord?.readingValue;
-    const providedPrevious = (req.body.previousReading !== undefined ? parseFloat(req.body.previousReading) : undefined) ||
-                             (req.body.previous_reading !== undefined ? parseFloat(req.body.previous_reading) : undefined);
+    let calculatedPreviousReading = previousReadingRecord?.readingValue;
+    const providedPrevious = finalPreviousReading;
     
     // Determine previousReading: explicit > lastReading > initialReading > 0
     if (providedPrevious !== undefined) {
-      previousReading = providedPrevious;
-    } else if (previousReading === undefined || previousReading === null) {
+      calculatedPreviousReading = providedPrevious;
+    } else if (calculatedPreviousReading === undefined || calculatedPreviousReading === null) {
       // No previous reading found and no explicit previousReading provided
       // For first reading, use initialReading if available, otherwise 0
-      previousReading = nozzle.initialReading !== undefined && nozzle.initialReading !== null
+      calculatedPreviousReading = nozzle.initialReading !== undefined && nozzle.initialReading !== null
         ? nozzle.initialReading
         : 0;
     }
@@ -144,7 +147,7 @@ const {
 
     // Validate reading value (must be > previous unless initial)
     const currentValue = parseFloat(finalReadingValue);
-    const prevValue = parseFloat(previousReading);
+    const prevValue = parseFloat(calculatedPreviousReading);
 
     if (!isInitialReading && currentValue <= prevValue) {
       console.log('[DEBUG] createReading failed: readingValue not greater than previous', { currentValue, prevValue });
@@ -157,30 +160,29 @@ const {
 
     // Calculate litres sold: always use currentValue - previousReading
     // For first readings, previousReading is already set to initialReading (or 0)
-    const litresSold = Math.max(0, currentValue - prevValue);
+    let calculatedLitresSold = Math.max(0, currentValue - prevValue);
 
     // If client provided litresSold explicitly, validate it matches computed litresSold
-    const providedLitresSold = req.body.litresSold !== undefined ? req.body.litresSold : litres_sold;
-    if (providedLitresSold !== undefined) {
-      const providedLitres = parseFloat(providedLitresSold) || 0;
-      if (Math.abs(providedLitres - litresSold) > 0.01) {
+    if (finalLitresSold !== undefined) {
+      const providedLitres = parseFloat(finalLitresSold) || 0;
+      if (Math.abs(providedLitres - calculatedLitresSold) > 0.01) {
         console.error('❌ [VALIDATION ERROR] litresSold mismatch:', {
-          nozzleId,
+          nozzleId: finalNozzleId,
           stationId,
           isInitialReading,
           currentReading: currentValue,
           previousReading: prevValue,
-          meterDelta: litresSold,
+          meterDelta: calculatedLitresSold,
           providedLitres,
-          difference: Math.abs(providedLitres - litresSold),
-          readingDate,
+          difference: Math.abs(providedLitres - calculatedLitresSold),
+          readingDate: finalReadingDate,
           fuelType: nozzle.fuelType
         });
         return res.status(400).json({ 
           success: false, 
           error: 'Provided litresSold does not match meter delta',
           details: {
-            meterDelta: litresSold,
+            meterDelta: calculatedLitresSold,
             provided: providedLitres,
             previousReading: prevValue,
             currentReading: currentValue
@@ -192,15 +194,8 @@ const {
     // Get fuel price for the reading date
     const fuelPrice = await FuelPrice.getPriceForDate(stationId, nozzle.fuelType, finalReadingDate);
 
-    // Allow legacy clients/tests to supply `pricePerLitre` or `totalAmount` explicitly.
-    // Prefer client-provided pricePerLitre, then fuelPrice from DB, then sensible defaults.
-    const clientPrice = (req.body.pricePerLitre !== undefined ? req.body.pricePerLitre : price_per_litre) !== undefined ? 
-      parseFloat(req.body.pricePerLitre || price_per_litre) : undefined;
-    const clientTotal = (req.body.totalAmount !== undefined ? req.body.totalAmount : total_amount) !== undefined ? 
-      parseFloat(req.body.totalAmount || total_amount) : undefined;
-
-    // Initialize pricePerLitre - will be recalculated later if needed
-    let pricePerLitre = clientPrice || fuelPrice || (isInitialReading ? 100 : 0);
+    // Initialize pricePerLitre from: provided value > db fuel price > default
+    let calculatedPricePerLitre = finalPricePerLitre || fuelPrice || (isInitialReading ? 100 : 0);
 
     // Backdated reading validation based on owner's plan (backdatedDays)
     try {
@@ -210,7 +205,7 @@ const {
       const allowedBackdatedDays = stationWithOwner?.owner?.plan?.backdatedDays ?? 3;
       const todayStr = new Date().toISOString().split('T')[0];
       const msPerDay = 24 * 60 * 60 * 1000;
-      const readingDateObj = new Date(readingDate + 'T00:00:00Z');
+      const readingDateObj = new Date(finalReadingDate + 'T00:00:00Z');
       const todayObj = new Date(todayStr + 'T00:00:00Z');
       const diffDays = Math.floor((todayObj - readingDateObj) / msPerDay);
       if (diffDays > allowedBackdatedDays) {
@@ -224,119 +219,28 @@ const {
       console.warn('Backdate validation failed, proceeding with default:', err?.message || err);
     }
 
-    // Handle payment amounts - support cash, online, and credit
-    let finalCashAmount = 0;
-    let finalOnlineAmount = 0;
-    let finalCreditAmount = 0;
-
-    // Always use cashAmount as totalAmount if only cashAmount is provided and totalAmount/price are missing
-    const hasDetailedAmounts = (cashAmount !== undefined || cash_amount !== undefined) || 
-                              (onlineAmount !== undefined || online_amount !== undefined) || 
-                              creditAmount !== undefined || 
-                              (credit_allocations && credit_allocations.length > 0);
-    let effectiveTotalAmount = req.body.totalAmount;
-    if (!isInitialReading) {
-      // If no totalAmount or price, but cashAmount is provided (and online/credit are not), treat as cash-only
-      if ((req.body.totalAmount === undefined || req.body.totalAmount === 0) && (req.body.pricePerLitre === undefined || req.body.pricePerLitre === 0)) {
-        const finalCash = req.body.cashAmount !== undefined ? req.body.cashAmount : cash_amount;
-        const finalOnline = req.body.onlineAmount !== undefined ? req.body.onlineAmount : online_amount;
-        if (finalCash !== undefined && (finalOnline === undefined || finalOnline === 0) && (req.body.creditAmount === undefined || req.body.creditAmount === 0) && (!credit_allocations || credit_allocations.length === 0)) {
-          effectiveTotalAmount = parseFloat(finalCash) || 0;
-        }
+    // SIMPLIFIED: Determine totalAmount from calculation or client input
+    // Payment breakdown now handled in DailyTransaction, not per-reading
+    let effectiveTotalAmount = finalTotalAmount;
+    
+    if (calculatedLitresSold > 0) {
+      if (!effectiveTotalAmount && calculatedPricePerLitre > 0) {
+        // Calculate from litres and price
+        effectiveTotalAmount = calculatedLitresSold * calculatedPricePerLitre;
+      } else if (!effectiveTotalAmount && fuelPrice) {
+        // Use fuel price from database
+        effectiveTotalAmount = calculatedLitresSold * fuelPrice;
+        calculatedPricePerLitre = fuelPrice;
       }
     }
+    
+    // If still no total amount, initialize to 0
+    effectiveTotalAmount = parseFloat(effectiveTotalAmount) || 0;
 
-    if (effectiveTotalAmount > 0 || hasDetailedAmounts) {
-      if (hasDetailedAmounts) {
-        const providedCash = req.body.cashAmount !== undefined ? parseFloat(req.body.cashAmount) || 0 : (cash_amount !== undefined ? parseFloat(cash_amount) || 0 : 0);
-        const providedOnline = req.body.onlineAmount !== undefined ? parseFloat(req.body.onlineAmount) || 0 : (online_amount !== undefined ? parseFloat(online_amount) || 0 : 0);
-        const providedCredit = req.body.creditAmount !== undefined ? parseFloat(req.body.creditAmount) || 0 : 0;
-        
-        // Handle credit_allocations array if provided
-        let creditFromAllocations = 0;
-        if (credit_allocations && Array.isArray(credit_allocations)) {
-          creditFromAllocations = credit_allocations.reduce((sum, alloc) => sum + (parseFloat(alloc.amount) || 0), 0);
-          console.log('[DEBUG] credit_allocations processed:', { credit_allocations, creditFromAllocations });
-        }
-        
-        finalCashAmount = providedCash;
-        finalOnlineAmount = providedOnline;
-        finalCreditAmount = providedCredit + creditFromAllocations;
-        
-        console.log('[DEBUG] final amounts calculated:', { finalCashAmount, finalOnlineAmount, finalCreditAmount, providedCredit, creditFromAllocations });
-        
-        // If only cash is provided, set totalAmount to cashAmount
-        if (providedCash > 0 && providedOnline === 0 && finalCreditAmount === 0 && (!effectiveTotalAmount || effectiveTotalAmount === 0)) {
-          effectiveTotalAmount = providedCash;
-        }
-        const totalPayment = finalCashAmount + finalOnlineAmount + finalCreditAmount;
-        if (!effectiveTotalAmount) effectiveTotalAmount = totalPayment;
-        if (Math.abs(totalPayment - effectiveTotalAmount) > 0.01) {
-          console.log('[DEBUG] createReading failed: payment breakdown mismatch', { finalCashAmount, finalOnlineAmount, finalCreditAmount, effectiveTotalAmount, totalPayment });
-          return res.status(400).json({
-            success: false,
-            error: `Payment breakdown (Cash: ${finalCashAmount}, Online: ${finalOnlineAmount}, Credit: ${finalCreditAmount}) must equal total amount (${effectiveTotalAmount.toFixed(2)})`
-          });
-        }
-        // Recalculate pricePerLitre based on the final total amount and litres sold
-        if (litresSold > 0 && !clientPrice && !fuelPrice) {
-          pricePerLitre = effectiveTotalAmount / litresSold;
-        }
-      } else if (paymentType) {
-        switch (paymentType) {
-          case 'cash':
-            finalCashAmount = effectiveTotalAmount;
-            finalOnlineAmount = 0;
-            finalCreditAmount = 0;
-            break;
-          case 'digital':
-          case 'online':
-            finalCashAmount = 0;
-            finalOnlineAmount = effectiveTotalAmount;
-            finalCreditAmount = 0;
-            break;
-          case 'credit':
-            finalCashAmount = 0;
-            finalOnlineAmount = 0;
-            finalCreditAmount = effectiveTotalAmount;
-            break;
-          default:
-            finalCashAmount = effectiveTotalAmount;
-            finalOnlineAmount = 0;
-            finalCreditAmount = 0;
-        }
-      } else {
-        finalCashAmount = effectiveTotalAmount;
-        finalOnlineAmount = 0;
-        finalCreditAmount = 0;
-      }
-      if (finalCreditAmount > 0 && !creditorId) {
-        return res.status(400).json({
-          success: false,
-          error: 'creditorId is required when creditAmount is greater than 0'
-        });
-      }
-    }
-
-    // Create the reading and optionally record credit transaction atomically
+    // Create reading (simplified - no payment breakdown stored per reading)
     const t = await sequelize.transaction();
     let reading;
     try {
-      // Build payment breakdown for JSONB field
-      const paymentBreakdown = {
-        cash: finalCashAmount,
-        online: finalOnlineAmount,
-        credit: finalCreditAmount
-      };
-      
-      // If credit allocations exist, include detailed breakdown
-      if (credit_allocations && Array.isArray(credit_allocations) && credit_allocations.length > 0) {
-        paymentBreakdown.creditAllocations = credit_allocations.map(alloc => ({
-          creditorId: alloc.creditor_id || alloc.creditorId,
-          amount: parseFloat(alloc.amount) || 0
-        }));
-      }
-      
       console.log('[DEBUG] Saving reading with values:', {
         nozzleId,
         stationId,
@@ -347,17 +251,12 @@ const {
         readingValue: currentValue,
         previousReading: prevValue,
         litresSold,
-        pricePerLitre,
+        pricePerLitre: calculatedPricePerLitre,
         totalAmount: effectiveTotalAmount,
-        cashAmount: finalCashAmount,
-        onlineAmount: finalOnlineAmount,
-        creditAmount: finalCreditAmount,
-        creditorId: creditorId || null,
         isInitialReading,
-        notes,
-        shiftId: activeShift?.id || null,
-        paymentBreakdown
+        notes
       });
+      
       reading = await NozzleReading.create({
         nozzleId,
         stationId,
@@ -367,100 +266,36 @@ const {
         readingDate,
         readingValue: currentValue,
         previousReading: prevValue,
-        litresSold,
-        pricePerLitre,
+        litresSold: calculatedLitresSold,
+        pricePerLitre: calculatedPricePerLitre,
         totalAmount: effectiveTotalAmount,
-        cashAmount: finalCashAmount,
-        onlineAmount: finalOnlineAmount,
-        creditAmount: finalCreditAmount,
-        creditorId: creditorId || null,
-        paymentBreakdown,
         isInitialReading,
         notes,
-        shiftId: activeShift?.id || null
+        shiftId: activeShift?.id || null,
+        // Payment fields kept for backward compatibility but NOT used in new workflow
+        // Payment breakdown is now stored in DailyTransaction model
+        cashAmount: 0,
+        onlineAmount: 0,
+        creditAmount: 0,
+        creditorId: null,
+        paymentBreakdown: {}
       }, { transaction: t });
-
-      // If a credit was recorded as part of this reading, create CreditTransactions
-      if (finalCreditAmount > 0) {
-        const { CreditTransaction, Creditor } = require('../models');
-
-        // Handle credit_allocations array (new format) or legacy single creditorId
-        if (credit_allocations && Array.isArray(credit_allocations) && credit_allocations.length > 0) {
-          // Process multiple credit allocations
-          for (const allocation of credit_allocations) {
-            const creditorId = allocation.creditor_id || allocation.creditorId;
-            const amount = parseFloat(allocation.amount) || 0;
-            
-            if (creditorId && amount > 0) {
-              await CreditTransaction.create({
-                stationId,
-                creditorId,
-                transactionType: 'credit',
-                fuelType: nozzle.fuelType,
-                litres: litresSold * (amount / finalCreditAmount), // Pro-rate litres based on allocation
-                pricePerLitre,
-                amount,
-                transactionDate: readingDate,
-                vehicleNumber: null,
-                referenceNumber: null,
-                notes: `Credit allocation from reading ${reading.id}`,
-                nozzleReadingId: reading.id,
-                enteredBy: userId
-              }, { transaction: t });
-
-              const findOptions = { transaction: t };
-              if (sequelize.getDialect() !== 'sqlite') findOptions.lock = t.LOCK.UPDATE;
-              const creditor = await Creditor.findByPk(creditorId, findOptions);
-              if (!creditor) throw new Error(`Creditor ${creditorId} not found`);
-              await creditor.update({ currentBalance: parseFloat(creditor.currentBalance || 0) + amount }, { transaction: t });
-            }
-          }
-        } else if (creditorId) {
-          // Legacy support for single creditorId
-          await CreditTransaction.create({
-            stationId,
-            creditorId,
-            transactionType: 'credit',
-            fuelType: nozzle.fuelType,
-            litres: litresSold,
-            pricePerLitre,
-            amount: finalCreditAmount,
-            transactionDate: readingDate,
-            vehicleNumber: null,
-            referenceNumber: null,
-            notes: `Credit from reading ${reading.id}`,
-            nozzleReadingId: reading.id,
-            enteredBy: userId
-          }, { transaction: t });
-
-          const findOptions = { transaction: t };
-          if (sequelize.getDialect() !== 'sqlite') findOptions.lock = t.LOCK.UPDATE;
-          const creditor = await Creditor.findByPk(creditorId, findOptions);
-          if (!creditor) throw new Error('Creditor not found');
-          await creditor.update({ currentBalance: parseFloat(creditor.currentBalance || 0) + parseFloat(finalCreditAmount) }, { transaction: t });
-        } else {
-          console.warn(`[WARN] Reading recorded with creditAmount=${finalCreditAmount} but no creditor information provided. CreditTransaction not created.`);
-        }
-      }
 
       // Update nozzle's lastReading cache
       try {
-        await nozzle.updateLastReading(currentValue, readingDate, { transaction: t });
+        await nozzle.updateLastReading(currentValue, finalReadingDate, { transaction: t });
       } catch (e) {
         // Fallback if model method doesn't accept transaction
-        try { await nozzle.updateLastReading(currentValue, readingDate); } catch (_) {}
+        try { await nozzle.updateLastReading(currentValue, finalReadingDate); } catch (_) {}
       }
 
       await t.commit();
 
-      // Best-effort fallback: some environments may have model->DB mapping issues
-      // (columns missing or save failing silently). Attempt a raw query to update
-      // the nozzle cache fields so UI that reads `nozzles.last_reading` sees the
-      // new value immediately. Failure here is non-fatal and only logged.
+      // Best-effort fallback: update nozzle cache via raw query
       try {
         await sequelize.query(
           'UPDATE nozzles SET last_reading = :val, last_reading_date = :date WHERE id = :id',
-          { replacements: { val: currentValue, date: readingDate, id: nozzle.id } }
+          { replacements: { val: currentValue, date: finalReadingDate, id: nozzle.id } }
         );
       } catch (rawErr) {
         console.warn(`[WARN] Raw nozzle cache update failed for nozzle ${nozzle.id}:`, rawErr?.message || rawErr);

@@ -1,6 +1,7 @@
 /**
- * Quick Data Entry for Employees
- * Simplified version - automatically uses employee's assigned station
+ * Quick Data Entry for Employees - Redesigned (Two-Step: Readings → Transactions)
+ * Step 1: Submit nozzle readings (what was sold)
+ * Step 2: Submit transaction (how it was paid)
  */
 
 import { useState, useMemo, useEffect } from 'react';
@@ -19,27 +20,20 @@ import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { ReadingSaleCalculation } from '@/components/owner/ReadingSaleCalculation';
-import { SaleValueSummary } from '@/components/owner/SaleValueSummary';
-import { EquipmentStatusEnum, PaymentMethodEnum } from '@/core/enums';
+import { TransactionPaymentSummary } from '@/components/owner/TransactionPaymentSummary';
+import { EquipmentStatusEnum } from '@/core/enums';
 import {
   Zap,
   Building2,
   Fuel,
-  Check
+  Check,
+  AlertCircle
 } from 'lucide-react';
 
 interface ReadingEntry {
   nozzleId: string;
   readingValue: string;
   date: string;
-  paymentType: string;
-}
-
-interface PaymentAllocation {
-  cash: number;
-  online: number;
-  credit: number;
-  creditorId?: string;
 }
 
 interface Creditor {
@@ -50,27 +44,29 @@ interface Creditor {
   creditLimit: number;
 }
 
+interface CreditAllocation {
+  creditorId: string;
+  amount: number;
+}
+
 export default function EmployeeQuickEntry() {
   const { user } = useAuth();
   const { stations: userStations } = useRoleAccess();
   const [readings, setReadings] = useState<Record<string, ReadingEntry>>({});
   const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
-  const [paymentAllocation, setPaymentAllocation] = useState<PaymentAllocation>({
-    cash: 0,
-    online: 0,
-    credit: 0
-  });
+  const [step, setStep] = useState<'readings' | 'transaction'>('readings');
+  const [submittedReadingIds, setSubmittedReadingIds] = useState<string[]>([]);
+  const [paymentBreakdown, setPaymentBreakdown] = useState({ cash: 0, online: 0, credit: 0 });
+  const [creditAllocations, setCreditAllocations] = useState<CreditAllocation[]>([]);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
   // Employees are assigned to ONE station - auto-select it
   const selectedStation = useMemo(() => {
-    // Employee's stationId from their user profile
     if (user?.stationId) {
       return user.stationId;
     }
-    // Fallback to first accessible station
     return userStations?.[0]?.id || '';
   }, [user?.stationId, userStations]);
 
@@ -111,7 +107,7 @@ export default function EmployeeQuickEntry() {
     enabled: !!selectedStation
   });
 
-  // Calculate sale value summary
+  // Calculate sale value summary from readings
   const saleSummary = useMemo(() => {
     let totalLiters = 0;
     let totalSaleValue = 0;
@@ -158,34 +154,27 @@ export default function EmployeeQuickEntry() {
     };
   }, [readings, pumps, fuelPrices]);
 
-  // Auto-adjust cash allocation when sale value changes
+  // Auto-adjust cash when sale value changes
   useEffect(() => {
-    if (saleSummary.totalSaleValue > 0) {
-      const allocated = paymentAllocation.online + paymentAllocation.credit;
+    if (saleSummary.totalSaleValue > 0 && step === 'transaction') {
+      const allocated = paymentBreakdown.online + paymentBreakdown.credit;
       const newCash = Math.max(0, saleSummary.totalSaleValue - allocated);
-      if (newCash !== paymentAllocation.cash) {
-        setPaymentAllocation(prev => ({
+      if (Math.abs(newCash - paymentBreakdown.cash) > 0.01) {
+        setPaymentBreakdown(prev => ({
           ...prev,
           cash: newCash
         }));
       }
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saleSummary.totalSaleValue, paymentAllocation.online, paymentAllocation.credit]);
+  }, [saleSummary.totalSaleValue, paymentBreakdown.online, paymentBreakdown.credit, step]);
 
-  // Submit readings mutation
+  // STEP 1: Submit readings mutation
   const submitReadingsMutation = useMutation({
     mutationFn: async (data: ReadingEntry[]) => {
-      // Validate payment allocation matches sale value
-      const totalPayment = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credit;
-      if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
-        throw new Error(
-          `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
-        );
-      }
+      const promises: Promise<any>[] = [];
 
-      // Build per-entry sale values for proportional payment distribution
-      const entriesWithSale = data.map(entry => {
+      data.forEach(entry => {
+        // Get nozzle for price calculation
         const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
         const enteredValue = parseFloat(entry.readingValue || '0');
         const lastReading = nozzle?.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
@@ -195,69 +184,22 @@ export default function EmployeeQuickEntry() {
           : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
 
         const litres = Math.max(0, enteredValue - (compareValue || 0));
-        const priceData = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
+        const priceData = Array.isArray(fuelPrices) 
+          ? fuelPrices.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase())
+          : undefined;
         const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
-        const saleValue = litres * price;
-        return { entry, saleValue };
-      });
+        const totalAmount = litres * price;
 
-      const totalSale = entriesWithSale.reduce((s, e) => s + e.saleValue, 0);
-      const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
-
-      const cashRatio = totalSale > 0 ? (paymentAllocation.cash / totalSale) : 0;
-      const onlineRatio = totalSale > 0 ? (paymentAllocation.online / totalSale) : 0;
-      const creditRatio = totalSale > 0 ? (paymentAllocation.credit / totalSale) : 0;
-
-      const promises: Promise<any>[] = [];
-      let allocatedCash = 0, allocatedOnline = 0, allocatedCredit = 0;
-
-      entriesWithSale.forEach((item, idx) => {
-        const isLast = idx === entriesWithSale.length - 1;
-        let cashAmt = round2(item.saleValue * cashRatio);
-        let onlineAmt = round2(item.saleValue * onlineRatio);
-        let creditAmt = round2(item.saleValue * creditRatio);
-
-        if (isLast) {
-          cashAmt = round2(paymentAllocation.cash - allocatedCash);
-          onlineAmt = round2(paymentAllocation.online - allocatedOnline);
-          creditAmt = round2(paymentAllocation.credit - allocatedCredit);
-        }
-
-        allocatedCash = round2(allocatedCash + cashAmt);
-        allocatedOnline = round2(allocatedOnline + onlineAmt);
-        allocatedCredit = round2(allocatedCredit + creditAmt);
-
-        // Get nozzle details for the reading
-        const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === item.entry.nozzleId);
-        const enteredValue = parseFloat(item.entry.readingValue || '0');
-        const lastReading = nozzle?.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-        const initialReading = nozzle?.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-        const compareValue = lastReading !== null && !isNaN(lastReading)
-          ? lastReading
-          : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
-
-        const litres = Math.max(0, enteredValue - (compareValue || 0));
-        const priceData = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
-        const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
-
-        const readingData: any = {
+        const readingData = {
           stationId: selectedStation,
-          nozzleId: item.entry.nozzleId,
-          readingValue: parseFloat(item.entry.readingValue),
-          readingDate: item.entry.date,
+          nozzleId: entry.nozzleId,
+          readingValue: parseFloat(entry.readingValue),
+          readingDate: entry.date,
           pricePerLitre: price,
-          totalAmount: item.saleValue,
+          totalAmount: totalAmount,
           litresSold: litres,
-          cashAmount: cashAmt,
-          onlineAmount: onlineAmt,
-          creditAmount: creditAmt,
           notes: `Reading entered by ${user?.name || 'Employee'}`
         };
-
-        // Only include creditorId if there's credit amount and a valid creditor
-        if (creditAmt > 0 && paymentAllocation.creditorId && paymentAllocation.creditorId.trim()) {
-          readingData.creditorId = paymentAllocation.creditorId;
-        }
 
         if (!readingData.stationId) {
           throw new Error('Station ID is required');
@@ -269,30 +211,82 @@ export default function EmployeeQuickEntry() {
         promises.push(apiClient.post('/readings', readingData));
       });
 
-      const readingsResult = await Promise.all(promises);
-      return readingsResult;
+      const results = await Promise.all(promises);
+      // Extract reading IDs from responses
+      const ids = results.map(r => r.data?.id).filter(Boolean);
+      return ids;
     },
-    onSuccess: () => {
+    onSuccess: (readingIds) => {
       toast({
-        title: 'Success ✓',
-        description: `${Object.keys(readings).length} reading(s) saved. Sale value: ₹${safeToFixed(saleSummary.totalSaleValue, 2)}`,
+        title: 'Readings Saved ✓',
+        description: `${Object.keys(readings).length} reading(s) submitted successfully`,
         variant: 'success'
       });
-      // Clear the form
-      setReadings({});
-      setPaymentAllocation({ cash: 0, online: 0, credit: 0 });
-      // Invalidate and refetch data
-      queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
-      queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
-      queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
-      queryClient.invalidateQueries({ queryKey: ['readings'] });
+      setSubmittedReadingIds(readingIds);
+      setStep('transaction');
     },
     onError: (error: unknown) => {
       let message = 'Failed to save readings';
       if (error instanceof Error) {
         message = error.message;
-      } else if (typeof error === 'object' && error && 'message' in error) {
-        message = String((error as { message?: string }).message);
+      }
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive'
+      });
+    }
+  });
+
+  // STEP 2: Submit transaction mutation
+  const submitTransactionMutation = useMutation({
+    mutationFn: async () => {
+      const totalPayment = paymentBreakdown.cash + paymentBreakdown.online + paymentBreakdown.credit;
+      if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
+        throw new Error(
+          `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
+        );
+      }
+
+      if (paymentBreakdown.credit > 0 && creditAllocations.length === 0) {
+        throw new Error('Please allocate credit to at least one creditor');
+      }
+
+      const transactionData = {
+        stationId: selectedStation,
+        transactionDate: readingDate,
+        readingIds: submittedReadingIds,
+        paymentBreakdown: paymentBreakdown,
+        creditAllocations: creditAllocations.filter(c => c.amount > 0),
+        notes: `Transaction created by ${user?.name || 'Employee'}`
+      };
+
+      return apiClient.post('/transactions', transactionData);
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Transaction Created ✓',
+        description: `Payment breakdown (₹${safeToFixed(saleSummary.totalSaleValue, 2)}) recorded successfully`,
+        variant: 'success'
+      });
+      // Reset everything
+      setReadings({});
+      setPaymentBreakdown({ cash: 0, online: 0, credit: 0 });
+      setCreditAllocations([]);
+      setSubmittedReadingIds([]);
+      setStep('readings');
+      setReadingDate(new Date().toISOString().split('T')[0]);
+      // Refetch data
+      queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
+      queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
+      queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
+      queryClient.invalidateQueries({ queryKey: ['readings'] });
+      queryClient.invalidateQueries({ queryKey: ['transactions', selectedStation] });
+    },
+    onError: (error: unknown) => {
+      let message = 'Failed to create transaction';
+      if (error instanceof Error) {
+        message = error.message;
       }
       toast({
         title: 'Error',
@@ -308,8 +302,7 @@ export default function EmployeeQuickEntry() {
       [nozzleId]: {
         nozzleId,
         readingValue: value,
-        date: readingDate,
-        paymentType: PaymentMethodEnum.CASH
+        date: readingDate
       }
     }));
   };
@@ -347,7 +340,7 @@ export default function EmployeeQuickEntry() {
     return missing;
   };
 
-  const handleSubmit = () => {
+  const handleSubmitReadings = () => {
     const entries = Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0);
     if (entries.length === 0) {
       toast({
@@ -358,38 +351,14 @@ export default function EmployeeQuickEntry() {
       return;
     }
 
-    // Validate payment allocation
-    const allocated = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credit;
-    if (Math.abs(allocated - saleSummary.totalSaleValue) > 0.01) {
-      toast({
-        title: 'Payment Not Allocated',
-        description: `Total payment (₹${safeToFixed(allocated, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`,
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    // Validate credit requires creditor
-    if (paymentAllocation.credit > 0 && !paymentAllocation.creditorId) {
-      toast({
-        title: 'Creditor Required',
-        description: 'Please select a creditor to record credit sales',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    // Validate fuel prices
-    const nozzlesWithReadings = pumps
-      ?.flatMap(p => p.nozzles || [])
-      .filter(n => entries.some(e => e.nozzleId === n.id)) || [];
-
-    const missingPrices = nozzlesWithReadings.filter(n => !hasPriceForFuelType(n.fuelType));
+    const missingPrices = entries.filter(e => !hasPriceForFuelType(
+      pumps?.flatMap(p => p.nozzles || []).find(n => n.id === e.nozzleId)?.fuelType || ''
+    ));
+    
     if (missingPrices.length > 0) {
-      const missingFuelTypes = [...new Set(missingPrices.map(n => n.fuelType))].join(', ');
       toast({
         title: 'Missing Fuel Prices',
-        description: `Prices not set for: ${missingFuelTypes}. Contact your manager.`,
+        description: 'Some nozzles don\'t have fuel prices set. Contact your manager.',
         variant: 'destructive'
       });
       return;
@@ -424,262 +393,291 @@ export default function EmployeeQuickEntry() {
 
   return (
     <div className="container mx-auto p-3 sm:p-6 space-y-4 sm:space-y-6 max-w-7xl">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
-            Quick Entry
-          </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
-            Enter nozzle readings for <span className="font-medium">{stationName}</span>
-          </p>
+      {/* Header with Step Indicator */}
+      <div>
+        <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2 mb-1">
+          <Zap className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-500" />
+          Quick Entry
+        </h1>
+        <p className="text-sm sm:text-base text-muted-foreground mb-3">
+          Enter nozzle readings for <span className="font-medium">{stationName}</span>
+        </p>
+        {/* Step indicator */}
+        <div className="flex gap-2 items-center text-xs">
+          <Badge variant={step === 'readings' ? 'default' : 'outline'}>Step 1: Readings</Badge>
+          <span className="text-muted-foreground">→</span>
+          <Badge variant={step === 'transaction' ? 'default' : 'outline'}>Step 2: Payment</Badge>
         </div>
-        {pendingCount > 0 && (
-          <Badge className="text-sm px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600">
-            {pendingCount} / {totalNozzles}
-          </Badge>
-        )}
       </div>
 
       <PricesRequiredAlert stationId={selectedStation} showIfMissing={true} compact={true} />
 
-      {/* Date Selection */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <div>
-              <Label className="text-xs sm:text-sm text-muted-foreground">Station</Label>
-              <div className="mt-1.5 flex items-center gap-2 p-2 bg-gray-50 rounded-md border">
-                <Building2 className="w-4 h-4 text-muted-foreground" />
-                <span className="text-sm font-medium">{stationName}</span>
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="date" className="text-xs sm:text-sm">Date</Label>
-              <Input
-                id="date"
-                type="date"
-                value={readingDate}
-                onChange={(e) => setReadingDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
-                className="mt-1.5"
-              />
-            </div>
-            <div className="flex items-end">
-              <div className="w-full text-xs text-muted-foreground bg-gray-50 p-2.5 rounded-md border">
-                <span className="font-semibold text-gray-700">{totalNozzles} nozzles</span>
-              </div>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Readings Entry */}
-      {pumpsLoading || pricesLoading ? (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center text-sm text-muted-foreground">
-              {pumpsLoading ? 'Loading pumps...' : 'Loading fuel prices...'}
-            </div>
-          </CardContent>
-        </Card>
-      ) : pumps && pumps.length > 0 ? (
+      {/* STEP 1: READINGS ENTRY */}
+      {step === 'readings' && (
         <>
-          {/* Show warning if missing fuel prices */}
-          {getMissingFuelTypes().length > 0 && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-xs font-semibold text-amber-900">
-                ⚠ Missing prices for: <span className="text-amber-700 font-bold">{getMissingFuelTypes().join(', ')}</span>
-                <span className="font-normal ml-1">- Contact your manager to set prices</span>
-              </p>
-            </div>
-          )}
+          {/* Date Selection */}
+          <Card>
+            <CardContent className="p-4">
+              <div className="grid gap-3 sm:grid-cols-3">
+                <div>
+                  <Label className="text-xs sm:text-sm text-muted-foreground">Station</Label>
+                  <div className="mt-1.5 flex items-center gap-2 p-2 bg-gray-50 rounded-md border">
+                    <Building2 className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm font-medium">{stationName}</span>
+                  </div>
+                </div>
+                <div>
+                  <Label htmlFor="date" className="text-xs sm:text-sm">Date</Label>
+                  <Input
+                    id="date"
+                    type="date"
+                    value={readingDate}
+                    onChange={(e) => setReadingDate(e.target.value)}
+                    max={new Date().toISOString().split('T')[0]}
+                    className="mt-1.5"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <div className="w-full text-xs text-muted-foreground bg-gray-50 p-2.5 rounded-md border">
+                    <span className="font-semibold text-gray-700">{totalNozzles} nozzles</span>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
-          {/* Two Column Layout: Pumps + Summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            {/* Left: Pump Nozzles (2 cols) */}
-            <div className="lg:col-span-2 space-y-3">
-              {pumps.map((pump) => (
-                <Card key={pump.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Fuel className="w-4 h-4 text-primary" />
-                        </div>
-                        <div>
-                          <h3 className="font-semibold text-sm">Pump {pump.pumpNumber}</h3>
-                          <p className="text-xs text-muted-foreground">{pump.name}</p>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className="text-xs">{pump.status}</Badge>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-3">
-                    {pump.nozzles && pump.nozzles.length > 0 ? (
-                      <div className="space-y-3">
-                        {pump.nozzles.map((nozzle) => {
-                          const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-                          const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-                          const compareValue = lastReading !== null && !isNaN(lastReading)
-                            ? lastReading
-                            : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
+          {/* Readings Entry */}
+          {pumpsLoading || pricesLoading ? (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center text-sm text-muted-foreground">
+                  {pumpsLoading ? 'Loading pumps...' : 'Loading fuel prices...'}
+                </div>
+              </CardContent>
+            </Card>
+          ) : pumps && pumps.length > 0 ? (
+            <>
+              {getMissingFuelTypes().length > 0 && (
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-xs font-semibold text-amber-900">
+                    ⚠ Missing prices for: <span className="text-amber-700 font-bold">{getMissingFuelTypes().join(', ')}</span>
+                  </p>
+                </div>
+              )}
 
-                          const reading = readings[nozzle.id];
-                          const enteredValue = reading?.readingValue ? parseFloat(reading.readingValue) : 0;
-                          const price = getPrice(nozzle.fuelType);
-                          const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
-
-                          return (
-                            <div key={nozzle.id} className="border rounded-lg p-2.5 bg-white">
-                              <div className="flex items-center justify-between mb-1.5">
-                                <Label className="text-xs font-semibold">
-                                  Nozzle {nozzle.nozzleNumber} - {nozzle.fuelType}
-                                  {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
-                                </Label>
-                                <span className="text-xs text-muted-foreground">
-                                  Last: {safeToFixed(compareValue, 1)}
-                                </span>
-                              </div>
-                              <div className="relative">
-                                <Input
-                                  type="number"
-                                  step="any"
-                                  placeholder="Enter current reading"
-                                  value={reading?.readingValue || ''}
-                                  onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
-                                  disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
-                                  className={`text-sm h-8 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
-                                />
-                                {reading?.readingValue && enteredValue > compareValue && (
-                                  <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
-                                    <Check className="w-4 h-4" />
-                                  </div>
-                                )}
-                              </div>
-                              {!hasFuelPrice && (
-                                <p className="text-xs text-red-600 mt-1">Price not set - contact manager</p>
-                              )}
-                              {/* Show calculation below input if reading is valid */}
-                              {reading?.readingValue && enteredValue > compareValue && hasFuelPrice && (
-                                <div className="mt-2 pt-2 border-t border-gray-200">
-                                  <ReadingSaleCalculation
-                                    nozzleNumber={nozzle.nozzleNumber}
-                                    fuelType={nozzle.fuelType}
-                                    lastReading={compareValue}
-                                    enteredReading={enteredValue}
-                                    fuelPrice={price}
-                                    status={nozzle.status as EquipmentStatusEnum}
-                                  />
-                                </div>
-                              )}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                {/* Pump/Nozzles List */}
+                <div className="lg:col-span-2 space-y-3">
+                  {pumps.map((pump) => (
+                    <Card key={pump.id} className="hover:shadow-md transition-shadow">
+                      <CardHeader className="pb-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                              <Fuel className="w-4 h-4 text-primary" />
                             </div>
-                          );
-                        })}
-                      </div>
-                    ) : (
-                      <p className="text-xs text-muted-foreground text-center py-3">
-                        No nozzles configured
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                            <div>
+                              <h3 className="font-semibold text-sm">Pump {pump.pumpNumber}</h3>
+                              <p className="text-xs text-muted-foreground">{pump.name}</p>
+                            </div>
+                          </div>
+                          <Badge variant="outline" className="text-xs">{pump.status}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-3">
+                        {pump.nozzles && pump.nozzles.length > 0 ? (
+                          <div className="space-y-3">
+                            {pump.nozzles.map((nozzle) => {
+                              const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
+                              const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+                              const compareValue = lastReading !== null && !isNaN(lastReading)
+                                ? lastReading
+                                : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
 
-            {/* Right: Payment Summary (1 col) */}
-            <div className="lg:col-span-1 space-y-3">
-              {pendingCount > 0 && saleSummary.totalSaleValue > 0 && (
-                <>
-                  {/* Quick Summary Card */}
-                  <Card className="border-2 border-green-200 bg-green-50">
-                    <CardContent className="p-3 md:p-4 space-y-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Total Sale Value</p>
-                        <p className="text-xl md:text-2xl font-bold text-green-600 break-all md:break-normal">
-                          ₹{saleSummary.totalSaleValue >= 100000 
-                            ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`
-                            : safeToFixed(saleSummary.totalSaleValue, 2)}
-                        </p>
-                      </div>
-                      <div className="flex gap-2 md:gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground truncate">Liters</p>
-                          <p className="text-base md:text-lg font-semibold truncate">
-                            {saleSummary.totalLiters >= 1000 
-                              ? `${safeToFixed(saleSummary.totalLiters / 1000, 1)}K`
-                              : safeToFixed(saleSummary.totalLiters, 1)}
+                              const reading = readings[nozzle.id];
+                              const enteredValue = reading?.readingValue ? parseFloat(reading.readingValue) : 0;
+                              const price = getPrice(nozzle.fuelType);
+                              const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
+
+                              return (
+                                <div key={nozzle.id} className="border rounded-lg p-2.5 bg-white">
+                                  <div className="flex items-center justify-between mb-1.5">
+                                    <Label className="text-xs font-semibold">
+                                      Nozzle {nozzle.nozzleNumber} - {nozzle.fuelType}
+                                      {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
+                                    </Label>
+                                    <span className="text-xs text-muted-foreground">
+                                      Last: {safeToFixed(compareValue, 1)}
+                                    </span>
+                                  </div>
+                                  <div className="relative">
+                                    <Input
+                                      type="number"
+                                      step="any"
+                                      placeholder="Enter current reading"
+                                      value={reading?.readingValue || ''}
+                                      onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
+                                      disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
+                                      className={`text-sm h-8 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
+                                    />
+                                    {reading?.readingValue && enteredValue > compareValue && (
+                                      <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
+                                        <Check className="w-4 h-4" />
+                                      </div>
+                                    )}
+                                  </div>
+                                  {!hasFuelPrice && (
+                                    <p className="text-xs text-red-600 mt-1">Price not set - contact manager</p>
+                                  )}
+                                  {reading?.readingValue && enteredValue > compareValue && hasFuelPrice && (
+                                    <div className="mt-2 pt-2 border-t border-gray-200">
+                                      <ReadingSaleCalculation
+                                        nozzleNumber={nozzle.nozzleNumber}
+                                        fuelType={nozzle.fuelType}
+                                        lastReading={compareValue}
+                                        enteredReading={enteredValue}
+                                        fuelPrice={price}
+                                        status={nozzle.status as EquipmentStatusEnum}
+                                      />
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground text-center py-3">
+                            No nozzles configured
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+
+                {/* Summary Card */}
+                <div className="lg:col-span-1">
+                  {pendingCount > 0 && saleSummary.totalSaleValue > 0 ? (
+                    <Card className="border-2 border-green-200 bg-green-50 sticky top-4">
+                      <CardContent className="p-3 md:p-4 space-y-4">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Total Sale Value</p>
+                          <p className="text-2xl font-bold text-green-600">
+                            ₹{saleSummary.totalSaleValue >= 100000 
+                              ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`
+                              : safeToFixed(saleSummary.totalSaleValue, 2)}
                           </p>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground truncate">Readings</p>
-                          <p className="text-base md:text-lg font-semibold truncate">{pendingCount}/{totalNozzles}</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <p className="text-xs text-muted-foreground">Liters</p>
+                            <p className="text-lg font-semibold">
+                              {saleSummary.totalLiters >= 1000 
+                                ? `${safeToFixed(saleSummary.totalLiters / 1000, 1)}K`
+                                : safeToFixed(saleSummary.totalLiters, 1)}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Readings</p>
+                            <p className="text-lg font-semibold">{pendingCount}/{totalNozzles}</p>
+                          </div>
                         </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  {/* Payment Summary */}
-                  <SaleValueSummary
-                    summary={saleSummary}
-                    paymentAllocation={paymentAllocation}
-                    onPaymentChange={setPaymentAllocation}
-                    creditors={creditors}
-                    isLoading={submitReadingsMutation.isPending}
-                  />
-
-                  {/* Submit Button */}
-                  <Button
-                    onClick={handleSubmit}
-                    disabled={
-                      submitReadingsMutation.isPending ||
-                      pendingCount === 0 ||
-                      Math.abs(
-                        (paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credit) -
-                        saleSummary.totalSaleValue
-                      ) > 0.01
-                    }
-                    size="lg"
-                    className="w-full"
-                  >
-                    {submitReadingsMutation.isPending ? (
-                      'Saving...'
-                    ) : (
-                      <>
-                        <Check className="w-4 h-4 mr-2" />
-                        Submit All ({pendingCount})
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
-
-              {pendingCount === 0 && (
-                <Card className="border-dashed">
-                  <CardContent className="p-4 text-center">
-                    <Fuel className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-xs text-muted-foreground">Enter readings to see summary</p>
-                  </CardContent>
-                </Card>
-              )}
-            </div>
-          </div>
-        </>
-      ) : (
-        <Card>
-          <CardContent className="py-12">
-            <div className="text-center space-y-4">
-              <Fuel className="w-16 h-16 mx-auto text-muted-foreground" />
-              <div>
-                <h3 className="text-lg font-semibold mb-2">No Pumps Found</h3>
-                <p className="text-sm text-muted-foreground">
-                  No pumps are configured for this station. Contact your manager.
-                </p>
+                        <Button
+                          onClick={handleSubmitReadings}
+                          disabled={submitReadingsMutation.isPending || pendingCount === 0}
+                          size="lg"
+                          className="w-full"
+                        >
+                          {submitReadingsMutation.isPending ? (
+                            'Saving...'
+                          ) : (
+                            <>
+                              <Check className="w-4 h-4 mr-2" />
+                              Submit Readings
+                            </>
+                          )}
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  ) : (
+                    <Card className="border-dashed">
+                      <CardContent className="p-4 text-center">
+                        <Fuel className="w-8 h-8 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-xs text-muted-foreground">Enter readings to continue</p>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="py-12">
+                <div className="text-center space-y-4">
+                  <Fuel className="w-16 h-16 mx-auto text-muted-foreground" />
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">No Pumps Found</h3>
+                    <p className="text-sm text-muted-foreground">
+                      No pumps are configured for this station. Contact your manager.
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+
+      {/* STEP 2: PAYMENT ALLOCATION */}
+      {step === 'transaction' && submittedReadingIds.length > 0 && (
+        <div className="space-y-4">
+          <Card className="border-blue-200 bg-blue-50">
+            <CardContent className="p-3 flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-blue-600 flex-shrink-0" />
+              <p className="text-xs font-semibold text-blue-900">
+                ✓ {submittedReadingIds.length} reading(s) recorded. Now allocate the payment breakdown.
+              </p>
+            </CardContent>
+          </Card>
+
+          <TransactionPaymentSummary
+            totalSaleValue={saleSummary.totalSaleValue}
+            paymentBreakdown={paymentBreakdown}
+            onPaymentChange={setPaymentBreakdown}
+            creditAllocations={creditAllocations}
+            onCreditAllocationsChange={setCreditAllocations}
+            creditors={creditors}
+            isLoading={submitTransactionMutation.isPending}
+          />
+
+          {/* Action Buttons */}
+          <div className="flex gap-2">
+            <Button
+              onClick={() => {
+                setStep('readings');
+                setSubmittedReadingIds([]);
+              }}
+              variant="outline"
+              disabled={submitTransactionMutation.isPending}
+              className="flex-1"
+            >
+              Back to Readings
+            </Button>
+            <Button
+              onClick={() => submitTransactionMutation.mutate()}
+              disabled={
+                submitTransactionMutation.isPending ||
+                Math.abs(
+                  (paymentBreakdown.cash + paymentBreakdown.online + paymentBreakdown.credit) -
+                  saleSummary.totalSaleValue
+                ) > 0.01
+              }
+              className="flex-1"
+            >
+              {submitTransactionMutation.isPending ? 'Creating...' : 'Confirm Payment'}
+            </Button>
+          </div>
+        </div>
       )}
     </div>
   );

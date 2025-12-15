@@ -20,6 +20,7 @@ const userRoutes = require('./routes/users');
 const { requireMinRole } = require('./middleware/auth');
 const stationRoutes = require('./routes/stations');
 const readingRoutes = require('./routes/readings');
+const transactionRoutes = require('./routes/transactions');
 const dashboardRoutes = require('./routes/dashboard');
 const creditRoutes = require('./routes/credits');
 const expenseRoutes = require('./routes/expenses');
@@ -189,6 +190,7 @@ app.use('/api/v1', creditRoutes);   // Credits under /api/v1/stations/:id/credit
 app.use('/api/v1', expenseRoutes);  // Expenses under /api/v1/stations/:id/expenses - BEFORE stations
 app.use('/api/v1/stations', stationRoutes);
 app.use('/api/v1/readings', readingRoutes);
+app.use('/api/v1/transactions', transactionRoutes);  // Daily transaction management
 app.use('/api/v1/sales', salesRoutes); // Sales data from readings
 app.use('/api/v1/reports', reportRoutes); // Comprehensive reports
 app.use('/api/v1/dashboard', dashboardRoutes);
