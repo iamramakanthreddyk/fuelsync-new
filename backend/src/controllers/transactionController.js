@@ -4,7 +4,7 @@
  * Transactions record the payment breakdown for a day at station level
  */
 
-const { DailyTransaction, NozzleReading, Station, User, Creditor, sequelize } = require('../models');
+const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 /**
@@ -135,40 +135,94 @@ exports.createTransaction = async (req, res, next) => {
     // Multiple transactions per day are now allowed (for multiple employees/shifts)
     // Settlement will aggregate all transactions for the day
 
-    // Create transaction
-    const transaction = await DailyTransaction.create({
-      stationId,
-      transactionDate,
-      totalLiters,
-      totalSaleValue,
-      paymentBreakdown: {
-        cash: parseFloat(paymentBreakdown.cash || 0),
-        online: parseFloat(paymentBreakdown.online || 0),
-        credit: parseFloat(paymentBreakdown.credit || 0)
-      },
-      creditAllocations: creditAllocations.map(c => ({
-        creditorId: c.creditorId,
-        amount: parseFloat(c.amount)
-      })),
-      readingIds,
-      createdBy: userId,
-      notes,
-      status: 'submitted'
-    });
+    // Persist transaction and any credit allocations atomically
+    const t = await sequelize.transaction();
+    try {
+      const dailyTxn = await DailyTransaction.create({
+        stationId,
+        transactionDate,
+        totalLiters,
+        totalSaleValue,
+        paymentBreakdown: {
+          cash: parseFloat(paymentBreakdown.cash || 0),
+          online: parseFloat(paymentBreakdown.online || 0),
+          credit: parseFloat(paymentBreakdown.credit || 0)
+        },
+        creditAllocations: creditAllocations.map(c => ({
+          creditorId: c.creditorId,
+          amount: parseFloat(c.amount)
+        })),
+        readingIds,
+        createdBy: userId,
+        notes,
+        status: 'submitted'
+      }, { transaction: t });
 
-    // Return with user details
-    const result = await DailyTransaction.findByPk(transaction.id, {
-      include: [
-        { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
-        { model: Station, as: 'station', attributes: ['id', 'name'] }
-      ]
-    });
+      // If there are credit allocations, create CreditTransaction rows and update creditor balances
+      const createdCreditTxns = [];
+      if (Array.isArray(creditAllocations) && creditAllocations.length > 0) {
+        for (const alloc of creditAllocations) {
+          const creditorId = alloc.creditorId;
+          const allocAmount = parseFloat(alloc.amount || 0);
+          if (!creditorId || !allocAmount || allocAmount <= 0) continue;
 
-    return res.status(201).json({
-      success: true,
-      message: `Transaction created for ${readings.length} readings`,
-      data: result
-    });
+          // Lock creditor row for update (non-sqlite)
+          const findOptions = { transaction: t };
+          if (sequelize.getDialect() !== 'sqlite') findOptions.lock = t.LOCK.UPDATE;
+
+          const creditor = await Creditor.findByPk(creditorId, findOptions);
+          if (!creditor || String(creditor.stationId) !== String(stationId)) {
+            await t.rollback();
+            return res.status(404).json({ success: false, error: 'Creditor not found for allocation' });
+          }
+
+          // Check credit limit
+          if (!creditor.canTakeCredit(allocAmount)) {
+            await t.rollback();
+            return res.status(400).json({ success: false, error: { message: `Credit limit exceeded for ${creditor.name}` } });
+          }
+
+          const creditTxn = await CreditTransaction.create({
+            stationId,
+            creditorId,
+            transactionType: 'credit',
+            amount: allocAmount,
+            transactionDate: transactionDate || new Date().toISOString().split('T')[0],
+            notes: notes || null,
+            nozzleReadingId: readingIds && readingIds.length > 0 ? readingIds[0] : null,
+            enteredBy: userId
+          }, { transaction: t });
+
+          // Update creditor balance
+          await creditor.update({
+            currentBalance: parseFloat(creditor.currentBalance) + allocAmount,
+            lastTransactionDate: new Date()
+          }, { transaction: t });
+
+          createdCreditTxns.push(creditTxn);
+        }
+      }
+
+      await t.commit();
+
+      const result = await DailyTransaction.findByPk(dailyTxn.id, {
+        include: [
+          { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
+          { model: Station, as: 'station', attributes: ['id', 'name'] }
+        ]
+      });
+
+      return res.status(201).json({
+        success: true,
+        message: `Transaction created for ${readings.length} readings`,
+        data: result,
+        creditTransactions: createdCreditTxns
+      });
+    } catch (err) {
+      await t.rollback();
+      console.error('[ERROR] createTransaction (commit):', err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
   } catch (error) {
     console.error('[ERROR] createTransaction:', error);
     return res.status(500).json({
