@@ -57,12 +57,12 @@ let corsOrigins = true; // Default to allow all in development
 
 if (!isDevelopment) {
   // In production, only allow specific origins
-  const envOrigins = (process.env.CORS_ORIGINS || 'https://fuelsync-new.vercel.app,https://fuelsync-new.vercel.app/')
+  const envOrigins = (process.env.CORS_ORIGINS || 'https://fuelsync-new.vercel.app,https://fuelsync-new.vercel.app/,https://www.kisaancenter.com')
     .split(',')
     .map(origin => origin.trim())
     .filter(origin => origin.length > 0);
   
-  corsOrigins = envOrigins.length > 0 ? envOrigins : ['https://fuelsync-new.vercel.app', 'https://fuelsync-new.vercel.app/'];
+  corsOrigins = envOrigins.length > 0 ? envOrigins : ['https://fuelsync-new.vercel.app', 'https://fuelsync-new.vercel.app/', 'https://www.kisaancenter.com'];
 }
 
 console.log('🔓 CORS Enabled for:', isDevelopment ? 'ALL (development)' : corsOrigins);
