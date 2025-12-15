@@ -120,6 +120,7 @@ const FuelPrice = require('./FuelPrice')(sequelize);
 const NozzleReading = require('./NozzleReading')(sequelize);
 const Creditor = require('./Creditor')(sequelize);
 const CreditTransaction = require('./CreditTransaction')(sequelize);
+const CreditSettlementLink = require('./CreditSettlementLink')(sequelize);
 const Expense = require('./Expense')(sequelize);
 const CostOfGoods = require('./CostOfGoods')(sequelize);
 // New models for enhanced functionality
@@ -141,6 +142,7 @@ const models = {
   NozzleReading,
   Creditor,
   CreditTransaction,
+  CreditSettlementLink,
   Expense,
   CostOfGoods,
   Tank,

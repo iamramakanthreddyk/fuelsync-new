@@ -103,14 +103,6 @@ module.exports = (sequelize) => {
     notes: {
       type: DataTypes.TEXT
     },
-
-    // Invoice/document reference (optional)
-    invoiceNumber: {
-      type: DataTypes.STRING(50),
-      allowNull: true,
-      field: 'invoice_number',
-      comment: 'Invoice or document number for legal/tax tracking'
-    },
     
     // Who entered
     enteredBy: {

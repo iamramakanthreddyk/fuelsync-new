@@ -11,7 +11,8 @@ export interface User {
   createdAt: string;
   updatedAt?: string;
   lastLoginAt?: string;
-  // For managers/employees - which station they work at
+  invoiceNumber?: string;
+  allocations?: Array<{ creditTransactionId: string; amount: number }>;
   stationId?: string;
   station?: Station;
   // For owners - their subscription plan

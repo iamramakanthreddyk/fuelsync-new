@@ -444,8 +444,8 @@ export function useSettleCredit() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ creditorId, data }: { creditorId: string; data: { amount: number; referenceNumber?: string; notes?: string } }) => 
-      apiClient.post<ApiResponse<CreditTransaction>>(`/credits/creditors/${creditorId}/settlements`, data),
+    mutationFn: ({ creditorId, data }: { creditorId: string; data: { amount?: number; referenceNumber?: string; notes?: string; invoiceNumber?: string; allocations?: Array<{ creditTransactionId: string; amount: number }> } }) => 
+      apiClient.post<ApiResponse<CreditTransaction>>(`/credits/creditors/${creditorId}/settle`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditors'] });
     },

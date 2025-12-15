@@ -46,6 +46,7 @@ import {
   IndianRupee,
   CreditCard
 } from 'lucide-react';
+import SettleCreditorDialog from '@/components/SettleCreditorDialog';
 
 // Import enums and types
 import {
@@ -994,6 +995,12 @@ export default function StationDetail() {
                           {toFixedNumber((creditor.currentBalance / creditor.creditLimit) * 100, 1)}%
                         </p>
                       </div>
+                    </div>
+                    <div className="mt-4 flex justify-end">
+                      <SettleCreditorDialog stationId={id!} creditorId={creditor.id} creditorName={creditor.name} onSuccess={() => {
+                        queryClient.invalidateQueries({ queryKey: ['station-creditors', id] });
+                        queryClient.invalidateQueries({ queryKey: ['creditors-ledger'] });
+                      }} />
                     </div>
                   </CardContent>
                 </Card>
