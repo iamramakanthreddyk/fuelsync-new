@@ -230,8 +230,10 @@ exports.getShiftReports = async (req, res, next) => {
  * GET /api/v1/reports/pumps
  */
 exports.getPumpPerformance = async (req, res, next) => {
+  // Move these declarations outside try so they are available in catch
+  let startDate, endDate, stationId, stationFilter;
   try {
-    const { startDate, endDate, stationId } = req.query;
+    ({ startDate, endDate, stationId } = req.query);
     const user = await User.findByPk(req.userId);
     
     console.log('Pump performance request:', {
@@ -249,7 +251,7 @@ exports.getPumpPerformance = async (req, res, next) => {
       });
     }
 
-    const stationFilter = await getStationFilter(user, stationId);
+    stationFilter = await getStationFilter(user, stationId);
     console.log('Station filter:', stationFilter);
     
     if (stationFilter === null) {
