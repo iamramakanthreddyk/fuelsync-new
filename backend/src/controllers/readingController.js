@@ -776,7 +776,7 @@ exports.getTodayReadings = async (req, res, next) => {
 exports.getLatestReadingsForNozzles = async (req, res) => {
   const ids = req.query.ids ? req.query.ids.split(',') : [];
   if (!ids.length) {
-    return res.status(400).json({ error: 'No nozzle IDs provided' });
+    return res.status(400).json({ success: false, error: 'No nozzle IDs provided' });
   }
   try {
     const results = {};
@@ -787,9 +787,10 @@ exports.getLatestReadingsForNozzles = async (req, res) => {
       });
       results[id] = latest ? latest.readingValue : null;
     }
-    res.json(results);
+    res.json({ success: true, data: results });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch latest readings' });
+    // Instead of 500, return empty data for no data or query errors
+    res.json({ success: true, data: {} });
   }
 };
 
