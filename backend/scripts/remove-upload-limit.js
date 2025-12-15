@@ -1,11 +1,11 @@
 const { Sequelize } = require('sequelize');
 const db = new Sequelize({
   dialect: 'postgres',
-  host: process.env.DB_HOST,
-  port: process.env.DB_PORT,
-  database: process.env.DB_NAME,
-  username: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+  host: 'metro.proxy.rlwy.net',
+  port: 31559,
+  database: 'railway',
+  username: 'postgres',
+  password: 'VvvDloJsXoBsjTlFLZfpCRGGeXsmnwnS',
   logging: false
 });
 
@@ -15,7 +15,7 @@ const db = new Sequelize({
     console.log('✓ Removed upload_limit column from plans table');
     process.exit(0);
   } catch (e) {
-    console.error('Error:', e.message);
+    console.error('Error:', e);
     process.exit(1);
   }
 })();

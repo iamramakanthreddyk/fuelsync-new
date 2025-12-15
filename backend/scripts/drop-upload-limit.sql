@@ -1,0 +1,2 @@
+ALTER TABLE plans ALTER COLUMN upload_limit DROP NOT NULL;
+ALTER TABLE plans DROP COLUMN IF EXISTS upload_limit;
