@@ -32,7 +32,7 @@ CREATE TYPE plan_name AS ENUM ('Free', 'Basic', 'Premium');
 CREATE TABLE plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name plan_name NOT NULL UNIQUE,
-    upload_limit INTEGER NOT NULL DEFAULT 4,
+    -- upload_limit removed
     max_employees INTEGER NOT NULL DEFAULT 2,
     max_pumps INTEGER NOT NULL DEFAULT 2,
     max_stations INTEGER NOT NULL DEFAULT 1,

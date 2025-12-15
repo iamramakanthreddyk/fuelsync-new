@@ -5,7 +5,7 @@ DROP TABLE IF EXISTS plans CASCADE;
 CREATE TABLE plans (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(20) NOT NULL UNIQUE CHECK (name IN ('Free', 'Basic', 'Premium')),
-    upload_limit INTEGER NOT NULL,
+    -- upload_limit removed
     features JSONB NOT NULL DEFAULT '{}',
     price DECIMAL(8,2) NOT NULL DEFAULT 0,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,

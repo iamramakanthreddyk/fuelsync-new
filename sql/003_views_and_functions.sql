@@ -44,7 +44,7 @@ SELECT
     u.email,
     u.role,
     p.name as plan_name,
-    p.upload_limit,
+    -- p.upload_limit removed
     COUNT(up.id) as total_uploads,
     COUNT(CASE WHEN up.status = 'success' THEN 1 END) as successful_uploads,
     COUNT(CASE WHEN up.status = 'failed' THEN 1 END) as failed_uploads,
@@ -53,7 +53,7 @@ SELECT
 FROM users u
 LEFT JOIN plans p ON u.plan_id = p.id
 LEFT JOIN uploads up ON u.id = up.user_id
-GROUP BY u.id, u.name, u.email, u.role, p.name, p.upload_limit
+GROUP BY u.id, u.name, u.email, u.role, p.name
 ORDER BY total_uploads DESC;
 
 -- Function to get sales trends
@@ -99,14 +99,14 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Function to check upload limits
-CREATE OR REPLACE FUNCTION check_upload_limit(user_uuid UUID)
+-- CREATE OR REPLACE FUNCTION check_upload_limit(user_uuid UUID) (removed)
 RETURNS BOOLEAN AS $$
 DECLARE
     user_plan_limit INTEGER;
     today_uploads INTEGER;
 BEGIN
     -- Get user's plan upload limit
-    SELECT p.upload_limit INTO user_plan_limit
+    -- SELECT p.upload_limit INTO user_plan_limit (removed)
     FROM users u
     JOIN plans p ON u.plan_id = p.id
     WHERE u.id = user_uuid;

@@ -99,7 +99,7 @@ User.prototype.comparePassword = async function(candidatePassword) {
 // Get effective limits (custom or plan-based)
 User.prototype.getEffectiveLimits = function() {
   const planLimits = this.Plan ? {
-    maxUploadsPerDay: this.Plan.uploadLimit,
+    // maxUploadsPerDay: this.Plan.uploadLimit, (removed)
     maxEmployees: this.Plan.maxEmployees,
     maxPumps: this.Plan.maxPumps,
     maxStations: this.Plan.maxStations

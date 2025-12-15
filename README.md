@@ -258,10 +258,6 @@ const todayUploads = await Upload.count({
   where: { userId, createdAt: { [Op.gte]: today } }
 });
 
-if (todayUploads >= user.plan.uploadLimit) {
-  throw new Error('Daily upload limit exceeded');
-}
-```
 
 ### Role-Based Data Access
 
