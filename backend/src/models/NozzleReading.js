@@ -159,6 +159,15 @@ module.exports = (sequelize) => {
       references: { model: 'settlements', key: 'id' },
       comment: 'Links reading to a settlement when owner reviews and finalizes'
     },
+
+    // Transaction linkage (group readings by transaction)
+    transactionId: {
+      type: DataTypes.UUID,
+      field: 'transaction_id',
+      allowNull: true,
+      references: { model: 'daily_transactions', key: 'id' },
+      comment: 'Links reading to a DailyTransaction (grouped entry)'
+    },
     
     // Approval workflow
     approvalStatus: {
@@ -205,6 +214,7 @@ module.exports = (sequelize) => {
     NozzleReading.belongsTo(models.Pump, { foreignKey: 'pumpId', as: 'pump' });
     NozzleReading.belongsTo(models.Shift, { foreignKey: 'shiftId', as: 'shift' });
     NozzleReading.belongsTo(models.Settlement, { foreignKey: 'settlementId', as: 'settlement' });
+    NozzleReading.belongsTo(models.DailyTransaction, { foreignKey: 'transactionId', as: 'transaction' });
   };
 
   /**

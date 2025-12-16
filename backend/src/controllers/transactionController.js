@@ -261,6 +261,12 @@ exports.createTransaction = async (req, res, next) => {
         }
       }
 
+      // Update all related NozzleReadings to set transactionId
+      await NozzleReading.update(
+        { transactionId: dailyTxn.id },
+        { where: { id: readingIds }, transaction: t }
+      );
+
       await t.commit();
 
       const result = await DailyTransaction.findByPk(dailyTxn.id, {

@@ -925,19 +925,26 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     });
 
     // Sales by fuel type
+
+    // Join NozzleReading with Nozzle to get canonical fuelType
     const salesByFuelType = await NozzleReading.findAll({
       attributes: [
-        'fuelType',
+        [sequelize.col('nozzle.fuel_type'), 'fuelType'],
         [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
         [fn('SUM', col('litres_sold')), 'quantity']
       ],
+      include: [{
+        model: Nozzle,
+        as: 'nozzle',
+        attributes: []
+      }],
       where: {
         stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
         }
       },
-      group: ['fuelType'],
+      group: ['nozzle.fuel_type'],
       raw: true
     });
 
