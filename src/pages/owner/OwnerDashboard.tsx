@@ -67,10 +67,12 @@ export default function OwnerDashboard() {
     queryKey: ['owner-dashboard-stats', user?.id],
     queryFn: async () => {
       try {
+        // Include user ID as query parameter for logging/debugging
+        // (Backend always uses authenticated user's ID for security)
         const response = await apiClient.get<{
           success: boolean;
           data: DashboardStats;
-        }>('/dashboard/owner/stats');
+        }>(`/dashboard/owner/stats${user?.id ? `?ownerId=${user.id}` : ''}`);
         return response ?? null;
       } catch (error) {
         return null;

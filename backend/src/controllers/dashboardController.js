@@ -665,11 +665,17 @@ exports.getShiftStatus = async (req, res, next) => {
 /**
  * Get owner dashboard statistics
  * GET /api/v1/dashboard/owner/stats
+ * 
+ * Query params (optional):
+ * - ownerId: Requested owner ID (ignored for security - always uses authenticated user's ID)
  */
 exports.getOwnerStats = async (req, res, next) => {
   try {
     const user = await User.findByPk(req.userId);
+    const { ownerId: requestedOwnerId } = req.query;
+    
     console.log('🔍 getOwnerStats - User:', { id: user.id, name: user.name, role: user.role });
+    console.log('🔍 getOwnerStats - Query:', { requestedOwnerId });
     
     // Only owners can access this
     if (user.role !== 'owner') {
@@ -678,10 +684,15 @@ exports.getOwnerStats = async (req, res, next) => {
         error: 'Access denied. Owner role required.'
       });
     }
+    
+    // SECURITY: Always use authenticated user's ID, never the query parameter
+    // This prevents one owner from viewing another owner's stats
+    const ownerId = user.id;
+    console.log('🔍 getOwnerStats - Using ownerId:', ownerId);
 
     // Get all stations owned by this user
     const stations = await Station.findAll({
-      where: { ownerId: user.id },
+      where: { ownerId: ownerId },
       include: [
         {
           model: Pump,
@@ -710,9 +721,23 @@ exports.getOwnerStats = async (req, res, next) => {
       }
     });
 
-    // Today's sales across all stations
+    // Today's sales across all owned stations
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    // If no stations, return 0 sales
+    if (stationIds.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          totalStations: 0,
+          activeStations: 0,
+          totalEmployees: 0,
+          todaySales: 0,
+          monthSales: 0
+        }
+      });
+    }
     
     const todaySalesData = await NozzleReading.findAll({
       attributes: [
@@ -722,10 +747,12 @@ exports.getOwnerStats = async (req, res, next) => {
         model: Nozzle,
         as: 'nozzle',
         attributes: [],
+        required: true,
         include: [{
           model: Pump,
           as: 'pump',
           attributes: [],
+          required: true,
           where: { stationId: { [Op.in]: stationIds } }
         }]
       }],
@@ -739,7 +766,7 @@ exports.getOwnerStats = async (req, res, next) => {
 
     const todaySales = parseFloat(todaySalesData[0]?.totalAmount || 0);
 
-    // Month's sales across all stations
+    // Month's sales across all owned stations
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
     
     const monthSalesData = await NozzleReading.findAll({
@@ -750,10 +777,12 @@ exports.getOwnerStats = async (req, res, next) => {
         model: Nozzle,
         as: 'nozzle',
         attributes: [],
+        required: true,
         include: [{
           model: Pump,
           as: 'pump',
           attributes: [],
+          required: true,
           where: { stationId: { [Op.in]: stationIds } }
         }]
       }],
