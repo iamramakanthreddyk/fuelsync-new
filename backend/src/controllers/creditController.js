@@ -487,10 +487,19 @@ const recordSettlement = async (req, res) => {
       lastTransactionDate: new Date()
     }, { transaction: t });
     await t.commit();
+    // Fetch any allocation links for the settlement to return with response
+    const allocationLinks = allocations.length > 0
+      ? await CreditSettlementLink.findAll({ where: { settlementId: transaction.id }, raw: true })
+      : [];
+
+    const txnObj = typeof transaction.toJSON === 'function' ? transaction.toJSON() : transaction;
+    txnObj.pid = txnObj.id;
+
     res.status(201).json({
       success: true,
       data: {
-        transaction,
+        transaction: txnObj,
+        allocations: allocationLinks,
         creditor: {
           id: creditor.id,
           name: creditor.name,
@@ -538,9 +547,15 @@ const getTransactions = async (req, res) => {
       offset
     });
     
+    // Normalize transactions to include a `pid` field for UI ledger display
+    const normalized = transactions.map(t => {
+      const obj = typeof t.toJSON === 'function' ? t.toJSON() : t;
+      return { ...obj, pid: obj.id };
+    });
+
     res.json({
       success: true,
-      data: transactions,
+      data: normalized,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
