@@ -20,9 +20,10 @@ export interface NozzleReading {
   fuelType: 'petrol' | 'diesel';
   pricePerLitre: number;
   totalAmount: number;
-  cashAmount: number;
-  onlineAmount: number;
-  creditAmount: number;
+  // Per-reading tender fields deprecated — use transaction.paymentBreakdown
+  // cashAmount: number;
+  // onlineAmount: number;
+  // creditAmount: number;
   creditorId?: string;
   notes?: string;
   isInitialReading: boolean;
@@ -43,9 +44,8 @@ export interface SubmitReadingRequest {
   stationId: string;
   readingDate: string;
   currentReading: number;
-  cashAmount?: number;
-  onlineAmount?: number;
-  creditAmount?: number;
+  // Do not send cash/online/credit on reading creation; create a transaction instead
+  paymentBreakdown?: { cash?: number; online?: number; credit?: number };
   creditorId?: string;
   notes?: string;
 }
@@ -172,6 +172,15 @@ export const readingService = {
   },
 
   /**
+   * Create a DailyTransaction record linking readings and paymentBreakdown.
+   * POST /transactions
+   */
+  async createTransaction(payload: { stationId: string; readingIds: string[]; totalAmount: number; paymentBreakdown: { cash?: number; online?: number; credit?: number } }): Promise<any> {
+    const resp = await apiClient.post('/transactions', payload);
+    return resp;
+  },
+
+  /**
    * Update a reading
    * PUT /api/v1/readings/:id
    */
@@ -202,7 +211,8 @@ export const readingService = {
    * Convenience method
    */
   async getTodayReadings(stationId: string): Promise<NozzleReading[]> {
-    const response = await apiClient.get<ApiResponse<NozzleReading[]>>('/readings/today');
+    const url = stationId ? `/readings/today?stationId=${encodeURIComponent(stationId)}` : '/readings/today';
+    const response = await apiClient.get<ApiResponse<NozzleReading[]>>(url);
     return response.data ?? [];
   },
 

@@ -252,6 +252,16 @@ exports.createReading = async (req, res, next) => {
     // If still no total amount, initialize to 0
     effectiveTotalAmount = parseFloat(effectiveTotalAmount) || 0;
 
+    // Ensure pumpId is set - get from nozzle.pumpId or from nozzle.pump.id if not available
+    const finalPumpId = nozzle.pumpId || (nozzle.pump ? nozzle.pump.id : null);
+    if (!finalPumpId) {
+      console.error('[ERROR] Cannot determine pumpId for reading:', { nozzleId: finalNozzleId, nozzlePumpId: nozzle.pumpId, nozzlePump: nozzle.pump });
+      return res.status(400).json({
+        success: false,
+        error: 'Unable to determine pump for this nozzle'
+      });
+    }
+
     // Create reading (simplified - no payment breakdown stored per reading)
     const t = await sequelize.transaction();
     let reading;
@@ -259,7 +269,7 @@ exports.createReading = async (req, res, next) => {
       console.log('[DEBUG] Saving reading with values:', {
         nozzleId,
         stationId,
-        pumpId: nozzle.pumpId,
+        pumpId: finalPumpId,
         fuelType: nozzle.fuelType,
         enteredBy: userId,
         readingDate,
@@ -275,7 +285,7 @@ exports.createReading = async (req, res, next) => {
       reading = await NozzleReading.create({
         nozzleId,
         stationId,
-        pumpId: nozzle.pumpId,
+        pumpId: finalPumpId,
         fuelType: nozzle.fuelType,
         enteredBy: userId,
         readingDate,
@@ -512,35 +522,45 @@ exports.getReadings = async (req, res, next) => {
     });
     const readingsWithSaleValue = rows.map(addSaleValue);
 
-    // Attach payment breakdown from DailyTransaction (only source of tender entries)
-    const txIds = Array.from(new Set(readingsWithSaleValue.map(r => r.transactionId).filter(Boolean)));
-    let txMap = {};
-    if (txIds.length > 0) {
-      const { DailyTransaction } = require('../models');
-      const txns = await DailyTransaction.findAll({ where: { id: txIds }, raw: true });
-      txMap = txns.reduce((m, t) => { m[t.id] = t.payment_breakdown || t.paymentBreakdown || {}; return m; }, {});
-    }
+    // Include transaction/paymentBreakdown directly on readings (DailyTransaction is authoritative)
+    // Re-run the query with transaction included if not already present
+    const { DailyTransaction } = require('../models');
+    const readingsWithTx = await NozzleReading.findAll({
+      where,
+      include: [
+        {
+          model: Nozzle,
+          as: 'nozzle',
+          attributes: ['id', 'nozzleNumber', 'fuelType'],
+          include: [{ model: Pump, as: 'pump', attributes: ['id', 'name', 'pumpNumber'], where: pumpId ? { id: pumpId } : undefined }]
+        },
+        { model: User, as: 'enteredByUser', attributes: ['id', 'name'] },
+        { model: require('../models').Creditor, as: 'creditor', attributes: ['id', 'name', 'businessName', 'currentBalance'] },
+        { model: DailyTransaction, as: 'transaction', attributes: ['id', 'transactionDate', 'status', 'createdBy', 'paymentBreakdown'], required: false }
+      ],
+      offset: parseInt(offset),
+      limit: parseInt(limit),
+      order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
+    });
 
-    const readingsWithPayments = readingsWithSaleValue.map(r => {
-      const pb = r.transactionId ? (txMap[r.transactionId] || {}) : {};
-      const cash = parseFloat(pb.cash || 0);
-      const online = parseFloat(pb.online || 0);
-      const credit = parseFloat(pb.credit || 0);
-      return {
-        ...r,
-        cashAmount: cash,
-        onlineAmount: online,
-        creditAmount: credit
-      };
+    // Map saleValue and ensure transaction.paymentBreakdown is present as normalized object
+    const readingsWithPayments = readingsWithTx.map(r => {
+      const obj = r.toJSON();
+      obj.saleValue = (parseFloat(obj.litresSold) || 0) * (parseFloat(obj.pricePerLitre) || 0);
+      if (obj.transaction) {
+        obj.transaction.paymentBreakdown = obj.transaction.paymentBreakdown || obj.transaction.payment_breakdown || {};
+      }
+      return obj;
     });
 
     const linkedReadings = readingsWithPayments.filter(r => r.settlementId);
     const unlinkedReadings = readingsWithPayments.filter(r => !r.settlementId);
 
     const unlinkedTotals = unlinkedReadings.reduce((acc, r) => {
-      acc.cash += parseFloat(r.cashAmount || 0);
-      acc.online += parseFloat(r.onlineAmount || 0);
-      acc.credit += parseFloat(r.creditAmount || 0);
+      const pb = r.transaction?.paymentBreakdown || {};
+      acc.cash += parseFloat(pb.cash || 0);
+      acc.online += parseFloat(pb.online || 0);
+      acc.credit += parseFloat(pb.credit || 0);
       acc.litres += parseFloat(r.litresSold || 0);
       acc.value += parseFloat(r.saleValue || 0);
       return acc;
@@ -644,7 +664,7 @@ exports.getReadingById = async (req, res, next) => {
 exports.updateReading = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { readingValue, cashAmount, onlineAmount, notes } = req.body;
+    const { readingValue, paymentBreakdown, notes } = req.body;
 
     const reading = await NozzleReading.findByPk(id);
     if (!reading) {
@@ -660,19 +680,14 @@ exports.updateReading = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Only managers and above can edit readings' });
     }
 
-    // Allow editing readingValue, cashAmount, onlineAmount, notes
+    // Allow editing readingValue and notes only. Per-reading tender fields are deprecated
+    // and must not be updated here. Payment splits are managed via DailyTransaction.
     const updates = {};
     if (readingValue !== undefined) {
       updates.readingValue = parseFloat(readingValue);
     }
     if (notes !== undefined) {
       updates.notes = notes;
-    }
-    if (cashAmount !== undefined) {
-      updates.cashAmount = parseFloat(cashAmount) || 0;
-    }
-    if (onlineAmount !== undefined) {
-      updates.onlineAmount = parseFloat(onlineAmount) || 0;
     }
 
     // Save old value for audit

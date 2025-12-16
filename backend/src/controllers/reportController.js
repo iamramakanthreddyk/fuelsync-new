@@ -57,6 +57,7 @@ exports.getSalesReports = async (req, res, next) => {
       attributes: ['id', 'name', 'code']
     });
 
+
     if (stations.length === 0) {
       return res.json({ success: true, data: [] });
     }
@@ -81,6 +82,7 @@ exports.getSalesReports = async (req, res, next) => {
       group: ['date', 'stationId'],
       raw: true
     });
+
 
     // Get fuel type breakdown
     const fuelBreakdown = await NozzleReading.findAll({
@@ -285,6 +287,27 @@ exports.getPumpPerformance = async (req, res, next) => {
       return res.json({ success: true, data: [] });
     }
 
+    // Check what values we have in litres_sold (sample)
+    const sampleReadings = await NozzleReading.findAll({
+      attributes: ['id', 'pumpId', 'nozzleId', 'litres_sold', 'price_per_litre', 'totalAmount', 'readingDate', 'isInitialReading'],
+      where: {
+        pumpId: { [Op.in]: pumpIds },
+        readingDate: {
+          [Op.between]: [startDate, endDate]
+        }
+      },
+      limit: 5,
+      raw: true
+    });
+    console.log('[DIAGNOSTIC] Sample readings (first 5):', JSON.stringify(sampleReadings, null, 2));
+
+    // Check if any rows exist for the pumpIds without date filtering
+    const diagnosticPumpCheck = await NozzleReading.count({
+      where: {
+        pumpId: { [Op.in]: pumpIds }
+      }
+    });
+
     // Get pump performance data - use LEFT JOIN and filter by pump IDs
     const pumpData = await NozzleReading.findAll({
       attributes: [
@@ -292,8 +315,8 @@ exports.getPumpPerformance = async (req, res, next) => {
         [col('pump.name'), 'pumpName'],
         [col('pump.pump_number'), 'pumpNumber'],
         [fn('MAX', col('pump->station.name')), 'stationName'], // Use MAX to get station name
-        [fn('SUM', col('NozzleReading.total_amount')), 'totalSales'],
-        [fn('SUM', col('NozzleReading.litres_sold')), 'totalQuantity'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
+        [fn('SUM', col('litres_sold')), 'totalQuantity'],
         [fn('COUNT', col('NozzleReading.id')), 'transactions']
       ],
       include: [{
@@ -312,12 +335,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         pumpId: { [Op.in]: pumpIds }, // Filter by pump IDs we know belong to user's stations
         readingDate: {
           [Op.between]: [startDate, endDate]
-        },
-        [Op.or]: [
-          { isInitialReading: false },
-          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
-        ],
-        litresSold: { [Op.gt]: 0 }
+        }
       },
       group: ['pump.id', 'pump.name', 'pump.pump_number'], // Remove station name from GROUP BY
       raw: true
@@ -330,8 +348,8 @@ exports.getPumpPerformance = async (req, res, next) => {
         [col('nozzle.id'), 'nozzleId'],
         [col('nozzle.nozzle_number'), 'nozzleNumber'],
         [col('nozzle.fuel_type'), 'fuelType'],
-        [fn('SUM', col('NozzleReading.total_amount')), 'sales'],
-        [fn('SUM', col('NozzleReading.litres_sold')), 'quantity']
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
+        [fn('SUM', col('litres_sold')), 'quantity']
       ],
       include: [{
         model: Pump,
@@ -350,14 +368,15 @@ exports.getPumpPerformance = async (req, res, next) => {
           [Op.between]: [startDate, endDate]
         },
         [Op.or]: [
-          { isInitialReading: false },
-          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
-        ],
-        litresSold: { [Op.gt]: 0 }
+          { litresSold: { [Op.gt]: 0 } },
+          { isInitialReading: true }
+        ]
       },
       group: ['pump.id', 'nozzle.id', 'nozzle.nozzle_number', 'nozzle.fuel_type'],
       raw: true
     });
+    console.log('[DEBUG] nozzleData rows returned:', nozzleData.length);
+    if (nozzleData.length > 0) console.log('[DEBUG] nozzleData first row:', JSON.stringify(nozzleData[0]));
 
     // Get all pumps for the stations
     const allPumps = await Pump.findAll({

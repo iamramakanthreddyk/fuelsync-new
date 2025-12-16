@@ -26,16 +26,13 @@ export class ApiService {
     nozzleId: string;
     readingDate: string;
     readingValue: number;
-    cashAmount?: number;
-    onlineAmount?: number;
     notes?: string;
   }) {
     const response = await apiClient.post('/readings', {
       nozzleId: data.nozzleId,
       readingDate: data.readingDate,
       readingValue: data.readingValue,
-      cashAmount: data.cashAmount,
-      onlineAmount: data.onlineAmount,
+      // Per-reading tender fields are deprecated; payments are recorded via DailyTransaction
       notes: data.notes
     });
 

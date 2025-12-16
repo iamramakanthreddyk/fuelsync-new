@@ -22,6 +22,7 @@ import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { getFuelColors } from '@/lib/fuelColors';
 import { PaymentSplit, SaleCalculation } from '@/components/readings';
 import type { PaymentSplitData } from '@/components/readings';
+import { readingService } from '@/services/readingService';
 import { Checkbox } from '@/components/ui/checkbox';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
@@ -228,20 +229,31 @@ export default function DataEntry() {
         pricePerLitre: saleCalculation.pricePerLitre,
         totalAmount: saleCalculation.saleValue,
         litresSold: saleCalculation.litresSold,
-        // Include payment breakdown if sale has value
+        // Include payment breakdown if sale has value — do NOT set per-reading tender fields
         ...(saleCalculation.saleValue > 0 && paymentSplit && {
           paymentBreakdown: {
             cash: paymentSplit.cash,
             online: paymentSplit.online,
             credit: paymentSplit.credit
-          },
-          cashAmount: paymentSplit.cash,
-          onlineAmount: paymentSplit.online,
-          creditAmount: paymentSplit.credit
+          }
         })
       };
 
       const result = await apiClient.post<{ litresSold?: number; totalAmount?: number }>('/readings', payload);
+
+      // If payment split is provided, create a DailyTransaction linking this reading
+      try {
+        if (saleCalculation.saleValue > 0 && paymentSplit && result && (result as any).id) {
+          await readingService.createTransaction({
+            stationId: data.station_id,
+            readingIds: [(result as any).id],
+            totalAmount: saleCalculation.saleValue,
+            paymentBreakdown: { cash: paymentSplit.cash, online: paymentSplit.online, credit: paymentSplit.credit }
+          });
+        }
+      } catch (txErr) {
+        console.warn('Failed to create DailyTransaction automatically:', txErr);
+      }
 
       // Invalidate relevant queries so UI reflects the new reading
       try {

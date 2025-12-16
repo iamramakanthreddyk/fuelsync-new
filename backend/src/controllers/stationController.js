@@ -1370,26 +1370,12 @@ exports.getReadingsForSettlement = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
-    // Categorize readings and fetch transaction payment data
+    // Categorize readings and include transaction.paymentBreakdown (DailyTransaction is authoritative)
     const unlinkedReadings = [];
     const linkedReadings = [];
 
     for (const reading of readings) {
-      // Fetch payment breakdown from DailyTransaction if transactionId exists
-      let cashAmount = 0;
-      let onlineAmount = 0;
-      let creditAmount = 0;
-
-      if (reading.transactionId) {
-        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
-          attributes: ['paymentBreakdown']
-        });
-        if (transaction && transaction.paymentBreakdown) {
-          cashAmount = parseFloat(transaction.paymentBreakdown.cash || 0);
-          onlineAmount = parseFloat(transaction.paymentBreakdown.online || 0);
-          creditAmount = parseFloat(transaction.paymentBreakdown.credit || 0);
-        }
-      }
+      const paymentBreakdown = (reading.transaction && (reading.transaction.paymentBreakdown || reading.transaction.payment_breakdown)) || {};
 
       const readingData = {
         id: reading.id,
@@ -1399,9 +1385,6 @@ exports.getReadingsForSettlement = async (req, res, next) => {
         closingReading: parseFloat(reading.readingValue || 0),
         litresSold: parseFloat(reading.litresSold || 0),
         saleValue: parseFloat(reading.totalAmount || 0),
-        cashAmount: cashAmount,
-        onlineAmount: onlineAmount,
-        creditAmount: creditAmount,
         recordedBy: reading.enteredByUser ? {
           id: reading.enteredByUser.id,
           name: reading.enteredByUser.name
@@ -1417,7 +1400,8 @@ exports.getReadingsForSettlement = async (req, res, next) => {
           id: reading.transaction.id,
           transactionDate: reading.transaction.transactionDate,
           status: reading.transaction.status,
-          createdBy: reading.transaction.createdBy
+          createdBy: reading.transaction.createdBy,
+          paymentBreakdown: paymentBreakdown
         } : null
       };
 
@@ -1430,9 +1414,10 @@ exports.getReadingsForSettlement = async (req, res, next) => {
 
     // Calculate totals for unlinked readings
     const unlinkedTotals = unlinkedReadings.reduce((acc, r) => {
-      acc.cash += r.cashAmount;
-      acc.online += r.onlineAmount;
-      acc.credit += r.creditAmount;
+      const pb = r.transaction?.paymentBreakdown || {};
+      acc.cash += parseFloat(pb.cash || 0);
+      acc.online += parseFloat(pb.online || 0);
+      acc.credit += parseFloat(pb.credit || 0);
       acc.litres += r.litresSold;
       acc.value += r.saleValue;
       return acc;
@@ -1440,9 +1425,10 @@ exports.getReadingsForSettlement = async (req, res, next) => {
 
     // Calculate totals for linked readings
     const linkedTotals = linkedReadings.reduce((acc, r) => {
-      acc.cash += r.cashAmount;
-      acc.online += r.onlineAmount;
-      acc.credit += r.creditAmount;
+      const pb = r.transaction?.paymentBreakdown || {};
+      acc.cash += parseFloat(pb.cash || 0);
+      acc.online += parseFloat(pb.online || 0);
+      acc.credit += parseFloat(pb.credit || 0);
       acc.litres += r.litresSold;
       acc.value += r.saleValue;
       return acc;

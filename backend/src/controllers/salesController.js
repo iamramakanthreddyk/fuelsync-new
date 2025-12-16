@@ -127,9 +127,9 @@ exports.getSales = async (req, res) => {
       delta_volume_l: parseFloat(reading.litresSold),
       price_per_litre: parseFloat(reading.pricePerLitre),
       total_amount: parseFloat(reading.totalAmount),
-      payment_breakdown: reading.paymentBreakdown || (reading.transactionId ? (txMap[reading.transactionId] || {}) : {}),
-      cash_amount: parseFloat((reading.transactionId && txMap[reading.transactionId]) ? (txMap[reading.transactionId].cash || 0) : (reading.cashAmount || 0)),
-      online_amount: parseFloat((reading.transactionId && txMap[reading.transactionId]) ? (txMap[reading.transactionId].online || 0) : (reading.onlineAmount || 0)),
+      payment_breakdown: reading.transactionId ? (txMap[reading.transactionId] || {}) : (reading.paymentBreakdown || {}),
+      cash_amount: parseFloat((reading.transactionId && txMap[reading.transactionId]) ? (txMap[reading.transactionId].cash || 0) : 0),
+      online_amount: parseFloat((reading.transactionId && txMap[reading.transactionId]) ? (txMap[reading.transactionId].online || 0) : 0),
       entered_by: reading.enteredByUser?.name,
       created_at: reading.createdAt
     }));
@@ -224,7 +224,7 @@ exports.getSalesSummary = async (req, res) => {
         as: 'nozzle',
         attributes: ['fuelType']
       }],
-      attributes: ['litresSold', 'totalAmount', 'cashAmount', 'onlineAmount', 'paymentBreakdown']
+      attributes: ['litresSold', 'totalAmount', 'paymentBreakdown']
     });
 
     // Calculate summaries

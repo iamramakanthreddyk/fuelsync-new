@@ -91,6 +91,8 @@ interface ReadingForSettlement {
   settlementId: string | null;
   linkedSettlement: { id: string; date: string; isFinal: boolean } | null;
   transaction: TransactionDetails | null;
+  // Transaction-level payment breakdown is authoritative
+  // Access via `transaction.paymentBreakdown` (cash/online/credit)
 }
 
 interface ReadingsForSettlementResponse {
@@ -130,6 +132,8 @@ interface SettlementRecord {
   duplicateCount?: number;
   allSettlements?: SettlementRecord[];
   recordedAt?: string;
+  attempts?: number;
+  mainSettlement?: { id?: string } | null;
 }
 
 export default function DailySettlement() {
@@ -272,13 +276,16 @@ export default function DailySettlement() {
     const allReadings = [...readingsForSettlement.unlinked.readings, ...readingsForSettlement.linked.readings];
     return allReadings
       .filter(r => selectedReadingIds.includes(r.id))
-      .reduce((acc, r) => ({
-        cash: acc.cash + r.cashAmount,
-        online: acc.online + r.onlineAmount,
-        credit: acc.credit + r.creditAmount,
-        litres: acc.litres + r.litresSold,
-        value: acc.value + r.saleValue
-      }), { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
+      .reduce((acc, r) => {
+        const pb: any = (r.transaction as any)?.paymentBreakdown || {};
+        return {
+          cash: acc.cash + (parseFloat(pb.cash || 0) || 0),
+          online: acc.online + (parseFloat(pb.online || 0) || 0),
+          credit: acc.credit + (parseFloat(pb.credit || 0) || 0),
+          litres: acc.litres + r.litresSold,
+          value: acc.value + r.saleValue
+        };
+      }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
   };
 
   const handleSubmitSettlement = async () => {
@@ -570,9 +577,9 @@ export default function DailySettlement() {
                                 </div>
                                 <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground ml-6">
                                   <div>{safeToFixed(reading.litresSold, 2)} L</div>
-                                  <div className="text-green-600">Cash: ₹{safeToFixed(reading.cashAmount, 0)}</div>
-                                  <div className="text-blue-600">Online: ₹{safeToFixed(reading.onlineAmount, 0)}</div>
-                                  <div className="text-orange-600">Credit: ₹{safeToFixed(reading.creditAmount, 0)}</div>
+                                  <div className="text-green-600">Cash: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.cash || 0, 0)}</div>
+                                  <div className="text-blue-600">Online: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.online || 0, 0)}</div>
+                                  <div className="text-orange-600">Credit: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.credit || 0, 0)}</div>
                                 </div>
                                 {reading.recordedBy && (
                                   <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 ml-6">

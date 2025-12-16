@@ -29,9 +29,10 @@ export interface NozzleReading extends BaseEntity, Notable {
   fuelType: FuelType;
   pricePerLitre: number;
   totalAmount: number;
-  cashAmount: number;
-  onlineAmount: number;
-  creditAmount: number;
+  // Per-reading tender fields deprecated. Use transaction.paymentBreakdown instead.
+  // cashAmount: number;
+  // onlineAmount: number;
+  // creditAmount: number;
   creditorId?: string;
   isInitialReading: boolean;
 }
@@ -98,9 +99,8 @@ export interface SubmitReadingDTO {
   stationId?: string;
   readingDate: string;
   currentReading: number;
-  cashAmount?: number;
-  onlineAmount?: number;
-  creditAmount?: number;
+  // Instead of per-reading tender fields, include paymentBreakdown
+  paymentBreakdown?: { cash?: number; online?: number; credit?: number };
   creditorId?: string;
   shiftId?: number;
   notes?: string;
@@ -111,9 +111,7 @@ export interface SubmitReadingDTO {
  */
 export interface UpdateReadingDTO {
   currentReading?: number;
-  cashAmount?: number;
-  onlineAmount?: number;
-  creditAmount?: number;
+  // Editing payment splits on readings is deprecated; update DailyTransaction instead
   creditorId?: string;
   notes?: string;
 }
@@ -193,6 +191,8 @@ export interface DailyReadingSummary {
   stationId: string;
   totalLitres: number;
   totalAmount: number;
+  // Tender totals should come from DailyTransaction aggregation
+  // Tender totals should come from DailyTransaction aggregation (paymentBreakdown)
   cashAmount: number;
   onlineAmount: number;
   creditAmount: number;

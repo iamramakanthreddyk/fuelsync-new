@@ -51,9 +51,11 @@ const readingSchemas = {
     litresSold: commonSchemas.nonNegativeNumber.optional(),
     pricePerLitre: commonSchemas.nonNegativeNumber.optional(),
     totalAmount: commonSchemas.nonNegativeNumber.optional(),
-    cashAmount: commonSchemas.nonNegativeNumber.optional(),
-    onlineAmount: commonSchemas.nonNegativeNumber.optional(),
-    creditAmount: commonSchemas.nonNegativeNumber.optional(),
+    paymentBreakdown: Joi.object({
+      cash: commonSchemas.nonNegativeNumber.optional(),
+      online: commonSchemas.nonNegativeNumber.optional(),
+      credit: commonSchemas.nonNegativeNumber.optional()
+    }).optional(),
     creditorId: commonSchemas.id.optional(),
     paymentType: Joi.string().valid('cash', 'digital', 'online', 'credit').optional(),
     notes: Joi.string().allow('').max(500).optional().messages({
@@ -204,9 +206,7 @@ function normalizeKeys(obj) {
     'litres_sold': 'litresSold',
     'price_per_litre': 'pricePerLitre',
     'total_amount': 'totalAmount',
-    'cash_amount': 'cashAmount',
-    'online_amount': 'onlineAmount',
-    'credit_amount': 'creditAmount',
+    'payment_breakdown': 'paymentBreakdown',
     'creditor_id': 'creditorId',
     'reference_number': 'referenceNumber'
   };

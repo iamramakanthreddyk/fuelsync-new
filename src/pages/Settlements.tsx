@@ -1,18 +1,16 @@
 import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
-import { ClipboardCheck, CreditCard, TrendingUp, AlertTriangle } from "lucide-react";
+import { ClipboardCheck } from "lucide-react";
 import { useDailySummary } from "@/hooks/useDailySummary";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 
-import { safeToFixed } from '@/lib/format-utils';
-import { getDifferenceBadgeClasses } from '@/lib/badgeColors';
+// formatting and badge helper imports removed (not used in this simplified view)
 
 export default function Settlements() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
@@ -32,7 +30,8 @@ export default function Settlements() {
         stationId: currentStation.id,
         date: selectedDate,
         totalSales: summary.sales_total,
-        cashAmount: summary.breakdown.cash,
+        // Use transaction-level payment breakdown
+        expectedCash: summary.breakdown.cash,
         cardAmount: summary.breakdown.card,
         upiAmount: summary.breakdown.upi,
         creditAmount: summary.breakdown.credit,
@@ -59,6 +58,7 @@ export default function Settlements() {
     },
   });
 
+  // closure submit helper
   const handleClosureSubmit = () => {
     if (!summary) {
       toast({
@@ -70,11 +70,6 @@ export default function Settlements() {
     }
 
     closeDayMutation.mutate();
-  };
-
-  const getDifferenceIcon = (difference: number) => {
-    if (Math.abs(difference) < 0.01) return <ClipboardCheck className="w-4 h-4" />;
-    return <AlertTriangle className="w-4 h-4" />;
   };
 
   if (!currentStation && !isAdmin) {
@@ -130,8 +125,28 @@ export default function Settlements() {
 
       {summary && (
         <>
-          {/* (rest of the UI remains identical) */}
-          {/* For brevity, UI cards and closure actions are unchanged from previous DailyClosure page. */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Daily Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <p>Total Sales: {summary.sales_total}</p>
+                <p>Breakdown — Cash: {summary.breakdown.cash}, Card: {summary.breakdown.card}, UPI: {summary.breakdown.upi}, Credit: {summary.breakdown.credit}</p>
+                {isOwner && (
+                  <div className="flex gap-2">
+                    <Input
+                      id="closureNotes"
+                      value={closureNotes}
+                      onChange={(e) => setClosureNotes(e.target.value)}
+                      placeholder="Optional notes for this closure"
+                    />
+                    <Button onClick={handleClosureSubmit}>Close Day</Button>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
 

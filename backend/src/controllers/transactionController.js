@@ -4,7 +4,7 @@
  * Transactions record the payment breakdown for a day at station level
  */
 
-const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize, FuelPrice, Nozzle } = require('../models');
+const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize, FuelPrice, Nozzle, Pump } = require('../models');
 // Minimal helper to compute litresSold and totalAmount similar to readingController
 async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap }) {
   // Find previous (last) reading for nozzle before or on date
@@ -39,11 +39,18 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
   const closingReading = parseFloat(readingValue || 0);
   const litresSold = Math.max(0, closingReading - previousReading);
 
-  // Fetch nozzle to get fuelType, then resolve price via FuelPrice.getPriceForDate
+  // Fetch nozzle to get fuelType and pumpId
+  let fuelType = null;
+  let pumpId = null;
   let pricePerLitre = 0;
   try {
-    const nozzle = await Nozzle.findByPk(nozzleId, { transaction });
-    const fuelType = nozzle?.fuelType || null;
+    const nozzle = await Nozzle.findByPk(nozzleId, {
+      include: [{ model: Pump, as: 'pump' }],
+      transaction
+    });
+    fuelType = nozzle?.fuelType || null;
+    pumpId = nozzle?.pumpId || (nozzle?.pump ? nozzle.pump.id : null);
+    
     // Prefer client-provided station prices if available
     if (fuelType && stationPricesMap && stationPricesMap[fuelType]) {
       pricePerLitre = parseFloat(String(stationPricesMap[fuelType]));
@@ -57,6 +64,8 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
   const payload = {
     stationId,
     nozzleId,
+    pumpId,
+    fuelType,
     readingValue: closingReading,
     previousReading: previousReading,
     litresSold,

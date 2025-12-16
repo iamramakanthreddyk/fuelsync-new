@@ -1285,7 +1285,7 @@ exports.getIncomeReceivablesReport = async (req, res, next) => {
       },
       attributes: [
         'id', 'readingDate', 'fuelType', 'litresSold', 'totalAmount',
-        'cashAmount', 'onlineAmount', 'creditAmount'
+        'paymentBreakdown'
       ],
       raw: true
     });
@@ -1345,11 +1345,12 @@ exports.getIncomeReceivablesReport = async (req, res, next) => {
         totalCreditPending += parseFloat(pb.credit || 0);
       });
     } catch (e) {
-      // Non-fatal: if DailyTransaction model not available, fall back to reading fields
+      // Non-fatal: if DailyTransaction model not available, fall back to reading.transaction.paymentBreakdown
       readings.forEach(r => {
-        totalCashReceived += parseFloat(r.cashAmount || 0);
-        totalOnlineReceived += parseFloat(r.onlineAmount || 0);
-        totalCreditPending += parseFloat(r.creditAmount || 0);
+        const pb = (r.transaction && (r.transaction.paymentBreakdown || r.transaction.payment_breakdown)) || {};
+        totalCashReceived += parseFloat(pb.cash || 0);
+        totalOnlineReceived += parseFloat(pb.online || 0);
+        totalCreditPending += parseFloat(pb.credit || 0);
       });
     }
 

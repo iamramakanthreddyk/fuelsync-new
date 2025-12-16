@@ -144,16 +144,21 @@ const readingValidators = {
     nozzleId: uuidParam,
     readingDate: dateString.required(),
     readingValue: Joi.number().min(0).required(),
-    cashAmount: Joi.number().min(0).optional(),
-    onlineAmount: Joi.number().min(0).optional(),
-    creditAmount: Joi.number().min(0).optional(),
-    creditorId: optionalUuid.when('creditAmount', { is: Joi.number().greater(0), then: Joi.required(), otherwise: Joi.optional() }),
+    paymentBreakdown: Joi.object({
+      cash: Joi.number().min(0).optional(),
+      online: Joi.number().min(0).optional(),
+      credit: Joi.number().min(0).optional(),
+    }).optional(),
+    creditorId: optionalUuid.when('paymentBreakdown.credit', { is: Joi.number().greater(0), then: Joi.required(), otherwise: Joi.optional() }),
     notes: Joi.string().max(500).optional()
   }),
 
   update: Joi.object({
-    cashAmount: Joi.number().min(0).optional(),
-    onlineAmount: Joi.number().min(0).optional(),
+    paymentBreakdown: Joi.object({
+      cash: Joi.number().min(0).optional(),
+      online: Joi.number().min(0).optional(),
+      credit: Joi.number().min(0).optional(),
+    }).optional(),
     notes: Joi.string().max(500).optional()
   }),
 

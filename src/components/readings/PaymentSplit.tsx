@@ -27,10 +27,16 @@ export interface PaymentSplitData {
   isBalanced: boolean;
 }
 
+export interface PaymentBreakdown {
+  cash: number;
+  online: number;
+  credit: number;
+}
+
 interface PaymentSplitProps {
   totalAmount: number;
   disabled?: boolean;
-  onPaymentChange: (split: PaymentSplitData) => void;
+  onPaymentChange: (split: PaymentSplitData & { paymentBreakdown: PaymentBreakdown }) => void;
   initialCash?: number;
   showCredit?: boolean;
   className?: string;
@@ -64,7 +70,8 @@ export function PaymentSplit({
       online,
       credit,
       total: actualTotal,
-      isBalanced
+      isBalanced,
+      paymentBreakdown: { cash, online, credit }
     });
   }, [cash, online, credit, actualTotal, isBalanced, onPaymentChange]);
 
