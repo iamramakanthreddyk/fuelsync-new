@@ -19,7 +19,7 @@ function NozzleReadingRow({
 }: NozzleReadingRowProps) {
   const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
   // Always parse lastReading as float if present
-  const parsedLastReading = (lastReading !== null && lastReading !== undefined && lastReading !== '') ? parseFloat(String(lastReading)) : null;
+  const parsedLastReading = (lastReading !== null && lastReading !== undefined) ? parseFloat(String(lastReading)) : null;
   const compareValue = (parsedLastReading !== null && !isNaN(parsedLastReading))
     ? parsedLastReading
     : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
@@ -140,9 +140,21 @@ import {
 // Utility function to calculate litres and sale value for a nozzle
 const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: number | null, fuelPrices: any[]) => {
   const enteredValue = parseFloat(readingValue || '0');
-    const nozzleLast = nozzle?.lastReading !== undefined && nozzle?.lastReading !== null ? parseFloat(String(nozzle.lastReading)) : undefined;
-    const initial = nozzle?.initialReading !== undefined && nozzle?.initialReading !== null ? parseFloat(String(nozzle.initialReading)) : 0;
-    const last = lastReading !== null && lastReading !== undefined ? Number(lastReading) : (nozzleLast !== undefined ? nozzleLast : initial);
+  const nozzleLast = nozzle?.lastReading !== undefined && nozzle?.lastReading !== null ? parseFloat(String(nozzle.lastReading)) : undefined;
+  const initial = nozzle?.initialReading !== undefined && nozzle?.initialReading !== null ? parseFloat(String(nozzle.initialReading)) : 0;
+  let last: number | undefined = undefined;
+  if (lastReading !== null && lastReading !== undefined) {
+    last = Number(lastReading);
+  } else if (nozzleLast !== undefined) {
+    last = nozzleLast;
+  } else if (initial !== undefined) {
+    last = initial;
+  }
+  if (last === undefined || isNaN(last)) {
+    // Fallback: prevent calculation and warn
+    console.warn(`No valid last reading for nozzle ${nozzle?.id} (${nozzle?.fuelType}). Calculation skipped.`);
+    return { litres: 0, saleValue: 0 };
+  }
   const litres = Math.max(0, enteredValue - last);
   const price = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase())?.price_per_litre || 0;
   const saleValue = litres * price;
@@ -276,14 +288,21 @@ export default function QuickDataEntry() {
             const reading = readings[nozzle.id];
             if (reading && reading.readingValue) {
               const trueLastReading = allLastReadings ? allLastReadings[nozzle.id] : undefined;
-              const lastReading = (trueLastReading !== undefined && trueLastReading !== null)
-                ? trueLastReading
-                : (nozzle?.initialReading || 0);
+              let lastReading: number | null = null;
+              if (trueLastReading !== undefined && trueLastReading !== null) {
+                lastReading = trueLastReading;
+              } else if (nozzle?.initialReading !== undefined && nozzle?.initialReading !== null) {
+                lastReading = nozzle.initialReading;
+              } else {
+                lastReading = null;
+              }
               const { litres, saleValue } = calculateNozzleSale(nozzle, reading.readingValue, lastReading, fuelPrices);
-
+              if (lastReading === null || typeof lastReading !== "number" || isNaN(lastReading)) {
+                // Show warning in UI (optional: add a warning state/flag)
+                console.warn(`No valid last reading for nozzle ${nozzle?.id} (${nozzle?.fuelType}). Skipping calculation.`);
+              }
               totalLiters += litres;
               totalSaleValue += saleValue;
-
               if (!byFuelType[nozzle.fuelType]) {
                 byFuelType[nozzle.fuelType] = { liters: 0, value: 0 };
               }
