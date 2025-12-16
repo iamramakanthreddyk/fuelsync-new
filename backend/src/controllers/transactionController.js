@@ -262,10 +262,12 @@ exports.createTransaction = async (req, res, next) => {
       }
 
       // Update all related NozzleReadings to set transactionId
-      await NozzleReading.update(
+      console.log('[DEBUG] About to update NozzleReadings with transactionId:', dailyTxn.id, 'for readingIds:', readingIds);
+      const updateResult = await NozzleReading.update(
         { transactionId: dailyTxn.id },
         { where: { id: readingIds }, transaction: t }
       );
+      console.log('[DEBUG] NozzleReading.update result:', updateResult);
 
       await t.commit();
 
@@ -437,6 +439,13 @@ exports.createQuickEntry = async (req, res, next) => {
           createdCreditTxns.push(creditTxn);
         }
       }
+
+
+      // Update all related NozzleReadings to set transactionId
+      await NozzleReading.update(
+        { transactionId: dailyTxn.id },
+        { where: { id: readingIds }, transaction: t }
+      );
 
       await t.commit();
 

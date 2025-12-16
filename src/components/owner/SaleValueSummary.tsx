@@ -60,23 +60,24 @@ export function SaleValueSummary(
     multiCredit = false
   }: SaleValueSummaryProps
 ) {
-  const handleCashChange = (value: number) => {
+
+  const handleCashChange = (value: number | string) => {
     onPaymentChange({
       ...paymentAllocation,
-      cash: value
+      cash: value === '' ? 0 : Number(value)
     });
   };
 
-  const handleOnlineChange = (value: number) => {
+  const handleOnlineChange = (value: number | string) => {
     onPaymentChange({
       ...paymentAllocation,
-      online: value
+      online: value === '' ? 0 : Number(value)
     });
   };
 
   // Multi-credit logic
-  const handleCreditChange = (idx: number, value: number) => {
-    const credits = paymentAllocation.credits.map((c, i) => i === idx ? { ...c, amount: value } : c);
+  const handleCreditChange = (idx: number, value: number | string) => {
+    const credits = paymentAllocation.credits.map((c, i) => i === idx ? { ...c, amount: value === '' ? 0 : Number(value) } : c);
     onPaymentChange({ ...paymentAllocation, credits });
   };
 
@@ -124,11 +125,13 @@ export function SaleValueSummary(
                 step="0.01"
                 min="0"
                 max={summary.totalSaleValue}
-                value={paymentAllocation.cash}
-                onChange={(e) => handleCashChange(parseFloat(e.target.value) || 0)}
+                value={paymentAllocation.cash === 0 ? '' : paymentAllocation.cash}
+                onChange={(e) => handleCashChange(e.target.value)}
                 className="mt-0.5 text-xs h-8 border-green-200 focus:border-green-500"
                 disabled={isLoading}
-                placeholder="0.00"
+                placeholder="Cash amount"
+                inputMode="decimal"
+                autoComplete="off"
               />
             </div>
 
@@ -142,11 +145,13 @@ export function SaleValueSummary(
                 type="number"
                 step="0.01"
                 min="0"
-                value={paymentAllocation.online}
-                onChange={(e) => handleOnlineChange(parseFloat(e.target.value) || 0)}
+                value={paymentAllocation.online === 0 ? '' : paymentAllocation.online}
+                onChange={(e) => handleOnlineChange(e.target.value)}
                 className="mt-0.5 text-xs h-8 border-blue-200 focus:border-blue-500"
                 disabled={isLoading}
-                placeholder="0.00"
+                placeholder="Online amount"
+                inputMode="decimal"
+                autoComplete="off"
               />
             </div>
 
@@ -199,11 +204,13 @@ export function SaleValueSummary(
                         step="0.01"
                         min="0"
                         max={summary.totalSaleValue}
-                        value={credit.amount}
-                        onChange={e => handleCreditChange(idx, parseFloat(e.target.value) || 0)}
+                        value={credit.amount === 0 ? '' : credit.amount}
+                        onChange={e => handleCreditChange(idx, e.target.value)}
                         className={`text-xs h-8 border-orange-300 focus:border-orange-500 ${creditExceedsLimit ? 'border-red-500 bg-red-50' : ''}`}
                         disabled={isLoading}
-                        placeholder="0.00"
+                        placeholder="Credit amount"
+                        inputMode="decimal"
+                        autoComplete="off"
                       />
                       <button type="button" className="text-xs text-red-500 font-bold ml-1" onClick={() => handleRemoveCredit(idx)} disabled={isLoading}>
                         ×

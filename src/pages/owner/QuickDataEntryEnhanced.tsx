@@ -25,7 +25,7 @@ function NozzleReadingRow({
     : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
 
   const reading = readings[nozzle.id];
-  const enteredValue = reading?.readingValue ? parseFloat(reading.readingValue) : 0;
+  const enteredValue = reading?.readingValue !== undefined && reading?.readingValue !== '' ? parseFloat(reading.readingValue) : undefined;
   const price = getPrice(nozzle.fuelType);
   const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
 
@@ -44,19 +44,19 @@ function NozzleReadingRow({
         <Input
           type="number"
           step="any"
-          placeholder="0.00"
-          value={reading?.readingValue || ''}
+          placeholder="Enter reading"
+          value={reading?.readingValue !== undefined && reading?.readingValue !== null ? reading.readingValue : ''}
           onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
           disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
           className={`text-xs h-7 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
         />
         {/* Batched last readings used; no per-row loading indicator */}
-        {reading?.readingValue && !lastReadingLoading && enteredValue > compareValue && (
+        {reading?.readingValue && !lastReadingLoading && enteredValue !== undefined && enteredValue > compareValue && (
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
             <Check className="w-4 h-4" />
           </div>
         )}
-        {reading?.readingValue && !lastReadingLoading && enteredValue <= compareValue && (
+        {reading?.readingValue && !lastReadingLoading && enteredValue !== undefined && enteredValue <= compareValue && (
           <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-red-500 text-xs">
             Incorrect reading
           </div>
@@ -69,7 +69,7 @@ function NozzleReadingRow({
         </p>
       )}
       {/* Show calculation below input if reading is valid */}
-      {reading?.readingValue && enteredValue > compareValue && hasFuelPrice && (
+      {reading?.readingValue && enteredValue !== undefined && enteredValue > compareValue && hasFuelPrice && (
         <div className="mt-2 pt-2 border-t border-gray-200">
           <ReadingSaleCalculation
             nozzleNumber={nozzle.nozzleNumber}
@@ -745,25 +745,33 @@ export default function QuickDataEntry() {
                 </Card>
               )}
 
-              {/* Show local calculation only for entry validation - use saleSummary value directly */}
+              {/* Improved Sale Summary UI */}
               {pendingCount > 0 && saleSummary.totalSaleValue > 0 && (
                 <>
-                  {/* Quick Summary Card */}
-                  <Card className="border-2 border-green-200 bg-green-50">
-                    <CardContent className="p-3 md:p-4 space-y-3">
-                      <div>
-                        <p className="text-xs text-muted-foreground">Current Entry Sale Value</p>
-                        <p className="text-xl md:text-2xl font-bold text-green-600 break-all md:break-normal">
-                          ₹{saleSummary.totalSaleValue >= 100000 
-                            ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`
-                            : safeToFixed(saleSummary.totalSaleValue, 2)}
-                        </p>
-                      </div>
-                      <div className="flex gap-2 md:gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs text-muted-foreground truncate">Readings</p>
-                          <p className="text-base md:text-lg font-semibold truncate">{pendingCount}/{totalNozzles}</p>
+                  <Card className="border-2 border-green-400 bg-green-50 shadow-md">
+                    <CardContent className="p-4 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">Sale Summary</p>
+                          <p className="text-2xl md:text-3xl font-extrabold text-green-700">
+                            ₹{saleSummary.totalSaleValue >= 100000 
+                              ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`
+                              : safeToFixed(saleSummary.totalSaleValue, 2)}
+                          </p>
                         </div>
+                        <div className="text-right">
+                          <p className="text-xs text-muted-foreground">Readings Entered</p>
+                          <p className="text-lg font-bold">{pendingCount} <span className="text-xs text-gray-500">/ {totalNozzles}</span></p>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-2">
+                        {Object.entries(saleSummary.byFuelType).map(([fuel, val]) => (
+                          <div key={fuel} className="flex items-center justify-between text-sm">
+                            <span className="font-medium text-green-900">{fuel}</span>
+                            <span className="text-green-700">{safeToFixed(val.liters, 2)} L</span>
+                            <span className="text-green-700 font-semibold">₹{safeToFixed(val.value, 2)}</span>
+                          </div>
+                        ))}
                       </div>
                     </CardContent>
                   </Card>
@@ -790,7 +798,7 @@ export default function QuickDataEntry() {
                       ) > 0.01
                     }
                     size="lg"
-                    className="w-full"
+                    className="w-full mt-2"
                   >
                     {submitReadingsMutation.isPending ? (
                       'Saving...'
