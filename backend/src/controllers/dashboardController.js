@@ -66,7 +66,8 @@ exports.getSummary = async (req, res, next) => {
     }
 
     // Today's sales totals (include initial readings that represent sales)
-    const todayStats = await NozzleReading.findOne({
+    // Fetch readings with transaction data to get accurate payment breakdown
+    const todayReadings = await NozzleReading.findAll({
       where: { 
         ...stationFilter, 
         readingDate: today,
@@ -75,16 +76,44 @@ exports.getSummary = async (req, res, next) => {
           { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
         ]
       },
-      attributes: [
-        [fn('SUM', col('litres_sold')), 'totalLitres'],
-        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalAmount'],
-        [fn('SUM', col('cash_amount')), 'totalCash'],
-        [fn('SUM', col('online_amount')), 'totalOnline'],
-        [fn('SUM', col('credit_amount')), 'totalCredit'],
-        [fn('COUNT', col('NozzleReading.id')), 'readingCount']
-      ],
+      attributes: ['id', 'litresSold', 'pricePerLitre', 'totalAmount', 'transactionId'],
       raw: true
     });
+
+    // Calculate totals from readings and fetch payment data from transactions
+    const { DailyTransaction } = require('../models');
+    let totalLitres = 0;
+    let totalAmount = 0;
+    let totalCash = 0;
+    let totalOnline = 0;
+    let totalCredit = 0;
+    
+    for (const reading of todayReadings) {
+      totalLitres += parseFloat(reading.litresSold || 0);
+      totalAmount += parseFloat(reading.totalAmount || 0);
+      
+      // Fetch payment breakdown from DailyTransaction if transactionId exists
+      if (reading.transactionId) {
+        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
+          attributes: ['paymentBreakdown'],
+          raw: true
+        });
+        if (transaction && transaction.paymentBreakdown) {
+          totalCash += parseFloat(transaction.paymentBreakdown.cash || 0);
+          totalOnline += parseFloat(transaction.paymentBreakdown.online || 0);
+          totalCredit += parseFloat(transaction.paymentBreakdown.credit || 0);
+        }
+      }
+    }
+
+    const todayStats = {
+      totalLitres,
+      totalAmount,
+      totalCash,
+      totalOnline,
+      totalCredit,
+      readingCount: todayReadings.length
+    };
 
     // Today's credit summary
     const creditStats = await Creditor.findOne({
@@ -190,23 +219,54 @@ exports.getNozzleBreakdown = async (req, res, next) => {
     };
     if (pumpId) whereClause.pumpId = pumpId;
 
-    const nozzleStats = await NozzleReading.findAll({
+    // Fetch readings with nozzle and transaction data
+    const readings = await NozzleReading.findAll({
       where: whereClause,
       include: [{
         model: Nozzle, as: 'nozzle', attributes: ['id', 'nozzleNumber', 'fuelType'],
         include: [{ model: Pump, as: 'pump', attributes: ['id', 'name', 'pumpNumber'] }]
       }],
-      attributes: [
-        [fn('SUM', col('NozzleReading.litres_sold')), 'litres'],
-        [fn('SUM', col('NozzleReading.total_amount')), 'amount'],
-        [fn('SUM', col('NozzleReading.cash_amount')), 'cash'],
-        [fn('SUM', col('NozzleReading.online_amount')), 'online'],
-        [fn('SUM', col('NozzleReading.credit_amount')), 'credit'],
-        [fn('COUNT', col('NozzleReading.id')), 'readings']
-      ],
-      group: ['nozzle.id', 'nozzle.nozzle_number', 'nozzle.fuel_type', 'nozzle.pump.id', 'nozzle.pump.name', 'nozzle.pump.pump_number'],
-      raw: true, nest: true
+      attributes: ['id', 'litresSold', 'totalAmount', 'transactionId'],
+      raw: false
     });
+
+    // Group by nozzle and calculate payment totals from transactions
+    const { DailyTransaction } = require('../models');
+    const nozzleMap = {};
+
+    for (const reading of readings) {
+      const nozzleId = reading.nozzle.id;
+      if (!nozzleMap[nozzleId]) {
+        nozzleMap[nozzleId] = {
+          nozzle: reading.nozzle,
+          litres: 0,
+          amount: 0,
+          cash: 0,
+          online: 0,
+          credit: 0,
+          readings: 0
+        };
+      }
+
+      nozzleMap[nozzleId].litres += parseFloat(reading.litresSold || 0);
+      nozzleMap[nozzleId].amount += parseFloat(reading.totalAmount || 0);
+      nozzleMap[nozzleId].readings += 1;
+
+      // Fetch payment breakdown from DailyTransaction if transactionId exists
+      if (reading.transactionId) {
+        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
+          attributes: ['paymentBreakdown'],
+          raw: true
+        });
+        if (transaction && transaction.paymentBreakdown) {
+          nozzleMap[nozzleId].cash += parseFloat(transaction.paymentBreakdown.cash || 0);
+          nozzleMap[nozzleId].online += parseFloat(transaction.paymentBreakdown.online || 0);
+          nozzleMap[nozzleId].credit += parseFloat(transaction.paymentBreakdown.credit || 0);
+        }
+      }
+    }
+
+    const nozzleStats = Object.values(nozzleMap);
 
     res.json({
       success: true,
@@ -218,12 +278,12 @@ exports.getNozzleBreakdown = async (req, res, next) => {
           fuelType: n.nozzle?.fuelType,
           fuelLabel: FUEL_TYPE_LABELS[n.nozzle?.fuelType] || n.nozzle?.fuelType,
           pump: { id: n.nozzle?.pump?.id, name: n.nozzle?.pump?.name, number: n.nozzle?.pump?.pumpNumber },
-          litres: parseFloat(n.litres || 0),
-          amount: parseFloat(n.amount || 0),
-          cash: parseFloat(n.cash || 0),
-          online: parseFloat(n.online || 0),
-          credit: parseFloat(n.credit || 0),
-          readings: parseInt(n.readings || 0)
+          litres: parseFloat(n.litres.toFixed(2)),
+          amount: parseFloat(n.amount.toFixed(2)),
+          cash: parseFloat(n.cash.toFixed(2)),
+          online: parseFloat(n.online.toFixed(2)),
+          credit: parseFloat(n.credit.toFixed(2)),
+          readings: n.readings
         }))
       }
     });
@@ -251,7 +311,8 @@ exports.getDailySummary = async (req, res, next) => {
       return res.json({ success: true, data: [] });
     }
 
-    const dailyStats = await NozzleReading.findAll({
+    // Fetch readings for the date range
+    const readings = await NozzleReading.findAll({
       where: { 
         ...stationFilter, 
         readingDate: { [Op.between]: [startDate, endDate] },
@@ -260,30 +321,62 @@ exports.getDailySummary = async (req, res, next) => {
           { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
         ]
       },
-      attributes: [
-        'readingDate',
-        [fn('SUM', col('litres_sold')), 'litres'],
-        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'amount'],
-        [fn('SUM', col('cash_amount')), 'cash'],
-        [fn('SUM', col('online_amount')), 'online'],
-        [fn('SUM', col('credit_amount')), 'credit'],
-        [fn('COUNT', col('NozzleReading.id')), 'readings']
-      ],
-      group: ['readingDate'],
-      order: [['readingDate', 'ASC']],
+      attributes: ['readingDate', 'litresSold', 'totalAmount', 'transactionId'],
       raw: true
     });
+
+    // Group by date and calculate payment totals from transactions
+    const { DailyTransaction } = require('../models');
+    const dateMap = {};
+
+    for (const reading of readings) {
+      const date = reading.readingDate;
+      if (!dateMap[date]) {
+        dateMap[date] = {
+          litres: 0,
+          amount: 0,
+          cash: 0,
+          online: 0,
+          credit: 0,
+          readings: 0
+        };
+      }
+
+      dateMap[date].litres += parseFloat(reading.litresSold || 0);
+      dateMap[date].amount += parseFloat(reading.totalAmount || 0);
+      dateMap[date].readings += 1;
+
+      // Fetch payment breakdown from DailyTransaction if transactionId exists
+      if (reading.transactionId) {
+        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
+          attributes: ['paymentBreakdown'],
+          raw: true
+        });
+        if (transaction && transaction.paymentBreakdown) {
+          dateMap[date].cash += parseFloat(transaction.paymentBreakdown.cash || 0);
+          dateMap[date].online += parseFloat(transaction.paymentBreakdown.online || 0);
+          dateMap[date].credit += parseFloat(transaction.paymentBreakdown.credit || 0);
+        }
+      }
+    }
+
+    const dailyStats = Object.keys(dateMap)
+      .sort()
+      .map(date => ({
+        readingDate: date,
+        ...dateMap[date]
+      }));
 
     res.json({
       success: true,
       data: dailyStats.map(day => ({
         date: day.readingDate,
-        litres: parseFloat(day.litres || 0),
-        amount: parseFloat(day.amount || 0),
-        cash: parseFloat(day.cash || 0),
-        online: parseFloat(day.online || 0),
-        credit: parseFloat(day.credit || 0),
-        readings: parseInt(day.readings || 0)
+        litres: parseFloat(day.litres.toFixed(2)),
+        amount: parseFloat(day.amount.toFixed(2)),
+        cash: parseFloat(day.cash.toFixed(2)),
+        online: parseFloat(day.online.toFixed(2)),
+        credit: parseFloat(day.credit.toFixed(2)),
+        readings: day.readings
       }))
     });
   } catch (error) {
@@ -311,7 +404,7 @@ exports.getFuelBreakdown = async (req, res, next) => {
     }
 
     // Use denormalized fuelType field for faster query
-    const breakdown = await NozzleReading.findAll({
+    const readings = await NozzleReading.findAll({
       where: { 
         ...stationFilter, 
         readingDate: { [Op.between]: [start, end] },
@@ -320,17 +413,47 @@ exports.getFuelBreakdown = async (req, res, next) => {
           { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
         ]
       },
-      attributes: [
-        'fuelType',
-        [fn('SUM', col('litres_sold')), 'litres'],
-        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'amount'],
-        [fn('SUM', col('cash_amount')), 'cash'],
-        [fn('SUM', col('online_amount')), 'online'],
-        [fn('SUM', col('credit_amount')), 'credit']
-      ],
-      group: ['fuelType'],
+      attributes: ['fuelType', 'litresSold', 'totalAmount', 'transactionId'],
       raw: true
     });
+
+    // Group by fuel type and calculate payment totals from transactions
+    const { DailyTransaction } = require('../models');
+    const fuelMap = {};
+
+    for (const reading of readings) {
+      const fuelType = reading.fuelType;
+      if (!fuelMap[fuelType]) {
+        fuelMap[fuelType] = {
+          litres: 0,
+          amount: 0,
+          cash: 0,
+          online: 0,
+          credit: 0
+        };
+      }
+
+      fuelMap[fuelType].litres += parseFloat(reading.litresSold || 0);
+      fuelMap[fuelType].amount += parseFloat(reading.totalAmount || 0);
+
+      // Fetch payment breakdown from DailyTransaction if transactionId exists
+      if (reading.transactionId) {
+        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
+          attributes: ['paymentBreakdown'],
+          raw: true
+        });
+        if (transaction && transaction.paymentBreakdown) {
+          fuelMap[fuelType].cash += parseFloat(transaction.paymentBreakdown.cash || 0);
+          fuelMap[fuelType].online += parseFloat(transaction.paymentBreakdown.online || 0);
+          fuelMap[fuelType].credit += parseFloat(transaction.paymentBreakdown.credit || 0);
+        }
+      }
+    }
+
+    const breakdown = Object.keys(fuelMap).map(fuelType => ({
+      fuelType,
+      ...fuelMap[fuelType]
+    }));
 
     res.json({
       success: true,
@@ -339,11 +462,11 @@ exports.getFuelBreakdown = async (req, res, next) => {
         breakdown: breakdown.map(item => ({
           fuelType: item.fuelType,
           label: FUEL_TYPE_LABELS[item.fuelType] || item.fuelType,
-          litres: parseFloat(item.litres || 0),
-          amount: parseFloat(item.amount || 0),
-          cash: parseFloat(item.cash || 0),
-          online: parseFloat(item.online || 0),
-          credit: parseFloat(item.credit || 0)
+          litres: parseFloat(item.litres.toFixed(2)),
+          amount: parseFloat(item.amount.toFixed(2)),
+          cash: parseFloat(item.cash.toFixed(2)),
+          online: parseFloat(item.online.toFixed(2)),
+          credit: parseFloat(item.credit.toFixed(2))
         }))
       }
     });

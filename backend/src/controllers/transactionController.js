@@ -19,7 +19,23 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
     transaction
   });
 
-  const previousReading = lastReading ? parseFloat(lastReading.readingValue) : 0;
+  // If no non-initial previous reading exists, prefer nozzle.initialReading
+  let previousReading = 0;
+  let isInitial = false;
+  if (lastReading) {
+    previousReading = parseFloat(lastReading.readingValue);
+  } else {
+    const nozzle = await Nozzle.findByPk(nozzleId, { transaction });
+    const init = nozzle && nozzle.initialReading !== undefined && nozzle.initialReading !== null ? parseFloat(String(nozzle.initialReading)) : null;
+    if (init !== null) {
+      previousReading = init;
+      isInitial = true;
+    } else {
+      previousReading = 0;
+      isInitial = true; // treat first-ever reading as initial by default
+    }
+  }
+
   const closingReading = parseFloat(readingValue || 0);
   const litresSold = Math.max(0, closingReading - previousReading);
 
@@ -50,6 +66,9 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
     notes: notes || '',
     enteredBy: userId
   };
+
+  // Preserve isInitialReading flag when creating
+  payload.isInitialReading = !!isInitial;
 
   return await NozzleReading.create(payload, { transaction });
 }
@@ -353,12 +372,20 @@ exports.createQuickEntry = async (req, res, next) => {
         createdReadings.push(created);
       }
 
-      // Build readingIds and reuse transaction creation logic - but within same transaction
-      const readingIds = createdReadings.map(cr => cr.id);
+      // Build readingIds for billable readings (exclude initial readings)
+      const billableReadings = createdReadings.filter(cr => !cr.isInitialReading);
+      const readingIds = billableReadings.map(cr => cr.id);
 
-      // Compute totals from created readings
-      const totalLiters = createdReadings.reduce((s, r) => s + parseFloat(r.litresSold || 0), 0);
-      const totalSaleValue = createdReadings.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
+      // Compute totals from created, billable readings only
+      const totalLiters = billableReadings.reduce((s, r) => s + parseFloat(r.litresSold || 0), 0);
+      const totalSaleValue = billableReadings.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
+
+      // If there are no billable readings (only initial readings were recorded), commit and return
+      if (readingIds.length === 0) {
+        await t.commit();
+        const result = { createdReadings };
+        return res.status(201).json({ success: true, message: 'Initial readings recorded. No transaction created.', data: result });
+      }
 
       // Validate paymentBreakdown presence
       let paymentTotal = parseFloat((paymentBreakdown && paymentBreakdown.cash) || 0) +

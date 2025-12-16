@@ -1241,28 +1241,28 @@ exports.getDailySales = async (req, res, next) => {
     const byFuelType = {};
     const readingsList = [];
 
-    readings.forEach(reading => {
+    const { DailyTransaction } = require('../models');
+
+    for (const reading of readings) {
       const saleValue = parseFloat(reading.litresSold || 0) * parseFloat(reading.pricePerLitre || 0);
       const liters = parseFloat(reading.litresSold || 0);
       const fuelType = reading.fuelType || reading.Nozzle?.fuelType || 'unknown';
-      let cash = parseFloat(reading.cashAmount || 0);
-      let online = parseFloat(reading.onlineAmount || 0);
-      let credit = parseFloat(reading.creditAmount || 0);
-
-      console.log(`[DEBUG] Reading ${reading.id}: totalAmount=${reading.totalAmount}, cashAmount=${reading.cashAmount}, onlineAmount=${reading.onlineAmount}, creditAmount=${reading.creditAmount}`);
-      console.log(`[DEBUG] Reading ${reading.id}: cashAmount type=${typeof reading.cashAmount}, value=${reading.cashAmount}`);
-
-      // Handle legacy readings where payment amounts weren't set or are null - default to cash
-      const cashIsZeroOrNull = reading.cashAmount === null || reading.cashAmount === undefined || parseFloat(reading.cashAmount || 0) === 0;
-      const onlineIsZeroOrNull = reading.onlineAmount === null || reading.onlineAmount === undefined || parseFloat(reading.onlineAmount || 0) === 0;
-      const creditIsZeroOrNull = reading.creditAmount === null || reading.creditAmount === undefined || parseFloat(reading.creditAmount || 0) === 0;
       
-      if (cashIsZeroOrNull && onlineIsZeroOrNull && creditIsZeroOrNull && saleValue > 0) {
-        cash = saleValue;
-        console.log(`[DEBUG] Defaulting reading ${reading.id} to cash: ₹${cash} (all payments are zero/null)`);
-      }
+      // Fetch payment breakdown from DailyTransaction if transactionId exists
+      let cash = 0;
+      let online = 0;
+      let credit = 0;
 
-      console.log(`[DEBUG] Final payment breakdown for reading ${reading.id}: cash=${cash}, online=${online}, credit=${credit}`);
+      if (reading.transactionId) {
+        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
+          attributes: ['paymentBreakdown']
+        });
+        if (transaction && transaction.paymentBreakdown) {
+          cash = parseFloat(transaction.paymentBreakdown.cash || 0);
+          online = parseFloat(transaction.paymentBreakdown.online || 0);
+          credit = parseFloat(transaction.paymentBreakdown.credit || 0);
+        }
+      }
 
       totalSaleValue += saleValue;
       totalLiters += liters;
@@ -1283,7 +1283,7 @@ exports.getDailySales = async (req, res, next) => {
         liters,
         saleValue
       });
-    });
+    }
 
     res.json({
       success: true,
@@ -1330,7 +1330,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
 
     const queryDate = date || new Date().toISOString().split('T')[0];
 
-    const { NozzleReading, Nozzle, User, Settlement } = require('../models');
+    const { NozzleReading, Nozzle, User, Settlement, DailyTransaction } = require('../models');
     const { Op } = require('sequelize');
 
     // Fetch all readings for this station/date with details
@@ -1359,16 +1359,38 @@ exports.getReadingsForSettlement = async (req, res, next) => {
           as: 'settlement',
           attributes: ['id', 'date', 'isFinal', 'recordedAt'],
           required: false
+        },
+        {
+          model: DailyTransaction,
+          as: 'transaction',
+          attributes: ['id', 'transactionDate', 'status', 'createdBy'],
+          required: false
         }
       ],
       order: [['createdAt', 'DESC']]
     });
 
-    // Categorize readings
+    // Categorize readings and fetch transaction payment data
     const unlinkedReadings = [];
     const linkedReadings = [];
 
-    readings.forEach(reading => {
+    for (const reading of readings) {
+      // Fetch payment breakdown from DailyTransaction if transactionId exists
+      let cashAmount = 0;
+      let onlineAmount = 0;
+      let creditAmount = 0;
+
+      if (reading.transactionId) {
+        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
+          attributes: ['paymentBreakdown']
+        });
+        if (transaction && transaction.paymentBreakdown) {
+          cashAmount = parseFloat(transaction.paymentBreakdown.cash || 0);
+          onlineAmount = parseFloat(transaction.paymentBreakdown.online || 0);
+          creditAmount = parseFloat(transaction.paymentBreakdown.credit || 0);
+        }
+      }
+
       const readingData = {
         id: reading.id,
         nozzleNumber: reading.nozzle?.nozzleNumber,
@@ -1377,9 +1399,9 @@ exports.getReadingsForSettlement = async (req, res, next) => {
         closingReading: parseFloat(reading.readingValue || 0),
         litresSold: parseFloat(reading.litresSold || 0),
         saleValue: parseFloat(reading.totalAmount || 0),
-        cashAmount: parseFloat(reading.cashAmount || 0),
-        onlineAmount: parseFloat(reading.onlineAmount || 0),
-        creditAmount: parseFloat(reading.creditAmount || 0),
+        cashAmount: cashAmount,
+        onlineAmount: onlineAmount,
+        creditAmount: creditAmount,
         recordedBy: reading.enteredByUser ? {
           id: reading.enteredByUser.id,
           name: reading.enteredByUser.name
@@ -1390,6 +1412,12 @@ exports.getReadingsForSettlement = async (req, res, next) => {
           id: reading.settlement.id,
           date: reading.settlement.date,
           isFinal: reading.settlement.isFinal
+        } : null,
+        transaction: reading.transaction ? {
+          id: reading.transaction.id,
+          transactionDate: reading.transaction.transactionDate,
+          status: reading.transaction.status,
+          createdBy: reading.transaction.createdBy
         } : null
       };
 
@@ -1398,7 +1426,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
       } else {
         unlinkedReadings.push(readingData);
       }
-    });
+    }
 
     // Calculate totals for unlinked readings
     const unlinkedTotals = unlinkedReadings.reduce((acc, r) => {

@@ -49,6 +49,13 @@ import {
 import { Button as NavButton } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 
+interface TransactionDetails {
+  id: string;
+  transactionDate: string;
+  status: string;
+  createdBy: string;
+}
+
 interface DailySalesData {
   date: string;
   stationId: string;
@@ -79,13 +86,11 @@ interface ReadingForSettlement {
   closingReading: number;
   litresSold: number;
   saleValue: number;
-  cashAmount: number;
-  onlineAmount: number;
-  creditAmount: number;
   recordedBy: { id: string; name: string } | null;
   recordedAt: string;
   settlementId: string | null;
   linkedSettlement: { id: string; date: string; isFinal: boolean } | null;
+  transaction: TransactionDetails | null;
 }
 
 interface ReadingsForSettlementResponse {
@@ -861,9 +866,6 @@ export default function DailySettlement() {
                           Credit Variance: {(settlement.varianceCredit ?? 0) >= 0 ? '+' : ''}₹{safeToFixed(settlement.varianceCredit ?? 0, 2)}
                         </div>
                       </div>
-                      {settlement.notes && (
-                        <div className="text-xs text-muted-foreground">Notes: {settlement.notes}</div>
-                      )}
                       {/* Show all settlements for this date if duplicates exist */}
                       {settlement.duplicateCount && settlement.duplicateCount > 1 && settlement.allSettlements && (
                         <div className="mt-2">
