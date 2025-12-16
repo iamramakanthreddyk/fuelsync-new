@@ -589,17 +589,27 @@ exports.getPumps = async (req, res, next) => {
       pumps.map(async (pump) => {
         const nozzles = await Nozzle.findAll({
           where: { pumpId: pump.id },
-          attributes: ['id', 'nozzleNumber', 'fuelType', 'status', 'initialReading', 'lastReading', 'lastReadingDate'],
+          attributes: ['id', 'nozzleNumber', 'fuelType', 'status', 'initialReading'],
           order: [['nozzleNumber', 'ASC']],
           raw: true
         });
-        
-        // If lastReading is null but initialReading exists, use initialReading as the lastReading
-        const nozzlesWithReading = nozzles.map(nozzle => ({
-          ...nozzle,
-          lastReading: nozzle.lastReading !== null ? nozzle.lastReading : nozzle.initialReading
+
+        // For each nozzle, fetch the latest reading from NozzleReading
+        const nozzlesWithReading = await Promise.all(nozzles.map(async nozzle => {
+          const lastReadingResult = await NozzleReading.findOne({
+            where: { nozzleId: nozzle.id },
+            order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
+            attributes: ['readingValue', 'readingDate'],
+            raw: true
+          });
+          const lastReading = lastReadingResult ? parseFloat(lastReadingResult.readingValue || lastReadingResult.reading_value || 0) : null;
+          return {
+            ...nozzle,
+            lastReading: lastReading !== null ? lastReading : (nozzle.initialReading !== undefined ? parseFloat(nozzle.initialReading) : 0),
+            lastReadingDate: lastReadingResult ? lastReadingResult.readingDate : null
+          };
         }));
-        
+
         return {
           ...pump.toJSON(),
           nozzles: nozzlesWithReading
