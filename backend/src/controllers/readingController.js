@@ -511,8 +511,41 @@ exports.getReadings = async (req, res, next) => {
       saleValue: (parseFloat(r.litresSold) || 0) * (parseFloat(r.pricePerLitre) || 0)
     });
     const readingsWithSaleValue = rows.map(addSaleValue);
-    const linkedReadings = readingsWithSaleValue.filter(r => r.settlementId);
-    const unlinkedReadings = readingsWithSaleValue.filter(r => !r.settlementId);
+
+    // Attach payment breakdown from DailyTransaction (only source of tender entries)
+    const txIds = Array.from(new Set(readingsWithSaleValue.map(r => r.transactionId).filter(Boolean)));
+    let txMap = {};
+    if (txIds.length > 0) {
+      const { DailyTransaction } = require('../models');
+      const txns = await DailyTransaction.findAll({ where: { id: txIds }, raw: true });
+      txMap = txns.reduce((m, t) => { m[t.id] = t.payment_breakdown || t.paymentBreakdown || {}; return m; }, {});
+    }
+
+    const readingsWithPayments = readingsWithSaleValue.map(r => {
+      const pb = r.transactionId ? (txMap[r.transactionId] || {}) : {};
+      const cash = parseFloat(pb.cash || 0);
+      const online = parseFloat(pb.online || 0);
+      const credit = parseFloat(pb.credit || 0);
+      return {
+        ...r,
+        cashAmount: cash,
+        onlineAmount: online,
+        creditAmount: credit
+      };
+    });
+
+    const linkedReadings = readingsWithPayments.filter(r => r.settlementId);
+    const unlinkedReadings = readingsWithPayments.filter(r => !r.settlementId);
+
+    const unlinkedTotals = unlinkedReadings.reduce((acc, r) => {
+      acc.cash += parseFloat(r.cashAmount || 0);
+      acc.online += parseFloat(r.onlineAmount || 0);
+      acc.credit += parseFloat(r.creditAmount || 0);
+      acc.litres += parseFloat(r.litresSold || 0);
+      acc.value += parseFloat(r.saleValue || 0);
+      return acc;
+    }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
+
     res.json({
       success: true,
       data: {
@@ -524,16 +557,16 @@ exports.getReadings = async (req, res, next) => {
           count: unlinkedReadings.length,
           readings: unlinkedReadings,
           totals: {
-            cash: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.cashAmount) || 0), 0),
-            online: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.onlineAmount) || 0), 0),
-            credit: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.creditAmount) || 0), 0),
-            litres: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.litresSold) || 0), 0),
-            value: unlinkedReadings.reduce((sum, r) => sum + (parseFloat(r.saleValue) || 0), 0)
+            cash: parseFloat(unlinkedTotals.cash.toFixed(2)),
+            online: parseFloat(unlinkedTotals.online.toFixed(2)),
+            credit: parseFloat(unlinkedTotals.credit.toFixed(2)),
+            litres: parseFloat(unlinkedTotals.litres.toFixed(2)),
+            value: parseFloat(unlinkedTotals.value.toFixed(2))
           }
         },
-        allReadingsCount: readingsWithSaleValue.length
+        allReadingsCount: readingsWithPayments.length
       },
-      readings: readingsWithSaleValue,
+      readings: readingsWithPayments,
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),

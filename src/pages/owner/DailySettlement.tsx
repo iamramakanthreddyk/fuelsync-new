@@ -817,15 +817,16 @@ export default function DailySettlement() {
               <CardHeader>
                 <CardTitle className="text-lg">Recent Settlements</CardTitle>
                 <CardDescription>
-                  {previousSettlements.some(s => s.duplicateCount && s.duplicateCount > 1) && (
-                    <span className="text-red-600 font-bold">Duplicate settlements detected for some days!</span>
+                  {previousSettlements.some(s => (s.attempts && s.attempts > 1) || (s.duplicateCount && s.duplicateCount > 1)) && (
+                    <span className="text-red-600 font-bold">Multiple settlement attempts detected for some days</span>
                   )}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-6">
                   {previousSettlements.map((settlement: SettlementRecord) => (
-                    <div key={settlement.id} className={`border rounded-lg p-3 ${settlement.isFinal ? 'border-green-600 bg-green-50' : 'border-muted'} space-y-2`}>
+                    // Determine if this settlement is the main one returned by backend
+                    <div key={settlement.id} className={`border rounded-lg p-3 ${settlement.isFinal ? 'border-green-600 bg-green-50' : 'border-muted'} space-y-2 ${settlement.mainSettlement && settlement.mainSettlement.id === settlement.id ? 'ring-2 ring-blue-300' : ''}`}>
                       <div className="flex items-center gap-2">
                         <div className="font-semibold text-sm">
                           {new Date(settlement.date).toLocaleDateString('en-IN', {
@@ -834,6 +835,9 @@ export default function DailySettlement() {
                         </div>
                         {settlement.isFinal && (
                           <Badge variant="outline" className="text-green-700 border-green-600">Final</Badge>
+                        )}
+                        {(settlement.attempts && settlement.attempts > 1) && (
+                          <Badge variant="outline" className="text-red-700 border-red-600">Attempts: {settlement.attempts}</Badge>
                         )}
                         {settlement.duplicateCount && settlement.duplicateCount > 1 && (
                           <Badge variant="outline" className="text-red-700 border-red-600">Duplicates: {settlement.duplicateCount}</Badge>

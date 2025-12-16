@@ -104,6 +104,15 @@ exports.getSales = async (req, res) => {
     });
 
     // Transform to sales format
+    // Collect transactionIds to fetch paymentBreakdown where present
+    const txIds = Array.from(new Set(sales.map(s => s.transactionId).filter(Boolean)));
+    let txMap = {};
+    if (txIds.length > 0) {
+      const { DailyTransaction } = require('../models');
+      const txns = await DailyTransaction.findAll({ where: { id: txIds }, raw: true });
+      txMap = txns.reduce((m, t) => { m[t.id] = t.payment_breakdown || t.paymentBreakdown || {}; return m; }, {});
+    }
+
     const salesData = sales.map(reading => ({
       id: reading.id,
       station_id: reading.stationId,
@@ -118,9 +127,9 @@ exports.getSales = async (req, res) => {
       delta_volume_l: parseFloat(reading.litresSold),
       price_per_litre: parseFloat(reading.pricePerLitre),
       total_amount: parseFloat(reading.totalAmount),
-      payment_breakdown: reading.paymentBreakdown,
-      cash_amount: parseFloat(reading.cashAmount || 0),
-      online_amount: parseFloat(reading.onlineAmount || 0),
+      payment_breakdown: reading.paymentBreakdown || (reading.transactionId ? (txMap[reading.transactionId] || {}) : {}),
+      cash_amount: parseFloat((reading.transactionId && txMap[reading.transactionId]) ? (txMap[reading.transactionId].cash || 0) : (reading.cashAmount || 0)),
+      online_amount: parseFloat((reading.transactionId && txMap[reading.transactionId]) ? (txMap[reading.transactionId].online || 0) : (reading.onlineAmount || 0)),
       entered_by: reading.enteredByUser?.name,
       created_at: reading.createdAt
     }));
@@ -233,12 +242,6 @@ exports.getSalesSummary = async (req, res) => {
 
       totalLitres += litres;
       totalAmount += amount;
-      cashAmount += parseFloat(sale.cashAmount || 0);
-      onlineAmount += parseFloat(sale.onlineAmount || 0);
-
-      if (sale.paymentBreakdown && sale.paymentBreakdown.credit) {
-        creditAmount += parseFloat(sale.paymentBreakdown.credit);
-      }
 
       if (!byFuelType[fuelType]) {
         byFuelType[fuelType] = { litres: 0, amount: 0, count: 0 };
@@ -247,6 +250,31 @@ exports.getSalesSummary = async (req, res) => {
       byFuelType[fuelType].amount += amount;
       byFuelType[fuelType].count += 1;
     });
+
+    // Aggregate tender totals from DailyTransaction for the date/filters
+    let txCash = 0, txOnline = 0, txCredit = 0;
+    try {
+      const { DailyTransaction } = require('../models');
+      const txWhere = {};
+      if (date) txWhere.transactionDate = date;
+      if (start_date && end_date) txWhere.transactionDate = { [Op.between]: [start_date, end_date] };
+      if (start_date && !end_date) txWhere.transactionDate = { [Op.gte]: start_date };
+      if (!start_date && end_date) txWhere.transactionDate = { [Op.lte]: end_date };
+      if (station_id) txWhere.stationId = station_id;
+      const txns = await DailyTransaction.findAll({ where: txWhere, raw: true });
+      txns.forEach(tx => {
+        const pb = tx.payment_breakdown || tx.paymentBreakdown || {};
+        txCash += parseFloat(pb.cash || 0);
+        txOnline += parseFloat(pb.online || 0);
+        txCredit += parseFloat(pb.credit || 0);
+      });
+    } catch (e) {
+      // Non-fatal: if DailyTransaction not available, keep 0s
+    }
+
+    cashAmount = txCash;
+    onlineAmount = txOnline;
+    creditAmount = txCredit;
 
     res.json({
       success: true,

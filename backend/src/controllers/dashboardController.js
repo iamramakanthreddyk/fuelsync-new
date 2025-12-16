@@ -1000,16 +1000,10 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     const currentPeriod = await NozzleReading.findOne({
       attributes: [
         [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
-        [fn('SUM', col('litres_sold')), 'totalQuantity'],
-        [fn('COUNT', col('NozzleReading.id')), 'totalTransactions']
+        [fn('SUM', col('litres_sold')), 'totalQuantity']
       ],
-      include: [{
-        model: Pump,
-        as: 'pump',
-        attributes: [],
-        where: { stationId: { [Op.in]: stationIds } }
-      }],
       where: {
+        stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
         }
@@ -1023,13 +1017,8 @@ exports.getOwnerAnalytics = async (req, res, next) => {
         [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
         [fn('SUM', col('litres_sold')), 'totalQuantity']
       ],
-      include: [{
-        model: Pump,
-        as: 'pump',
-        attributes: [],
-        where: { stationId: { [Op.in]: stationIds } }
-      }],
       where: {
+        stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [prevStart.toISOString().split('T')[0], prevEnd.toISOString().split('T')[0]]
         }
@@ -1037,9 +1026,22 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       raw: true
     });
 
-    const totalSales = parseFloat(currentPeriod?.totalSales || 0);
-    const totalQuantity = parseFloat(currentPeriod?.totalQuantity || 0);
-    const totalTransactions = parseInt(currentPeriod?.totalTransactions || 0);
+    let totalSales = parseFloat(currentPeriod?.totalSales || 0);
+    let totalQuantity = parseFloat(currentPeriod?.totalQuantity || 0);
+
+    // Transactions should count DailyTransaction records (a transaction may include multiple readings)
+    let totalTransactions = 0;
+    try {
+      const txCountRow = await sequelize.models.DailyTransaction.findOne({
+        attributes: [[fn('COUNT', col('id')), 'txCount']],
+        where: { stationId: { [Op.in]: stationIds }, transactionDate: { [Op.between]: [startDate, endDate] } },
+        raw: true
+      });
+      totalTransactions = parseInt(txCountRow?.txCount || 0);
+    } catch (e) {
+      // Fallback: if DailyTransaction not available, fall back to counting readings
+      totalTransactions = parseInt(currentPeriod?.totalTransactions || 0);
+    }
     const prevSales = parseFloat(previousPeriod?.totalSales || 0);
     const prevQuantity = parseFloat(previousPeriod?.totalQuantity || 0);
 
@@ -1110,13 +1112,17 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       };
     });
 
+    // Recompute totals from aggregates to be robust against dialect/aliasing differences
+    totalSales = salesByStationData.reduce((s, it) => s + (it.sales || 0), 0);
+    totalQuantity = salesByFuelTypeData.reduce((s, it) => s + (it.quantity || 0), 0);
+
     // Daily trend
+    // Daily trend: sales and quantity from readings; transactions from DailyTransaction (one transaction may reference many readings)
     const dailyTrend = await NozzleReading.findAll({
       attributes: [
         [fn('DATE', col('reading_date')), 'date'],
         [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
-        [fn('SUM', col('litres_sold')), 'quantity'],
-        [fn('COUNT', col('id')), 'transactions']
+        [fn('SUM', col('litres_sold')), 'quantity']
       ],
       where: {
         stationId: { [Op.in]: stationIds },
@@ -1129,11 +1135,26 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       raw: true
     });
 
+    // Get transaction counts per date
+    let txTrend = [];
+    try {
+      txTrend = await sequelize.models.DailyTransaction.findAll({
+        attributes: [[fn('DATE', col('transaction_date')), 'date'], [fn('COUNT', col('id')), 'transactions']],
+        where: { stationId: { [Op.in]: stationIds }, transactionDate: { [Op.between]: [startDate, endDate] } },
+        group: ['date'],
+        raw: true
+      });
+    } catch (e) {
+      txTrend = [];
+    }
+
+    const txMap = new Map(txTrend.map(t => [t.date, parseInt(t.transactions || 0)]));
+
     const dailyTrendData = dailyTrend.map(d => ({
       date: d.date,
       sales: parseFloat(d.sales || 0),
       quantity: parseFloat(d.quantity || 0),
-      transactions: parseInt(d.transactions || 0)
+      transactions: txMap.get(d.date) || 0
     }));
 
     // Top performing stations (with growth)
@@ -1311,11 +1332,26 @@ exports.getIncomeReceivablesReport = async (req, res, next) => {
     let totalOnlineReceived = 0;
     let totalCreditPending = 0;
 
-    readings.forEach(r => {
-      totalCashReceived += parseFloat(r.cashAmount || 0);
-      totalOnlineReceived += parseFloat(r.onlineAmount || 0);
-      totalCreditPending += parseFloat(r.creditAmount || 0);
-    });
+    // Aggregate tender totals from DailyTransaction (authoritative source)
+    try {
+      const txns = await sequelize.models.DailyTransaction.findAll({
+        where: { stationId, transactionDate: { [Op.between]: [queryStart, queryEnd] } },
+        raw: true
+      });
+      txns.forEach(tx => {
+        const pb = tx.payment_breakdown || tx.paymentBreakdown || {};
+        totalCashReceived += parseFloat(pb.cash || 0);
+        totalOnlineReceived += parseFloat(pb.online || 0);
+        totalCreditPending += parseFloat(pb.credit || 0);
+      });
+    } catch (e) {
+      // Non-fatal: if DailyTransaction model not available, fall back to reading fields
+      readings.forEach(r => {
+        totalCashReceived += parseFloat(r.cashAmount || 0);
+        totalOnlineReceived += parseFloat(r.onlineAmount || 0);
+        totalCreditPending += parseFloat(r.creditAmount || 0);
+      });
+    }
 
     // Aggregate settled (owner) values for the period
     let settledCash = 0;

@@ -176,14 +176,36 @@ module.exports = (sequelize) => {
       transaction
     });
 
-    // Calculate totals
+    // Calculate totals (sales come from readings)
     const readingsCount = readings.length;
     const totalLitresSold = readings.reduce((sum, r) => sum + parseFloat(r.litresSold || 0), 0);
     const totalSalesAmount = readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
-    const expectedCash = readings.reduce((sum, r) => sum + parseFloat(r.cashAmount || 0), 0);
-    
-    const cashDifference = cashCollected !== undefined 
-      ? parseFloat(cashCollected) - expectedCash 
+
+    // Expected cash / employee tender totals are recorded in DailyTransaction (source-of-truth)
+    let expectedCash = 0;
+    try {
+      const DailyTransaction = sequelize.models.DailyTransaction;
+      if (DailyTransaction) {
+        const txns = await DailyTransaction.findAll({
+          where: {
+            stationId: this.stationId,
+            transactionDate: this.shiftDate,
+            createdBy: this.employeeId
+          },
+          raw: true
+        });
+        txns.forEach(tx => {
+          const pb = tx.payment_breakdown || tx.paymentBreakdown || {};
+          expectedCash += parseFloat(pb.cash || 0);
+        });
+      }
+    } catch (e) {
+      // Non-fatal: fall back to zero if transactions not present
+      expectedCash = 0;
+    }
+
+    const cashDifference = cashCollected !== undefined
+      ? parseFloat(cashCollected) - expectedCash
       : null;
 
     await this.update({

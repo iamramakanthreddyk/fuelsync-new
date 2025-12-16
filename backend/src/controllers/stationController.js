@@ -1518,37 +1518,36 @@ exports.recordSettlement = async (req, res, next) => {
     // CALCULATE VARIANCE on backend (don't trust frontend value)
     const calculatedVariance = parsedExpectedCash - parsedActualCash;
 
-    // Fetch employee-reported totals from readings
-    const { NozzleReading } = require('../models');
-    const { Op, fn, col } = require('sequelize');
+    // Fetch employee-reported totals exclusively from DailyTransaction (source-of-truth)
+    const { DailyTransaction } = require('../models');
+    const { Op } = require('sequelize');
 
-    // Build where clause - if readingIds provided, use those; otherwise use all for the date
-    let readingsWhereClause = {
-      stationId,
-      readingDate: settlementDate,
-      [Op.or]: [
-        { isInitialReading: false },
-        { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
-      ]
-    };
-
-    // If specific readingIds provided, filter by those
+    let transactions = [];
     if (readingIds && Array.isArray(readingIds) && readingIds.length > 0) {
-      readingsWhereClause.id = { [Op.in]: readingIds };
+      // Fetch possible transactions for station/date and filter by readingIds overlap
+      const possibleTxns = await DailyTransaction.findAll({ where: { stationId, transactionDate: settlementDate }, raw: true });
+      const selectedSet = new Set(readingIds);
+      transactions = possibleTxns.filter(txn => {
+        const ids = Array.isArray(txn.reading_ids) ? txn.reading_ids : txn.readingIds || [];
+        return ids.some(id => selectedSet.has(id));
+      });
+    } else {
+      // Aggregate all transactions for the station/date
+      transactions = await DailyTransaction.findAll({ where: { stationId, transactionDate: settlementDate }, raw: true });
     }
 
-    const employeeTotals = await NozzleReading.findOne({
-      attributes: [
-        [fn('SUM', col('cash_amount')), 'employeeCash'],
-        [fn('SUM', col('online_amount')), 'employeeOnline'],
-        [fn('SUM', col('credit_amount')), 'employeeCredit']
-      ],
-      where: readingsWhereClause,
-      raw: true
+    // Sum paymentBreakdown across matched transactions (only source of tender entries from employees)
+    let employeeCash = 0, employeeOnline = 0, employeeCredit = 0;
+    transactions.forEach(txn => {
+      const pb = txn.payment_breakdown || txn.paymentBreakdown || {};
+      employeeCash += parseFloat(pb.cash || 0);
+      employeeOnline += parseFloat(pb.online || 0);
+      employeeCredit += parseFloat(pb.credit || 0);
     });
-    const employeeCash = parseFloat(employeeTotals?.employeeCash || 0);
-    const employeeOnline = parseFloat(employeeTotals?.employeeOnline || 0);
-    const employeeCredit = parseFloat(employeeTotals?.employeeCredit || 0);
+
+    employeeCash = parseFloat(employeeCash.toFixed(2));
+    employeeOnline = parseFloat(employeeOnline.toFixed(2));
+    employeeCredit = parseFloat(employeeCredit.toFixed(2));
 
     // Calculate variance for online and credit
     const varianceOnline = employeeOnline - parsedOnline;
@@ -1624,13 +1623,13 @@ exports.recordSettlement = async (req, res, next) => {
         success: true, 
         data: record,
         metadata: {
-          message: 'Settlement recorded with ACID compliance',
-          varianceCalculation: `Cash: ${parsedExpectedCash} - ${parsedActualCash} = ${calculatedVariance}`,
-          employeeReported: { cash: employeeCash, online: employeeOnline, credit: employeeCredit },
-          ownerConfirmed: { cash: parsedActualCash, online: parsedOnline, credit: parsedCredit },
-          variances: { cash: calculatedVariance, online: varianceOnline, credit: varianceCredit },
-          linkedReadings: linkedReadingsCount
-        }
+            message: 'Settlement recorded. Employee tender totals aggregated from DailyTransaction only',
+            varianceCalculation: `Cash: ${parsedExpectedCash} - ${parsedActualCash} = ${calculatedVariance}`,
+            employeeReported: { cash: employeeCash, online: employeeOnline, credit: employeeCredit },
+            ownerConfirmed: { cash: parsedActualCash, online: parsedOnline, credit: parsedCredit },
+            variances: { cash: calculatedVariance, online: varianceOnline, credit: varianceCredit },
+            linkedReadings: linkedReadingsCount
+          }
       });
     } catch (err) {
       await t.rollback();
@@ -1671,51 +1670,45 @@ exports.getSettlements = async (req, res, next) => {
       include: [{ model: User, as: 'recordedByUser', attributes: ['name', 'email'] }],
       order: [['date', 'DESC'], ['createdAt', 'DESC']]
     });
-    // Group by date, flag duplicates
+    // Group by date, flag duplicates and pick a main settlement (latest final if present)
     const settlementsByDate = {};
     rows.forEach(s => {
       const d = s.date;
       if (!settlementsByDate[d]) settlementsByDate[d] = [];
       settlementsByDate[d].push(s);
     });
-    // For summary, use latest final if exists, else latest
+
     const summary = Object.entries(settlementsByDate).map(([date, arr]) => {
       const finals = arr.filter(s => s.isFinal);
-      const main = finals.length > 0 ? finals[finals.length - 1] : arr[arr.length - 1];
+      const latestFinal = finals.length > 0 ? finals[finals.length - 1] : null;
+      const main = latestFinal || arr[arr.length - 1];
+
+      // Provide clearer metadata while keeping legacy `duplicateCount` for compatibility
       return {
         ...main.toJSON(),
         duplicateCount: arr.length,
+        attempts: arr.length,
+        latestFinalId: latestFinal ? latestFinal.id : null,
+        latestRecordId: arr[arr.length - 1].id,
+        mainSettlement: main.toJSON(),
         allSettlements: arr.map(s => s.toJSON())
       };
     });
-    // For audit, show all settlements
-    res.json({
-      success: true,
-      data: summary,
-      metadata: {
-        count: rows.length,
-        persistenceInfo: 'All settlements persisted to database with ACID compliance',
-        amountsPrecision: 'DECIMAL(12,2) - exact, no floating point errors',
-        duplicatesFlagged: true
-      }
-    });
-
-    // Enhance with variance analysis
-    const enhancedData = rows.map(settlement => {
-      const variance = parseFloat(settlement.variance);
-      const expectedCash = parseFloat(settlement.expectedCash);
+    // Add variance analysis to each grouped main settlement (summary)
+    const enhancedSummary = summary.map(entry => {
+      const variance = parseFloat(entry.variance || 0);
+      const expectedCash = parseFloat(entry.expectedCash || 0);
       const variancePercentage = expectedCash > 0 ? (variance / expectedCash) * 100 : 0;
 
-      // Flag problematic variance
       let varianceStatus = 'OK';
       if (Math.abs(variance) > (expectedCash * 0.03)) {
-        varianceStatus = 'INVESTIGATE'; // > 3%
+        varianceStatus = 'INVESTIGATE';
       } else if (Math.abs(variance) > (expectedCash * 0.01)) {
-        varianceStatus = 'REVIEW'; // > 1%
+        varianceStatus = 'REVIEW';
       }
 
       return {
-        ...settlement.toJSON(),
+        ...entry,
         varianceAnalysis: {
           percentage: parseFloat(variancePercentage.toFixed(2)),
           status: varianceStatus,
@@ -1724,13 +1717,15 @@ exports.getSettlements = async (req, res, next) => {
       };
     });
 
-    res.json({ 
-      success: true, 
-      data: enhancedData,
+    // Return grouped summary with variance analysis (single response)
+    res.json({
+      success: true,
+      data: enhancedSummary,
       metadata: {
-        count: enhancedData.length,
+        count: enhancedSummary.length,
         persistenceInfo: 'All settlements persisted to database with ACID compliance',
-        amountsPrecision: 'DECIMAL(12,2) - exact, no floating point errors'
+        amountsPrecision: 'DECIMAL(12,2) - exact, no floating point errors',
+        duplicatesFlagged: true
       }
     });
 
@@ -1768,7 +1763,7 @@ exports.getSettlementVsSales = async (req, res, next) => {
       where: { stationId, date: queryDate }
     });
 
-    // Get all readings for the day to calculate sales
+    // Get all readings for the day to calculate sales (litres × price)
     const readings = await NozzleReading.findAll({
       where: sequelize.where(
         sequelize.fn('DATE', sequelize.col('recorded_at')),
@@ -1786,20 +1781,22 @@ exports.getSettlementVsSales = async (req, res, next) => {
       raw: false
     });
 
-    // Calculate sales totals from readings using payment breakdown fields
+    // Calculate sales totals from readings using litresSold × pricePerLitre
     let totalSaleValue = 0;
-    let totalCashSales = 0;
-    let totalOnlineSales = 0;
-    let totalCreditSales = 0;
-
     readings.forEach(reading => {
       const saleValue = parseFloat(reading.litresSold || 0) * parseFloat(reading.pricePerLitre || 0);
       totalSaleValue += saleValue;
+    });
 
-      // Use the actual payment breakdown fields
-      totalCashSales += parseFloat(reading.cashAmount || 0);
-      totalOnlineSales += parseFloat(reading.onlineAmount || 0);
-      totalCreditSales += parseFloat(reading.creditAmount || 0);
+    // Aggregate payment breakdown from DailyTransaction (source of tender entries)
+    const { DailyTransaction } = require('../models');
+    const txns = await DailyTransaction.findAll({ where: { stationId, transactionDate: queryDate }, raw: true });
+    let totalCashSales = 0, totalOnlineSales = 0, totalCreditSales = 0;
+    txns.forEach(tx => {
+      const pb = tx.payment_breakdown || tx.paymentBreakdown || {};
+      totalCashSales += parseFloat(pb.cash || 0);
+      totalOnlineSales += parseFloat(pb.online || 0);
+      totalCreditSales += parseFloat(pb.credit || 0);
     });
 
     res.json({
@@ -1854,7 +1851,7 @@ exports.getSettlementVsSales = async (req, res, next) => {
         } : null
       },
       metadata: {
-        persistenceInfo: 'All settlements stored with ACID compliance, all sales calculated from permanent reading records'
+        persistenceInfo: 'All settlements stored with ACID compliance, sales calculated from readings, payment breakdown aggregated from DailyTransaction (employee tender entries)'
       }
     });
 
