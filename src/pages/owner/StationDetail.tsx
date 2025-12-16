@@ -9,7 +9,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toFixedNumber } from '@/lib/numberFormat';
 import { formatDateISO, formatDateLocal, formatDateTimeLocal } from '@/lib/dateFormat';
-import { safeToFixed } from '@/lib/format-utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -694,57 +693,57 @@ export default function StationDetail() {
                           <Fuel className="w-5 h-5 text-primary" />
                           Pump {pump.pumpNumber}
                         </CardTitle>
-                        <div className="mt-1 space-y-1 text-sm text-muted-foreground">
-                          <div>{pump.name}</div>
-                          <div className="flex items-center gap-4 text-xs">
-                            <span className="flex items-center gap-1">
-                              <span className="font-medium">{pump.nozzles?.length || 0}</span> nozzles
-                            </span>
-                            {pump.nozzles && pump.nozzles.length > 0 && (
+                          <div className="mt-1 space-y-1 text-sm text-muted-foreground">
+                            <div>{pump.name}</div>
+                            <div className="flex items-center gap-4 text-xs">
                               <span className="flex items-center gap-1">
-                                Fuels: {[...new Set(pump.nozzles.map((n: any) => n.fuelType))].join(', ')}
+                                <span className="font-medium">{pump.nozzles?.length || 0}</span> nozzles
                               </span>
-                            )}
+                            </div>
                           </div>
-                        </div>
                       </div>
                       <div className="flex items-center gap-2 ml-4">
                         <Badge variant={pump.status === EquipmentStatusEnum.ACTIVE ? 'default' : 'secondary'}>
                           {pump.status}
                         </Badge>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleEditPump(pump)}
-                          className="h-8 w-8 p-0"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </Button>
+                        <div className="flex items-center gap-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleEditPump(pump)}
+                            className="h-8 w-8 p-0"
+                            title="Edit Pump"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => {
+                              setSelectedPump(pump);
+                              setIsNozzleDialogOpen(true);
+                            }}
+                            className="h-8 px-2 text-xs"
+                            title="Add Nozzle"
+                          >
+                            <Plus className="w-3 h-3 mr-1" />
+                            Add Nozzle
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-3">
                     {/* Pump Metrics */}
-                    <div className="grid grid-cols-2 gap-3 p-2 bg-muted/30 rounded-lg">
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-primary">
+                    <div className="flex items-center gap-4 p-2 bg-muted/30 rounded-lg">
+                      <div className="flex-1 text-center sm:text-left">
+                        <div className="text-lg font-semibold text-primary">
                           {pump.nozzles?.filter((n: any) => n.status === EquipmentStatusEnum.ACTIVE).length || 0}
                         </div>
                         <div className="text-xs text-muted-foreground">Active Nozzles</div>
                       </div>
-                      <div className="text-center">
-                        <div className="text-2xl font-bold text-green-600">
-                          {safeToFixed(
-                            (pump.nozzles && Array.isArray(pump.nozzles))
-                              ? pump.nozzles.reduce((total: number, n: any) => {
-                                  const lastReading = n.lastReading != null ? n.lastReading : n.initialReading;
-                                  return total + (lastReading || 0);
-                                }, 0)
-                              : 0,
-                            1
-                          )}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Total Reading</div>
+                      <div className="flex-1 hidden sm:block text-right text-xs text-muted-foreground">
+                        Fuels: {[...new Set(pump.nozzles?.map((n: any) => n.fuelType) || [])].join(', ')}
                       </div>
                     </div>
 
@@ -752,7 +751,7 @@ export default function StationDetail() {
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <h4 className="text-sm font-semibold text-muted-foreground">
-                          Nozzles ({pump.nozzles?.length || 0})
+                          Nozzles
                         </h4>
                         <Button
                           size="sm"
