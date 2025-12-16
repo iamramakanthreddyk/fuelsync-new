@@ -281,36 +281,40 @@ export default function QuickDataEntry() {
     let totalSaleValue = 0;
     const byFuelType: Record<string, { liters: number; value: number }> = {};
 
+    // Only consider readings that are currently entered and valid (unique nozzle IDs)
     if (pumps && Array.isArray(fuelPrices)) {
-      pumps.forEach(pump => {
-        if (pump.nozzles) {
-          pump.nozzles.forEach(nozzle => {
-            const reading = readings[nozzle.id];
-            if (reading && reading.readingValue) {
-              const trueLastReading = allLastReadings ? allLastReadings[nozzle.id] : undefined;
-              let lastReading: number | null = null;
-              if (trueLastReading !== undefined && trueLastReading !== null) {
-                lastReading = trueLastReading;
-              } else if (nozzle?.initialReading !== undefined && nozzle?.initialReading !== null) {
-                lastReading = nozzle.initialReading;
-              } else {
-                lastReading = null;
-              }
-              const { litres, saleValue } = calculateNozzleSale(nozzle, reading.readingValue, lastReading, fuelPrices);
-              if (lastReading === null || typeof lastReading !== "number" || isNaN(lastReading)) {
-                // Show warning in UI (optional: add a warning state/flag)
-                console.warn(`No valid last reading for nozzle ${nozzle?.id} (${nozzle?.fuelType}). Skipping calculation.`);
-              }
-              totalLiters += litres;
-              totalSaleValue += saleValue;
-              if (!byFuelType[nozzle.fuelType]) {
-                byFuelType[nozzle.fuelType] = { liters: 0, value: 0 };
-              }
-              byFuelType[nozzle.fuelType].liters += litres;
-              byFuelType[nozzle.fuelType].value += saleValue;
-            }
-          });
+      // Build a set of valid nozzle IDs from the current pumps
+      const validNozzleIds = new Set(
+        pumps.flatMap(pump => (pump.nozzles ? pump.nozzles.map(nz => nz.id) : []))
+      );
+      // Only process readings for valid, unique nozzle IDs
+      Object.entries(readings).forEach(([nozzleId, reading]) => {
+        if (!validNozzleIds.has(nozzleId)) return;
+        if (!reading || !reading.readingValue) return;
+        // Find the nozzle object
+        const nozzle = pumps.flatMap(p => p.nozzles || []).find(nz => nz.id === nozzleId);
+        if (!nozzle) return;
+        const trueLastReading = allLastReadings ? allLastReadings[nozzle.id] : undefined;
+        let lastReading: number | null = null;
+        if (trueLastReading !== undefined && trueLastReading !== null) {
+          lastReading = trueLastReading;
+        } else if (nozzle?.initialReading !== undefined && nozzle?.initialReading !== null) {
+          lastReading = nozzle.initialReading;
+        } else {
+          lastReading = null;
         }
+        const { litres, saleValue } = calculateNozzleSale(nozzle, reading.readingValue, lastReading, fuelPrices);
+        if (lastReading === null || typeof lastReading !== "number" || isNaN(lastReading)) {
+          // Show warning in UI (optional: add a warning state/flag)
+          console.warn(`No valid last reading for nozzle ${nozzle?.id} (${nozzle?.fuelType}). Skipping calculation.`);
+        }
+        totalLiters += litres;
+        totalSaleValue += saleValue;
+        if (!byFuelType[nozzle.fuelType]) {
+          byFuelType[nozzle.fuelType] = { liters: 0, value: 0 };
+        }
+        byFuelType[nozzle.fuelType].liters += litres;
+        byFuelType[nozzle.fuelType].value += saleValue;
       });
     }
 
