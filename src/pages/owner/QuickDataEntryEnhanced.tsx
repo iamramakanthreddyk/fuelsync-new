@@ -151,13 +151,14 @@ const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: num
     last = initial;
   }
   if (last === undefined || isNaN(last)) {
-    // Fallback: prevent calculation and warn
     console.warn(`No valid last reading for nozzle ${nozzle?.id} (${nozzle?.fuelType}). Calculation skipped.`);
     return { litres: 0, saleValue: 0 };
   }
   const litres = Math.max(0, enteredValue - last);
-  const price = fuelPrices?.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase())?.price_per_litre || 0;
+  const priceData = fuelPrices?.find(p => (p.fuel_type || '').toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
+  const price = parseFloat(String(priceData?.price_per_litre || 0));
   const saleValue = litres * price;
+  console.log(`[SALE] litres=${litres}, price=${price}, priceData=`, priceData);
   return { litres, saleValue };
 };
 
@@ -223,7 +224,9 @@ export default function QuickDataEntry() {
 
   // Fetch pumps for selected station
   const { data: pumpsResponse, isLoading: pumpsLoading } = usePumps(selectedStation);
-  const pumps = pumpsResponse?.data;
+  const pumps = pumpsResponse?.data || (Array.isArray(pumpsResponse) ? pumpsResponse : null);
+  console.log(`[DEBUG] pumpsResponse:`, pumpsResponse);
+  console.log(`[DEBUG] pumps:`, pumps);
 
   // Get fuel prices for selected station from global context (preloaded on app init)
   const { missingFuelTypes: missingPricesFuelTypes, pricesArray } = useFuelPricesForStation(selectedStation);
@@ -235,13 +238,13 @@ export default function QuickDataEntry() {
     queryKey: ['allNozzleLastReadings', selectedStation],
     queryFn: async () => {
       if (!selectedStation || !pumps) return {};
-      const nozzleIds = pumps.flatMap(p => p.nozzles || []).map(n => n.id);
+      const nozzleIds = pumps.flatMap(p => p.nozzles || []).map((n: any) => n.id);
       if (nozzleIds.length === 0) return {};
       try {
         const idsParam = nozzleIds.join(',');
         const res: any = await apiClient.get(`/readings/latest?ids=${encodeURIComponent(idsParam)}`);
-        // Backend returns an object map: { [nozzleId]: readingValue }
-        return res || {};
+        // Backend returns: { success: true, data: { [nozzleId]: readingValue } }
+        return res?.data || {};
       } catch (err) {
         return {};
       }
@@ -283,31 +286,41 @@ export default function QuickDataEntry() {
 
     // Only consider readings that are currently entered and valid (unique nozzle IDs)
     if (pumps && Array.isArray(fuelPrices)) {
+      console.log(`[CALC] Starting with allLastReadings:`, allLastReadings);
+      
       // Build a set of valid nozzle IDs from the current pumps
       const validNozzleIds = new Set(
-        pumps.flatMap(pump => (pump.nozzles ? pump.nozzles.map(nz => nz.id) : []))
+        pumps.flatMap(pump => (pump.nozzles ? pump.nozzles.map((nz: any) => nz.id) : []))
       );
       // Only process readings for valid, unique nozzle IDs
       Object.entries(readings).forEach(([nozzleId, reading]) => {
         if (!validNozzleIds.has(nozzleId)) return;
         if (!reading || !reading.readingValue) return;
         // Find the nozzle object
-        const nozzle = pumps.flatMap(p => p.nozzles || []).find(nz => nz.id === nozzleId);
+        const nozzle = pumps.flatMap(p => p.nozzles || []).find((nz: any) => nz.id === nozzleId);
         if (!nozzle) return;
+        // Match UI logic for last reading (compareValue)
+        const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
         const trueLastReading = allLastReadings ? allLastReadings[nozzle.id] : undefined;
-        let lastReading: number | null = null;
-        if (trueLastReading !== undefined && trueLastReading !== null) {
-          lastReading = trueLastReading;
-        } else if (nozzle?.initialReading !== undefined && nozzle?.initialReading !== null) {
-          lastReading = nozzle.initialReading;
-        } else {
-          lastReading = null;
+        const parsedLastReading = (trueLastReading !== null && trueLastReading !== undefined) ? parseFloat(String(trueLastReading)) : null;
+        const compareValue = (parsedLastReading !== null && !isNaN(parsedLastReading))
+          ? parsedLastReading
+          : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
+
+        console.log(`[CALC] Nozzle ${nozzleId}: trueLastReading=${trueLastReading}, compareValue=${compareValue}`);
+        
+        const enteredValue = reading?.readingValue ? parseFloat(reading.readingValue) : 0;
+        // Only count if enteredValue > compareValue (valid sale)
+        if (
+          isNaN(compareValue) ||
+          isNaN(enteredValue) ||
+          enteredValue <= compareValue
+        ) {
+          console.log(`[CALC] Skipping - invalid values`);
+          return;
         }
-        const { litres, saleValue } = calculateNozzleSale(nozzle, reading.readingValue, lastReading, fuelPrices);
-        if (lastReading === null || typeof lastReading !== "number" || isNaN(lastReading)) {
-          // Show warning in UI (optional: add a warning state/flag)
-          console.warn(`No valid last reading for nozzle ${nozzle?.id} (${nozzle?.fuelType}). Skipping calculation.`);
-        }
+        const { litres, saleValue } = calculateNozzleSale(nozzle, reading.readingValue, compareValue, fuelPrices);
+        console.log(`[CALC] Result: litres=${litres}, saleValue=${saleValue}`);
         totalLiters += litres;
         totalSaleValue += saleValue;
         if (!byFuelType[nozzle.fuelType]) {
@@ -318,6 +331,7 @@ export default function QuickDataEntry() {
       });
     }
 
+    console.log(`[CALC] Final: totalSaleValue=${totalSaleValue}`);
     return {
       totalLiters,
       totalSaleValue,
@@ -375,7 +389,7 @@ export default function QuickDataEntry() {
 
       // Build per-entry sale values so we can distribute payments proportionally
       const entriesWithSale = data.map(entry => {
-        const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
+        const nozzle = pumps?.flatMap(p => p.nozzles || []).find((n: any) => n.id === entry.nozzleId);
         const trueLastReading = allLastReadings ? allLastReadings[entry.nozzleId] : undefined;
         const lastReading = (trueLastReading !== undefined && trueLastReading !== null)
           ? trueLastReading
@@ -508,13 +522,13 @@ export default function QuickDataEntry() {
     if (!Array.isArray(fuelPrices) || fuelPrices.length === 0) {
       return false;
     }
-    return fuelPrices.some(p => p.fuel_type.toUpperCase() === fuelType.toUpperCase());
+    return fuelPrices.some(p => (p.fuel_type || '').toUpperCase() === fuelType.toUpperCase());
   };
 
   const getPrice = (fuelType: string): number => {
     if (!Array.isArray(fuelPrices)) return 0;
-    const priceData = fuelPrices.find(p => p.fuel_type.toUpperCase() === fuelType.toUpperCase());
-    return priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
+    const priceData = fuelPrices.find(p => (p.fuel_type || '').toUpperCase() === fuelType.toUpperCase());
+    return priceData ? parseFloat(String(priceData.price_per_litre || 0)) : 0;
   };
 
   // Get all fuel types that are in use but missing prices
@@ -563,7 +577,7 @@ export default function QuickDataEntry() {
 
     const missingPrices = nozzlesWithReadings.filter(n => !hasPriceForFuelType(n.fuelType));
     if (missingPrices.length > 0) {
-      const missingFuelTypes = [...new Set(missingPrices.map(n => n.fuelType))].join(', ');
+      const missingFuelTypes = [...new Set(missingPrices.map((n: any) => n.fuelType))].join(', ');
       toast({
         title: 'Missing Fuel Prices',
         description: `Please set prices for: ${missingFuelTypes}`,
@@ -689,7 +703,7 @@ export default function QuickDataEntry() {
                   <CardContent className="space-y-2">
                     {pump.nozzles && pump.nozzles.length > 0 ? (
                       <div className="grid grid-cols-2 gap-2">
-                        {pump.nozzles.map((nozzle) => (
+                        {pump.nozzles.map((nozzle: any) => (
                           <NozzleReadingRow
                             key={nozzle.id}
                             nozzle={nozzle}
@@ -731,7 +745,7 @@ export default function QuickDataEntry() {
                 </Card>
               )}
 
-              {/* Show local calculation only for entry validation */}
+              {/* Show local calculation only for entry validation - use saleSummary value directly */}
               {pendingCount > 0 && saleSummary.totalSaleValue > 0 && (
                 <>
                   {/* Quick Summary Card */}
@@ -788,6 +802,16 @@ export default function QuickDataEntry() {
                     )}
                   </Button>
                 </>
+              )}
+
+              {pendingCount > 0 && saleSummary.totalSaleValue === 0 && (
+                <Card className="border-2 border-amber-200 bg-amber-50">
+                  <CardContent className="p-3 md:p-4 text-center">
+                    <Fuel className="w-8 h-8 mx-auto text-amber-600 mb-2" />
+                    <p className="text-xs text-amber-700 font-semibold">Invalid readings</p>
+                    <p className="text-xs text-amber-600 mt-1">Ensure readings are greater than last reading and prices are set</p>
+                  </CardContent>
+                </Card>
               )}
 
               {pendingCount === 0 && (
