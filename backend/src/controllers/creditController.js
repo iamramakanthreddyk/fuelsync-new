@@ -65,7 +65,9 @@ const getCreditors = async (req, res) => {
  */
 const getCreditLedger = async (req, res) => {
   try {
-    const { search, stationId } = req.query;
+    const { search, stationId, showAll } = req.query;
+    
+    console.log('getCreditLedger called with:', { search, stationId, showAll });
     
     // Get station from user if not provided
     let finalStationId = stationId;
@@ -93,6 +95,9 @@ const getCreditLedger = async (req, res) => {
       order: [['currentBalance', 'DESC']]
     });
     
+    console.log(`Found ${creditors.length} creditors for station ${finalStationId}`);
+    creditors.forEach(c => console.log(`- ${c.name}: balance=${c.currentBalance}, limit=${c.creditLimit}`));
+    
     // Enrich with last sale date from nozzle_readings (most recent credit_amount > 0)
     const enrichedCreditors = await Promise.all(
       creditors.map(async (c) => {
@@ -118,8 +123,11 @@ const getCreditLedger = async (req, res) => {
       })
     );
     
-    // Filter out creditors with no outstanding balance if search not applied
-    const filtered = search ? enrichedCreditors : enrichedCreditors.filter(c => c.outstanding > 0);
+    // Filter out creditors with no outstanding balance if search not applied and showAll is not true
+    const filtered = search || showAll === 'true' ? enrichedCreditors : enrichedCreditors.filter(c => c.outstanding > 0);
+    
+    console.log(`After filtering: ${filtered.length} creditors (search=${!!search}, showAll=${showAll})`);
+    filtered.forEach(c => console.log(`- ${c.name}: outstanding=${c.outstanding}`));
     
     res.json(filtered);
   } catch (error) {

@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CreditCard, CheckCircle2 } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
@@ -23,11 +24,12 @@ export default function CreditLedger() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [selectedStationId, setSelectedStationId] = useState<string | undefined>(user?.stations?.[0]?.id);
+  const [showAllCreditors, setShowAllCreditors] = useState(false);
 
   // Fetch creditors and outstanding credits for the selected station
   const { data: creditors = [], isLoading } = useQuery({
-    queryKey: ['creditors-ledger', search, selectedStationId],
-    queryFn: () => creditService.getCreditLedger(search, selectedStationId),
+    queryKey: ['creditors-ledger', search, selectedStationId, showAllCreditors],
+    queryFn: () => creditService.getCreditLedger(search, selectedStationId, showAllCreditors),
     enabled: !!selectedStationId, // Only run query if we have a stationId
     refetchInterval: 60000,
   });
@@ -58,7 +60,7 @@ export default function CreditLedger() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Outstanding Credits</CardTitle>
+          <CardTitle>{showAllCreditors ? 'All Credits' : 'Outstanding Credits'}</CardTitle>
           <div className="text-sm text-muted-foreground mt-2">
             {selectedStationId && user?.stations && (
               <p>
@@ -100,16 +102,31 @@ export default function CreditLedger() {
               />
               <Button variant="outline" onClick={() => setSearch('')}>Clear</Button>
             </div>
+
+            {/* Show All Creditors Toggle */}
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="show-all-creditors"
+                checked={showAllCreditors}
+                onCheckedChange={(checked) => setShowAllCreditors(checked as boolean)}
+              />
+              <label
+                htmlFor="show-all-creditors"
+                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+              >
+                Show all creditors (including settled)
+              </label>
+            </div>
           </div>
           {isLoading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
-          ) : creditors.length === 0 ? (
+          ) : (showAllCreditors ? creditors : creditors.filter((c: any) => c.outstanding > 0)).length === 0 ? (
             <Alert>
               <AlertDescription>
                 <CheckCircle2 className="w-5 h-5 text-green-500 mr-2" />
-                No outstanding credits
+                {showAllCreditors ? 'No creditors found for this station' : 'All credits are settled - no outstanding balances'}
               </AlertDescription>
             </Alert>
           ) : (
@@ -125,7 +142,7 @@ export default function CreditLedger() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {creditors.map((c: any) => (
+                {(showAllCreditors ? creditors : creditors.filter((c: any) => c.outstanding > 0)).map((c: any) => (
                   <TableRow key={c.id}>
                     <TableCell className="font-medium flex items-center gap-2">
                       {c.name}

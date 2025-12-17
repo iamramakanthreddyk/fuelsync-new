@@ -44,7 +44,8 @@ import {
   Fuel,
   Settings,
   IndianRupee,
-  CreditCard
+  CreditCard,
+  CheckCircle2
 } from 'lucide-react';
 
 // Import enums and types
@@ -967,9 +968,9 @@ export default function StationDetail() {
 
           {creditorsLoading ? (
             <div className="text-center py-6">Loading creditors...</div>
-          ) : creditors && creditors.length > 0 ? (
+          ) : creditors && creditors.length > 0 && creditors.filter(c => c.currentBalance > 0).length > 0 ? (
             <div className="grid gap-4">
-              {creditors.map((creditor) => (
+              {creditors.filter(c => c.currentBalance > 0).map((creditor) => (
                 <Card key={creditor.id}>
                   <CardHeader>
                     <div className="flex items-start justify-between">
@@ -1031,7 +1032,7 @@ export default function StationDetail() {
                 </Card>
               ))}
             </div>
-          ) : (
+          ) : creditors && creditors.length === 0 ? (
             <Card>
               <CardContent className="py-8 text-center">
                 <CreditCard className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
@@ -1040,6 +1041,19 @@ export default function StationDetail() {
                   <Button>
                     <Plus className="w-4 h-4 mr-2" />
                     Add First Creditor
+                  </Button>
+                </Link>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="py-8 text-center">
+                <CheckCircle2 className="w-12 h-12 mx-auto text-green-500 mb-4" />
+                <p className="text-muted-foreground mb-4">All credits are settled - no outstanding balances</p>
+                <Link to={`/owner/stations/${id}/add-creditor`}>
+                  <Button variant="outline">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add New Creditor
                   </Button>
                 </Link>
               </CardContent>
