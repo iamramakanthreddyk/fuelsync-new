@@ -3,7 +3,7 @@
  * Track outstanding credits, credit limits, and payments per customer
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,6 +24,16 @@ export default function CreditLedger() {
   const [search, setSearch] = useState('');
   const [selectedStationId, setSelectedStationId] = useState<string | undefined>(user?.stations?.[0]?.id);
   const [expandedCreditors, setExpandedCreditors] = useState<Set<string>>(new Set());
+  // Validate and fix selectedStationId to ensure it's a valid UUID
+  useEffect(() => {
+    if (user?.stations && user.stations.length > 0) {
+      const isValidUUID = selectedStationId && user.stations.some(station => station.id === selectedStationId);
+      if (!isValidUUID) {
+        // Set to first available station if current selection is invalid
+        setSelectedStationId(user.stations[0].id);
+      }
+    }
+  }, [user?.stations, selectedStationId]);
 
   // Fetch creditors and outstanding credits for the selected station
   const { data: creditors = [], isLoading } = useQuery({
@@ -111,7 +121,12 @@ export default function CreditLedger() {
             {user?.stations && user.stations.length > 1 && (
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium">Select Station</label>
-                <Select value={selectedStationId || ''} onValueChange={setSelectedStationId}>
+                <Select value={selectedStationId || ''} onValueChange={(value) => {
+                    // Only set if it's a valid station ID
+                    if (user?.stations?.some(station => station.id === value)) {
+                      setSelectedStationId(value);
+                    }
+                  }}>
                   <SelectTrigger className="w-full">
                     <SelectValue placeholder="Choose a station" />
                   </SelectTrigger>

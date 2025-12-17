@@ -155,69 +155,88 @@ export function SaleValueSummary(
               />
             </div>
 
-            {/* Multi-credit allocation */}
+            {/* Multi-credit allocation - Show as separate rows */}
             {multiCredit && (
-              <div className="space-y-2 p-2.5 bg-orange-50 border border-orange-200 rounded-lg">
+              <div className="space-y-2">
                 <div className="flex items-center justify-between mb-1">
                   <Label className="text-xs font-semibold flex items-center gap-1.5">
                     <CreditCard className="w-3.5 h-3.5" />
-                    Creditors
+                    Credit Allocations
                   </Label>
                   <button type="button" className="text-xs text-orange-600 font-bold" onClick={handleAddCredit} disabled={isLoading || creditors.length === 0}>
                     + Add
                   </button>
                 </div>
                 {paymentAllocation.credits.length === 0 && (
-                  <div className="text-xs text-muted-foreground">No credit allocations</div>
+                  <div className="text-xs text-muted-foreground p-2 bg-gray-50 rounded border">No credit allocations</div>
                 )}
                 {paymentAllocation.credits.map((credit, idx) => {
                   const selectedCreditor = creditors.find(c => c.id === credit.creditorId);
                   const creditExceedsLimit = selectedCreditor && (parseFloat(String(selectedCreditor.currentBalance)) + credit.amount) > parseFloat(String(selectedCreditor.creditLimit));
                   return (
-                    <div key={idx} className="flex items-center gap-2 mb-1">
-                      <Select
-                        value={credit.creditorId}
-                        onValueChange={val => handleCreditorChange(idx, val)}
-                        disabled={isLoading || creditors.length === 0}
-                      >
-                        <SelectTrigger className="text-xs h-8 bg-white border-orange-300 min-w-[120px]">
-                          <SelectValue placeholder="Select..." />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {creditors.length === 0 ? (
-                            <SelectItem value="no-creditors" disabled>
-                              No creditors
-                            </SelectItem>
-                          ) : (
-                            creditors.map(creditor => (
-                              <SelectItem key={creditor.id} value={creditor.id}>
-                                <span className="text-xs truncate block">
-                                  {creditor.name} - ₹{creditor.currentBalance >= 1000 ? `${(creditor.currentBalance / 1000).toFixed(1)}K` : creditor.currentBalance}/₹{creditor.creditLimit >= 1000 ? `${(creditor.creditLimit / 1000).toFixed(1)}K` : creditor.creditLimit}
-                                </span>
-                              </SelectItem>
-                            ))
+                    <div key={idx} className="p-2.5 bg-orange-50 border border-orange-200 rounded-lg space-y-2">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 flex-1">
+                          <Select
+                            value={credit.creditorId}
+                            onValueChange={val => handleCreditorChange(idx, val)}
+                            disabled={isLoading || creditors.length === 0}
+                          >
+                            <SelectTrigger className="text-xs h-8 bg-white border-orange-300 flex-1">
+                              <SelectValue placeholder="Select creditor..." />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {creditors.length === 0 ? (
+                                <SelectItem value="no-creditors" disabled>
+                                  No creditors
+                                </SelectItem>
+                              ) : (
+                                creditors.map(creditor => (
+                                  <SelectItem key={creditor.id} value={creditor.id}>
+                                    <div className="text-xs">
+                                      <div className="font-medium">{creditor.name}</div>
+                                      <div className="text-muted-foreground">
+                                        Balance: ₹{creditor.currentBalance >= 1000 ? `${(creditor.currentBalance / 1000).toFixed(1)}K` : creditor.currentBalance} / ₹{creditor.creditLimit >= 1000 ? `${(creditor.creditLimit / 1000).toFixed(1)}K` : creditor.creditLimit}
+                                      </div>
+                                    </div>
+                                  </SelectItem>
+                                ))
+                              )}
+                            </SelectContent>
+                          </Select>
+                          <button type="button" className="text-xs text-red-500 font-bold px-1" onClick={() => handleRemoveCredit(idx)} disabled={isLoading}>
+                            ×
+                          </button>
+                        </div>
+                      </div>
+                      {selectedCreditor && (
+                        <div className="text-xs text-muted-foreground">
+                          <span className="font-medium text-orange-800">{selectedCreditor.name}</span>
+                          {selectedCreditor.businessName && (
+                            <span className="ml-1">({selectedCreditor.businessName})</span>
                           )}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        max={summary.totalSaleValue}
-                        value={credit.amount === 0 ? '' : credit.amount}
-                        onChange={e => handleCreditChange(idx, e.target.value)}
-                        className={`text-xs h-8 border-orange-300 focus:border-orange-500 ${creditExceedsLimit ? 'border-red-500 bg-red-50' : ''}`}
-                        disabled={isLoading}
-                        placeholder="Credit amount"
-                        inputMode="decimal"
-                        autoComplete="off"
-                      />
-                      <button type="button" className="text-xs text-red-500 font-bold ml-1" onClick={() => handleRemoveCredit(idx)} disabled={isLoading}>
-                        ×
-                      </button>
-                      {creditExceedsLimit && (
-                        <span className="text-xs text-red-600 ml-1">⚠ Exceeds limit</span>
+                        </div>
                       )}
+                      <div>
+                        <Label htmlFor={`credit-amount-${idx}`} className="text-xs font-semibold flex items-center justify-between">
+                          <span>Credit Amount {credit.amount > 0 && `₹${credit.amount >= 1000 ? `${(credit.amount / 1000).toFixed(1)}K` : safeToFixed(credit.amount, 2)}`}</span>
+                          {creditExceedsLimit && <span className="text-xs text-red-600">⚠ Exceeds limit</span>}
+                        </Label>
+                        <Input
+                          id={`credit-amount-${idx}`}
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          max={summary.totalSaleValue}
+                          value={credit.amount === 0 ? '' : credit.amount}
+                          onChange={e => handleCreditChange(idx, e.target.value)}
+                          className={`mt-0.5 text-xs h-8 border-orange-300 focus:border-orange-500 ${creditExceedsLimit ? 'border-red-500 bg-red-50' : ''}`}
+                          disabled={isLoading}
+                          placeholder="Credit amount"
+                          inputMode="decimal"
+                          autoComplete="off"
+                        />
+                      </div>
                     </div>
                   );
                 })}

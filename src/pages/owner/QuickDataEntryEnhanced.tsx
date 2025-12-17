@@ -362,32 +362,49 @@ export default function QuickDataEntry() {
   useEffect(() => {
     const totalSaleValue = saleSummary.totalSaleValue;
     const currentTotal = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credits.reduce((s, c) => s + c.amount, 0);
+    // Only set default if we have a sale value and no allocations yet
     if (totalSaleValue > 0 && currentTotal === 0) {
       setPaymentAllocation({ cash: totalSaleValue, online: 0, credits: [] });
     }
-  }, [saleSummary.totalSaleValue, paymentAllocation.cash, paymentAllocation.online, paymentAllocation.credits]);
+  }, [saleSummary.totalSaleValue]); // Only depend on sale value, not payment allocation to avoid loops
 
   // Fetch backend stats for today's sales (reactive to selectedStation)
   const { data: dashboardData } = useDashboardData(selectedStation);
 
   // Use backend value for today's sales
 
-  // Move default allocation to an effect to avoid side-effects inside useMemo
+  // Smart proportional adjustment: when sale value changes, adjust all payment methods proportionally
+  // This prevents the mismatch issue where only cash gets adjusted
   useEffect(() => {
-    if (saleSummary.totalSaleValue > 0) {
-      // Always adjust cash to make up the difference: total - online - total credit - online
-      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
-      const allocated = paymentAllocation.online + totalCredit;
-      const newCash = Math.max(0, saleSummary.totalSaleValue - allocated);
-      if (newCash !== paymentAllocation.cash) {
-        setPaymentAllocation(prev => ({
-          ...prev,
-          cash: newCash
-        }));
-      }
+    const newTotalSaleValue = saleSummary.totalSaleValue;
+    const currentTotalAllocation = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+
+    // Only adjust if there's a meaningful change and we have allocations
+    if (newTotalSaleValue > 0 && currentTotalAllocation > 0 && Math.abs(newTotalSaleValue - currentTotalAllocation) > 0.01) {
+      const ratio = newTotalSaleValue / currentTotalAllocation;
+
+      // Adjust all payment methods proportionally
+      const newCash = Math.round((paymentAllocation.cash * ratio) * 100) / 100;
+      const newOnline = Math.round((paymentAllocation.online * ratio) * 100) / 100;
+      const newCredits = paymentAllocation.credits.map(credit => ({
+        ...credit,
+        amount: Math.round((credit.amount * ratio) * 100) / 100
+      }));
+
+      // Verify the new total matches (should be very close due to rounding)
+      const newTotal = newCash + newOnline + newCredits.reduce((sum, c) => sum + c.amount, 0);
+      const difference = newTotalSaleValue - newTotal;
+
+      // Adjust cash to absorb any rounding difference
+      const finalCash = Math.max(0, newCash + difference);
+
+      setPaymentAllocation({
+        cash: finalCash,
+        online: newOnline,
+        credits: newCredits
+      });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [saleSummary.totalSaleValue, paymentAllocation.online, paymentAllocation.credits]);
+  }, [saleSummary.totalSaleValue]); // Only depend on sale value change
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
@@ -498,6 +515,8 @@ export default function QuickDataEntry() {
       // Invalidate and refetch pumps data
       queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
       queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
+      // Invalidate dashboard data to refresh today's sales
+      queryClient.invalidateQueries({ queryKey: ['dashboard', selectedStation] });
       // Invalidate sales report
       queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
       // Invalidate stations to update todaySales
@@ -732,7 +751,7 @@ export default function QuickDataEntry() {
                             handleReadingChange={handleReadingChange}
                             hasPriceForFuelType={hasPriceForFuelType}
                             getPrice={getPrice}
-                            lastReading={allLastReadings && allLastReadings.data ? allLastReadings.data[nozzle.id] : (allLastReadings ? allLastReadings[nozzle.id] : null)}
+                            lastReading={allLastReadings ? allLastReadings[nozzle.id] : null}
                             lastReadingLoading={allLastReadingsIsLoading}
                           />
                         ))}
@@ -751,13 +770,13 @@ export default function QuickDataEntry() {
 
             <div className="lg:col-span-1 space-y-3">
               {/* Show backend stats for today's sales */}
-              {pendingCount === 0 && dashboardData?.todaySales > 0 && (
+              {pendingCount === 0 && dashboardData?.todaySales && dashboardData.todaySales > 0 && (
                 <Card className="border-2 border-blue-200 bg-blue-50">
                   <CardContent className="p-3 md:p-4 space-y-3">
                     <div>
                       <p className="text-xs text-muted-foreground">Today's Sales</p>
                       <p className="text-xl md:text-2xl font-bold text-blue-600 break-all md:break-normal">
-                        ₹{dashboardData.todaySales >= 100000 
+                        ₹{dashboardData.todaySales >= 100000
                           ? `${safeToFixed(dashboardData.todaySales / 100000, 1)}L`
                           : safeToFixed(dashboardData.todaySales, 2)}
                       </p>

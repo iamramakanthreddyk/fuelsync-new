@@ -90,9 +90,8 @@ const getCreditLedger = async (req, res) => {
     // First, find all creditorIds that have transactions
     const creditorIdsWithTransactions = await CreditTransaction.findAll({
       where: { stationId: finalStationId },
-      attributes: [[sequelize.fn('DISTINCT', sequelize.col('creditor_id')), 'creditorId']],
-      raw: true
-    }).then(results => results.map(r => r.creditorId));
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('creditor_id')), 'creditor_id']]
+    }).then(results => results.map(r => r.creditor_id));
     
     // Then fetch those creditors from the Creditor table
     const creditors = await Creditor.findAll({

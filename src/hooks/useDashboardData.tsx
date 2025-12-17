@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/api-client";
 import { extractNestedData, extractApiData } from "@/lib/api-response";
@@ -48,41 +48,34 @@ interface DashboardData {
 
 export const useDashboardData = (stationId?: string) => {
   const { user } = useAuth();
-  const [data, setData] = useState<DashboardData>({
-    todaySales: 0,
-    todayPayments: 0,
-    totalReadings: 0,
-    today: null,
-    lastReading: null,
-    pendingClosures: 0,
-    trendsData: [],
-    fuelPrices: {},
-    pumps: [],
-    alerts: []
-  });
-  const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    // If no stationId, try to use user's first station
-    const effectiveStationId = stationId || user?.stations?.[0]?.id;
-    if (!effectiveStationId) {
-      setIsLoading(false);
-      setData(prev => ({
-        ...prev,
-        alerts: [{
-          id: 'no_stations',
-          type: 'info',
-          message: 'No stations found. Create a station to start tracking sales.',
-          severity: 'medium',
-          tags: ['setup']
-        }]
-      }));
-      return;
-    }
+  return useQuery({
+    queryKey: ['dashboard', stationId || user?.stations?.[0]?.id],
+    queryFn: async (): Promise<DashboardData> => {
+      // If no stationId, try to use user's first station
+      const effectiveStationId = stationId || user?.stations?.[0]?.id;
+      if (!effectiveStationId) {
+        return {
+          todaySales: 0,
+          todayPayments: 0,
+          totalReadings: 0,
+          today: null,
+          lastReading: null,
+          pendingClosures: 0,
+          trendsData: [],
+          fuelPrices: {},
+          pumps: [],
+          alerts: [{
+            id: 'no_stations',
+            type: 'info',
+            message: 'No stations found. Create a station to start tracking sales.',
+            severity: 'medium',
+            tags: ['setup']
+          }]
+        };
+      }
 
-    const loadDashboardData = async () => {
       try {
-        setIsLoading(true);
         const today = new Date().toISOString().split('T')[0];
 
         // Fetch dashboard summary from backend
@@ -147,7 +140,7 @@ export const useDashboardData = (stationId?: string) => {
           console.warn('Could not load fuel prices:', e);
         }
 
-        setData({
+        return {
           todaySales: summaryData?.today?.amount ?? 0,
           todayPayments: (summaryData?.today?.cash ?? 0) + (summaryData?.today?.online ?? 0) + (summaryData?.today?.credit ?? 0),
           totalReadings: summaryData?.today?.readings ?? 0,
@@ -158,11 +151,19 @@ export const useDashboardData = (stationId?: string) => {
           trendsData: [],
           fuelPrices,
           alerts: []
-        });
+        };
       } catch (error: unknown) {
         console.error('Error loading dashboard data:', error);
-        setData(prev => ({
-          ...prev,
+        return {
+          todaySales: 0,
+          todayPayments: 0,
+          totalReadings: 0,
+          today: null,
+          lastReading: null,
+          pendingClosures: 0,
+          trendsData: [],
+          fuelPrices: {},
+          pumps: [],
           alerts: [
             {
               id: 'load_error',
@@ -172,15 +173,11 @@ export const useDashboardData = (stationId?: string) => {
               tags: ['system']
             }
           ]
-        }));
-      } finally {
-        setIsLoading(false);
+        };
       }
-    };
-
-    loadDashboardData();
-    // Only re-run when stationId or user changes
-  }, [stationId, user]);
-
-  return { data, isLoading };
+    },
+    enabled: !!stationId || !!user?.stations?.[0]?.id,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
+  });
 };
