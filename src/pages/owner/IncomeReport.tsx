@@ -263,20 +263,20 @@ export default function IncomeReport() {
   const settlementData = reportData.settlements;
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-3xl font-bold">Income & Receivables Report</h1>
-        <p className="text-muted-foreground mt-2">
+      <div className="space-y-2">
+        <h1 className="text-2xl md:text-3xl font-bold">Income & Receivables Report</h1>
+        <p className="text-muted-foreground text-sm md:text-base">
           Comprehensive view of sales, cash, receivables, and settlements
         </p>
       </div>
 
       {/* Controls */}
       <Card className="bg-slate-50">
-        <CardContent className="pt-6 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div>
+        <CardContent className="p-4 md:p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="space-y-2">
               <Label className="text-sm font-medium">View Type</Label>
               <Select value={viewType} onValueChange={(v: any) => handleViewTypeChange(v)}>
                 <SelectTrigger>
@@ -290,7 +290,7 @@ export default function IncomeReport() {
               </Select>
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label className="text-sm font-medium">Start Date</Label>
               <Input
                 type="date"
@@ -299,7 +299,7 @@ export default function IncomeReport() {
               />
             </div>
 
-            <div>
+            <div className="space-y-2">
               <Label className="text-sm font-medium">End Date</Label>
               <Input
                 type="date"
@@ -308,7 +308,7 @@ export default function IncomeReport() {
               />
             </div>
 
-            <div className="flex items-end gap-2">
+            <div className="flex items-end space-y-2">
               <Button onClick={handleExportCSV} variant="outline" className="w-full">
                 <Download className="w-4 h-4 mr-2" />
                 Export
@@ -319,8 +319,8 @@ export default function IncomeReport() {
       </Card>
 
       {/* Summary Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <Droplet className="w-4 h-4 text-blue-600" />
@@ -328,7 +328,7 @@ export default function IncomeReport() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl md:text-2xl font-bold">
               {safeToFixed(reportData.summaryMetrics.totalLiters, 0)} L
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -337,7 +337,7 @@ export default function IncomeReport() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-green-600" />
@@ -345,7 +345,7 @@ export default function IncomeReport() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-xl md:text-2xl font-bold">
               ₹{reportData.summaryMetrics.totalSaleValue && reportData.summaryMetrics.totalSaleValue > 0
                 ? reportData.summaryMetrics.totalSaleValue.toLocaleString('en-IN')
                 : reportData.incomeBreakdown.calculatedSaleValue.toLocaleString('en-IN')}
@@ -356,7 +356,7 @@ export default function IncomeReport() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <IndianRupee className="w-4 h-4 text-orange-600" />
@@ -364,7 +364,7 @@ export default function IncomeReport() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${reportData.settlementSummary.totalVariance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+            <div className={`text-xl md:text-2xl font-bold ${reportData.settlementSummary.totalVariance < 0 ? 'text-red-600' : 'text-green-600'}`}>
               ₹{reportData.settlementSummary.totalVariance.toLocaleString('en-IN')}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
@@ -375,44 +375,44 @@ export default function IncomeReport() {
       </div>
 
       {/* Income Breakdown & Pie Chart */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 md:gap-6">
         {/* Income Details */}
-        <Card>
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle>Income Breakdown</CardTitle>
+            <CardTitle className="text-lg">Income Breakdown</CardTitle>
             <CardDescription>Cash, Online, and Credit received</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-3">
               <div className="flex justify-between items-center pb-2 border-b">
                 <span className="text-sm font-medium">Calculated Sale Value</span>
-                <span className="font-bold">₹{incomeData.calculatedSaleValue.toLocaleString('en-IN')}</span>
+                <span className="font-bold text-sm md:text-base">₹{incomeData.calculatedSaleValue.toLocaleString('en-IN')}</span>
               </div>
 
               <div className="flex justify-between items-center pb-2 border-b bg-green-50 px-2 py-1 rounded">
                 <span className="text-sm">Cash Received</span>
-                <span className="font-semibold text-green-700">
+                <span className="font-semibold text-green-700 text-sm md:text-base">
                   ₹{incomeData.cashReceived.toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className="flex justify-between items-center pb-2 border-b bg-blue-50 px-2 py-1 rounded">
                 <span className="text-sm">Online Received</span>
-                <span className="font-semibold text-blue-700">
+                <span className="font-semibold text-blue-700 text-sm md:text-base">
                   ₹{incomeData.onlineReceived.toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className="flex justify-between items-center pb-2 border-b bg-yellow-50 px-2 py-1 rounded">
                 <span className="text-sm">Credit Pending</span>
-                <span className="font-semibold text-yellow-700">
+                <span className="font-semibold text-yellow-700 text-sm md:text-base">
                   ₹{incomeData.creditPending.toLocaleString('en-IN')}
                 </span>
               </div>
 
               <div className="flex justify-between items-center pt-2 bg-slate-100 px-2 py-2 rounded font-bold">
-                <span>Verification</span>
-                <span className={incomeData.verification.match ? 'text-green-600' : 'text-red-600'}>
+                <span className="text-sm md:text-base">Verification</span>
+                <span className={`text-sm md:text-base ${incomeData.verification.match ? 'text-green-600' : 'text-red-600'}`}>
                   ₹{incomeData.verification.total.toLocaleString('en-IN')} {incomeData.verification.match ? '✓' : '✗'}
                 </span>
               </div>
@@ -421,9 +421,9 @@ export default function IncomeReport() {
         </Card>
 
         {/* Income Pie Chart */}
-        <Card>
+        <Card className="hover:shadow-md transition-shadow">
           <CardHeader>
-            <CardTitle>Income Distribution</CardTitle>
+            <CardTitle className="text-lg">Income Distribution</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={250}>
@@ -454,148 +454,241 @@ export default function IncomeReport() {
       </div>
 
       {/* Fuel Type Breakdown */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
-          <CardTitle>Fuel Type Breakdown</CardTitle>
+          <CardTitle className="text-lg">Fuel Type Breakdown</CardTitle>
           <CardDescription>Liters and revenue by fuel type</CardDescription>
         </CardHeader>
         <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={fuelData}>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={fuelData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
               <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="fuelType" />
-              <YAxis yAxisId="left" />
-              <YAxis yAxisId="right" orientation="right" />
-              <Tooltip />
+              <XAxis 
+                dataKey="fuelType" 
+                fontSize={12}
+                angle={-45}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis yAxisId="left" fontSize={12} />
+              <YAxis yAxisId="right" orientation="right" fontSize={12} />
+              <Tooltip 
+                formatter={(value: any, name: string) => [
+                  name === 'Liters' ? `${value} L` : `₹${value.toLocaleString('en-IN')}`,
+                  name
+                ]}
+              />
               <Legend />
-              <Bar yAxisId="left" dataKey="liters" fill="#3b82f6" name="Liters" />
-              <Bar yAxisId="right" dataKey="value" fill="#10b981" name="Value (₹)" />
+              <Bar yAxisId="left" dataKey="liters" fill="#3b82f6" name="Liters" radius={[2, 2, 0, 0]} />
+              <Bar yAxisId="right" dataKey="value" fill="#10b981" name="Value (₹)" radius={[2, 2, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
       {/* Settlements with Variance */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
-          <CardTitle>Daily Settlements</CardTitle>
+          <CardTitle className="text-lg">Daily Settlements</CardTitle>
           <CardDescription>Cash reconciliation and variance tracking</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-2">Date</th>
-                  <th className="text-right py-2 px-2">Expected</th>
-                  <th className="text-right py-2 px-2">Actual</th>
-                  <th className="text-right py-2 px-2">Variance</th>
-                  <th className="text-center py-2 px-2">Status</th>
-                  <th className="text-left py-2 px-2">Notes</th>
-                </tr>
-              </thead>
-              <tbody>
-                {settlementData.map((s) => (
-                  <tr key={s.date} className="border-b hover:bg-slate-50">
-                    <td className="py-2 px-2">{s.date}</td>
-                    <td className="text-right py-2 px-2">₹{s.expectedCash.toLocaleString('en-IN')}</td>
-                    <td className="text-right py-2 px-2">₹{s.actualCash.toLocaleString('en-IN')}</td>
-                    <td className={`text-right py-2 px-2 font-semibold ${s.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>
-                      ₹{s.variance.toLocaleString('en-IN')} ({s.variancePercent.toFixed(2)}%)
-                    </td>
-                    <td className="text-center py-2 px-2">
-                      <Badge className={getVarianceStatusColor(s.varianceStatus)}>
-                        {s.varianceStatus}
-                      </Badge>
-                    </td>
-                    <td className="py-2 px-2 text-xs text-muted-foreground">{s.notes}</td>
+          <div className="overflow-x-auto -mx-2 md:mx-0">
+            <div className="inline-block min-w-full align-middle">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-2 md:px-4 font-medium">Date</th>
+                    <th className="text-right py-3 px-2 md:px-4 font-medium hidden sm:table-cell">Expected</th>
+                    <th className="text-right py-3 px-2 md:px-4 font-medium">Actual</th>
+                    <th className="text-right py-3 px-2 md:px-4 font-medium">Variance</th>
+                    <th className="text-center py-3 px-2 md:px-4 font-medium hidden md:table-cell">Status</th>
+                    <th className="text-left py-3 px-2 md:px-4 font-medium hidden lg:table-cell">Notes</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {settlementData.map((s) => (
+                    <tr key={s.date} className="border-b hover:bg-slate-50 transition-colors">
+                      <td className="py-3 px-2 md:px-4 font-medium">{s.date}</td>
+                      <td className="text-right py-3 px-2 md:px-4 text-muted-foreground hidden sm:table-cell">
+                        ₹{s.expectedCash.toLocaleString('en-IN')}
+                      </td>
+                      <td className="text-right py-3 px-2 md:px-4">
+                        ₹{s.actualCash.toLocaleString('en-IN')}
+                      </td>
+                      <td className={`text-right py-3 px-2 md:px-4 font-semibold ${s.variance < 0 ? 'text-red-600' : 'text-green-600'}`}>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-1">
+                          <span>₹{s.variance.toLocaleString('en-IN')}</span>
+                          <span className="text-xs text-muted-foreground">({s.variancePercent.toFixed(2)}%)</span>
+                        </div>
+                      </td>
+                      <td className="text-center py-3 px-2 md:px-4 hidden md:table-cell">
+                        <Badge className={`${getVarianceStatusColor(s.varianceStatus)} text-xs`}>
+                          {s.varianceStatus}
+                        </Badge>
+                      </td>
+                      <td className="py-3 px-2 md:px-4 text-xs text-muted-foreground hidden lg:table-cell max-w-xs truncate">
+                        {s.notes}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          
+          {/* Mobile summary for hidden columns */}
+          <div className="mt-4 space-y-2 md:hidden">
+            {settlementData.slice(0, 3).map((s) => (
+              <div key={s.date} className="bg-slate-50 p-3 rounded-lg space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="font-medium">{s.date}</span>
+                  <Badge className={`${getVarianceStatusColor(s.varianceStatus)} text-xs`}>
+                    {s.varianceStatus}
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Expected:</span>
+                    <div className="font-medium">₹{s.expectedCash.toLocaleString('en-IN')}</div>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Actual:</span>
+                    <div className="font-medium">₹{s.actualCash.toLocaleString('en-IN')}</div>
+                  </div>
+                </div>
+                {s.notes && (
+                  <div className="text-xs text-muted-foreground">
+                    <span className="font-medium">Notes:</span> {s.notes}
+                  </div>
+                )}
+              </div>
+            ))}
+            {settlementData.length > 3 && (
+              <div className="text-center text-sm text-muted-foreground">
+                And {settlementData.length - 3} more settlements...
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Receivables Aging */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
-          <CardTitle>Credit Receivables Aging</CardTitle>
-          <CardDescription>
+          <CardTitle className="text-lg">Credit Receivables Aging</CardTitle>
+          <CardDescription className="text-sm md:text-base">
             Total Outstanding: ₹{reportData.receivables.summary.totalOutstanding.toLocaleString('en-IN')}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-            <div className="bg-green-50 p-4 rounded border border-green-200">
-              <p className="text-sm text-muted-foreground">Current (0-30 days)</p>
-              <p className="text-2xl font-bold text-green-700">
+        <CardContent className="space-y-6">
+          {/* Aging Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="bg-green-50 p-4 rounded-lg border border-green-200 hover:shadow-sm transition-shadow">
+              <p className="text-sm text-muted-foreground mb-2">Current (0-30 days)</p>
+              <p className="text-xl md:text-2xl font-bold text-green-700">
                 ₹{reportData.receivables.summary.current.toLocaleString('en-IN')}
               </p>
             </div>
-            <div className="bg-orange-50 p-4 rounded border border-orange-200">
-              <p className="text-sm text-muted-foreground">Overdue (31-60 days)</p>
-              <p className="text-2xl font-bold text-orange-700">₹0</p>
+            <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 hover:shadow-sm transition-shadow">
+              <p className="text-sm text-muted-foreground mb-2">Overdue (31-60 days)</p>
+              <p className="text-xl md:text-2xl font-bold text-orange-700">₹0</p>
             </div>
-            <div className="bg-red-50 p-4 rounded border border-red-200">
-              <p className="text-sm text-muted-foreground">Very Overdue (&gt;60 days)</p>
-              <p className="text-2xl font-bold text-red-700">
+            <div className="bg-red-50 p-4 rounded-lg border border-red-200 hover:shadow-sm transition-shadow">
+              <p className="text-sm text-muted-foreground mb-2">Very Overdue (&gt;60 days)</p>
+              <p className="text-xl md:text-2xl font-bold text-red-700">
                 ₹{Math.max(0, reportData.receivables.summary.overdue).toLocaleString('en-IN')}
               </p>
             </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b">
-                  <th className="text-left py-2 px-2">Creditor</th>
-                  <th className="text-right py-2 px-2">Balance</th>
-                  <th className="text-center py-2 px-2">Due Date</th>
-                  <th className="text-center py-2 px-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {receivablesData.map((r) => (
-                  <tr key={r.creditorId} className={`border-b ${getAgingColor(r.agingBucket)}`}>
-                    <td className="py-2 px-2 font-medium">{r.creditorName}</td>
-                    <td className="text-right py-2 px-2">₹{r.balance.toLocaleString('en-IN')}</td>
-                    <td className="text-center py-2 px-2">{r.dueDate}</td>
-                    <td className="text-center py-2 px-2">
-                      <Badge variant={r.agingBucket === 'Current' ? 'outline' : 'destructive'}>
-                        {r.agingBucket}
-                      </Badge>
-                    </td>
+          {/* Receivables Table */}
+          <div className="overflow-x-auto -mx-2 md:mx-0">
+            <div className="inline-block min-w-full align-middle">
+              <table className="min-w-full text-sm">
+                <thead>
+                  <tr className="border-b">
+                    <th className="text-left py-3 px-2 md:px-4 font-medium">Creditor</th>
+                    <th className="text-right py-3 px-2 md:px-4 font-medium">Balance</th>
+                    <th className="text-center py-3 px-2 md:px-4 font-medium hidden sm:table-cell">Due Date</th>
+                    <th className="text-center py-3 px-2 md:px-4 font-medium">Status</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {receivablesData.map((r) => (
+                    <tr key={r.creditorId} className={`border-b hover:bg-slate-50 transition-colors ${getAgingColor(r.agingBucket)}`}>
+                      <td className="py-3 px-2 md:px-4 font-medium">{r.creditorName}</td>
+                      <td className="text-right py-3 px-2 md:px-4 font-semibold">
+                        ₹{r.balance.toLocaleString('en-IN')}
+                      </td>
+                      <td className="text-center py-3 px-2 md:px-4 hidden sm:table-cell text-muted-foreground">
+                        {r.dueDate}
+                      </td>
+                      <td className="text-center py-3 px-2 md:px-4">
+                        <Badge variant={r.agingBucket === 'Current' ? 'outline' : 'destructive'} className="text-xs">
+                          {r.agingBucket}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Mobile card view for receivables */}
+          <div className="space-y-3 md:hidden">
+            {receivablesData.slice(0, 5).map((r) => (
+              <div key={r.creditorId} className={`p-4 rounded-lg border ${getAgingColor(r.agingBucket)} hover:shadow-sm transition-shadow`}>
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-semibold">{r.creditorName}</h4>
+                  <Badge variant={r.agingBucket === 'Current' ? 'outline' : 'destructive'} className="text-xs">
+                    {r.agingBucket}
+                  </Badge>
+                </div>
+                <div className="space-y-1 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Balance:</span>
+                    <span className="font-semibold">₹{r.balance.toLocaleString('en-IN')}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Due Date:</span>
+                    <span>{r.dueDate}</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+            {receivablesData.length > 5 && (
+              <div className="text-center text-sm text-muted-foreground">
+                And {receivablesData.length - 5} more receivables...
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
 
       {/* Creditor Settlements */}
-      <Card>
+      <Card className="hover:shadow-md transition-shadow">
         <CardHeader>
-          <CardTitle>Creditor Settlements</CardTitle>
+          <CardTitle className="text-lg">Creditor Settlements</CardTitle>
           <CardDescription>Payments received from credit sales</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {Object.entries(reportData.creditorSettlements).map(([creditorName, data]) => (
-              <div key={creditorName} className="border rounded-lg p-4 space-y-3">
-                <h4 className="font-semibold">{creditorName}</h4>
+              <div key={creditorName} className="border rounded-lg p-4 space-y-3 hover:shadow-sm transition-shadow bg-gradient-to-br from-slate-50/50 to-white">
+                <h4 className="font-semibold text-base text-slate-800">{creditorName}</h4>
                 <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center py-1">
                     <span className="text-muted-foreground">Total Credited</span>
-                    <span className="font-medium">₹{data.totalCredited.toLocaleString('en-IN')}</span>
+                    <span className="font-medium text-slate-700">₹{data.totalCredited.toLocaleString('en-IN')}</span>
                   </div>
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center py-1">
                     <span className="text-muted-foreground">Total Settled</span>
                     <span className="font-medium text-green-600">₹{data.totalSettled.toLocaleString('en-IN')}</span>
                   </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="font-medium">Outstanding</span>
+                  <div className="flex justify-between items-center pt-2 border-t border-slate-200">
+                    <span className="font-medium text-slate-800">Outstanding</span>
                     <span className={`font-bold ${data.outstanding > 0 ? 'text-orange-600' : 'text-green-600'}`}>
                       ₹{data.outstanding.toLocaleString('en-IN')}
                     </span>
@@ -604,34 +697,40 @@ export default function IncomeReport() {
               </div>
             ))}
           </div>
+          
+          {Object.keys(reportData.creditorSettlements).length === 0 && (
+            <div className="text-center py-8 text-muted-foreground">
+              <p>No creditor settlements found for the selected period.</p>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {/* Income Statement */}
-      <Card className="border-2 border-slate-300">
+      <Card className="border-2 border-slate-300 hover:shadow-lg transition-shadow bg-gradient-to-br from-slate-50/30 to-white">
         <CardHeader>
-          <CardTitle className="text-lg">Income Statement Summary</CardTitle>
-          <CardDescription>Net cash income calculation</CardDescription>
+          <CardTitle className="text-lg md:text-xl">Income Statement Summary</CardTitle>
+          <CardDescription className="text-sm md:text-base">Net cash income calculation</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            <div className="flex justify-between text-base py-2 border-b">
-              <span>Total Sales Generated</span>
-              <span className="font-bold">₹{reportData.incomeStatement.totalSalesGenerated.toLocaleString('en-IN')}</span>
+          <div className="space-y-3 md:space-y-4">
+            <div className="flex justify-between items-center text-sm md:text-base py-2 border-b border-slate-200">
+              <span className="font-medium">Total Sales Generated</span>
+              <span className="font-bold text-slate-800">₹{reportData.incomeStatement.totalSalesGenerated.toLocaleString('en-IN')}</span>
             </div>
 
-            <div className="flex justify-between text-base py-2 border-b text-red-600">
-              <span>Less: Credit Pending</span>
+            <div className="flex justify-between items-center text-sm md:text-base py-2 border-b border-red-200 text-red-600">
+              <span className="font-medium">Less: Credit Pending</span>
               <span className="font-bold">-₹{Math.abs(reportData.incomeStatement.lessCreditPending).toLocaleString('en-IN')}</span>
             </div>
 
-            <div className="flex justify-between text-base py-2 border-b text-orange-600">
-              <span>Less: Settlement Variance</span>
+            <div className="flex justify-between items-center text-sm md:text-base py-2 border-b border-orange-200 text-orange-600">
+              <span className="font-medium">Less: Settlement Variance</span>
               <span className="font-bold">-₹{Math.abs(reportData.incomeStatement.lessCashVariance).toLocaleString('en-IN')}</span>
             </div>
 
-            <div className="flex justify-between text-lg py-3 bg-slate-100 px-2 rounded font-bold">
-              <span>NET CASH INCOME</span>
+            <div className="flex justify-between items-center text-base md:text-lg py-3 bg-gradient-to-r from-green-50 to-green-100 px-3 md:px-4 rounded-lg font-bold border border-green-200">
+              <span className="text-green-800">NET CASH INCOME</span>
               <span className="text-green-700">₹{reportData.incomeStatement.netCashIncome.toLocaleString('en-IN')}</span>
             </div>
           </div>

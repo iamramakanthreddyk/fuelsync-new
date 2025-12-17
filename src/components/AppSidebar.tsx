@@ -1,6 +1,5 @@
 // React import not required with new JSX transform
 import { Link, useLocation } from 'react-router-dom';
-import FuelSyncLogo from './FuelSyncLogo';
 import {
   Sidebar,
   SidebarContent,
@@ -15,14 +14,14 @@ import {
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { isOwner, getDashboardUrl } from '@/lib/roleUtils';
-import { 
+import {
   Home,
   TrendingUp,
   Calendar,
   Fuel,
   FileText,
-  Users, 
-  Building2, 
+  Users,
+  Building2,
   Banknote,
   Settings,
   LogOut,
@@ -30,9 +29,13 @@ import {
   Zap,
   Scale3d,
   LineChart,
-  IndianRupee
+  IndianRupee,
+  ChevronLeft,
+  ChevronRight,
+  User,
+  Crown,
+  Shield
 } from 'lucide-react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
@@ -54,125 +57,188 @@ export function AppSidebar() {
   const isOwnerRole = isOwner(user?.role);
   const dashboardURL = getDashboardUrl(user?.role);
 
-  // Owner-specific menu items
-  const ownerMenuItems = [
-    {
-      title: "Dashboard",
-      url: "/owner/dashboard",
-      icon: Home,
-    },
-    {
-      title: "Quick Entry",
-      url: "/owner/quick-entry",
-      icon: Zap,
-    },
-    {
-      title: "Daily Settlement",
-      url: "/owner/stations",
-      icon: Scale3d,
-      description: "Select station for settlement"
-    },
-    {
-      title: "Daily Reports",
-      url: "/owner/daily-reports",
-      icon: LineChart,
-    },
-    {
-      title: "Stations",
-      url: "/owner/stations",
-      icon: Building2,
-    },
-    {
-      title: "Employees",
-      url: "/owner/employees",
-      icon: Users,
-    },
-    {
-      title: "Reports",
-      url: "/owner/reports",
-      icon: FileText,
-    },
-    {
-      title: "Analytics",
-      url: "/owner/analytics",
-      icon: BarChart3,
-    },
-    {
-      title: "Income & Receivables",
-      url: "/owner/income-report",
-      icon: IndianRupee,
-    },
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-    },
-  ];
-
-  // Manager/Employee menu items
-  // Note: Employees have limited access per backend ACCESS_RULES:
-  // - CAN: Enter readings, view own readings, view pumps/nozzles/prices
-  // - CANNOT: Reports, daily closure, edit/delete readings, set prices
+  // Define isManager here for use in menu groups
   const isManager = user?.role === 'manager';
-  
-  const staffMenuItems = [
+
+  // Owner-specific menu items organized by function
+  const ownerMenuGroups = [
     {
-      title: "Dashboard",
-      url: "/dashboard",
-      icon: Home,
+      label: "Operations",
+      items: [
+        {
+          title: "Dashboard",
+          url: "/owner/dashboard",
+          icon: Home,
+          color: "text-blue-600",
+          bgColor: "bg-blue-50",
+        },
+        {
+          title: "Quick Entry",
+          url: "/owner/quick-entry",
+          icon: Zap,
+          color: "text-amber-600",
+          bgColor: "bg-amber-50",
+        },
+        {
+          title: "Daily Settlement",
+          url: "/owner/stations",
+          icon: Scale3d,
+          color: "text-emerald-600",
+          bgColor: "bg-emerald-50",
+        },
+      ]
     },
     {
-      title: "Quick Entry",
-      url: "/quick-entry",
-      icon: Zap,
+      label: "Management",
+      items: [
+        {
+          title: "Stations",
+          url: "/owner/stations",
+          icon: Building2,
+          color: "text-indigo-600",
+          bgColor: "bg-indigo-50",
+        },
+        {
+          title: "Employees",
+          url: "/owner/employees",
+          icon: Users,
+          color: "text-orange-600",
+          bgColor: "bg-orange-50",
+        },
+      ]
     },
-    // Sales - view readings (employees can view own readings)
     {
-      title: "Sales",
-      url: "/sales", 
-      icon: TrendingUp,
+      label: "Reports & Analytics",
+      items: [
+        {
+          title: "Daily Reports",
+          url: "/owner/daily-reports",
+          icon: LineChart,
+          color: "text-purple-600",
+          bgColor: "bg-purple-50",
+        },
+        {
+          title: "Reports",
+          url: "/owner/reports",
+          icon: FileText,
+          color: "text-green-600",
+          bgColor: "bg-green-50",
+        },
+        {
+          title: "Analytics",
+          url: "/owner/analytics",
+          icon: BarChart3,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+        },
+        {
+          title: "Income & Receivables",
+          url: "/owner/income-report",
+          icon: IndianRupee,
+          color: "text-teal-600",
+          bgColor: "bg-teal-50",
+        },
+      ]
     },
-    // Settlements (Daily Closure) - only managers can access the closure UI
-    ...(isManager ? [{
-      title: "Settlements",
-      url: "/settlements",
-      // Alias kept: /daily-closure will still work and is routed to Settlements
-      icon: Calendar,
-    }] : []),
     {
-      title: "Pumps",
-      url: "/pumps",
-      icon: Fuel,
-    },
-    // Reports - only for managers, not employees
-    ...(isManager ? [{
-      title: "Reports",
-      url: "/reports",
-      icon: FileText,
-    }] : []),
-    {
-      title: "Settings",
-      url: "/settings",
-      icon: Settings,
-    },
+      label: "Account",
+      items: [
+        {
+          title: "Settings",
+          url: "/settings",
+          icon: Settings,
+          color: "text-slate-600",
+          bgColor: "bg-slate-50",
+        },
+      ]
+    }
   ];
 
-  const menuItems = isOwnerRole ? ownerMenuItems : staffMenuItems;
+  // Manager/Employee menu items organized by function
+  const staffMenuGroups = [
+    {
+      label: "Operations",
+      items: [
+        {
+          title: "Dashboard",
+          url: "/dashboard",
+          icon: Home,
+          color: "text-blue-600",
+          bgColor: "bg-blue-50",
+        },
+        {
+          title: "Quick Entry",
+          url: "/quick-entry",
+          icon: Zap,
+          color: "text-amber-600",
+          bgColor: "bg-amber-50",
+        },
+        {
+          title: "Sales",
+          url: "/sales",
+          icon: TrendingUp,
+          color: "text-yellow-600",
+          bgColor: "bg-yellow-50",
+        },
+        {
+          title: "Pumps",
+          url: "/pumps",
+          icon: Fuel,
+          color: "text-blue-600",
+          bgColor: "bg-blue-50",
+        },
+      ]
+    },
+    ...(isManager ? [{
+      label: "Management",
+      items: [
+        {
+          title: "Settlements",
+          url: "/settlements",
+          icon: Calendar,
+          color: "text-cyan-600",
+          bgColor: "bg-cyan-50",
+        },
+        {
+          title: "Reports",
+          url: "/reports",
+          icon: FileText,
+          color: "text-green-600",
+          bgColor: "bg-green-50",
+        },
+      ]
+    }] : []),
+    {
+      label: "Account",
+      items: [
+        {
+          title: "Settings",
+          url: "/settings",
+          icon: Settings,
+          color: "text-slate-600",
+          bgColor: "bg-slate-50",
+        },
+      ]
+    }
+  ];
 
-  const iconColorMap: Record<string, string> = {
-    Dashboard: 'text-[#2B6EF6]',
-    'Quick Entry': 'text-[#0EA5E9]',
-    'Daily Settlement': 'text-[#10B981]',
-    'Daily Reports': 'text-[#8B5CF6]',
-    Stations: 'text-[#7C3AED]',
-    Employees: 'text-[#F97316]',
-    Reports: 'text-[#10B981]',
-    Analytics: 'text-[#EF4444]',
-    Settings: 'text-[#64748B]',
-    Sales: 'text-[#F59E0B]',
-    'Settlements': 'text-[#06B6D4]',
-    Pumps: 'text-[#3B82F6]',
-  }
+  const menuGroups = isOwnerRole ? ownerMenuGroups : staffMenuGroups;
+
+  // Get role icon
+  const getRoleIcon = (role?: string) => {
+    switch (role) {
+      case 'owner':
+        return Crown;
+      case 'manager':
+        return Shield;
+      case 'employee':
+        return User;
+      default:
+        return User;
+    }
+  };
+
+  const RoleIcon = getRoleIcon(user?.role);
 
   const handleLogout = async () => {
     try {
@@ -194,121 +260,149 @@ export function AppSidebar() {
     <Sidebar
       collapsible={isMobile ? 'offcanvas' : 'none'}
       className={cn(
-        state === 'collapsed' ? 'w-20' : 'w-56',
-        'flex flex-col bg-white border-r border-border shadow-sm overflow-auto'
+        state === 'collapsed' ? 'w-20' : 'w-64',
+        'flex flex-col bg-gradient-to-b from-white via-slate-50/30 to-slate-100/50 border-r border-slate-200/60 shadow-lg backdrop-blur-sm overflow-hidden'
       )}
       style={
         ( {
-          // For fixed header: mobile header is h-14 (3.5rem), desktop h-16 (4rem)
-          marginTop: isMobile ? '3.5rem' : '4rem',
-          height: isMobile ? 'calc(100vh - 3.5rem)' : 'calc(100vh - 4rem)'
+          marginTop: isMobile ? '3rem' : '3rem', // Brand bar is 3rem
+          height: isMobile ? 'calc(100vh - 3rem)' : 'calc(100vh - 3rem)'
         } as React.CSSProperties )
       }
     >
-      <SidebarHeader className="flex flex-col items-center pt-0 pb-2 px-2 gap-2">
-        <Link to={dashboardUrl} className="flex items-center justify-center w-full">
-          <FuelSyncLogo size={44} showText={state !== 'collapsed'} />
-        </Link>
+      <SidebarHeader className="flex flex-col items-center pt-2 pb-3 px-3 border-b border-slate-200/50 bg-gradient-to-r from-blue-50/50 to-indigo-50/50">
+        <div className="w-full h-8" /> {/* Spacer to maintain header height */}
       </SidebarHeader>
-      {/* Compact profile block to utilize header/space */}
-      <div className="px-3 mb-2">
-        <div className="flex items-center gap-3 px-2 py-3 rounded">
-          <div className="w-11 h-11 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white text-base font-semibold">{user?.name ? user.name.charAt(0).toUpperCase() : 'U'}</div>
-          <div className={state === 'collapsed' ? 'hidden' : 'flex-1 truncate'}>
-            <div className="text-sm font-medium text-slate-800 truncate">{user?.name || 'User'}</div>
-            <div className="text-sm text-slate-500 truncate">{user?.role}</div>
+
+      {/* Enhanced Profile Section */}
+      <div className="px-4 py-3 border-b border-slate-200/50 bg-gradient-to-r from-slate-50/80 to-white">
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 flex items-center justify-center text-white font-bold text-sm shadow-md">
+              {user?.name ? user.name.charAt(0).toUpperCase() : 'U'}
+            </div>
+            <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white border-2 border-white flex items-center justify-center shadow-sm">
+              <RoleIcon className="w-3 h-3 text-slate-600" />
+            </div>
+          </div>
+          <div className={cn("flex-1 min-w-0", state === 'collapsed' && 'hidden')}>
+            <div className="text-sm font-semibold text-slate-800 truncate leading-tight">
+              {user?.name || 'User'}
+            </div>
+            <div className="text-xs text-slate-500 capitalize flex items-center gap-1">
+              <span>{user?.role || 'User'}</span>
+            </div>
           </div>
         </div>
       </div>
-      <SidebarContent className="flex-1 flex flex-col">
-        <SidebarGroup>
-          <SidebarGroupLabel className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider mb-1"></SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {menuItems.map((item) => {
-                // Highlight if current path starts with item.url (for subpages)
-                const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
-                return (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton 
-                      asChild
-                      isActive={isActive}
-                      className={isActive ? "bg-gray-100 text-slate-900 font-semibold" : ""}
-                    >
-                      <Link
-                        to={item.url}
-                        onClick={handleItemClick}
-                        className={cn(
-                          "flex items-center transition-colors rounded-md",
-                          // on desktop collapsed, center icons; otherwise use roomy, touch-friendly padding
-                          state === 'collapsed' && !isMobile ? 'justify-center p-3' : 'gap-3 px-4 py-3'
-                        )}
-                      >
-                        <span
+      <SidebarContent className="flex-1 overflow-y-auto">
+        <div className="space-y-1 p-2">
+          {menuGroups.map((group, groupIndex) => (
+            <SidebarGroup key={group.label} className="mb-4">
+              <SidebarGroupLabel className={cn(
+                "text-xs font-semibold text-slate-600 uppercase tracking-wider mb-2 px-3",
+                state === 'collapsed' && 'hidden'
+              )}>
+                {group.label}
+              </SidebarGroupLabel>
+              <SidebarGroupContent>
+                <SidebarMenu className="space-y-1">
+                  {group.items.map((item) => {
+                    const isActive = location.pathname === item.url || location.pathname.startsWith(item.url + "/");
+                    return (
+                      <SidebarMenuItem key={item.title}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
                           className={cn(
-                            'inline-flex items-center justify-center rounded-full w-10 h-10',
-                            isActive ? 'bg-primary/10 text-primary' : 'bg-white'
+                            "group relative rounded-lg transition-all duration-200 hover:shadow-md",
+                            isActive
+                              ? "bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200/50 shadow-sm"
+                              : "hover:bg-slate-50/80 border border-transparent hover:border-slate-200/50"
                           )}
                         >
-                          <item.icon className={cn(isActive ? 'w-6 h-6' : 'w-6 h-6', iconColorMap[item.title] || 'text-slate-500')} />
-                        </span>
-                        <span
-                          className={cn(
-                            isActive ? 'text-sm text-slate-900' : 'text-sm text-slate-600',
-                            // show labels on mobile (sheet) even if collapsed; hide only when desktop collapsed
-                            state === 'collapsed' && !isMobile ? 'hidden' : 'block'
-                          )}
-                        >
-                          {item.title}
-                        </span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                );
-              })}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-      </SidebarContent>
-      {/* Floating edge toggle (arrow) - hover-visible on the sidebar wrapper */}
-      {!isMobile && (
-        <>
-          <button
-        aria-label={state === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar'}
-        aria-expanded={state !== 'collapsed'}
-        onClick={toggleSidebar}
-        // Hidden on very small screens, but always visible when collapsed
-        className={cn(
-          "absolute top-12 -left-3 flex items-center justify-center w-6 h-10 rounded-r-md border shadow-sm transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-offset-1",
-          // default look (when expanded): subtle white button that appears on hover
-          state === 'collapsed'
-            ? "opacity-100 translate-x-0 bg-indigo-600 border-indigo-600 hover:bg-indigo-500"
-            : "opacity-0 -translate-x-1 group-hover/sidebar-wrapper:opacity-100 group-hover/sidebar-wrapper:-translate-x-0 bg-white border-gray-200 hover:opacity-100",
-          // ensure it's not shown on very small screens where off-canvas sheet is used
-          "sm:flex"
-        )}
-        title={state === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar'}
-      >
-        {state === 'collapsed' ? (
-          <ChevronRight className="w-4 h-4 text-white" />
-        ) : (
-          <ChevronLeft className="w-4 h-4 text-slate-600" />
-        )}
-          </button>
-        </>
-      )}
-      <SidebarFooter className="mt-auto p-2">
-        <div className="p-1">
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleLogout}
-            className="w-full justify-start gap-2 text-slate-700"
-          >
-            <LogOut className="w-4 h-4 text-slate-700" />
-            <span className={state === 'collapsed' ? 'hidden' : 'text-sm'}>Logout</span>
-          </Button>
+                          <Link
+                            to={item.url}
+                            onClick={handleItemClick}
+                            className={cn(
+                              "flex items-center w-full",
+                              state === 'collapsed' && !isMobile ? 'justify-center px-3 py-3' : 'gap-3 px-4 py-3'
+                            )}
+                          >
+                            <div className={cn(
+                              "flex items-center justify-center w-9 h-9 rounded-lg transition-all duration-200",
+                              isActive
+                                ? `${item.bgColor} ${item.color} shadow-sm`
+                                : `bg-slate-100 ${item.color} group-hover:bg-slate-200 group-hover:shadow-sm`
+                            )}>
+                              <item.icon className="w-4 h-4" />
+                            </div>
+                            <div className={cn(
+                              "flex-1 min-w-0",
+                              state === 'collapsed' && !isMobile ? 'hidden' : 'block'
+                            )}>
+                              <div className={cn(
+                                "text-sm font-medium leading-tight",
+                                isActive ? "text-slate-900" : "text-slate-700 group-hover:text-slate-900"
+                              )}>
+                                {item.title}
+                              </div>
+                            </div>
+                            {isActive && (
+                              <div className="w-1.5 h-6 bg-gradient-to-b from-blue-500 to-indigo-500 rounded-full ml-auto"></div>
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+                </SidebarMenu>
+              </SidebarGroupContent>
+            </SidebarGroup>
+          ))}
         </div>
+      </SidebarContent>
+      {/* Enhanced Toggle Button */}
+      {!isMobile && (
+        <button
+          aria-label={state === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-expanded={state !== 'collapsed'}
+          onClick={toggleSidebar}
+          className={cn(
+            "absolute top-16 -left-4 flex items-center justify-center w-8 h-8 rounded-full border-2 shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 z-10",
+            state === 'collapsed'
+              ? "bg-gradient-to-r from-blue-500 to-indigo-600 border-blue-400 hover:from-blue-600 hover:to-indigo-700"
+              : "bg-white border-slate-300 hover:bg-slate-50 hover:border-slate-400 opacity-0 group-hover/sidebar-wrapper:opacity-100"
+          )}
+          title={state === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          {state === 'collapsed' ? (
+            <ChevronRight className="w-4 h-4 text-white" />
+          ) : (
+            <ChevronLeft className="w-4 h-4 text-slate-600" />
+          )}
+        </button>
+      )}
+
+      {/* Enhanced Footer */}
+      <SidebarFooter className="mt-auto border-t border-slate-200/50 bg-gradient-to-r from-slate-50/80 to-white p-3">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={handleLogout}
+          className={cn(
+            "w-full rounded-lg transition-all duration-200 hover:bg-red-50 hover:text-red-700 hover:border-red-200 border border-transparent",
+            state === 'collapsed' && !isMobile ? 'px-3' : 'justify-start gap-3 px-4'
+          )}
+        >
+          <LogOut className="w-4 h-4" />
+          <span className={cn(
+            "text-sm font-medium",
+            state === 'collapsed' && !isMobile && 'hidden'
+          )}>
+            Logout
+          </span>
+        </Button>
       </SidebarFooter>
     </Sidebar>
   );
