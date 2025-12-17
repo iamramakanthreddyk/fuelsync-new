@@ -88,9 +88,9 @@ module.exports = (sequelize) => {
     underscored: true,
     indexes: [
       { fields: ['station_id'] },
-      { fields: ['month'] },
+      // { fields: ['month'] }, // Temporarily disabled until migration runs
       { fields: ['fuel_type'] },
-      { unique: true, fields: ['station_id', 'month', 'fuel_type'] }
+      // { unique: true, fields: ['station_id', 'month', 'fuel_type'] } // Temporarily disabled until migration runs
     ],
     hooks: {
       beforeValidate: (cog) => {
