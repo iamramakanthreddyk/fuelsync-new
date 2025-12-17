@@ -24,9 +24,22 @@ import { safeToFixed } from '@/lib/format-utils';
 export default function Dashboard() {
   const { user } = useAuth();
   const { data, isLoading } = useDashboardData();
+  
+  // Provide default data structure to prevent crashes
+  const dashboardData = data || {
+    todaySales: 0,
+    todayPayments: 0,
+    totalReadings: 0,
+    pendingClosures: 0,
+    trendsData: [],
+    fuelPrices: {},
+    alerts: []
+  };
+  
   // Debug: log user and dashboard data
   console.log('Dashboard user:', user);
   console.log('Dashboard data:', data);
+  console.log('Dashboard dashboardData:', dashboardData);
   const logActivity = useActivityLogger();
   useEffect(() => {
     logActivity("dashboard_view", {
@@ -52,12 +65,12 @@ export default function Dashboard() {
   const checklist = useSetupChecklist();
 
   const premiumRequired = false; // Premium features not implemented yet
-  const variance = data.todayPayments - data.todaySales;
+  const variance = dashboardData.todayPayments - dashboardData.todaySales;
 
   // Build fuel price object for FuelPriceCard - normalize keys using enum
   const fuelPricesObj: Record<string, number> = {};
-  if (data.fuelPrices) {
-    Object.entries(data.fuelPrices).forEach(([key, value]) => {
+  if (dashboardData.fuelPrices) {
+    Object.entries(dashboardData.fuelPrices).forEach(([key, value]) => {
       if (value !== undefined) {
         fuelPricesObj[normalizeFuelType(key)] = value;
       }
@@ -90,8 +103,36 @@ export default function Dashboard() {
   console.log('Dashboard loaded. User:', user);
   console.log('Dashboard loaded. Data:', data);
 
+  // Check if user has no stations assigned
+  const hasNoStationsAlert = dashboardData.alerts?.some(alert => alert.id === 'no_stations');
+  if (hasNoStationsAlert) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <div className="flex flex-col items-center justify-center min-h-[400px] space-y-4">
+          <div className="text-center space-y-4">
+            <h1 className="text-3xl font-bold">Welcome to FuelSync</h1>
+            <p className="text-lg text-muted-foreground max-w-md">
+              {user?.role === 'manager' 
+                ? 'You need to be assigned to a station to access the dashboard. Please contact your administrator.'
+                : 'No stations found. Create your first station to start tracking fuel sales.'}
+            </p>
+            {user?.role === 'owner' && (
+              <Button onClick={() => window.location.href = '/owner/stations'}>
+                Create Station
+              </Button>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // New: Render only free cards for key metrics and compact premium card/sections
   function KeyMetricsFreeCards() {
+    const todaySales = dashboardData.todaySales ?? 0;
+    const todayPayments = dashboardData.todayPayments ?? 0;
+    const pendingClosures = dashboardData.pendingClosures ?? 0;
+    
     return (
       <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         {/* Total Sales Today */}
@@ -101,7 +142,7 @@ export default function Dashboard() {
             <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(data.todaySales)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(todaySales)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               From fuel dispensing
             </p>
@@ -115,7 +156,7 @@ export default function Dashboard() {
             <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayPayments)}</div>
+            <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(todayPayments)}</div>
             <p className="text-xs text-muted-foreground mt-1">
               Cash, card, UPI & credit
             </p>
@@ -129,11 +170,11 @@ export default function Dashboard() {
             <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
           </CardHeader>
           <CardContent className="px-4 pb-4">
-            <div className={`text-xl sm:text-2xl font-bold ${data.pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {data.pendingClosures}
+            <div className={`text-xl sm:text-2xl font-bold ${pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
+              {pendingClosures}
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              {data.pendingClosures > 0 ? 'Need attention' : 'All closed'}
+              {pendingClosures > 0 ? 'Need attention' : 'All closed'}
             </p>
           </CardContent>
         </Card>
@@ -298,7 +339,7 @@ export default function Dashboard() {
       </div>
 
       {/* Alerts - Full width mobile */}
-      <AlertBadges alerts={data.alerts} />
+      <AlertBadges alerts={dashboardData.alerts ?? []} />
 
       {/* Key Metrics - Render simplified view for employees */}
       {isEmployee ? (
@@ -318,7 +359,7 @@ export default function Dashboard() {
                 <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(data.todaySales)}</div>
+                <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(dashboardData.todaySales ?? 0)}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   From fuel dispensing
                 </p>
@@ -332,7 +373,7 @@ export default function Dashboard() {
                 <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(data.todayPayments)}</div>
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(dashboardData.todayPayments ?? 0)}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Cash, card, UPI & credit
                 </p>
@@ -346,11 +387,11 @@ export default function Dashboard() {
                 <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
               </CardHeader>
               <CardContent className="px-4 pb-4">
-                <div className={`text-xl sm:text-2xl font-bold ${data.pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {data.pendingClosures}
+                <div className={`text-xl sm:text-2xl font-bold ${(dashboardData.pendingClosures ?? 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                  {dashboardData.pendingClosures ?? 0}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  {data.pendingClosures > 0 ? 'Need attention' : 'All closed'}
+                  {(dashboardData.pendingClosures ?? 0) > 0 ? 'Need attention' : 'All closed'}
                 </p>
               </CardContent>
             </Card>
@@ -383,7 +424,7 @@ export default function Dashboard() {
             {premiumRequired ? (
               <TrendsChartPremiumPromo />
             ) : (
-              <TrendsChart data={data.trendsData} isLoading={isLoading} />
+              <TrendsChart data={dashboardData.trendsData} isLoading={isLoading} />
             )}
           </div>
           
@@ -396,7 +437,7 @@ export default function Dashboard() {
 
       {/* Reading Summary - Full width (hide for employees to avoid duplicate cards) */}
       {!isEmployee && (
-        <ReadingSummary totalReadings={data.totalReadings} lastReading={data.lastReading} />
+        <ReadingSummary totalReadings={dashboardData.totalReadings ?? 0} lastReading={dashboardData.lastReading ?? null} />
       )}
       
       {/* Upgrade Modal */}

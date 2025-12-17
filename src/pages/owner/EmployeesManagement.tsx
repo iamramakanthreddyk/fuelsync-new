@@ -39,7 +39,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
-import { Plus, UserPlus, Edit, Trash2, Mail, Phone, Building2, Shield } from 'lucide-react';
+import { Plus, UserPlus, Edit, Trash2, Mail, Phone, Building2, Shield, Key } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -194,7 +194,10 @@ export default function EmployeesManagement() {
 
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isResetPasswordDialogOpen, setIsResetPasswordDialogOpen] = useState(false);
   const [deleteEmployeeId, setDeleteEmployeeId] = useState<string | null>(null);
+  const [resetPasswordEmployee, setResetPasswordEmployee] = useState<Employee | null>(null);
+  const [newPassword, setNewPassword] = useState('');
   const [formData, setFormData] = useState<EmployeeFormData>(initialFormData);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
@@ -308,6 +311,34 @@ export default function EmployeesManagement() {
     }
   });
 
+  // Reset password mutation
+  const resetPasswordMutation = useMutation({
+    mutationFn: async ({ id, password }: { id: string; password: string }) => {
+      const response = await apiClient.post(`/users/${id}/reset-password`, { newPassword: password });
+      return response;
+    },
+    onSuccess: () => {
+      toast({ title: 'Success', description: 'Password reset successfully', variant: 'success' });
+      setIsResetPasswordDialogOpen(false);
+      setResetPasswordEmployee(null);
+      setNewPassword('');
+    },
+    onError: (error: unknown) => {
+      let message = 'Failed to reset password';
+      if (typeof error === 'object' && error !== null && 'response' in error) {
+        const errObj = error as { response?: { data?: { error?: string } } };
+        message = errObj.response?.data?.error || message;
+      } else if (error instanceof Error) {
+        message = error.message;
+      }
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive'
+      });
+    }
+  });
+
   const handleCreate = () => {
     createMutation.mutate(formData);
   };
@@ -339,6 +370,24 @@ export default function EmployeesManagement() {
     if (deleteEmployeeId) {
       deleteMutation.mutate(deleteEmployeeId);
     }
+  };
+
+  const handleResetPassword = () => {
+    if (resetPasswordEmployee && newPassword) {
+      resetPasswordMutation.mutate({ id: resetPasswordEmployee.id, password: newPassword });
+    }
+  };
+
+  const handleResetPasswordDialogOpen = (employee: Employee) => {
+    setResetPasswordEmployee(employee);
+    setNewPassword('');
+    setIsResetPasswordDialogOpen(true);
+  };
+
+  const handleResetPasswordDialogClose = () => {
+    setIsResetPasswordDialogOpen(false);
+    setResetPasswordEmployee(null);
+    setNewPassword('');
   };
 
   const filteredEmployees = employees?.filter((emp: Employee) =>
@@ -496,6 +545,13 @@ export default function EmployeesManagement() {
                     Edit
                   </Button>
                   <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => handleResetPasswordDialogOpen(employee)}
+                  >
+                    <Key className="w-4 h-4" />
+                  </Button>
+                  <Button
                     variant="destructive"
                     size="sm"
                     onClick={() => setDeleteEmployeeId(employee.id)}
@@ -581,6 +637,45 @@ export default function EmployeesManagement() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={isResetPasswordDialogOpen} onOpenChange={handleResetPasswordDialogClose}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Reset Password</DialogTitle>
+            <DialogDescription>
+              Reset the password for {resetPasswordEmployee?.name}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="newPassword">New Password *</Label>
+              <Input
+                id="newPassword"
+                type="password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                placeholder="Enter new password"
+                autoComplete="new-password"
+              />
+              <p className="text-sm text-muted-foreground mt-1">
+                Password must be at least 6 characters long
+              </p>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={handleResetPasswordDialogClose}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleResetPassword}
+              disabled={!newPassword || newPassword.length < 6 || resetPasswordMutation.isPending}
+            >
+              {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
