@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { toFixedNumber } from '@/lib/numberFormat';
 import { formatDateISO, formatDateLocal, formatDateTimeLocal } from '@/lib/dateFormat';
 import { Button } from '@/components/ui/button';
+import InlineSettleForm from '../credit/InlineSettleForm';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,7 +46,6 @@ import {
   IndianRupee,
   CreditCard
 } from 'lucide-react';
-import SettleCreditorDialog from '@/components/SettleCreditorDialog';
 
 // Import enums and types
 import type {
@@ -71,6 +71,8 @@ interface Creditor {
 }
 
 export default function StationDetail() {
+  // Track which creditor's settle form is open
+  const [settleOpenId, setSettleOpenId] = useState<string | null>(null);
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -1006,12 +1008,25 @@ export default function StationDetail() {
                         </p>
                       </div>
                     </div>
-                    <div className="mt-4 flex justify-end">
-                      <SettleCreditorDialog stationId={id!} creditorId={creditor.id} creditorName={creditor.name} onSuccess={() => {
-                        queryClient.invalidateQueries({ queryKey: ['station-creditors', id] });
-                        queryClient.invalidateQueries({ queryKey: ['creditors-ledger'] });
-                      }} />
-                    </div>
+                    {/* Show Settle button and reveal form on click */}
+                    {creditor.currentBalance > 0 && (
+                      <div className="mt-3">
+                        {settleOpenId !== creditor.id ? (
+                          <Button size="sm" variant="outline" onClick={() => setSettleOpenId(creditor.id)}>
+                            Settle
+                          </Button>
+                        ) : (
+                          <InlineSettleForm
+                            stationId={id}
+                            creditorId={creditor.id}
+                            onSuccess={() => {
+                              setSettleOpenId(null);
+                              queryClient.invalidateQueries({ queryKey: ['station-creditors', id] });
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               ))}
