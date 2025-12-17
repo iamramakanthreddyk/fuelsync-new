@@ -25,7 +25,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-yellow-600 transition-colors">
             <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Zap className="w-5 h-5 text-yellow-600 dark:text-yellow-400" />
+              <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
             </div>
             <span>Quick Entry</span>
           </CardTitle>
@@ -52,7 +52,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-green-600 transition-colors">
             <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Scale3d className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <Scale3d className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
             </div>
             <span>Daily Settlement</span>
           </CardTitle>
@@ -79,7 +79,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-indigo-600 transition-colors">
             <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <TrendingUp className="w-5 h-5 text-indigo-600 dark:text-indigo-400" />
+              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
             </div>
             <span>Daily Reports</span>
           </CardTitle>
@@ -106,7 +106,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-orange-600 transition-colors">
             <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Clock className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
             </div>
             <span>Shift Management</span>
           </CardTitle>
@@ -133,7 +133,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-primary transition-colors">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Building2 className="w-5 h-5 text-blue-600 dark:text-blue-400" />
+              <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
             </div>
             <span>Manage Stations</span>
           </CardTitle>
@@ -160,7 +160,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-primary transition-colors">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Users className="w-5 h-5 text-purple-600 dark:text-purple-400" />
+              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
             </div>
             <span>Manage Employees</span>
           </CardTitle>
@@ -187,7 +187,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         <CardHeader className="pb-3">
           <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-orange-600 transition-colors">
             <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <CreditCard className="w-5 h-5 text-orange-600 dark:text-orange-400" />
+              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
             </div>
             <span>Credit Ledger</span>
           </CardTitle>
