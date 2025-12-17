@@ -5,7 +5,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { normalizeFuelType } from '@/hooks/useFuelPricesData';
 import FuelSyncLogo from './FuelSyncLogo';
-import { MobileMenuTrigger } from './MobileMenuTrigger';
 import { FuelPriceCard } from '@/components/dashboard/FuelPriceCard';
 
 /**

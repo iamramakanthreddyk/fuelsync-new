@@ -39,14 +39,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useSidebar } from '@/components/ui/sidebar';
-import { useIsMobile } from '@/hooks/use-mobile';
 
 export function AppSidebar() {
   const { user, logout } = useAuth();
   const location = useLocation();
-  const { setOpenMobile, toggleSidebar, state } = useSidebar();
-  // local hook to decide collapsible mode for Sidebar (ensures mobile uses Sheet)
-  const isMobile = useIsMobile();
+  const { setOpenMobile, toggleSidebar, state, isMobile } = useSidebar();
 
   // This sidebar is ONLY for owners and employees
   // Superadmins should never see this - they have their own layout
@@ -258,7 +255,7 @@ export function AppSidebar() {
 
   return (
     <Sidebar
-      collapsible={isMobile ? 'offcanvas' : 'none'}
+      collapsible={isMobile ? 'offcanvas' : 'icon'}
       className={cn(
         state === 'collapsed' ? 'w-20' : 'w-64',
         'flex flex-col bg-gradient-to-b from-white via-slate-50/30 to-slate-100/50 border-r border-slate-200/60 shadow-lg backdrop-blur-sm overflow-hidden'
@@ -362,24 +359,24 @@ export function AppSidebar() {
           ))}
         </div>
       </SidebarContent>
-      {/* Enhanced Toggle Button */}
+      {/* Enhanced Toggle Button - Moved to right edge */}
       {!isMobile && (
         <button
           aria-label={state === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-expanded={state !== 'collapsed'}
           onClick={toggleSidebar}
           className={cn(
-            "absolute top-16 -left-4 flex items-center justify-center w-8 h-8 rounded-full border-2 shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 z-10",
+            "absolute top-16 -right-4 flex items-center justify-center w-10 h-10 rounded-full border-2 shadow-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 z-10",
             state === 'collapsed'
               ? "bg-gradient-to-r from-blue-500 to-indigo-600 border-blue-400 hover:from-blue-600 hover:to-indigo-700"
-              : "bg-white border-slate-300 hover:bg-slate-50 hover:border-slate-400 opacity-0 group-hover/sidebar-wrapper:opacity-100"
+              : "bg-white border-slate-300 hover:bg-slate-50 hover:border-slate-400"
           )}
           title={state === 'collapsed' ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {state === 'collapsed' ? (
-            <ChevronRight className="w-4 h-4 text-white" />
+            <ChevronLeft className="w-5 h-5 text-white" />
           ) : (
-            <ChevronLeft className="w-4 h-4 text-slate-600" />
+            <ChevronRight className="w-5 h-5 text-slate-600" />
           )}
         </button>
       )}

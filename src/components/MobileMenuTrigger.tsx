@@ -17,7 +17,7 @@ export function MobileMenuTrigger() {
     <Button
       variant="ghost"
       size="sm"
-      className="md:hidden"
+      className="xl:hidden"
       onClick={openMobile}
       aria-label="Open menu"
     >

@@ -9,7 +9,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { Bell } from 'lucide-react';
 import { notificationService } from '@/services/notificationService';
 import { MobileMenuTrigger } from './MobileMenuTrigger';
-import { useSidebar } from '@/components/ui/sidebar';
 
 interface AppLayoutProps {
   children: React.ReactNode;
