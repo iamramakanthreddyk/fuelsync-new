@@ -345,37 +345,37 @@ export default function Reports() {
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 bg-gray-100 p-1 rounded-xl h-auto">
               <TabsTrigger
                 value="overview"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4"
+                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 transition-all duration-200"
               >
-                <PieChart className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-purple-500" />
+                <PieChart className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-purple-500 data-[state=active]:text-white" />
                 <span className="hidden sm:inline">Overview</span>
               </TabsTrigger>
               <TabsTrigger
                 value="sales"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4"
+                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 transition-all duration-200"
               >
-                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-blue-500" />
+                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-blue-500 data-[state=active]:text-white" />
                 <span className="hidden sm:inline">Sales</span>
               </TabsTrigger>
               <TabsTrigger
                 value="nozzles"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4"
+                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 transition-all duration-200"
               >
-                <Droplet className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-cyan-500" />
+                <Droplet className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-cyan-500 data-[state=active]:text-white" />
                 <span className="hidden sm:inline">Nozzles</span>
               </TabsTrigger>
               <TabsTrigger
                 value="shifts"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4"
+                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 transition-all duration-200"
               >
-                <Clock className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-green-500" />
+                <Clock className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-green-500 data-[state=active]:text-white" />
                 <span className="hidden sm:inline">Shifts</span>
               </TabsTrigger>
               <TabsTrigger
                 value="pumps"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 col-span-2 md:col-span-1"
+                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 col-span-2 md:col-span-1 transition-all duration-200"
               >
-                <Activity className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-orange-500" />
+                <Activity className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-blue-600 data-[state=active]:text-white" />
                 <span className="hidden sm:inline">Pumps</span>
               </TabsTrigger>
             </TabsList>

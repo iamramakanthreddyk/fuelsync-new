@@ -30,57 +30,75 @@ function NozzleReadingRow({
   const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
 
   return (
-    <div key={nozzle.id} className="border rounded-lg p-2 bg-white">
-      <div className="flex items-center justify-between mb-1">
-        <div className="flex flex-col">
-          <Label className="text-xs font-semibold">
-            Nozzle {nozzle.nozzleNumber} - {nozzle.fuelType}
-            {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
-            <span className="text-xs text-muted-foreground ml-2">Last: {safeToFixed(compareValue, 1)}L</span>
-          </Label>
+    <div className="border rounded-lg p-4 bg-white hover:bg-gray-50/50 transition-colors">
+      {/* Header - Clean and organized */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="text-xs font-medium px-2 py-1">
+              #{nozzle.nozzleNumber}
+            </Badge>
+            <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs font-medium px-2 py-1`}>
+              {nozzle.fuelType}
+            </Badge>
+          </div>
+          {!hasFuelPrice && (
+            <span className="text-red-500 text-xs font-medium">⚠ No price</span>
+          )}
+        </div>
+        <div className="text-right">
+          <div className="text-xs text-muted-foreground">Previous</div>
+          <div className="text-sm font-medium">{safeToFixed(compareValue, 1)} L</div>
         </div>
       </div>
-      <div className="relative">
-        <Input
-          type="number"
-          step="any"
-          placeholder="Enter reading"
-          value={reading?.readingValue !== undefined && reading?.readingValue !== null ? reading.readingValue : ''}
-          onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
-          disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
-          className={`text-xs h-7 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
-        />
-        {/* Batched last readings used; no per-row loading indicator */}
-        {reading?.readingValue && !lastReadingLoading && enteredValue !== undefined && enteredValue > compareValue && (
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
-            <Check className="w-4 h-4" />
-          </div>
-        )}
-        {reading?.readingValue && !lastReadingLoading && enteredValue !== undefined && enteredValue <= compareValue && (
-          <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-red-500 text-xs">
-            Incorrect reading
-          </div>
-        )}
-      </div>
-      {!hasFuelPrice && (
-        <p className="text-xs text-red-600 mt-1">
-          Price not set for this fuel type.<br />
-          Set prices in the <b>Prices</b> page. Prices update automatically.
-        </p>
-      )}
-      {/* Show calculation below input if reading is valid */}
-      {reading?.readingValue && enteredValue !== undefined && enteredValue > compareValue && hasFuelPrice && (
-        <div className="mt-2 pt-2 border-t border-gray-200">
-          <ReadingSaleCalculation
-            nozzleNumber={nozzle.nozzleNumber}
-            fuelType={nozzle.fuelType}
-            lastReading={compareValue}
-            enteredReading={enteredValue}
-            fuelPrice={price}
-            status={nozzle.status as EquipmentStatusEnum}
+
+      {/* Input Section - Clean and focused */}
+      <div className="space-y-2">
+        <div className="relative">
+          <Input
+            type="number"
+            step="any"
+            placeholder="Current reading"
+            value={reading?.readingValue !== undefined && reading?.readingValue !== null ? reading.readingValue : ''}
+            onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
+            disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
+            className={`text-sm h-9 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
           />
+          {/* Status indicators */}
+          {reading?.readingValue && !lastReadingLoading && enteredValue !== undefined && (
+            <div className="absolute right-3 top-1/2 -translate-y-1/2">
+              {enteredValue > compareValue ? (
+                <Check className="w-4 h-4 text-green-600" />
+              ) : (
+                <span className="text-xs text-red-600 font-medium">Invalid</span>
+              )}
+            </div>
+          )}
         </div>
-      )}
+
+        {/* Sale calculation - Only show when valid */}
+        {reading?.readingValue && enteredValue !== undefined && enteredValue > compareValue && hasFuelPrice && (
+          <div className="mt-3 p-3 bg-green-50 rounded-md border border-green-200">
+            <ReadingSaleCalculation
+              nozzleNumber={nozzle.nozzleNumber}
+              fuelType={nozzle.fuelType}
+              lastReading={compareValue}
+              enteredReading={enteredValue}
+              fuelPrice={price}
+              status={nozzle.status as EquipmentStatusEnum}
+            />
+          </div>
+        )}
+
+        {/* Error message - Only show when needed */}
+        {!hasFuelPrice && (
+          <div className="mt-2 p-2 bg-red-50 rounded-md border border-red-200">
+            <p className="text-xs text-red-700 font-medium">
+              Set fuel price in Prices page
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -126,6 +144,7 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { useFuelPricesForStation } from '@/hooks/useFuelPricesForStation';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { safeToFixed } from '@/lib/format-utils';
+import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { ReadingSaleCalculation } from '@/components/owner/ReadingSaleCalculation';
 import { SaleValueSummary } from '@/components/owner/SaleValueSummary';
@@ -685,24 +704,26 @@ export default function QuickDataEntry() {
             {/* Left: Pump Nozzles (2 cols) */}
             <div className="lg:col-span-2 space-y-2">
               {pumps.map((pump) => (
-                <Card key={pump.id} className="hover:shadow-md transition-shadow">
-                  <CardHeader className="pb-2">
+                <Card key={pump.id} className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
+                  <CardHeader className="pb-3">
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                          <Fuel className="w-4 h-4 text-primary" />
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
+                          <Fuel className="w-5 h-5 text-blue-600" />
                         </div>
                         <div>
-                          <h3 className="font-semibold text-sm">Pump {pump.pumpNumber}</h3>
-                          <p className="text-xs text-muted-foreground">{pump.name}</p>
+                          <h3 className="font-semibold text-base">Pump {pump.pumpNumber}</h3>
+                          <p className="text-sm text-muted-foreground">{pump.name}</p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-xs">{pump.status}</Badge>
+                      <Badge variant="outline" className="text-xs px-3 py-1">
+                        {pump.nozzles?.length || 0} nozzles
+                      </Badge>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-2">
                     {pump.nozzles && pump.nozzles.length > 0 ? (
-                      <div className="grid grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         {pump.nozzles.map((nozzle: any) => (
                           <NozzleReadingRow
                             key={nozzle.id}

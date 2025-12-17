@@ -161,7 +161,7 @@ export default function EmployeePumpsView() {
                                 </div>
                                 {nozzle.lastReading ? (
                                   <div className="text-xs md:text-sm text-muted-foreground ml-6">
-                                    Last: {nozzle.lastReading.toLocaleString()} L
+                                    Last Reading: {nozzle.lastReading.toLocaleString()} L
                                   </div>
                                 ) : (
                                   <div className="text-xs md:text-sm text-muted-foreground ml-6">

@@ -794,7 +794,7 @@ export default function StationDetail() {
                                   </Badge>
                                 </div>
                                 <div className="text-xs text-muted-foreground truncate">
-                                  Last: {nozzle.lastReading != null ? toFixedNumber(nozzle.lastReading, 2) : toFixedNumber(nozzle.initialReading, 2)}
+                                  Last Reading: {nozzle.lastReading != null ? toFixedNumber(nozzle.lastReading, 2) : toFixedNumber(nozzle.initialReading, 2)}
                                 </div>
                               </div>
 

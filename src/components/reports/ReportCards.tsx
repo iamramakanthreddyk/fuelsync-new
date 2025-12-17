@@ -303,29 +303,33 @@ export const PumpCard: React.FC<PumpCardProps> = ({ pump, className }) => (
       </div>
     </CardHeader>
     <CardContent>
-      <div className="space-y-2">
-        <div className="text-sm font-medium mb-2">Nozzles Performance:</div>
-        {pump.nozzles.map((nozzle) => (
-          <div
-            key={nozzle.nozzleId || `${nozzle.nozzleNumber}-${pump.pumpId}`}
-            className="flex items-center justify-between p-3 bg-muted rounded-lg"
-          >
-            <div className="flex items-center gap-3">
-              <Badge variant="outline">Nozzle {nozzle.nozzleNumber}</Badge>
-              <Badge className={getFuelBadgeClasses(nozzle.fuelType)}>
-                {(nozzle.fuelType || 'UNKNOWN').toUpperCase()}
-              </Badge>
-            </div>
-            <div className="text-right">
-              <div className="font-medium">
-                ₹{nozzle.sales.toLocaleString('en-IN')}
+      <div className="space-y-3">
+        <div className="text-sm font-medium text-muted-foreground">Nozzle Performance</div>
+        <div className="grid gap-2">
+          {pump.nozzles.map((nozzle) => (
+            <div
+              key={nozzle.nozzleId || `${nozzle.nozzleNumber}-${pump.pumpId}`}
+              className="flex items-center justify-between p-2 bg-muted/50 rounded-md border"
+            >
+              <div className="flex items-center gap-2">
+                <Badge variant="outline" className="text-xs px-2 py-0.5">
+                  #{nozzle.nozzleNumber}
+                </Badge>
+                <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs px-2 py-0.5`}>
+                  {nozzle.fuelType}
+                </Badge>
               </div>
-              <div className="text-sm text-muted-foreground">
-                {safeToFixed(nozzle.quantity)} L
+              <div className="text-right">
+                <div className="text-sm font-semibold">
+                  ₹{nozzle.sales.toLocaleString('en-IN')}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {safeToFixed(nozzle.quantity)} L
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
     </CardContent>
   </Card>

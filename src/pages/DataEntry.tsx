@@ -396,12 +396,12 @@ export default function DataEntry() {
           {/* TabsList */}
           <TabsList className="grid grid-cols-2 gap-2 md:gap-4 w-full mx-auto mb-4">
             <TabsTrigger value="manual" className="flex flex-col items-center gap-1 text-sm font-medium">
-              <Gauge className="w-5 h-5 text-fuel-orange" />
-              <span className="hidden md:inline text-fuel-orange">Manual Reading</span>
+              <Gauge className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
+              <span className="hidden md:inline text-orange-600 font-medium">Manual Reading</span>
             </TabsTrigger>
             <TabsTrigger value="refill" className="flex flex-col items-center gap-1 text-sm font-medium">
-              <Fuel className="w-5 h-5 text-yellow-500" />
-              <span className="hidden md:inline text-yellow-700">Tank Refill</span>
+              <Fuel className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
+              <span className="hidden md:inline text-yellow-600 font-medium">Tank Refill</span>
             </TabsTrigger>
           </TabsList>
           {/* Manual Tab */}
