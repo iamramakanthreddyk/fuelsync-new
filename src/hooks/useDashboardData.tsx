@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from "@/hooks/useAuth";
 import { apiClient } from "@/lib/api-client";
 import { extractNestedData, extractApiData } from "@/lib/api-response";
@@ -48,6 +48,7 @@ interface DashboardData {
 
 export const useDashboardData = (stationId?: string) => {
   const { user } = useAuth();
+  const queryClient = useQueryClient();
 
   return useQuery({
     queryKey: ['dashboard', stationId || user?.stations?.[0]?.id],
@@ -124,20 +125,23 @@ export const useDashboardData = (stationId?: string) => {
           }>;
         } | null;
 
-        // Extract fuel prices from current prices endpoint
+        // Extract fuel prices from global cache instead of making API call
         const fuelPrices: DashboardData['fuelPrices'] = {};
         try {
-          type Price = { fuelType: string; price: number };
-          const response = await apiClient.get<{ success: boolean; data: { current: Price[]; history: Price[] } }>(`/stations/${effectiveStationId}/prices`);
-          // Extract nested 'current' array from the wrapped response
-          const currentPrices = extractNestedData(response, 'current', []);
-          if (Array.isArray(currentPrices)) {
-            currentPrices.forEach((p: Price) => {
-              fuelPrices[p.fuelType as keyof typeof fuelPrices] = p.price;
+          // Use the global fuel prices cache
+          const stations = user?.stations || [];
+          const globalPrices = queryClient.getQueryData<Record<string, any[]>>(['all-fuel-prices', stations.map(s => s.id).sort().join(',')]);
+
+          if (globalPrices && globalPrices[effectiveStationId]) {
+            globalPrices[effectiveStationId].forEach((price: any) => {
+              const fuelType = (price.fuel_type || price.fuelType || '').toLowerCase();
+              if (fuelType && price.price_per_litre) {
+                fuelPrices[fuelType as keyof typeof fuelPrices] = price.price_per_litre;
+              }
             });
           }
         } catch (e) {
-          console.warn('Could not load fuel prices:', e);
+          console.warn('Could not load fuel prices from cache:', e);
         }
 
         return {

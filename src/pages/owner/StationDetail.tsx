@@ -3,7 +3,7 @@
  * Comprehensive view of a single station with pumps, nozzles, fuel prices
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -195,17 +195,35 @@ export default function StationDetail() {
     enabled: !!id
   });
 
-  // Fetch fuel prices
-  const { data: prices, isLoading: pricesLoading } = useQuery({
-    queryKey: ['station-prices', id],
-    queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: { current: FuelPrice[]; history: FuelPrice[] } }>(`/stations/${id}/prices`);
-      // Extract nested 'current' array from wrapped response
-      const currentPrices = extractApiArray((response as any).data?.current, []);
-      return currentPrices;
-    },
-    enabled: !!id
-  });
+  // Get fuel prices from global cache instead of making API call
+  const prices = useMemo(() => {
+    if (!id) return [];
+    
+    // Get all fuel prices from global cache
+    const allFuelPrices = queryClient.getQueryData(['all-fuel-prices']);
+    
+    if (allFuelPrices && typeof allFuelPrices === 'object') {
+      const stationPrices = (allFuelPrices as any)[id];
+      
+      if (stationPrices && typeof stationPrices === 'object') {
+        // Convert to the expected FuelPrice array format
+        return Object.entries(stationPrices).map(([fuelType, priceData]: [string, any]) => ({
+          fuel_type: fuelType,
+          price_per_litre: priceData?.price_per_litre || 0,
+          fuelType: fuelType,
+          pricePerLitre: priceData?.price_per_litre || 0,
+          id: `${id}-${fuelType}`, // Generate an ID for compatibility
+          station_id: id,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }));
+      }
+    }
+    
+    return [];
+  }, [id, queryClient]);
+  
+  const pricesLoading = false; // No loading since we're reading from cache
 
   // Fetch creditors
   const { data: creditors, isLoading: creditorsLoading } = useQuery({

@@ -14,6 +14,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { extractApiData } from '@/lib/api-response';
@@ -94,26 +96,38 @@ export default function OwnerDashboard() {
   // 1. Check if stations exist
   const primaryStation = stations?.[0];
 
-  // 2. Fetch fuel prices for primary station (only if station exists)
-  const { data: fuelPricesResponse } = useQuery<{
-    success: boolean;
-    data: { current: any[]; history: any[] };
-  } | null>({
-    queryKey: ['fuel-prices', primaryStation?.id],
-    queryFn: async () => {
-      if (!primaryStation?.id) return null;
-      try {
-        const response = await apiClient.get<{
-          success: boolean;
-          data: { current: any[]; history: any[] };
-        }>(`/stations/${primaryStation.id}/prices`);
-        return response ?? null;
-      } catch (error) {
-        return null;
+  // 2. Get fuel prices from global cache instead of making API call
+  const queryClient = useQueryClient();
+  const fuelPricesResponse = useMemo(() => {
+    if (!primaryStation?.id) return null;
+    
+    // Get all fuel prices from global cache
+    const allFuelPrices = queryClient.getQueryData(['all-fuel-prices', stations?.map(s => s.id).sort().join(',')]);
+    
+    if (allFuelPrices && typeof allFuelPrices === 'object') {
+      const stationPrices = (allFuelPrices as any)[primaryStation.id];
+      
+      if (stationPrices && typeof stationPrices === 'object') {
+        // Convert to the expected format
+        const current = Object.entries(stationPrices).map(([fuelType, priceData]: [string, any]) => ({
+          fuel_type: fuelType,
+          price_per_litre: priceData?.price_per_litre || 0,
+          fuelType: fuelType,
+          pricePerLitre: priceData?.price_per_litre || 0
+        }));
+        
+        return {
+          success: true,
+          data: {
+            current,
+            history: [] // Not needed for this component
+          }
+        };
       }
-    },
-    enabled: !!user && !!primaryStation?.id
-  });
+    }
+    
+    return null;
+  }, [primaryStation?.id, stations, queryClient]);
 
   const hasFuelPrices = (fuelPricesResponse?.data?.current?.length ?? 0) > 0;
 

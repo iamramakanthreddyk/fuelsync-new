@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useQuery } from "@tanstack/react-query";
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { SuperAdminLayout } from '@/layouts/SuperAdminLayout';
 import { 
   UsersPage, 
@@ -237,6 +238,65 @@ function RoleBasedDashboard() {
 
 function AppContent() {
   const stationsQuery = useStationsForSuperAdmin();
+
+  // Global fuel prices query - runs once for the entire app
+  // This prevents multiple API calls when components mount/unmount
+  const { user } = useAuth();
+  const { stations } = useRoleAccess();
+
+  // Pre-fetch all fuel prices for all user's stations
+  useQuery({
+    queryKey: ['all-fuel-prices', stations?.map(s => s.id).sort().join(',')],
+    queryFn: async () => {
+      if (!stations || stations.length === 0) {
+        return {};
+      }
+
+      const allPrices: Record<string, any[]> = {};
+
+      // Fetch prices for all stations in parallel
+      await Promise.all(
+        stations.map(async (station) => {
+          try {
+            const url = `/stations/${station.id}/prices`;
+            const response = await apiClient.get(url);
+
+            let currentPrices: any[] = [];
+            if (response && typeof response === 'object' && 'data' in response) {
+              const data = response.data;
+              if (data && typeof data === 'object' && 'current' in data && Array.isArray(data.current)) {
+                currentPrices = data.current;
+              }
+            }
+
+            // Transform prices to match the expected format
+            const transformed = currentPrices.map((price: any) => ({
+              id: price.id,
+              station_id: station.id,
+              fuel_type: (price.fuelType || '').toString().toUpperCase(),
+              fuelType: price.fuelType,
+              price_per_litre: price.price,
+              pricePerLitre: price.price,
+              price: price.price,
+              valid_from: price.effectiveFrom,
+              created_by: price.createdBy,
+              created_at: price.createdAt
+            }));
+
+            allPrices[station.id] = transformed;
+          } catch (error) {
+            console.error(`Failed to fetch prices for station ${station.id}:`, error);
+            allPrices[station.id] = [];
+          }
+        })
+      );
+
+      return allPrices;
+    },
+    enabled: !!user && !!stations && stations.length > 0,
+    staleTime: 1000 * 60 * 15, // 15 minutes - prices don't change often
+    gcTime: 1000 * 60 * 60, // 1 hour - keep in cache longer
+  });
 
   return (
     <Router>

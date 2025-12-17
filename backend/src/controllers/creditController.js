@@ -73,6 +73,11 @@ const getCreditLedger = async (req, res) => {
       finalStationId = req.user.stations[0].id;
     }
     
+    // Verify station access
+    if (!(await canAccessStation(req.user, finalStationId))) {
+      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
+    }
+    
     // Build where clause
     const where = { 
       stationId: finalStationId,
@@ -86,19 +91,9 @@ const getCreditLedger = async (req, res) => {
       ];
     }
     
-    // Get creditors who have ever had transactions for this station
-    // First, find all creditorIds that have transactions
-    const creditorIdsWithTransactions = await CreditTransaction.findAll({
-      where: { stationId: finalStationId },
-      attributes: [[sequelize.fn('DISTINCT', sequelize.col('creditor_id')), 'creditor_id']]
-    }).then(results => results.map(r => r.creditor_id));
-    
-    // Then fetch those creditors from the Creditor table
+    // Get all active creditors for the station
     const creditors = await Creditor.findAll({
-      where: { 
-        id: { [Op.in]: creditorIdsWithTransactions },
-        isActive: true // Still only active creditors
-      },
+      where,
       attributes: ['id', 'name', 'businessName', 'currentBalance', 'creditLimit', 'phone', 'lastTransactionDate'],
       order: [['currentBalance', 'DESC']]
     });
@@ -132,7 +127,7 @@ const getCreditLedger = async (req, res) => {
     );
     
     // Filter based on showAll parameter
-    // showAll=true: show all creditors with transaction history
+    // showAll=true: show all creditors
     // showAll=false/undefined: show only creditors with outstanding balances
     const filtered = showAll === 'true' ? enrichedCreditors : enrichedCreditors.filter(c => c.outstanding > 0);
     

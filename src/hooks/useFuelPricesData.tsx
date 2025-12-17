@@ -1,11 +1,14 @@
 /**
  * useFuelPricesData Hook
- * 
+ *
  * Fetches fuel prices from the actual backend endpoint:
  * - GET /api/v1/stations/:stationId/prices
+ *
+ * Now optimized to fetch all prices for all user's stations once
+ * and cache them globally for reuse across components.
  */
 
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import { useRoleAccess } from "./useRoleAccess";
 import { FuelTypeEnum } from "@/core/enums";
@@ -95,75 +98,22 @@ function transformPrice(price: BackendFuelPrice): FuelPrice {
 }
 
 export function useFuelPricesData(overrideStationId?: string) {
-  const { currentStation } = useRoleAccess();
-  const { prices, setPrices, setPricesByStation, pricesByStation } = useFuelPricesGlobal();
+  const { currentStation, stations } = useRoleAccess();
+  const queryClient = useQueryClient();
   const stationId = overrideStationId || currentStation?.id;
 
-  // If prices exist in context, use them
-  const contextPrices = Object.entries(prices || {}).map(([fuelType, price]) => ({
-    id: fuelType,
-    station_id: stationId,
-    fuel_type: fuelType,
-    price_per_litre: price,
-  }));
+  // Read from the global fuel prices cache
+  const globalQueryKey = ['all-fuel-prices', stations?.map(s => s.id).sort().join(',')];
+  const globalData = queryClient.getQueryData<Record<string, FuelPrice[]>>(globalQueryKey);
 
-  return useQuery<FuelPrice[]>({
-    queryKey: ['fuel-prices', stationId],
-    queryFn: async () => {
-      if (contextPrices.length > 0) {
-        return contextPrices;
-      }
-      if (!stationId) {
-        return [];
-      }
-      try {
-        const url = `/stations/${stationId}/prices`;
-        const response = await apiClient.get<ApiResponse<{ current: BackendFuelPrice[], history: BackendFuelPrice[] }>>(url);
-        let currentPrices: BackendFuelPrice[] = [];
-        if (response && typeof response === 'object' && 'data' in response) {
-          const data = response.data;
-          if (data && typeof data === 'object' && 'current' in data && Array.isArray(data.current)) {
-            currentPrices = data.current;
-          }
-        }
-        if (currentPrices.length === 0 && response && typeof response === 'object' && 'fuelPrices' in response) {
-          const fuelPrices = response.fuelPrices;
-          if (fuelPrices && typeof fuelPrices === 'object' && 'current' in fuelPrices && Array.isArray(fuelPrices.current)) {
-            currentPrices = fuelPrices.current;
-          }
-        }
-        if (currentPrices.length > 0) {
-          // Normalize and store in context
-          const normalized: Record<string, number> = {};
-          currentPrices.forEach((price) => {
-            const fuelType = (price.fuelType || '').toString().toUpperCase();
-            const priceValue = Number(price.price || 0);
-            if (fuelType && priceValue > 0) {
-              normalized[fuelType] = priceValue;
-            }
-          });
-          
-          // Update the prices state for this station
-          setPrices(normalized);
-          
-          // Also update pricesByStation if this is the current station
-          if (stationId) {
-            setPricesByStation({
-              ...pricesByStation,
-              [stationId]: normalized
-            });
-          }
-          
-          const transformed = currentPrices.map(transformPrice);
-          return transformed;
-        }
-        return [];
-      } catch (error) {
-        return [];
-      }
-    },
-    enabled: !!stationId,
-    staleTime: 1000 * 60, // 1 minute
-    gcTime: 1000 * 60 * 5, // 5 minutes
-  });
+  // Transform the data to match the expected format
+  const fuelPrices = stationId && globalData ? globalData[stationId] || [] : [];
+
+  // Return in the same format as useQuery
+  return {
+    data: fuelPrices,
+    isLoading: false, // Data should already be loaded by the global query
+    error: null,
+    refetch: () => queryClient.invalidateQueries({ queryKey: globalQueryKey }),
+  };
 }

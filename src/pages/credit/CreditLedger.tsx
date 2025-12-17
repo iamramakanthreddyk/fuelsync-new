@@ -3,7 +3,7 @@
  * Track outstanding credits, credit limits, and payments per customer
  */
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,29 +54,42 @@ export default function CreditLedger() {
     setExpandedCreditors(newExpanded);
   };
 
-  // Fetch transactions for expanded creditors
-  const expandedCreditorIds = Array.from(expandedCreditors);
-  const { data: transactionsMap = {} } = useQuery({
-    queryKey: ['creditor-transactions', selectedStationId, expandedCreditorIds],
+  // Fetch all creditor transactions for the station (cached and invalidated when creditors change)
+  const { data: allTransactionsMap = {} } = useQuery({
+    queryKey: ['creditor-transactions', selectedStationId, creditors.length],
     queryFn: async () => {
-      if (!selectedStationId || expandedCreditorIds.length === 0) return {};
+      if (!selectedStationId || creditors.length === 0) return {};
 
       const results: Record<string, CreditTransaction[]> = {};
       await Promise.all(
-        expandedCreditorIds.map(async (creditorId) => {
+        creditors.map(async (creditor: any) => {
           try {
-            const transactions = await creditService.getCreditorTransactions(selectedStationId, creditorId);
-            results[creditorId] = transactions;
+            const transactions = await creditService.getCreditorTransactions(selectedStationId, creditor.id);
+            results[creditor.id] = transactions;
           } catch (error) {
-            console.error(`Failed to fetch transactions for creditor ${creditorId}:`, error);
-            results[creditorId] = [];
+            console.error(`Failed to fetch transactions for creditor ${creditor.id}:`, error);
+            results[creditor.id] = [];
           }
         })
       );
       return results;
     },
-    enabled: !!selectedStationId && expandedCreditorIds.length > 0,
+    enabled: !!selectedStationId && creditors.length > 0,
+    staleTime: 5 * 60 * 1000, // Consider data fresh for 5 minutes
+    gcTime: 10 * 60 * 1000, // Keep in cache for 10 minutes
   });
+
+  // Get expanded creditor IDs
+  const expandedCreditorIds = Array.from(expandedCreditors);
+
+  // Get transactions for expanded creditors from the cached data
+  const transactionsMap = useMemo(() => {
+    const result: Record<string, CreditTransaction[]> = {};
+    expandedCreditorIds.forEach(creditorId => {
+      result[creditorId] = allTransactionsMap[creditorId] || [];
+    });
+    return result;
+  }, [allTransactionsMap, expandedCreditorIds]);
 
   // Push notifications for over-limit creditors
   creditors.forEach((c: any) => {
@@ -182,8 +195,8 @@ export default function CreditLedger() {
                   const transactions = transactionsMap[c.id] || [];
                   
                   return (
-                    <>
-                      <TableRow key={c.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => toggleExpanded(c.id)}>
+                    <React.Fragment key={c.id}>
+                      <TableRow className="hover:bg-muted/50 cursor-pointer" onClick={() => toggleExpanded(c.id)}>
                         <TableCell className="p-2 sm:p-4">
                           <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-6 sm:w-6 p-0 touch-manipulation">
                             {isExpanded ? (
@@ -220,7 +233,7 @@ export default function CreditLedger() {
                         </TableCell>
                       </TableRow>
                       {isExpanded && (
-                        <TableRow key={`${c.id}-transactions`}>
+                        <TableRow>
                           <TableCell colSpan={7} className="p-0">
                             <div className="bg-muted/30 p-4 sm:p-6">
                               <h4 className="font-medium mb-4 text-sm text-foreground">Transaction History</h4>
@@ -264,7 +277,7 @@ export default function CreditLedger() {
                           </TableCell>
                         </TableRow>
                       )}
-                    </>
+                    </React.Fragment>
                   );
                 })}
               </TableBody>

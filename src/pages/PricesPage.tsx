@@ -163,7 +163,8 @@ export default function PricesPage() {
         setDialogOpen(false);
         setSelectedFuelType(undefined);
         setSelectedPrice("");
-        queryClient.invalidateQueries({ queryKey: ["fuel-prices", defaultStationId] });
+        queryClient.invalidateQueries({ queryKey: ["fuel-prices"] });
+        queryClient.invalidateQueries({ queryKey: ["all-fuel-prices"] });
         // Also invalidate stations to update displayed data
         queryClient.invalidateQueries({ queryKey: ["stations"] });
       })
@@ -205,7 +206,7 @@ export default function PricesPage() {
             <div className="text-center text-red-600">
               <p className="font-medium">Error loading fuel prices</p>
               <p className="text-sm text-muted-foreground mt-2">
-                {pricesError instanceof Error ? pricesError.message : 'Unknown error occurred'}
+                {(pricesError as unknown) instanceof Error ? (pricesError as Error).message : 'Unknown error occurred'}
               </p>
             </div>
           </CardContent>

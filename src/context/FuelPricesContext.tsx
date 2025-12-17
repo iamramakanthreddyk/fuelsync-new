@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
 type PriceRecord = Record<string, number>;
@@ -21,8 +22,8 @@ export const FuelPricesContext = createContext({
 // Helper Functions
 // ============================================================================
 
-// Context handles lazy-loading of prices per station
-// pricesByStation is populated as stations are selected
+// Context now reads from global React Query cache instead of making API calls
+// pricesByStation is populated as stations are selected from global cache
 
 // ============================================================================
 // Provider Component
@@ -32,53 +33,58 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
   const [prices, setPrices] = useState<PriceRecord>({});
   const [pricesByStation, setPricesByStation] = useState<PricesByStation>({});
   const [stationId, setStationId] = useState<string>('');
+  const queryClient = useQueryClient();
 
-  // Keep the station-specific price fetching for backward compatibility
+  // Read from global React Query cache instead of making API calls
   // Updates when stationId changes
   useEffect(() => {
-    async function fetchAndNormalizePrices() {
+    async function loadPricesFromCache() {
       if (!stationId) {
         setPrices({});
         return;
       }
+
       try {
-        const res: any = await apiClient.get(`/fuel-prices?stationId=${stationId}`);
-        let items: any[] = [];
-        if (res && typeof res === 'object') {
-          if ('data' in res && res.data && typeof res.data === 'object' && Array.isArray((res.data as any)?.current)) {
-            items = (res.data as any).current;
-          } else if (Array.isArray(res)) {
-            items = res;
-          }
-        }
-              const normalized: PriceRecord = {};
-              items.forEach((cur: any) => {
-                // Always normalize to fuel_type (uppercase) and price_per_litre
-                const fuelType = (cur.fuelType ?? cur.fuel_type ?? '').toString().toUpperCase();
-                // Accept price, price_per_litre, or pricePerLitre
-                const pricePerLitre = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
-                if (fuelType && pricePerLitre !== undefined && !Number.isNaN(Number(pricePerLitre))) {
-                  normalized[fuelType] = Number(pricePerLitre);
-                  // Also patch the object for downstream consumers (for array usage)
-                  cur.fuel_type = fuelType;
-                  cur.price_per_litre = Number(pricePerLitre);
-          }
-        });
-        setPrices(normalized);
+        // Get all fuel prices from global cache
+        const allFuelPrices = queryClient.getQueryData(['all-fuel-prices']);
         
-        // Also cache in pricesByStation
-        if (stationId) {
-          setPricesByStation(prev => ({
-            ...prev,
-            [stationId]: normalized
-          }));
+        if (allFuelPrices && typeof allFuelPrices === 'object') {
+          // Find prices for this station
+          const stationPrices = (allFuelPrices as any)[stationId];
+          
+          if (stationPrices && typeof stationPrices === 'object') {
+            // Normalize the prices format
+            const normalized: PriceRecord = {};
+            Object.entries(stationPrices as Record<string, any>).forEach(([fuelType, priceData]) => {
+              if (priceData && typeof priceData === 'object' && 'price_per_litre' in priceData) {
+                const fuelTypeUpper = fuelType.toUpperCase();
+                const price = Number(priceData.price_per_litre);
+                if (!Number.isNaN(price)) {
+                  normalized[fuelTypeUpper] = price;
+                }
+              }
+            });
+            
+            setPrices(normalized);
+            
+            // Also cache in pricesByStation
+            setPricesByStation(prev => ({
+              ...prev,
+              [stationId]: normalized
+            }));
+          } else {
+            setPrices({});
+          }
+        } else {
+          setPrices({});
         }
       } catch {
         setPrices({});
       }
     }
-    fetchAndNormalizePrices();
-  }, [stationId]);
+    
+    loadPricesFromCache();
+  }, [stationId, queryClient]);
 
   const contextValue = useMemo(() => ({
     prices,
