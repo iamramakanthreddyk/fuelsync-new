@@ -9,6 +9,23 @@ export interface Creditor {
   lastSaleDate?: string;
 }
 
+export interface CreditTransaction {
+  id: string;
+  transactionType: 'credit' | 'settlement';
+  amount: number;
+  transactionDate: string;
+  description?: string;
+  creditor: {
+    id: string;
+    name: string;
+    businessName?: string;
+  };
+  enteredByUser?: {
+    id: string;
+    name: string;
+  };
+}
+
 /**
  * Credit Service
  * Handles credit ledger API calls
@@ -28,5 +45,16 @@ export const creditService = {
     const url = queryString ? `/creditors/ledger?${queryString}` : '/creditors/ledger';
     const response = await apiClient.get<Creditor[]>(url);
     return Array.isArray(response) ? response : [];
+  },
+
+  /**
+   * Get credit transactions for a creditor
+   * GET /api/v1/stations/:stationId/credit-transactions?creditorId=...
+   */
+  async getCreditorTransactions(stationId: string, creditorId: string): Promise<CreditTransaction[]> {
+    const response = await apiClient.get<{ success: boolean; data: CreditTransaction[] }>(
+      `/stations/${stationId}/credit-transactions?creditorId=${creditorId}`
+    );
+    return response.success ? response.data : [];
   },
 };

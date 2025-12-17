@@ -13,25 +13,59 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { CreditCard, CheckCircle2 } from 'lucide-react';
+import { CreditCard, CheckCircle2, ChevronDown, ChevronRight } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
-import { creditService } from '@/services/creditService';
+import { creditService, type Creditor, type CreditTransaction } from '@/services/creditService';
 import { notificationService } from '@/services/notificationService';
 
 export default function CreditLedger() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [selectedStationId, setSelectedStationId] = useState<string | undefined>(user?.stations?.[0]?.id);
-  const [showAllCreditors, setShowAllCreditors] = useState(false);
+  const [expandedCreditors, setExpandedCreditors] = useState<Set<string>>(new Set());
 
   // Fetch creditors and outstanding credits for the selected station
   const { data: creditors = [], isLoading } = useQuery({
-    queryKey: ['creditors-ledger', search, selectedStationId, showAllCreditors],
-    queryFn: () => creditService.getCreditLedger(search, selectedStationId, showAllCreditors),
+    queryKey: ['creditors-ledger', search, selectedStationId],
+    queryFn: () => creditService.getCreditLedger(search, selectedStationId, true),
     enabled: !!selectedStationId, // Only run query if we have a stationId
     refetchInterval: 60000,
+  });
+
+  // Toggle expanded state for a creditor
+  const toggleExpanded = (creditorId: string) => {
+    const newExpanded = new Set(expandedCreditors);
+    if (newExpanded.has(creditorId)) {
+      newExpanded.delete(creditorId);
+    } else {
+      newExpanded.add(creditorId);
+    }
+    setExpandedCreditors(newExpanded);
+  };
+
+  // Fetch transactions for expanded creditors
+  const expandedCreditorIds = Array.from(expandedCreditors);
+  const { data: transactionsMap = {} } = useQuery({
+    queryKey: ['creditor-transactions', selectedStationId, expandedCreditorIds],
+    queryFn: async () => {
+      if (!selectedStationId || expandedCreditorIds.length === 0) return {};
+
+      const results: Record<string, CreditTransaction[]> = {};
+      await Promise.all(
+        expandedCreditorIds.map(async (creditorId) => {
+          try {
+            const transactions = await creditService.getCreditorTransactions(selectedStationId, creditorId);
+            results[creditorId] = transactions;
+          } catch (error) {
+            console.error(`Failed to fetch transactions for creditor ${creditorId}:`, error);
+            results[creditorId] = [];
+          }
+        })
+      );
+      return results;
+    },
+    enabled: !!selectedStationId && expandedCreditorIds.length > 0,
   });
 
   // Push notifications for over-limit creditors
@@ -49,18 +83,18 @@ export default function CreditLedger() {
   if (!user) return null;
 
   return (
-    <div className="container mx-auto p-4 max-w-5xl space-y-6">
+    <div className="container mx-auto p-3 sm:p-4 max-w-full sm:max-w-5xl space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <CreditCard className="w-6 h-6 text-orange-600" />
+        <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
+          <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-orange-600" />
           Credit Ledger
         </h1>
-        <p className="text-muted-foreground">Track outstanding credits and limits per customer</p>
+        <p className="text-sm sm:text-base text-muted-foreground">Track outstanding credits and transaction history per customer</p>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>{showAllCreditors ? 'All Credits' : 'Outstanding Credits'}</CardTitle>
+          <CardTitle>All Credits</CardTitle>
           <div className="text-sm text-muted-foreground mt-2">
             {selectedStationId && user?.stations && (
               <p>
@@ -71,8 +105,8 @@ export default function CreditLedger() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          <div className="mb-4 space-y-3 p-4 pb-0">
+        <CardContent className="p-2 sm:p-6">
+          <div className="mb-4 space-y-3 p-2 sm:p-4 pb-0">
             {/* Station Selector - Show if user has multiple stations */}
             {user?.stations && user.stations.length > 1 && (
               <div className="flex flex-col gap-2">
@@ -93,81 +127,131 @@ export default function CreditLedger() {
             )}
             
             {/* Search Input */}
-            <div className="flex gap-2 items-center">
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
               <Input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Search customer name or mobile"
-                className="max-w-xs"
+                className="flex-1"
               />
-              <Button variant="outline" onClick={() => setSearch('')}>Clear</Button>
-            </div>
-
-            {/* Show All Creditors Toggle */}
-            <div className="flex items-center space-x-2">
-              <Checkbox
-                id="show-all-creditors"
-                checked={showAllCreditors}
-                onCheckedChange={(checked) => setShowAllCreditors(checked as boolean)}
-              />
-              <label
-                htmlFor="show-all-creditors"
-                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-              >
-                Show all creditors (including settled)
-              </label>
+              <Button variant="outline" onClick={() => setSearch('')} className="w-full sm:w-auto">Clear</Button>
             </div>
           </div>
           {isLoading ? (
             <div className="flex justify-center py-12">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
             </div>
-          ) : (showAllCreditors ? creditors : creditors.filter((c: any) => c.outstanding > 0)).length === 0 ? (
+          ) : creditors.length === 0 ? (
             <Alert>
               <AlertDescription>
                 <CheckCircle2 className="w-5 h-5 text-green-500 mr-2" />
-                {showAllCreditors ? 'No creditors found for this station' : 'All credits are settled - no outstanding balances'}
+                No creditors with transaction history
               </AlertDescription>
             </Alert>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Mobile</TableHead>
-                  <TableHead>Credit Limit</TableHead>
-                  <TableHead>Outstanding</TableHead>
-                  <TableHead>Last Sale</TableHead>
-                  <TableHead>Status</TableHead>
+                  <TableHead className="w-8 sm:w-10"></TableHead>
+                  <TableHead className="text-xs sm:text-sm">Customer</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden sm:table-cell">Mobile</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden md:table-cell">Credit Limit</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Outstanding</TableHead>
+                  <TableHead className="text-xs sm:text-sm hidden lg:table-cell">Last Sale</TableHead>
+                  <TableHead className="text-xs sm:text-sm">Status</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {(showAllCreditors ? creditors : creditors.filter((c: any) => c.outstanding > 0)).map((c: any) => (
-                  <TableRow key={c.id}>
-                    <TableCell className="font-medium flex items-center gap-2">
-                      {c.name}
-                    </TableCell>
-                    <TableCell>{c.mobile || '--'}</TableCell>
-                    <TableCell>
-                      {c.creditLimit ? `₹${c.creditLimit.toLocaleString('en-IN')}` : '--'}
-                    </TableCell>
-                    <TableCell className={c.outstanding > c.creditLimit ? 'text-red-600 font-bold' : 'text-orange-600 font-bold'}>
-                      ₹{c.outstanding.toLocaleString('en-IN')}
-                    </TableCell>
-                    <TableCell>
-                      {c.lastSaleDate ? format(new Date(c.lastSaleDate), 'dd MMM yyyy') : '--'}
-                    </TableCell>
-                    <TableCell>
-                      {c.outstanding === 0 ? (
-                        <Badge variant="secondary">Settled</Badge>
-                      ) : c.outstanding > c.creditLimit ? (
-                        <Badge variant="destructive">Over Limit</Badge>
-                      ) : (
-                        <Badge variant="outline">Active</Badge>
+                {creditors.map((c: any) => {
+                  const isExpanded = expandedCreditors.has(c.id);
+                  const transactions = transactionsMap[c.id] || [];
+                  
+                  return (
+                    <>
+                      <TableRow key={c.id} className="hover:bg-muted/50 cursor-pointer" onClick={() => toggleExpanded(c.id)}>
+                        <TableCell className="p-2 sm:p-4">
+                          <Button variant="ghost" size="sm" className="h-8 w-8 sm:h-6 sm:w-6 p-0 touch-manipulation">
+                            {isExpanded ? (
+                              <ChevronDown className="h-4 w-4 sm:h-4 sm:w-4" />
+                            ) : (
+                              <ChevronRight className="h-4 w-4 sm:h-4 sm:w-4" />
+                            )}
+                          </Button>
+                        </TableCell>
+                        <TableCell className="font-medium p-2 sm:p-4">
+                          <div className="flex flex-col">
+                            <span className="text-sm sm:text-base">{c.name}</span>
+                            <span className="text-xs text-muted-foreground sm:hidden">{c.mobile || '--'}</span>
+                          </div>
+                        </TableCell>
+                        <TableCell className="p-2 sm:p-4 hidden sm:table-cell">{c.mobile || '--'}</TableCell>
+                        <TableCell className="p-2 sm:p-4 hidden md:table-cell">
+                          {c.creditLimit ? `₹${c.creditLimit.toLocaleString('en-IN')}` : '--'}
+                        </TableCell>
+                        <TableCell className={`p-2 sm:p-4 font-bold ${c.outstanding > c.creditLimit ? 'text-red-600' : 'text-orange-600'}`}>
+                          ₹{c.outstanding.toLocaleString('en-IN')}
+                        </TableCell>
+                        <TableCell className="p-2 sm:p-4 hidden lg:table-cell">
+                          {c.lastSaleDate ? format(new Date(c.lastSaleDate), 'dd MMM yyyy') : '--'}
+                        </TableCell>
+                        <TableCell className="p-2 sm:p-4">
+                          {c.outstanding === 0 ? (
+                            <Badge variant="secondary" className="text-xs">Settled</Badge>
+                          ) : c.outstanding > c.creditLimit ? (
+                            <Badge variant="destructive" className="text-xs">Over Limit</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs">Active</Badge>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                      {isExpanded && (
+                        <TableRow key={`${c.id}-transactions`}>
+                          <TableCell colSpan={7} className="p-0">
+                            <div className="bg-muted/30 p-4 sm:p-6">
+                              <h4 className="font-medium mb-4 text-sm text-foreground">Transaction History</h4>
+                              {transactions.length === 0 ? (
+                                <p className="text-sm text-muted-foreground py-4">No transactions found</p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {transactions.map((transaction) => (
+                                    <div key={transaction.id} className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-4 bg-background rounded-lg border text-sm gap-3 shadow-sm">
+                                      <div className="flex items-start gap-4">
+                                        <div className={`w-4 h-4 rounded-full mt-1 flex-shrink-0 ${
+                                          transaction.transactionType === 'credit' ? 'bg-red-500' : 'bg-green-500'
+                                        }`} />
+                                        <div className="min-w-0 flex-1">
+                                          <div className="font-semibold text-base mb-1">
+                                            {transaction.transactionType === 'credit' ? 'Credit Purchase' : 'Settlement Payment'}
+                                          </div>
+                                          <div className="text-xs text-muted-foreground mb-2">
+                                            {format(new Date(transaction.transactionDate), 'dd MMM yyyy, hh:mm a')}
+                                            {transaction.enteredByUser && ` • ${transaction.enteredByUser.name}`}
+                                          </div>
+                                          {transaction.description && (
+                                            <div className="text-xs text-muted-foreground bg-muted/50 p-2 rounded">
+                                              {transaction.description}
+                                            </div>
+                                          )}
+                                        </div>
+                                      </div>
+                                      <div className="text-right sm:text-right flex-shrink-0">
+                                        <div className={`font-bold text-xl ${
+                                          transaction.transactionType === 'credit' ? 'text-red-600' : 'text-green-600'
+                                        }`}>
+                                          {transaction.transactionType === 'credit' ? '+' : '-'}₹{transaction.amount.toLocaleString('en-IN')}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
                       )}
-                    </TableCell>
-                  </TableRow>
-                ))}
+                    </>
+                  );
+                })}
               </TableBody>
             </Table>
           )}

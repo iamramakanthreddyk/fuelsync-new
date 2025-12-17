@@ -67,8 +67,6 @@ const getCreditLedger = async (req, res) => {
   try {
     const { search, stationId, showAll } = req.query;
     
-    console.log('getCreditLedger called with:', { search, stationId, showAll });
-    
     // Get station from user if not provided
     let finalStationId = stationId;
     if (!finalStationId && req.user?.stations?.length > 0) {
@@ -88,9 +86,20 @@ const getCreditLedger = async (req, res) => {
       ];
     }
     
-    // Get creditors with outstanding balances
+    // Get creditors who have ever had transactions for this station
+    // First, find all creditorIds that have transactions
+    const creditorIdsWithTransactions = await CreditTransaction.findAll({
+      where: { stationId: finalStationId },
+      attributes: [[sequelize.fn('DISTINCT', sequelize.col('creditor_id')), 'creditorId']],
+      raw: true
+    }).then(results => results.map(r => r.creditorId));
+    
+    // Then fetch those creditors from the Creditor table
     const creditors = await Creditor.findAll({
-      where,
+      where: { 
+        id: { [Op.in]: creditorIdsWithTransactions },
+        isActive: true // Still only active creditors
+      },
       attributes: ['id', 'name', 'businessName', 'currentBalance', 'creditLimit', 'phone', 'lastTransactionDate'],
       order: [['currentBalance', 'DESC']]
     });
@@ -123,11 +132,10 @@ const getCreditLedger = async (req, res) => {
       })
     );
     
-    // Filter out creditors with no outstanding balance if search not applied and showAll is not true
-    const filtered = search || showAll === 'true' ? enrichedCreditors : enrichedCreditors.filter(c => c.outstanding > 0);
-    
-    console.log(`After filtering: ${filtered.length} creditors (search=${!!search}, showAll=${showAll})`);
-    filtered.forEach(c => console.log(`- ${c.name}: outstanding=${c.outstanding}`));
+    // Filter based on showAll parameter
+    // showAll=true: show all creditors with transaction history
+    // showAll=false/undefined: show only creditors with outstanding balances
+    const filtered = showAll === 'true' ? enrichedCreditors : enrichedCreditors.filter(c => c.outstanding > 0);
     
     res.json(filtered);
   } catch (error) {
