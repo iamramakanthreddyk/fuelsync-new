@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo } from 'react';
 import { apiClient, getToken, setToken, removeToken, getStoredUser, setStoredUser, ApiError } from '@/lib/api-client';
 import { getErrorMessage } from '@/lib/errorUtils';
+import { authService } from '@/services/authService';
 import type { User } from '@/types/api';
 
 // ============================================
@@ -21,6 +22,7 @@ interface AuthContextType {
   signOut: () => Promise<void>;
   updateUser: (user: User) => void;
   updateProfile: (data: Partial<User>) => Promise<User>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<void>;
 }
 
 // ============================================
@@ -186,6 +188,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
+    try {
+      await authService.changePassword(currentPassword, newPassword);
+    } catch (error: unknown) {
+      const msg = getErrorMessage(error);
+      console.error('[AUTH] changePassword error:', msg);
+      throw error;
+    }
+  }, []);
+
   // Memoize context value
   const value = useMemo<AuthContextType>(() => ({
     user,
@@ -199,7 +211,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signOut: logout,
     updateUser,
     updateProfile,
-  }), [user, session, loading, isLoggedIn, login, logout, updateUser]);
+    changePassword,
+  }), [user, session, loading, isLoggedIn, login, logout, updateUser, changePassword]);
 
   return (
     <AuthContext.Provider value={value}>

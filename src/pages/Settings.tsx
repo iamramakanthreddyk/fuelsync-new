@@ -2,12 +2,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, User, Building2, Shield } from "lucide-react";
+import { LogOut, User, Building2, Shield, Lock } from "lucide-react";
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 export default function Settings() {
-  const { user, logout } = useAuth();
+  const { user, logout, changePassword } = useAuth();
   const { toast } = useToast();
 
   const handleLogout = async () => {
@@ -33,6 +34,12 @@ export default function Settings() {
   const [name, setName] = useState(user?.name || '');
   const [phone, setPhone] = useState(user?.phone || '');
 
+  // Password change state
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
   const startEdit = () => {
     setName(user?.name || '');
     setPhone(user?.phone || '');
@@ -49,6 +56,44 @@ export default function Settings() {
     } catch (err) {
       console.error('Profile update failed', err);
       toast({ title: 'Update failed', description: 'Unable to update profile', variant: 'destructive' });
+    }
+  };
+
+  const startPasswordChange = () => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setChangingPassword(true);
+  };
+
+  const cancelPasswordChange = () => {
+    setChangingPassword(false);
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  };
+
+  const savePasswordChange = async () => {
+    if (newPassword !== confirmPassword) {
+      toast({ title: 'Error', description: 'New passwords do not match', variant: 'destructive' });
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast({ title: 'Error', description: 'New password must be at least 6 characters long', variant: 'destructive' });
+      return;
+    }
+
+    try {
+      await changePassword(currentPassword, newPassword);
+      setChangingPassword(false);
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      toast({ title: 'Password changed', description: 'Your password has been successfully updated.' });
+    } catch (err) {
+      console.error('Password change failed', err);
+      toast({ title: 'Password change failed', description: 'Unable to change password. Please check your current password.', variant: 'destructive' });
     }
   };
 
@@ -147,6 +192,63 @@ export default function Settings() {
           </CardContent>
         </Card>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Lock className="h-5 w-5" />
+            Change Password
+          </CardTitle>
+          <CardDescription>
+            Update your account password for security
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {!changingPassword ? (
+            <Button onClick={startPasswordChange} className="flex items-center gap-2">
+              <Lock className="h-4 w-4" />
+              Change Password
+            </Button>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="current-password">Current Password</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  placeholder="Enter your current password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Enter your new password"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="confirm-password">Confirm New Password</Label>
+                <Input
+                  id="confirm-password"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your new password"
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button onClick={savePasswordChange}>Save Password</Button>
+                <Button variant="ghost" onClick={cancelPasswordChange}>Cancel</Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

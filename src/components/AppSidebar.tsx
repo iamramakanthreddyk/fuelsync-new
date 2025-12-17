@@ -102,6 +102,13 @@ export function AppSidebar() {
           color: "text-orange-600",
           bgColor: "bg-orange-50",
         },
+        {
+          title: "Credit Ledger",
+          url: "/owner/credit-ledger",
+          icon: Banknote,
+          color: "text-pink-600",
+          bgColor: "bg-pink-50",
+        },
       ]
     },
     {
