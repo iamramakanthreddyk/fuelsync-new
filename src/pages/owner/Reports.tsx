@@ -345,38 +345,38 @@ export default function Reports() {
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 bg-gray-100 p-1 rounded-xl h-auto">
               <TabsTrigger
                 value="overview"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3"
+                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4"
               >
-                <PieChart className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                Overview
+                <PieChart className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-purple-500" />
+                <span className="hidden sm:inline">Overview</span>
               </TabsTrigger>
               <TabsTrigger
                 value="sales"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3"
+                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4"
               >
-                <BarChart3 className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                Sales
+                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-blue-500" />
+                <span className="hidden sm:inline">Sales</span>
               </TabsTrigger>
               <TabsTrigger
                 value="nozzles"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3"
+                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4"
               >
-                <Droplet className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                Nozzles
+                <Droplet className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-cyan-500" />
+                <span className="hidden sm:inline">Nozzles</span>
               </TabsTrigger>
               <TabsTrigger
                 value="shifts"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3"
+                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4"
               >
-                <Clock className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                Shifts
+                <Clock className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-green-500" />
+                <span className="hidden sm:inline">Shifts</span>
               </TabsTrigger>
               <TabsTrigger
                 value="pumps"
-                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 col-span-2 md:col-span-1"
+                className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 col-span-2 md:col-span-1"
               >
-                <Activity className="w-3 h-3 md:w-4 md:h-4 mr-1 md:mr-2" />
-                Pumps
+                <Activity className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-orange-500" />
+                <span className="hidden sm:inline">Pumps</span>
               </TabsTrigger>
             </TabsList>
 

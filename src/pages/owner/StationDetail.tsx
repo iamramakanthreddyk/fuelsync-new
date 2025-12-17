@@ -578,25 +578,21 @@ export default function StationDetail() {
       <Tabs defaultValue="pumps" className="space-y-4">
         <div className="flex flex-col gap-4">
           <TabsList className="flex h-14 items-center justify-center rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-1 text-muted-foreground shadow-lg border border-slate-200 dark:border-slate-700 w-full overflow-x-auto overflow-y-hidden flex-nowrap min-w-max backdrop-blur-sm">
-            <TabsTrigger value="pumps" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md flex-shrink-0 group">
-              <Fuel className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-blue-500 transition-colors flex-shrink-0" />
+            <TabsTrigger value="pumps" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-2 sm:px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md flex-shrink-0 group">
+              <Fuel className="w-5 h-5 sm:w-6 sm:h-6 sm:mr-2 text-blue-500 group-data-[state=active]:text-blue-600 group-hover:text-blue-600 transition-colors flex-shrink-0" />
               <span className="hidden sm:inline">Pumps</span>
-              <span className="sm:hidden">Pumps</span>
             </TabsTrigger>
-            <TabsTrigger value="prices" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-green-600 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 dark:data-[state=active]:border-green-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-green-600 dark:hover:text-green-400 hover:shadow-md flex-shrink-0 group">
-              <IndianRupee className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-green-500 transition-colors flex-shrink-0" />
+            <TabsTrigger value="prices" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-2 sm:px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-green-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-green-600 dark:data-[state=active]:text-green-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-green-200 dark:data-[state=active]:border-green-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-green-600 dark:hover:text-green-400 hover:shadow-md flex-shrink-0 group">
+              <IndianRupee className="w-5 h-5 sm:w-6 sm:h-6 sm:mr-2 text-green-500 group-data-[state=active]:text-green-600 group-hover:text-green-600 transition-colors flex-shrink-0" />
               <span className="hidden sm:inline">Prices</span>
-              <span className="sm:hidden">Prices</span>
             </TabsTrigger>
-            <TabsTrigger value="creditors" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 dark:data-[state=active]:border-purple-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-purple-600 dark:hover:text-purple-400 hover:shadow-md flex-shrink-0 group">
-              <CreditCard className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-purple-500 transition-colors flex-shrink-0" />
+            <TabsTrigger value="creditors" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-2 sm:px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-purple-600 dark:data-[state=active]:text-purple-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-purple-200 dark:data-[state=active]:border-purple-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-purple-600 dark:hover:text-purple-400 hover:shadow-md flex-shrink-0 group">
+              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 sm:mr-2 text-purple-500 group-data-[state=active]:text-purple-600 group-hover:text-purple-600 transition-colors flex-shrink-0" />
               <span className="hidden sm:inline">Creditors</span>
-              <span className="sm:hidden">Creditors</span>
             </TabsTrigger>
-            <TabsTrigger value="settings" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-orange-200 dark:data-[state=active]:border-orange-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-orange-600 dark:hover:text-orange-400 hover:shadow-md flex-shrink-0 group">
-              <Settings className="w-4 h-4 mr-2 text-slate-500 group-data-[state=active]:text-orange-500 transition-colors flex-shrink-0" />
+            <TabsTrigger value="settings" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-2 sm:px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-orange-200 dark:data-[state=active]:border-orange-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-orange-600 dark:hover:text-orange-400 hover:shadow-md flex-shrink-0 group">
+              <Settings className="w-5 h-5 sm:w-6 sm:h-6 sm:mr-2 text-orange-500 group-data-[state=active]:text-orange-600 group-hover:text-orange-600 transition-colors flex-shrink-0" />
               <span className="hidden sm:inline">Settings</span>
-              <span className="sm:hidden">Settings</span>
             </TabsTrigger>
           </TabsList>
         </div>
@@ -971,61 +967,62 @@ export default function StationDetail() {
           ) : creditors && creditors.length > 0 && creditors.filter(c => c.currentBalance > 0).length > 0 ? (
             <div className="grid gap-4">
               {creditors.filter(c => c.currentBalance > 0).map((creditor) => (
-                <Card key={creditor.id}>
-                  <CardHeader>
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          {creditor.name}
+                <Card key={creditor.id} className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow">
+                  <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <CardTitle className="flex items-center gap-2 text-base sm:text-lg truncate">
+                          <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600 flex-shrink-0" />
+                          <span className="truncate">{creditor.name}</span>
                         </CardTitle>
-                        <CardDescription>
+                        <CardDescription className="mt-1 text-xs sm:text-sm truncate">
                           {creditor.phone} {creditor.vehicleNumber && `• ${creditor.vehicleNumber}`}
                         </CardDescription>
                       </div>
+                      {/* Settle button prominently placed in header */}
+                      {creditor.currentBalance > 0 && settleOpenId !== creditor.id && (
+                        <Button
+                          size="sm"
+                          className="bg-orange-600 hover:bg-orange-700 text-white font-medium shadow-sm flex-shrink-0 text-xs sm:text-sm px-2 sm:px-3"
+                          onClick={() => setSettleOpenId(creditor.id)}
+                        >
+                          <IndianRupee className="w-3 h-3 sm:w-4 sm:h-4 mr-1" />
+                          <span className="hidden xs:inline">Settle</span>
+                          <span className="xs:hidden">Pay</span>
+                        </Button>
+                      )}
                     </div>
                   </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm text-muted-foreground">Credit Limit</p>
-                        <p className="text-lg font-semibold">₹{toFixedNumber(creditor.creditLimit, 2)}</p>
+                  <CardContent className="pt-0 px-4 sm:px-6 pb-4 sm:pb-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
+                      <div className="text-center p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-xs sm:text-xs text-muted-foreground font-medium">Credit Limit</p>
+                        <p className="text-base sm:text-lg font-bold text-blue-600 truncate">₹{toFixedNumber(creditor.creditLimit, 2)}</p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Current Balance</p>
-                        <p className={`text-lg font-semibold ${creditor.currentBalance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      <div className="text-center p-2 sm:p-3 bg-red-50 rounded-lg border border-red-200">
+                        <p className="text-xs sm:text-xs text-muted-foreground font-medium">Outstanding</p>
+                        <p className="text-base sm:text-lg font-bold text-red-600 truncate">
                           ₹{toFixedNumber(creditor.currentBalance, 2)}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Available Credit</p>
-                        <p className="text-lg font-semibold">
+                      <div className="text-center p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200 col-span-1 sm:col-span-2 lg:col-span-1">
+                        <p className="text-xs sm:text-xs text-muted-foreground font-medium">Available</p>
+                        <p className="text-base sm:text-lg font-bold text-green-600 truncate">
                           ₹{toFixedNumber(creditor.creditLimit - creditor.currentBalance, 2)}
                         </p>
                       </div>
-                      <div>
-                        <p className="text-sm text-muted-foreground">Utilization</p>
-                        <p className="text-lg font-semibold">
-                          {toFixedNumber((creditor.currentBalance / creditor.creditLimit) * 100, 1)}%
-                        </p>
-                      </div>
                     </div>
-                    {/* Show Settle button and reveal form on click */}
-                    {creditor.currentBalance > 0 && (
-                      <div className="mt-3">
-                        {settleOpenId !== creditor.id ? (
-                          <Button size="sm" variant="outline" onClick={() => setSettleOpenId(creditor.id)}>
-                            Settle
-                          </Button>
-                        ) : (
-                          <InlineSettleForm
-                            stationId={id}
-                            creditorId={creditor.id}
-                            onSuccess={() => {
-                              setSettleOpenId(null);
-                              queryClient.invalidateQueries({ queryKey: ['station-creditors', id] });
-                            }}
-                          />
-                        )}
+                    {/* Show Settle form when opened */}
+                    {settleOpenId === creditor.id && (
+                      <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-orange-50 rounded-lg border border-orange-200">
+                        <InlineSettleForm
+                          stationId={id}
+                          creditorId={creditor.id}
+                          onSuccess={() => {
+                            setSettleOpenId(null);
+                            queryClient.invalidateQueries({ queryKey: ['station-creditors', id] });
+                          }}
+                        />
                       </div>
                     )}
                   </CardContent>
