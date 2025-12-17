@@ -37,6 +37,7 @@ import { CreditLedger } from '@/pages/credit';
 // Owner pages
 import OwnerDashboard from '@/pages/owner/OwnerDashboard';
 import StationsManagement from '@/pages/owner/StationsManagement';
+import AddStation from '@/pages/owner/AddStation';
 import StationDetail from '@/pages/owner/StationDetail';
 import EmployeesManagement from '@/pages/owner/EmployeesManagement';
 import OwnerReports from '@/pages/owner/Reports';
@@ -313,6 +314,7 @@ function AppContent() {
                     } />
                     <Route path="/owner/daily-reports" element={<DailySalesReport />} />
                     <Route path="/owner/stations" element={<StationsManagement />} />
+                    <Route path="/owner/stations/add" element={<AddStation />} />
                     <Route path="/owner/stations/:id" element={<StationDetail />} />
                     <Route path="/owner/stations/:id/add-creditor" element={<AddCreditor />} />
                     <Route path="/owner/stations/:id/prices" element={<Prices />} />

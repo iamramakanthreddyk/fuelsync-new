@@ -12,14 +12,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +22,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
@@ -337,7 +336,6 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
 };
 
 export default function StationsManagement() {
-  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [deleteStationId, setDeleteStationId] = useState<string | null>(null);
   const [formData, setFormData] = useState<StationFormData>(initialFormData);
@@ -355,45 +353,6 @@ export default function StationsManagement() {
   } = useStations();
 
   const stations = stationsResponse?.success ? stationsResponse.data : [];
-
-  // Create station mutation
-  const createMutation = useMutation({
-    mutationFn: async (data: StationFormData) => {
-      // Don't send code - backend generates it
-      const { code, ...payload } = data;
-      const response = await apiClient.post('/stations', payload);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
-      toast({
-        title: 'Success',
-        description: 'Station created successfully'
-      });
-      setIsAddDialogOpen(false);
-      setFormData(initialFormData);
-    },
-    onError: (error: unknown) => {
-      let message = 'Failed to create station';
-      if (error && typeof error === 'object') {
-        const errObj = error as { response?: { data?: { error?: string } } };
-        if (
-          errObj.response &&
-          typeof errObj.response === 'object' &&
-          errObj.response.data &&
-          typeof errObj.response.data === 'object' &&
-          'error' in errObj.response.data
-        ) {
-          message = errObj.response.data.error || message;
-        }
-      }
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive'
-      });
-    }
-  });
 
   // Update station mutation
   const updateMutation = useMutation({
@@ -502,20 +461,6 @@ export default function StationsManagement() {
 
   const isFormValid = Object.keys(validateForm(formData)).length === 0;
 
-  const handleCreate = () => {
-    const errors = validateForm(formData);
-    setFormErrors(errors);
-    if (Object.keys(errors).length > 0) {
-      toast({
-        title: 'Validation Error',
-        description: Object.values(errors).join('; '),
-        variant: 'destructive',
-      });
-      return;
-    }
-    createMutation.mutate(formData);
-  };
-
   const handleUpdate = () => {
     if (editingStation) {
       updateMutation.mutate({ id: editingStation.id, data: formData });
@@ -544,13 +489,6 @@ export default function StationsManagement() {
     }
   };
 
-  const handleAddDialogOpenChange = (open: boolean) => {
-    setIsAddDialogOpen(open);
-    if (!open) {
-      setFormData(initialFormData);
-    }
-  };
-
   const handleEditDialogOpenChange = (open: boolean) => {
     setIsEditDialogOpen(open);
     if (!open) {
@@ -576,43 +514,10 @@ export default function StationsManagement() {
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight">Stations Management</h1>
           <p className="text-muted-foreground text-sm md:text-base">Manage your fuel stations</p>
         </div>
-        <Dialog open={isAddDialogOpen} onOpenChange={handleAddDialogOpenChange}>
-          <DialogTrigger asChild>
-            <Button className="w-full sm:w-auto shadow-sm">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Station
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="w-[95vw] max-w-2xl mx-4 max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Add New Station</DialogTitle>
-              <DialogDescription>
-                Create a new fuel station
-              </DialogDescription>
-            </DialogHeader>
-            <StationFormContent formData={formData} onChange={setFormData} formErrors={formErrors} />
-            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => handleAddDialogOpenChange(false)} className="w-full sm:w-auto">
-                Cancel
-              </Button>
-              <Button
-                onClick={handleCreate}
-                disabled={createMutation.isPending || !isFormValid}
-                className="w-full sm:w-auto"
-              >
-                {createMutation.isPending ? 'Creating...' : 'Create Station'}
-              </Button>
-            </div>
-            {/* Show all validation errors below the button if form is invalid */}
-            {!isFormValid && (
-              <ul className="text-xs text-red-500 mt-2 space-y-1 list-disc list-inside">
-                {Object.values(validateForm(formData)).map((err, idx) => (
-                  <li key={idx}>{err}</li>
-                ))}
-              </ul>
-            )}
-          </DialogContent>
-        </Dialog>
+        <Button className="w-full sm:w-auto shadow-sm" onClick={() => navigate('/owner/stations/add')}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add Station
+        </Button>
       </div>
 
       {/* Stations List */}
@@ -810,7 +715,7 @@ export default function StationsManagement() {
                 <p className="text-muted-foreground text-sm md:text-base max-w-sm mx-auto">
                   Get started by adding your first fuel station
                 </p>
-                <Button onClick={() => setIsAddDialogOpen(true)} className="w-full sm:w-auto mt-4">
+                <Button onClick={() => navigate('/owner/stations/add')} className="w-full sm:w-auto mt-4">
                   <Plus className="w-4 h-4 mr-2" />
                   Add Station
                 </Button>
