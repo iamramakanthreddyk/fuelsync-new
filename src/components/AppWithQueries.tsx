@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { useStations } from '@/hooks/api';
 import { SuperAdminLayout } from '@/layouts/SuperAdminLayout';
 import { 
   UsersPage, 
@@ -242,7 +243,8 @@ function AppContent() {
   // Global fuel prices query - runs once for the entire app
   // This prevents multiple API calls when components mount/unmount
   const { user } = useAuth();
-  const { stations } = useRoleAccess();
+  const { data: stationsResponse } = useStations();
+  const stations = stationsResponse?.data || [];
 
   // Pre-fetch all fuel prices for all user's stations
   useQuery({
@@ -293,7 +295,7 @@ function AppContent() {
 
       return allPrices;
     },
-    enabled: !!user && !!stations && stations.length > 0,
+    enabled: !!user && stations.length > 0, // Only run when user is authenticated and stations are loaded
     staleTime: 1000 * 60 * 15, // 15 minutes - prices don't change often
     gcTime: 1000 * 60 * 60, // 1 hour - keep in cache longer
   });

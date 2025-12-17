@@ -170,14 +170,12 @@ const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: num
     last = initial;
   }
   if (last === undefined || isNaN(last)) {
-    console.warn(`No valid last reading for nozzle ${nozzle?.id} (${nozzle?.fuelType}). Calculation skipped.`);
     return { litres: 0, saleValue: 0 };
   }
   const litres = Math.max(0, enteredValue - last);
   const priceData = fuelPrices?.find(p => (p.fuel_type || '').toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
   const price = parseFloat(String(priceData?.price_per_litre || 0));
   const saleValue = litres * price;
-  console.log(`[SALE] litres=${litres}, price=${price}, priceData=`, priceData);
   return { litres, saleValue };
 };
 
@@ -244,8 +242,6 @@ export default function QuickDataEntry() {
   // Fetch pumps for selected station
   const { data: pumpsResponse, isLoading: pumpsLoading } = usePumps(selectedStation);
   const pumps = pumpsResponse?.data || (Array.isArray(pumpsResponse) ? pumpsResponse : null);
-  console.log(`[DEBUG] pumpsResponse:`, pumpsResponse);
-  console.log(`[DEBUG] pumps:`, pumps);
 
   // Get fuel prices for selected station from global context (preloaded on app init)
   const { missingFuelTypes: missingPricesFuelTypes, pricesArray } = useFuelPricesForStation(selectedStation);
@@ -287,10 +283,8 @@ export default function QuickDataEntry() {
             return response.data;
           }
         }
-        console.warn('Unexpected creditors response format:', response);
         return [];
       } catch (error) {
-        console.error('Failed to fetch creditors:', error);
         return [];
       }
     },
@@ -305,7 +299,6 @@ export default function QuickDataEntry() {
 
     // Only consider readings that are currently entered and valid (unique nozzle IDs)
     if (pumps && Array.isArray(fuelPrices)) {
-      console.log(`[CALC] Starting with allLastReadings:`, allLastReadings);
       
       // Build a set of valid nozzle IDs from the current pumps
       const validNozzleIds = new Set(
@@ -326,8 +319,6 @@ export default function QuickDataEntry() {
           ? parsedLastReading
           : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
 
-        console.log(`[CALC] Nozzle ${nozzleId}: trueLastReading=${trueLastReading}, compareValue=${compareValue}`);
-        
         const enteredValue = reading?.readingValue ? parseFloat(reading.readingValue) : 0;
         // Only count if enteredValue > compareValue (valid sale)
         if (
@@ -335,11 +326,9 @@ export default function QuickDataEntry() {
           isNaN(enteredValue) ||
           enteredValue <= compareValue
         ) {
-          console.log(`[CALC] Skipping - invalid values`);
           return;
         }
         const { litres, saleValue } = calculateNozzleSale(nozzle, reading.readingValue, compareValue, fuelPrices);
-        console.log(`[CALC] Result: litres=${litres}, saleValue=${saleValue}`);
         totalLiters += litres;
         totalSaleValue += saleValue;
         if (!byFuelType[nozzle.fuelType]) {
@@ -350,7 +339,6 @@ export default function QuickDataEntry() {
       });
     }
 
-    console.log(`[CALC] Final: totalSaleValue=${totalSaleValue}`);
     return {
       totalLiters,
       totalSaleValue,

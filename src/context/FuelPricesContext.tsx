@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { useStations } from '@/hooks/api';
 
 type PriceRecord = Record<string, number>;
 type PricesByStation = Record<string, PriceRecord>;
@@ -33,58 +34,58 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
   const [prices, setPrices] = useState<PriceRecord>({});
   const [pricesByStation, setPricesByStation] = useState<PricesByStation>({});
   const [stationId, setStationId] = useState<string>('');
-  const queryClient = useQueryClient();
 
-  // Read from global React Query cache instead of making API calls
-  // Updates when stationId changes
+  // Get stations data to construct the correct query key
+  const { data: stationsResponse } = useStations();
+  const stations = stationsResponse?.data || [];
+  const stationsKey = stations?.map(s => s.id).sort().join(',');
+
+  // Subscribe to global fuel prices cache - this will automatically update when cache changes
+  const { data: allFuelPrices } = useQuery({
+    queryKey: ['all-fuel-prices', stationsKey],
+    queryFn: () => null, // We don't need to fetch, just subscribe to existing cache
+    enabled: !!stationsKey, // Only subscribe when we have stations
+    staleTime: Infinity, // Never consider stale since we want to react to cache changes
+  });
+
+  // Update prices when stationId or global cache changes
   useEffect(() => {
-    async function loadPricesFromCache() {
-      if (!stationId) {
-        setPrices({});
-        return;
-      }
-
-      try {
-        // Get all fuel prices from global cache
-        const allFuelPrices = queryClient.getQueryData(['all-fuel-prices']);
-        
-        if (allFuelPrices && typeof allFuelPrices === 'object') {
-          // Find prices for this station
-          const stationPrices = (allFuelPrices as any)[stationId];
-          
-          if (stationPrices && typeof stationPrices === 'object') {
-            // Normalize the prices format
-            const normalized: PriceRecord = {};
-            Object.entries(stationPrices as Record<string, any>).forEach(([fuelType, priceData]) => {
-              if (priceData && typeof priceData === 'object' && 'price_per_litre' in priceData) {
-                const fuelTypeUpper = fuelType.toUpperCase();
-                const price = Number(priceData.price_per_litre);
-                if (!Number.isNaN(price)) {
-                  normalized[fuelTypeUpper] = price;
-                }
-              }
-            });
-            
-            setPrices(normalized);
-            
-            // Also cache in pricesByStation
-            setPricesByStation(prev => ({
-              ...prev,
-              [stationId]: normalized
-            }));
-          } else {
-            setPrices({});
-          }
-        } else {
-          setPrices({});
-        }
-      } catch {
-        setPrices({});
-      }
+    if (!stationId || !allFuelPrices) {
+      setPrices({});
+      return;
     }
-    
-    loadPricesFromCache();
-  }, [stationId, queryClient]);
+
+    try {
+      // Find prices for this station
+      const stationPrices = (allFuelPrices as any)[stationId];
+
+      if (Array.isArray(stationPrices)) {
+        // Normalize the prices format from array
+        const normalized: PriceRecord = {};
+        stationPrices.forEach((priceData: any) => {
+          if (priceData && typeof priceData === 'object' && 'fuel_type' in priceData && 'price_per_litre' in priceData) {
+            const fuelTypeUpper = (priceData.fuel_type || '').toString().toUpperCase();
+            const price = Number(priceData.price_per_litre);
+            if (!Number.isNaN(price) && fuelTypeUpper) {
+              normalized[fuelTypeUpper] = price;
+            }
+          }
+        });
+
+        setPrices(normalized);
+
+        // Also cache in pricesByStation
+        setPricesByStation(prev => ({
+          ...prev,
+          [stationId]: normalized
+        }));
+      } else {
+        setPrices({});
+      }
+    } catch (error) {
+      setPrices({});
+    }
+  }, [stationId, allFuelPrices, stationsKey]);
 
   const contextValue = useMemo(() => ({
     prices,
