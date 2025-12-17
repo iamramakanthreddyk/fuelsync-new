@@ -1,36 +1,37 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
+import { extractApiArray } from "@/lib/api-response";
 import { useRoleAccess } from "./useRoleAccess";
 
 export interface Sale {
   id: string;
-  station_id: string;
-  station_name: string;
-  nozzle_id: string;
-  nozzle_number: number;
-  fuel_type: string;
-  pump_id: string;
-  pump_name: string;
-  reading_id: string;
-  reading_date: string;
-  delta_volume_l: number;
-  price_per_litre: number;
-  total_amount: number;
-  payment_breakdown: Record<string, unknown>;
-  cash_amount: number;
-  online_amount: number;
-  entered_by: string;
-  created_at: string;
+  stationId: string;
+  stationName: string;
+  nozzleId: string;
+  nozzleNumber: number;
+  fuelType: string;
+  pumpId: string;
+  pumpName: string;
+  readingId: string;
+  readingDate: string;
+  deltaVolumeL: number;
+  pricePerLitre: number;
+  totalAmount: number;
+  paymentBreakdown: Record<string, unknown>;
+  cashAmount: number;
+  onlineAmount: number;
+  enteredBy: string;
+  createdAt: string;
 }
 
 export function useSalesData(date?: string) {
-  const { currentStation, canAccessAllStations } = useRoleAccess();
+  const { currentStation, canAccessAllStations, role } = useRoleAccess();
 
   return useQuery({
     queryKey: ['sales', currentStation?.id, date],
     queryFn: async (): Promise<Sale[]> => {
-      if (!canAccessAllStations && !currentStation?.id) {
+      if (!canAccessAllStations && !currentStation?.id && role !== 'manager') {
         return [];
       }
 
@@ -50,11 +51,14 @@ export function useSalesData(date?: string) {
       }
 
       try {
-        // apiClient.get already unwraps {success, data} structure
-        const sales = await apiClient.get<Sale[]>(url);
+        // apiClient.get returns the full envelope {success, data}
+        const response = await apiClient.get(url);
 
-        if (Array.isArray(sales)) {
-          return sales;
+        // Extract array data from wrapped response
+        const salesData = extractApiArray(response, []);
+
+        if (Array.isArray(salesData)) {
+          return salesData;
         }
         return [];
       } catch (error) {
@@ -62,6 +66,6 @@ export function useSalesData(date?: string) {
         return [];
       }
     },
-    enabled: canAccessAllStations || !!currentStation?.id,
+    enabled: canAccessAllStations || !!currentStation?.id || role === 'manager',
   });
 }

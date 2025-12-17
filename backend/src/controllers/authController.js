@@ -6,6 +6,7 @@
 const jwt = require('jsonwebtoken');
 const { User, Plan, Station } = require('../models');
 
+const { Op } = require('sequelize');
 /**
  * Get JWT secret - fallback to hardcoded if not set
  */
@@ -121,18 +122,36 @@ exports.login = async (req, res, next) => {
         city: s.city,
         brand: 'FuelSync' // Default brand
       }));
+    } else if (user.role === 'manager' || user.role === 'employee') {
+      // For manager/employee, fetch their assigned station(s)
+      // Managers/employees have stationId field in User model
+      if (user.stationId) {
+        const station = await Station.findByPk(user.stationId, {
+          attributes: ['id', 'name', 'code', 'address', 'city', 'state']
+        });
+        if (station) {
+          userPayload.stations = [{
+            id: station.id,
+            name: station.name,
+            code: station.code,
+            address: station.address,
+            city: station.city,
+            brand: 'FuelSync'
+          }];
+        }
+      }
     } else if (user.station) {
-      // For manager/employee, include their assigned station in stations array
+      // Fallback for direct station assignment
       userPayload.stations = [{
         id: user.station.id,
         name: user.station.name,
         code: user.station.code,
         address: user.station.address,
+        city: user.station.city,
         brand: 'FuelSync'
       }];
     }
 
-    // Return clean response structure
     res.json({
       success: true,
       data: {
@@ -185,20 +204,36 @@ exports.getCurrentUser = async (req, res, next) => {
         city: s.city,
         brand: 'FuelSync' // Default brand
       }));
+    } else if (user.role === 'manager' || user.role === 'employee') {
+      // For manager/employee, fetch their assigned station(s)
+      // Managers/employees have stationId field in User model
+      if (user.stationId) {
+        const station = await Station.findByPk(user.stationId, {
+          attributes: ['id', 'name', 'code', 'address', 'city', 'state']
+        });
+        if (station) {
+          userData.stations = [{
+            id: station.id,
+            name: station.name,
+            code: station.code,
+            address: station.address,
+            city: station.city,
+            brand: 'FuelSync'
+          }];
+        }
+      }
     } else if (user.station) {
-      // For manager/employee, include their assigned station in stations array
+      // Fallback for direct station assignment
       userData.stations = [{
         id: user.station.id,
         name: user.station.name,
         code: user.station.code,
         address: user.station.address,
+        city: user.station.city,
         brand: 'FuelSync'
       }];
-    } else {
-      userData.stations = [];
     }
 
-    // Return clean response structure
     res.json({
       success: true,
       data: userData
