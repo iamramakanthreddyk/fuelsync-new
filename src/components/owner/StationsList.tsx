@@ -67,13 +67,13 @@ export function StationsList({ stations, isLoading, navigate }: StationsListProp
           return (
             <div
               key={station.id}
-              className="group flex items-start sm:items-center justify-between p-3 sm:p-4 border-2 rounded-xl hover:border-primary/50 hover:shadow-md cursor-pointer transition-all duration-300 bg-gradient-to-r hover:from-primary/5 hover:to-transparent"
+              className="group flex flex-col sm:flex-row sm:items-center justify-between p-4 border-2 rounded-xl hover:border-primary/50 hover:shadow-md cursor-pointer transition-all duration-300 bg-gradient-to-r hover:from-primary/5 hover:to-transparent gap-3 sm:gap-4"
               onClick={() => navigate(`/owner/stations/${station.id}`)}
             >
-              <div className="flex items-start sm:items-center gap-3 min-w-0 flex-1">
+              <div className="flex items-start gap-3 min-w-0 flex-1">
                 <div className="relative">
-                  <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
-                    <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
+                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+                    <Building2 className="w-6 h-6 text-white" />
                   </div>
                   {idx === 0 && (
                     <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-500 rounded-full flex items-center justify-center">
@@ -81,47 +81,51 @@ export function StationsList({ stations, isLoading, navigate }: StationsListProp
                     </div>
                   )}
                 </div>
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold text-sm sm:text-base truncate">
+                <div className="min-w-0 flex-1 space-y-2">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                    <h3 className="font-semibold text-base truncate">
                       {station.name}
                     </h3>
-                    <Badge variant="outline" className="text-xs">
+                    <Badge variant="outline" className="text-xs w-fit">
                       {station.code || 'N/A'}
                     </Badge>
                   </div>
-                  <div className="flex items-center gap-3 flex-wrap">
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Activity className="w-3 h-3" />
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Activity className="w-4 h-4" />
                       <span>
                         {(station.activePumps || 0)}/{(station.pumpCount || 0)} pumps
                       </span>
                     </div>
                     {station.lastReading && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="w-3 h-3" />
-                        <span>Last: {station.lastReading} L</span>
+                      <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                        <Clock className="w-4 h-4" />
+                        <span>Last Reading: {station.lastReading} L</span>
                       </div>
                     )}
                   </div>
-                  <div className="w-full max-w-[200px]">
+                  <div className="w-full">
                     <Progress 
                       value={pumpUtilization} 
-                      className="h-1.5"
+                      className="h-2"
                     />
+                    <div className="text-xs text-muted-foreground mt-1">
+                      Pump utilization: {Math.round(pumpUtilization)}%
+                    </div>
                   </div>
                 </div>
               </div>
-              <div className="text-right flex-shrink-0 ml-3">
-                <div className="space-y-1">
-                  <p className="font-bold text-base sm:text-lg bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
-                    {formatCurrency(station.todaySales || 0)}
-                  </p>
-                  <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                    <TrendingUp className="w-3 h-3 mr-1" />
-                    <span className="hidden sm:inline">Today</span>
-                    <span className="sm:hidden">TD</span>
-                  </Badge>
+              <div className="text-right flex-shrink-0 sm:ml-3">
+                <div className="flex flex-col sm:flex-col items-end gap-2">
+                  <div className="text-center sm:text-right">
+                    <p className="font-bold text-lg sm:text-xl bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">
+                      {formatCurrency(station.todaySales || 0)}
+                    </p>
+                    <Badge variant="secondary" className="text-xs bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 mt-1">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      Today
+                    </Badge>
+                  </div>
                 </div>
               </div>
             </div>

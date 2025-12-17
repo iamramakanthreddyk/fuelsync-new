@@ -28,30 +28,33 @@ interface StationsCardProps {
 
 export function StationsCard({ stations, isLoading, navigate }: StationsCardProps) {
   return (
-    <Card className="hover:shadow-lg transition-shadow border-t-4 border-t-primary">
-      <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 to-transparent">
-        <div className="flex items-center justify-between gap-2">
-          <div>
-            <div className="flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-primary" />
-              <CardTitle className="text-base sm:text-lg">Your Stations</CardTitle>
-              {Array.isArray(stations) && stations.length > 0 && (
-                <Badge variant="secondary">{stations.length}</Badge>
-              )}
+    <Card className="hover:shadow-xl transition-all duration-300 border-t-4 border-t-primary shadow-md">
+      <CardHeader className="pb-4 bg-gradient-to-r from-primary/5 via-primary/3 to-transparent">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="space-y-1">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Building2 className="w-5 h-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Your Stations</CardTitle>
+                {Array.isArray(stations) && stations.length > 0 && (
+                  <Badge variant="secondary" className="mt-1">{stations.length} stations</Badge>
+                )}
+              </div>
             </div>
-            <CardDescription className="text-xs sm:text-sm mt-1">
-              Performance overview
+            <CardDescription className="text-sm ml-11">
+              Performance overview and management
             </CardDescription>
           </div>
           <Button 
             onClick={() => navigate('/owner/stations')} 
             size="sm" 
-            className="flex-shrink-0"
+            className="w-full sm:w-auto shadow-sm"
             variant="outline"
           >
-            <span className="hidden sm:inline">View All</span>
-            <span className="sm:hidden">All</span>
-            <ArrowRight className="w-4 h-4 ml-1 sm:ml-2" />
+            <span className="inline">View All Stations</span>
+            <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </div>
       </CardHeader>

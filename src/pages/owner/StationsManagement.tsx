@@ -297,7 +297,7 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
           <IndianRupee className="w-4 h-4" />
           <span>Fuel Prices</span>
         </div>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {fuelPrices.map((price: any) => {
             return (
               <div key={price.fuel_type} className="bg-background/50 p-2 rounded border">
@@ -316,7 +316,7 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
       {/* Mobile: Show only when expanded */}
       {isExpanded && (
         <div className="md:hidden">
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             {fuelPrices.map((price: any) => {
               return (
                 <div key={price.fuel_type} className="bg-background/50 p-2 rounded border">
@@ -664,7 +664,7 @@ export default function StationsManagement() {
               </CardHeader>
               <CardContent className="space-y-4 p-4" onClick={(e) => e.stopPropagation()}>
                 {/* Key Metrics Grid */}
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {/* Today's Sales */}
                   <div className="bg-gradient-to-br from-green-50 to-green-100/50 p-3 rounded-lg border border-green-200/50">
                     <div className="flex items-center gap-2 mb-2">
@@ -741,52 +741,57 @@ export default function StationsManagement() {
                 )}
 
                 {/* Action Buttons */}
-                <div className="flex gap-2 pt-2 border-t border-border/30">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-1"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/owner/daily-settlement/${station.id}`);
-                    }}
-                  >
-                    Settle
-                  </Button>
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="flex-1 bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      navigate(`/owner/stations/${station.id}`);
-                    }}
-                  >
-                    <ArrowRight className="w-4 h-4 mr-2" />
-                    Manage Station
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleEdit(station);
-                    }}
-                    className="hover:bg-muted"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteStationId(station.id);
-                    }}
-                    className="hover:bg-destructive/10 hover:border-destructive/30"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border/30">
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 sm:flex-none bg-green-50 hover:bg-green-100 border-green-200 text-green-700 hover:text-green-800"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/owner/daily-settlement/${station.id}`);
+                      }}
+                    >
+                      <TrendingUp className="w-4 h-4 mr-2" />
+                      Settle
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/owner/stations/${station.id}`);
+                      }}
+                    >
+                      <ArrowRight className="w-4 h-4 mr-2" />
+                      Manage
+                    </Button>
+                  </div>
+                  <div className="flex gap-2 sm:ml-auto">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(station);
+                      }}
+                      className="hover:bg-blue-50 hover:border-blue-200"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDeleteStationId(station.id);
+                      }}
+                      className="hover:bg-destructive/10 hover:border-destructive/30 text-destructive hover:text-destructive"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
