@@ -37,6 +37,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
+import { getBasePath } from '@/lib/roleUtils';import { useAuth } from "@/hooks/useAuth";import { useRoleAccess } from '@/hooks/useRoleAccess';
 import {
   TrendingUp,
   AlertCircle,
@@ -141,6 +142,8 @@ export default function DailySettlement() {
   const { stationId } = useParams();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const { currentStation } = useRoleAccess();
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [actualCash, setActualCash] = useState<number>(0);
@@ -332,7 +335,7 @@ export default function DailySettlement() {
       <div className="container mx-auto p-6">
         <div className="text-center py-12">
           <p className="text-muted-foreground">Station not found</p>
-          <NavButton onClick={() => navigate('/owner/stations')} className="mt-4">
+          <NavButton onClick={() => navigate(`${getBasePath(user?.role)}/stations`)} className="mt-4">
             Go to Stations
           </NavButton>
         </div>
@@ -341,36 +344,37 @@ export default function DailySettlement() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6 max-w-4xl">
+    <div className="container mx-auto p-3 sm:p-4 md:p-6 space-y-4 md:space-y-6 max-w-4xl">
       {/* Header */}
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4">
         <NavButton
           variant="ghost"
           size="icon"
           onClick={() => navigate(-1)}
+          className="h-8 w-8 sm:h-10 sm:w-10"
         >
           <ArrowLeft className="w-4 h-4" />
         </NavButton>
-        <div>
-          <h1 className="text-3xl font-bold">Daily Settlement</h1>
-          <p className="text-muted-foreground">
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl sm:text-2xl md:text-3xl font-bold truncate">Daily Settlement</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground truncate">
             {dailySales?.stationName}
           </p>
         </div>
       </div>
 
       {/* Date Selection */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Select Date</CardTitle>
+      <Card className="p-3 sm:p-4 md:p-6">
+        <CardHeader className="p-0 pb-3">
+          <CardTitle className="text-base sm:text-lg">Select Date</CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Input
             type="date"
             value={selectedDate}
             onChange={(e) => setSelectedDate(e.target.value)}
             max={new Date().toISOString().split('T')[0]}
-            className="max-w-xs"
+            className="max-w-xs text-sm sm:text-base"
           />
         </CardContent>
       </Card>
@@ -390,42 +394,42 @@ export default function DailySettlement() {
       ) : (
         <>
           {/* Sales Summary */}
-          <Card className="border-blue-200 bg-blue-50">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <TrendingUp className="w-5 h-5 text-blue-600" />
+          <Card className="border-blue-200 bg-blue-50 p-3 sm:p-4 md:p-6">
+            <CardHeader className="p-0 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-blue-600" />
                 Today's Sales Summary
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
-                <div className="p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
-                  <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Liters</div>
-                  <div className="text-lg md:text-xl lg:text-2xl font-bold text-blue-600 break-all md:break-normal">
+            <CardContent className="p-0 space-y-3 sm:space-y-4">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                <div className="p-2 sm:p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                  <div className="text-xs text-muted-foreground mb-1 truncate">Total Liters</div>
+                  <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-blue-600 break-words">
                     {dailySales.totalLiters >= 1000
                       ? `${safeToFixed(dailySales.totalLiters / 1000, 1)}K L`
                       : `${safeToFixed(dailySales.totalLiters, 2)} L`}
                   </div>
                 </div>
-                <div className="p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
-                  <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Sale Value</div>
-                  <div className="text-lg md:text-xl lg:text-2xl font-bold text-green-600 break-all md:break-normal">
+                <div className="p-2 sm:p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                  <div className="text-xs text-muted-foreground mb-1 truncate">Total Sale Value</div>
+                  <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-green-600 break-words">
                     ₹{dailySales.totalSaleValue >= 100000
                       ? `${safeToFixed(dailySales.totalSaleValue / 100000, 1)}L`
                       : safeToFixed(dailySales.totalSaleValue, 2)}
                   </div>
                 </div>
-                <div className="p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
-                  <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Readings</div>
-                  <div className="text-lg md:text-xl lg:text-2xl font-bold text-purple-600 break-all md:break-normal">
+                <div className="p-2 sm:p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                  <div className="text-xs text-muted-foreground mb-1 truncate">Readings</div>
+                  <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-purple-600 break-words">
                     {dailySales.readings.length >= 1000
                       ? `${safeToFixed(dailySales.readings.length / 1000, 1)}K`
                       : dailySales.readings.length.toLocaleString()}
                   </div>
                 </div>
-                <div className="p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
-                  <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Expected Cash</div>
-                  <div className="text-lg md:text-xl lg:text-2xl font-bold text-orange-600 break-all md:break-normal">
+                <div className="p-2 sm:p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                  <div className="text-xs text-muted-foreground mb-1 truncate">Expected Cash</div>
+                  <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-orange-600 break-words">
                     ₹{dailySales.expectedCash >= 100000
                       ? `${safeToFixed(dailySales.expectedCash / 100000, 1)}L`
                       : safeToFixed(dailySales.expectedCash, 2)}
@@ -435,20 +439,20 @@ export default function DailySettlement() {
 
               {/* By Fuel Type */}
               {Object.keys(dailySales.byFuelType).length > 0 && (
-                <div className="mt-4">
-                  <h4 className="text-sm font-semibold mb-3">Breakdown by Fuel Type</h4>
-                  <div className="space-y-2">
+                <div className="mt-3 sm:mt-4">
+                  <h4 className="text-xs sm:text-sm font-semibold mb-2 sm:mb-3">Breakdown by Fuel Type</h4>
+                  <div className="space-y-1 sm:space-y-2">
                     {Object.entries(dailySales.byFuelType).map(([fuelType, data]) => (
-                      <div key={fuelType} className="flex items-center justify-between p-3 bg-white rounded-lg border">
-                        <div className="flex items-center gap-3">
-                          <Badge variant="outline" className="capitalize">
+                      <div key={fuelType} className="flex items-center justify-between p-2 sm:p-3 bg-white rounded-lg border">
+                        <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                          <Badge variant="outline" className="capitalize text-xs px-1 sm:px-2">
                             {fuelType}
                           </Badge>
-                          <span className="text-sm text-muted-foreground">
+                          <span className="text-xs sm:text-sm text-muted-foreground truncate">
                             {safeToFixed(data.liters, 2)} L
                           </span>
                         </div>
-                        <div className="text-sm font-semibold">
+                        <div className="text-xs sm:text-sm font-semibold ml-2">
                           ₹{safeToFixed(data.value, 2)}
                         </div>
                       </div>
@@ -458,26 +462,26 @@ export default function DailySettlement() {
               )}
 
               {/* Payment Breakdown */}
-              <div className="grid grid-cols-3 gap-2 md:gap-3 mt-4 pt-4 border-t">
-                <div className="p-2 md:p-3 bg-white rounded-lg border-2 border-green-200 overflow-hidden">
+              <div className="grid grid-cols-3 gap-1 sm:gap-2 md:gap-3 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
+                <div className="p-1.5 sm:p-2 md:p-3 bg-white rounded-lg border-2 border-green-200 overflow-hidden">
                   <div className="text-xs text-muted-foreground mb-1 truncate">Cash</div>
-                  <div className="text-sm md:text-base font-bold text-green-600 break-all md:break-normal">
+                  <div className="text-xs sm:text-sm md:text-base font-bold text-green-600 break-all">
                     ₹{dailySales.paymentSplit.cash >= 100000
                       ? `${safeToFixed(dailySales.paymentSplit.cash / 100000, 1)}L`
                       : safeToFixed(dailySales.paymentSplit.cash, 2)}
                   </div>
                 </div>
-                <div className="p-2 md:p-3 bg-white rounded-lg border-2 border-blue-200 overflow-hidden">
+                <div className="p-1.5 sm:p-2 md:p-3 bg-white rounded-lg border-2 border-blue-200 overflow-hidden">
                   <div className="text-xs text-muted-foreground mb-1 truncate">Online</div>
-                  <div className="text-sm md:text-base font-bold text-blue-600 break-all md:break-normal">
+                  <div className="text-xs sm:text-sm md:text-base font-bold text-blue-600 break-all">
                     ₹{dailySales.paymentSplit.online >= 100000
                       ? `${safeToFixed(dailySales.paymentSplit.online / 100000, 1)}L`
                       : safeToFixed(dailySales.paymentSplit.online, 2)}
                   </div>
                 </div>
-                <div className="p-2 md:p-3 bg-white rounded-lg border-2 border-orange-200 overflow-hidden">
+                <div className="p-1.5 sm:p-2 md:p-3 bg-white rounded-lg border-2 border-orange-200 overflow-hidden">
                   <div className="text-xs text-muted-foreground mb-1 truncate">Credit</div>
-                  <div className="text-sm md:text-base font-bold text-orange-600 break-all md:break-normal">
+                  <div className="text-xs sm:text-sm md:text-base font-bold text-orange-600 break-all">
                     ₹{dailySales.paymentSplit.credit >= 100000
                       ? `${safeToFixed(dailySales.paymentSplit.credit / 100000, 1)}L`
                       : safeToFixed(dailySales.paymentSplit.credit, 2)}
@@ -488,17 +492,17 @@ export default function DailySettlement() {
           </Card>
 
           {/* Reading Selection Section */}
-          <Card className="border-purple-200">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <FileCheck className="w-5 h-5 text-purple-600" />
+          <Card className="border-purple-200 p-3 sm:p-4 md:p-6">
+            <CardHeader className="p-0 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <FileCheck className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
                 Employee Readings
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="text-xs sm:text-sm">
                 Review and select specific employee entries to include in this settlement
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="p-0 space-y-3 sm:space-y-4">
               <Button
                 variant={showReadingSelection ? "secondary" : "outline"}
                 onClick={() => setShowReadingSelection(!showReadingSelection)}
@@ -553,7 +557,7 @@ export default function DailySettlement() {
                             {readingsForSettlement.unlinked.readings.map(reading => (
                               <div
                                 key={reading.id}
-                                className={`p-3 rounded-lg border cursor-pointer transition-colors ${
+                                className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-colors ${
                                   selectedReadingIds.includes(reading.id)
                                     ? 'bg-purple-100 border-purple-400'
                                     : 'bg-white hover:bg-gray-50 border-gray-200'
@@ -561,31 +565,33 @@ export default function DailySettlement() {
                                 onClick={() => handleToggleReading(reading.id)}
                               >
                                 <div className="flex items-center justify-between mb-1">
-                                  <div className="flex items-center gap-2">
+                                  <div className="flex items-center gap-2 min-w-0 flex-1">
                                     <Checkbox
                                       checked={selectedReadingIds.includes(reading.id)}
                                       onCheckedChange={() => handleToggleReading(reading.id)}
                                     />
-                                    <span className="text-sm font-medium">
-                                      Nozzle #{reading.nozzleNumber} - {reading.fuelType} &nbsp;
-                                      <span className="text-xs text-muted-foreground">Last Reading: {safeToFixed(reading.closingReading, 2)}</span>
-                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                      <span className="text-xs sm:text-sm font-medium block truncate">
+                                        Nozzle #{reading.nozzleNumber} - {reading.fuelType}
+                                      </span>
+                                      <span className="text-xs text-muted-foreground">Last: {safeToFixed(reading.closingReading, 2)}</span>
+                                    </div>
                                   </div>
-                                  <span className="text-sm font-bold text-green-600">
+                                  <span className="text-xs sm:text-sm font-bold text-green-600 ml-2">
                                     ₹{safeToFixed(reading.saleValue, 2)}
                                   </span>
                                 </div>
-                                <div className="grid grid-cols-4 gap-2 text-xs text-muted-foreground ml-6">
-                                  <div>{safeToFixed(reading.litresSold, 2)} L</div>
-                                  <div className="text-green-600">Cash: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.cash || 0, 0)}</div>
-                                  <div className="text-blue-600">Online: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.online || 0, 0)}</div>
-                                  <div className="text-orange-600">Credit: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.credit || 0, 0)}</div>
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground ml-6">
+                                  <div className="truncate">{safeToFixed(reading.litresSold, 2)} L</div>
+                                  <div className="text-green-600 truncate">Cash: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.cash || 0, 0)}</div>
+                                  <div className="text-blue-600 truncate">Online: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.online || 0, 0)}</div>
+                                  <div className="text-orange-600 truncate">Credit: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.credit || 0, 0)}</div>
                                 </div>
                                 {reading.recordedBy && (
                                   <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 ml-6">
                                     <User className="w-3 h-3" />
-                                    {reading.recordedBy.name}
-                                    <Clock className="w-3 h-3 ml-2" />
+                                    <span className="truncate">{reading.recordedBy.name}</span>
+                                    <Clock className="w-3 h-3 ml-2 flex-shrink-0" />
                                     {new Date(reading.recordedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                                   </div>
                                 )}
@@ -593,9 +599,12 @@ export default function DailySettlement() {
                             ))}
                           </div>
                           <div className="p-2 bg-yellow-50 rounded text-xs">
-                            Unlinked Totals: Cash ₹{safeToFixed(readingsForSettlement.unlinked.totals.cash, 2)} | 
-                            Online ₹{safeToFixed(readingsForSettlement.unlinked.totals.online, 2)} | 
-                            Credit ₹{safeToFixed(readingsForSettlement.unlinked.totals.credit, 2)}
+                            <div className="font-semibold mb-1">Unlinked Totals:</div>
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-1">
+                              <div>Cash: ₹{safeToFixed(readingsForSettlement.unlinked.totals.cash, 2)}</div>
+                              <div>Online: ₹{safeToFixed(readingsForSettlement.unlinked.totals.online, 2)}</div>
+                              <div>Credit: ₹{safeToFixed(readingsForSettlement.unlinked.totals.credit, 2)}</div>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -629,40 +638,40 @@ export default function DailySettlement() {
           </Card>
 
           {/* Cash Reconciliation */}
-          <Card className={`border-2 ${Math.abs(actualCash - dailySales.expectedCash) < 1 ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertCircle className="w-5 h-5" />
+          <Card className={`border-2 p-3 sm:p-4 md:p-6 ${Math.abs(actualCash - dailySales.expectedCash) < 1 ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}>
+            <CardHeader className="p-0 pb-3">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                 Owner Settlement Confirmation
               </CardTitle>
-              <CardDescription>
-                {selectedReadingIds.length > 0 
+              <CardDescription className="text-xs sm:text-sm">
+                {selectedReadingIds.length > 0
                   ? `Settling ${selectedReadingIds.length} selected reading(s) - Enter actual amounts received`
                   : 'Select employee readings above, then enter actual amounts received'}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-6">
+            <CardContent className="p-0 space-y-4 sm:space-y-6">
               {/* Expected values from selected readings */}
               {selectedReadingIds.length > 0 && (
-                <div className="grid grid-cols-3 gap-3 p-3 bg-purple-50 rounded-lg border border-purple-200">
-                  <div>
-                    <div className="text-xs text-purple-600 font-semibold">Expected Cash (Selected)</div>
-                    <div className="text-lg font-bold text-purple-700">₹{safeToFixed(getSelectedTotals().cash, 2)}</div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3 p-2 sm:p-3 bg-purple-50 rounded-lg border border-purple-200">
+                  <div className="text-center sm:text-left">
+                    <div className="text-xs text-purple-600 font-semibold">Expected Cash</div>
+                    <div className="text-sm sm:text-lg font-bold text-purple-700">₹{safeToFixed(getSelectedTotals().cash, 2)}</div>
                   </div>
-                  <div>
-                    <div className="text-xs text-purple-600 font-semibold">Expected Online (Selected)</div>
-                    <div className="text-lg font-bold text-purple-700">₹{safeToFixed(getSelectedTotals().online, 2)}</div>
+                  <div className="text-center sm:text-left">
+                    <div className="text-xs text-purple-600 font-semibold">Expected Online</div>
+                    <div className="text-sm sm:text-lg font-bold text-purple-700">₹{safeToFixed(getSelectedTotals().online, 2)}</div>
                   </div>
-                  <div>
-                    <div className="text-xs text-purple-600 font-semibold">Expected Credit (Selected)</div>
-                    <div className="text-lg font-bold text-purple-700">₹{safeToFixed(getSelectedTotals().credit, 2)}</div>
+                  <div className="text-center sm:text-left">
+                    <div className="text-xs text-purple-600 font-semibold">Expected Credit</div>
+                    <div className="text-sm sm:text-lg font-bold text-purple-700">₹{safeToFixed(getSelectedTotals().credit, 2)}</div>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="overflow-hidden">
-                  <Label htmlFor="actual-cash" className="text-sm font-semibold truncate">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+                <div className="space-y-2">
+                  <Label htmlFor="actual-cash" className="text-sm font-semibold">
                     Actual Cash Received
                   </Label>
                   <Input
@@ -671,15 +680,15 @@ export default function DailySettlement() {
                     step="0.01"
                     value={actualCash}
                     onChange={(e) => setActualCash(parseFloat(e.target.value) || 0)}
-                    className="mt-2 border-green-300 focus:border-green-500 text-base md:text-lg font-bold"
+                    className="border-green-300 focus:border-green-500 text-sm sm:text-base md:text-lg font-bold"
                     placeholder="Enter actual cash received"
                   />
-                  <p className="text-xs text-muted-foreground mt-2 truncate">
+                  <p className="text-xs text-muted-foreground">
                     Physical cash from pump/register
                   </p>
                 </div>
-                <div className="overflow-hidden">
-                  <Label htmlFor="actual-online" className="text-sm font-semibold truncate">
+                <div className="space-y-2">
+                  <Label htmlFor="actual-online" className="text-sm font-semibold">
                     Actual Online Received
                   </Label>
                   <Input
@@ -688,15 +697,15 @@ export default function DailySettlement() {
                     step="0.01"
                     value={actualOnline}
                     onChange={(e) => setActualOnline(parseFloat(e.target.value) || 0)}
-                    className="mt-2 border-blue-300 focus:border-blue-500 text-base md:text-lg font-bold"
+                    className="border-blue-300 focus:border-blue-500 text-sm sm:text-base md:text-lg font-bold"
                     placeholder="Enter actual online received"
                   />
-                  <p className="text-xs text-muted-foreground mt-2 truncate">
+                  <p className="text-xs text-muted-foreground">
                     UPI, card, netbanking, etc.
                   </p>
                 </div>
-                <div className="overflow-hidden">
-                  <Label htmlFor="actual-credit" className="text-sm font-semibold truncate">
+                <div className="space-y-2 sm:col-span-2 lg:col-span-1">
+                  <Label htmlFor="actual-credit" className="text-sm font-semibold">
                     Credit Given
                   </Label>
                   <Input
@@ -705,10 +714,10 @@ export default function DailySettlement() {
                     step="0.01"
                     value={actualCredit}
                     onChange={(e) => setActualCredit(parseFloat(e.target.value) || 0)}
-                    className="mt-2 border-orange-300 focus:border-orange-500 text-base md:text-lg font-bold"
+                    className="border-orange-300 focus:border-orange-500 text-sm sm:text-base md:text-lg font-bold"
                     placeholder="Enter credit given (sales on credit)"
                   />
-                  <p className="text-xs text-muted-foreground mt-2 truncate">
+                  <p className="text-xs text-muted-foreground">
                     Sales made on credit (creditors' debt, owner's earning)
                   </p>
                 </div>
@@ -716,36 +725,36 @@ export default function DailySettlement() {
 
               {/* Variance - only show when readings selected and cash entered */}
               {selectedReadingIds.length > 0 && actualCash > 0 && (
-                <div className={`p-4 rounded-lg border-2 ${
+                <div className={`p-3 sm:p-4 rounded-lg border-2 ${
                   Math.abs(getSelectedTotals().cash - actualCash) < 1
                     ? 'border-green-300 bg-green-100'
                     : 'border-yellow-300 bg-yellow-100'
                 }`}>
                   <div className="flex items-center justify-between">
-                    <span className={`font-bold ${
+                    <span className={`font-bold text-sm sm:text-base ${
                       Math.abs(actualCash - getSelectedTotals().cash) < 1
                         ? 'text-green-700'
                         : 'text-yellow-700'
                     }`}>
                       {Math.abs(getSelectedTotals().cash - actualCash) < 1 ? (
                         <>
-                          <CheckCircle2 className="w-5 h-5 inline mr-2" />
+                          <CheckCircle2 className="w-4 h-4 inline mr-2" />
                           Cash Match - No Variance
                         </>
                       ) : (
                         <>
-                          <AlertCircle className="w-5 h-5 inline mr-2" />
+                          <AlertCircle className="w-4 h-4 inline mr-2" />
                           Cash Variance
                         </>
                       )}
                     </span>
-                    <div className={`text-lg md:text-xl lg:text-2xl font-bold ${
+                    <div className={`text-sm sm:text-lg md:text-xl lg:text-2xl font-bold ${
                       getSelectedTotals().cash < actualCash
                         ? 'text-green-600'
                         : getSelectedTotals().cash > actualCash
                         ? 'text-red-600'
                         : 'text-green-600'
-                    } break-all md:break-normal`}>
+                    }`}>
                       {getSelectedTotals().cash < actualCash ? '+' : ''}₹{safeToFixed(getSelectedTotals().cash - actualCash, 2)}
                     </div>
                   </div>
@@ -753,7 +762,7 @@ export default function DailySettlement() {
               )}
 
               {/* Notes */}
-              <div>
+              <div className="space-y-2">
                 <Label htmlFor="notes" className="text-sm font-semibold">
                   Notes (Optional)
                 </Label>
@@ -763,19 +772,19 @@ export default function DailySettlement() {
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="e.g., 'Variance due to employee error', 'Extra cash from yesterday'"
-                  className="mt-2"
+                  className="text-sm sm:text-base"
                 />
               </div>
 
               {/* Mark as Final Checkbox */}
-              <div className="flex items-center space-x-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
+              <div className="flex items-center space-x-2 p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
                 <Checkbox
                   id="mark-final"
                   checked={markAsFinal}
                   onCheckedChange={(checked) => setMarkAsFinal(checked === true)}
                 />
                 <div className="flex-1">
-                  <Label htmlFor="mark-final" className="text-sm font-semibold cursor-pointer">
+                  <Label htmlFor="mark-final" className="text-xs sm:text-sm font-semibold cursor-pointer">
                     Mark as Final Settlement
                   </Label>
                   <p className="text-xs text-muted-foreground">
@@ -786,19 +795,19 @@ export default function DailySettlement() {
 
               {/* Selection Status */}
               {selectedReadingIds.length === 0 && (
-                <div className="p-3 bg-red-50 rounded-lg border border-red-200 text-sm text-red-700">
-                  <AlertCircle className="w-4 h-4 inline mr-2" />
+                <div className="p-2 sm:p-3 bg-red-50 rounded-lg border border-red-200 text-xs sm:text-sm text-red-700">
+                  <AlertCircle className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                   Please select employee readings above before completing settlement
                 </div>
               )}
 
               {selectedReadingIds.length > 0 && (
-                <div className="p-3 bg-green-50 rounded-lg border border-green-200 text-sm text-green-700">
-                  <CheckCircle2 className="w-4 h-4 inline mr-2" />
+                <div className="p-2 sm:p-3 bg-green-50 rounded-lg border border-green-200 text-xs sm:text-sm text-green-700">
+                  <CheckCircle2 className="w-3 h-3 sm:w-4 sm:h-4 inline mr-2" />
                   {selectedReadingIds.length} reading(s) selected for settlement
                   <div className="text-xs mt-1">
-                    Employee Total: Cash ₹{safeToFixed(getSelectedTotals().cash, 2)} | 
-                    Online ₹{safeToFixed(getSelectedTotals().online, 2)} | 
+                    Employee Total: Cash ₹{safeToFixed(getSelectedTotals().cash, 2)} |
+                    Online ₹{safeToFixed(getSelectedTotals().online, 2)} |
                     Credit ₹{safeToFixed(getSelectedTotals().credit, 2)}
                   </div>
                 </div>
@@ -808,11 +817,11 @@ export default function DailySettlement() {
               <Button
                 onClick={handleSubmitSettlement}
                 disabled={isSubmitting || selectedReadingIds.length === 0}
-                className={`w-full py-6 text-lg ${selectedReadingIds.length === 0 ? 'opacity-50' : ''}`}
+                className={`w-full py-3 sm:py-6 text-sm sm:text-lg ${selectedReadingIds.length === 0 ? 'opacity-50' : ''}`}
                 size="lg"
               >
-                {isSubmitting ? 'Saving...' : selectedReadingIds.length === 0 
-                  ? 'Select Readings First' 
+                {isSubmitting ? 'Saving...' : selectedReadingIds.length === 0
+                  ? 'Select Readings First'
                   : `Complete Settlement (${selectedReadingIds.length} entries)`}
               </Button>
             </CardContent>
@@ -820,53 +829,55 @@ export default function DailySettlement() {
 
           {/* Previous Settlements */}
           {previousSettlements && previousSettlements.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg">Recent Settlements</CardTitle>
-                <CardDescription>
-                  {previousSettlements.some(s => (s.attempts && s.attempts > 1) || (s.duplicateCount && s.duplicateCount > 1)) && (
-                    <span className="text-red-600 font-bold">Multiple settlement attempts detected for some days</span>
-                  )}
+            <Card className="p-3 sm:p-4 md:p-6">
+              <CardHeader className="p-0 pb-3">
+                <CardTitle className="text-base sm:text-lg">Recent Settlements</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Previous settlement records for audit and reference
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="space-y-6">
+              <CardContent className="p-0">
+                <div className="space-y-3 sm:space-y-6">
                   {previousSettlements.map((settlement: SettlementRecord) => (
                     // Determine if this settlement is the main one returned by backend
-                    <div key={settlement.id} className={`border rounded-lg p-3 ${settlement.isFinal ? 'border-green-600 bg-green-50' : 'border-muted'} space-y-2 ${settlement.mainSettlement && settlement.mainSettlement.id === settlement.id ? 'ring-2 ring-blue-300' : ''}`}>
-                      <div className="flex items-center gap-2">
-                        <div className="font-semibold text-sm">
-                          {new Date(settlement.date).toLocaleDateString('en-IN', {
-                            day: 'numeric', month: 'short', year: '2-digit'
-                          })}
+                    <div key={settlement.id} className={`border rounded-lg p-3 sm:p-4 space-y-2 sm:space-y-3 ${settlement.isFinal ? 'border-green-600 bg-green-50' : 'border-muted'} ${settlement.mainSettlement && settlement.mainSettlement.id === settlement.id ? 'ring-2 ring-blue-300' : ''}`}>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-semibold text-sm sm:text-base truncate">
+                            {new Date(settlement.date).toLocaleDateString('en-IN', {
+                              day: 'numeric', month: 'short', year: '2-digit'
+                            })}
+                          </h4>
+                          <p className="text-xs text-muted-foreground truncate">
+                            Recorded by {settlement.settledBy || 'Unknown'} at {new Date(settlement.recordedAt || settlement.settledAt || settlement.date).toLocaleString()}
+                          </p>
                         </div>
-                        {settlement.isFinal && (
-                          <Badge variant="outline" className="text-green-700 border-green-600">Final</Badge>
-                        )}
-                        {(settlement.attempts && settlement.attempts > 1) && (
-                          <Badge variant="outline" className="text-red-700 border-red-600">Attempts: {settlement.attempts}</Badge>
-                        )}
-                        {settlement.duplicateCount && settlement.duplicateCount > 1 && (
-                          <Badge variant="outline" className="text-red-700 border-red-600">Duplicates: {settlement.duplicateCount}</Badge>
-                        )}
+                        <div className="flex flex-col sm:items-end gap-1">
+                          <p className="text-xs sm:text-sm">Status: {settlement.isFinal ? 'Final' : 'Draft'}</p>
+                          {settlement.isFinal && <Badge variant="outline" className="text-green-700 border-green-600 text-xs">Final</Badge>}
+                        </div>
                       </div>
                       {/* Employee-reported vs Owner-confirmed comparison */}
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="bg-blue-50 p-2 rounded border border-blue-200">
-                          <div className="font-semibold text-blue-700 mb-1">Employee Reported</div>
-                          <div>Cash: ₹{safeToFixed(settlement.employeeCash ?? settlement.expectedCash, 2)}</div>
-                          <div>Online: ₹{safeToFixed(settlement.employeeOnline ?? 0, 2)}</div>
-                          <div>Credit: ₹{safeToFixed(settlement.employeeCredit ?? 0, 2)}</div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 text-xs sm:text-sm">
+                        <div className="bg-blue-50 p-2 sm:p-3 rounded border border-blue-200">
+                          <div className="font-semibold text-blue-700 mb-1 text-xs sm:text-sm">Employee Reported</div>
+                          <div className="space-y-1">
+                            <div>Cash: ₹{safeToFixed(settlement.employeeCash ?? settlement.expectedCash, 2)}</div>
+                            <div>Online: ₹{safeToFixed(settlement.employeeOnline ?? 0, 2)}</div>
+                            <div>Credit: ₹{safeToFixed(settlement.employeeCredit ?? 0, 2)}</div>
+                          </div>
                         </div>
-                        <div className="bg-green-50 p-2 rounded border border-green-200">
-                          <div className="font-semibold text-green-700 mb-1">Owner Confirmed</div>
-                          <div>Cash: ₹{safeToFixed(settlement.actualCash, 2)}</div>
-                          <div>Online: ₹{safeToFixed(settlement.online, 2)}</div>
-                          <div>Credit: ₹{safeToFixed(settlement.credit, 2)}</div>
+                        <div className="bg-green-50 p-2 sm:p-3 rounded border border-green-200">
+                          <div className="font-semibold text-green-700 mb-1 text-xs sm:text-sm">Owner Confirmed</div>
+                          <div className="space-y-1">
+                            <div>Cash: ₹{safeToFixed(settlement.actualCash, 2)}</div>
+                            <div>Online: ₹{safeToFixed(settlement.online, 2)}</div>
+                            <div>Credit: ₹{safeToFixed(settlement.credit, 2)}</div>
+                          </div>
                         </div>
                       </div>
                       {/* Variance per payment type */}
-                      <div className="flex gap-4 text-xs">
+                      <div className="flex flex-wrap gap-2 sm:gap-4 text-xs">
                         <div className={`font-bold ${(settlement.variance ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                           Cash Variance: {(settlement.variance ?? 0) >= 0 ? '+' : ''}₹{safeToFixed(settlement.variance ?? 0, 2)}
                         </div>
@@ -881,7 +892,7 @@ export default function DailySettlement() {
                       {settlement.duplicateCount && settlement.duplicateCount > 1 && settlement.allSettlements && (
                         <div className="mt-2">
                           <div className="text-xs font-semibold mb-1">All settlements for this date:</div>
-                          <div className="space-y-1">
+                          <div className="space-y-1 max-h-32 overflow-y-auto">
                             {settlement.allSettlements.map((s, idx) => (
                               <div key={s.id || idx} className={`border rounded p-2 text-xs ${s.isFinal ? 'border-green-600 bg-green-50' : 'border-muted'}`}>
                                 {new Date(s.settledAt || s.finalizedAt || s.recordedAt || s.date).toLocaleString('en-IN')}

@@ -64,8 +64,24 @@ export function getDashboardUrl(role?: string): string {
     case 'owner':
       return '/owner/dashboard';
     case 'manager':
+      return '/manager/dashboard';
     case 'employee':
     default:
       return '/dashboard';
+  }
+}
+
+/**
+ * Get base path for owner/manager routes
+ */
+export function getBasePath(role?: string): string {
+  const normalized = normalizeRole(role);
+  
+  switch (normalized) {
+    case 'manager':
+      return '/manager';
+    case 'owner':
+    default:
+      return '/owner';
   }
 }

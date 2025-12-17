@@ -66,7 +66,6 @@ exports.getSummary = async (req, res, next) => {
     }
 
     // Today's sales totals (include initial readings that represent sales)
-    // Fetch readings with transaction data to get accurate payment breakdown
     const todayReadings = await NozzleReading.findAll({
       where: { 
         ...stationFilter, 
@@ -76,33 +75,40 @@ exports.getSummary = async (req, res, next) => {
           { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
         ]
       },
-      attributes: ['id', 'litresSold', 'pricePerLitre', 'totalAmount', 'transactionId'],
+      attributes: ['id', 'litresSold', 'pricePerLitre', 'totalAmount'],
       raw: true
     });
 
-    // Calculate totals from readings and fetch payment data from transactions
-    const { DailyTransaction } = require('../models');
+    // Calculate sales totals from readings
     let totalLitres = 0;
     let totalAmount = 0;
-    let totalCash = 0;
-    let totalOnline = 0;
-    let totalCredit = 0;
     
     for (const reading of todayReadings) {
       totalLitres += parseFloat(reading.litresSold || 0);
       totalAmount += parseFloat(reading.totalAmount || 0);
-      
-      // Fetch payment breakdown from DailyTransaction if transactionId exists
-      if (reading.transactionId) {
-        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
-          attributes: ['paymentBreakdown'],
-          raw: true
-        });
-        if (transaction && transaction.paymentBreakdown) {
-          totalCash += parseFloat(transaction.paymentBreakdown.cash || 0);
-          totalOnline += parseFloat(transaction.paymentBreakdown.online || 0);
-          totalCredit += parseFloat(transaction.paymentBreakdown.credit || 0);
-        }
+    }
+
+    // Aggregate payment breakdown from DailyTransaction (more efficient)
+    const { DailyTransaction } = require('../models');
+    const allTransactions = await DailyTransaction.findAll({
+      where: { 
+        ...stationFilter, 
+        transactionDate: today
+      },
+      attributes: ['paymentBreakdown'],
+      raw: true
+    });
+
+    // Sum payment breakdown from all transactions
+    let totalCash = 0;
+    let totalOnline = 0;
+    let totalCredit = 0;
+    
+    for (const txn of allTransactions) {
+      if (txn.paymentBreakdown && typeof txn.paymentBreakdown === 'object') {
+        totalCash += parseFloat(txn.paymentBreakdown.cash || 0);
+        totalOnline += parseFloat(txn.paymentBreakdown.online || 0);
+        totalCredit += parseFloat(txn.paymentBreakdown.credit || 0);
       }
     }
 

@@ -125,6 +125,11 @@ function RoleBasedRedirect() {
     return <Navigate to="/owner/dashboard" replace />;
   }
 
+  // Redirect managers to manager dashboard
+  if (user.role === 'manager') {
+    return <Navigate to="/manager/dashboard" replace />;
+  }
+
   return <Navigate to="/dashboard" replace />;
 }
 
@@ -360,6 +365,37 @@ function AppContent() {
                   <Routes>
                     {/* Default dashboard for managers/employees */}
                     <Route path="/dashboard" element={<RoleBasedDashboard />} />
+                    
+                    {/* Manager Routes - Standardized manager paths */}
+                    <Route path="/manager/dashboard" element={<OwnerDashboard />} />
+                    <Route path="/manager/quick-entry" element={<QuickDataEntry />} />
+                    <Route path="/manager/daily-settlement" element={
+                      <ManagerOrOwnerRoute>
+                        <SettlementStationSelector />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/manager/daily-settlement/:stationId" element={
+                      <ManagerOrOwnerRoute>
+                        <DailySettlement />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/manager/daily-reports" element={<DailySalesReport />} />
+                    <Route path="/manager/stations" element={<StationsManagement />} />
+                    <Route path="/manager/stations/add" element={<AddStation />} />
+                    <Route path="/manager/stations/:id" element={<StationDetail />} />
+                    <Route path="/manager/stations/:id/add-creditor" element={<AddCreditor />} />
+                    <Route path="/manager/stations/:id/prices" element={<Prices />} />
+                    <Route path="/manager/employees" element={<EmployeesManagement />} />
+                    <Route path="/manager/reports" element={<OwnerReports />} />
+                    <Route path="/manager/analytics" element={<OwnerAnalytics />} />
+                    <Route path="/manager/income-report" element={<IncomeReport />} />
+                    <Route path="/manager/shifts" element={<ShiftManagement />} />
+                    <Route path="/manager/cash-report" element={<CashReconciliationReport />} />
+                    <Route path="/manager/credit-ledger" element={
+                      <ManagerOrOwnerRoute>
+                        <CreditLedger />
+                      </ManagerOrOwnerRoute>
+                    } />
                     
                     {/* Owner Routes - New comprehensive UI */}
                     <Route path="/owner/dashboard" element={<OwnerDashboard />} />

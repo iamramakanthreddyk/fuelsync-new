@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import { ClipboardCheck } from "lucide-react";
 import { useDailySummary } from "@/hooks/useDailySummary";
@@ -20,6 +20,25 @@ export default function Settlements() {
   const queryClient = useQueryClient();
   const { data: summary, isLoading } = useDailySummary(selectedDate);
   const { currentStation, isOwner, isAdmin } = useRoleAccess();
+
+  // Fetch settlements for the current station
+  const { data: settlements = [] } = useQuery({
+    queryKey: ['settlements', currentStation?.id],
+    queryFn: async () => {
+      if (!currentStation?.id) return [];
+      try {
+        const response = await apiClient.get<{ success: boolean; data: any[] }>(
+          `/stations/${currentStation.id}/settlements`
+        );
+        return response?.data || [];
+      } catch (error) {
+        console.warn('Failed to fetch settlements:', error);
+        return [];
+      }
+    },
+    enabled: !!currentStation?.id,
+    retry: false
+  });
 
   // Close day mutation - records daily closure and settlement
   const closeDayMutation = useMutation({
@@ -147,6 +166,59 @@ export default function Settlements() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Settlement History */}
+          {settlements && settlements.length > 0 && (
+            <Card>
+              <CardHeader>
+                <CardTitle>Settlement History</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  {settlements.map((settlement: any) => (
+                    <div key={settlement.id} className="border rounded-lg p-4">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className="font-semibold">{new Date(settlement.date).toLocaleDateString()}</h4>
+                          <p className="text-sm text-muted-foreground">
+                            Recorded by {settlement.recordedByUser?.name || 'Unknown'} at {new Date(settlement.recordedAt).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm">Status: {settlement.status}</p>
+                          {settlement.isFinal && <p className="text-sm text-green-600">Final</p>}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <h5 className="font-medium mb-1">Employee Reported</h5>
+                          <p className="text-sm">Cash: ₹{settlement.employeeCash || 0}</p>
+                          <p className="text-sm">Online: ₹{settlement.employeeOnline || 0}</p>
+                          <p className="text-sm">Credit: ₹{settlement.employeeCredit || 0}</p>
+                        </div>
+                        <div>
+                          <h5 className="font-medium mb-1">Owner Confirmed</h5>
+                          <p className="text-sm">Cash: ₹{settlement.actualCash}</p>
+                          <p className="text-sm">Online: ₹{settlement.online}</p>
+                          <p className="text-sm">Credit: ₹{settlement.credit}</p>
+                        </div>
+                      </div>
+                      {settlement.variance !== '0.00' && (
+                        <div className="mt-2">
+                          <p className="text-sm text-red-600">Variance: ₹{settlement.variance}</p>
+                        </div>
+                      )}
+                      {settlement.notes && (
+                        <div className="mt-2">
+                          <p className="text-sm">Notes: {settlement.notes}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </>
       )}
 

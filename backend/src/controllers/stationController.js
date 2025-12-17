@@ -1363,7 +1363,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
         {
           model: DailyTransaction,
           as: 'transaction',
-          attributes: ['id', 'transactionDate', 'status', 'createdBy'],
+          attributes: ['id', 'transactionDate', 'status', 'createdBy', 'paymentBreakdown'],
           required: false
         }
       ],

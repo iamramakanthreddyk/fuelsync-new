@@ -13,7 +13,7 @@ import {
   SidebarHeader,
 } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/useAuth';
-import { isOwner, getDashboardUrl } from '@/lib/roleUtils';
+import { isOwner, getDashboardUrl, getBasePath } from '@/lib/roleUtils';
 import {
   Home,
   TrendingUp,
@@ -57,28 +57,31 @@ export function AppSidebar() {
   // Define isManager here for use in menu groups
   const isManager = user?.role === 'manager';
 
-  // Owner-specific menu items organized by function
+  // Base path for owner/manager routes
+  const basePath = getBasePath(user?.role);
+
+  // Owner/Manager menu items organized by function
   const ownerMenuGroups = [
     {
       label: "Operations",
       items: [
         {
           title: "Dashboard",
-          url: "/owner/dashboard",
+          url: `${basePath}/dashboard`,
           icon: Home,
           color: "text-blue-600",
           bgColor: "bg-blue-50",
         },
         {
           title: "Quick Entry",
-          url: "/owner/quick-entry",
+          url: `${basePath}/quick-entry`,
           icon: Zap,
           color: "text-amber-600",
           bgColor: "bg-amber-50",
         },
         {
           title: "Daily Settlement",
-          url: "/owner/stations",
+          url: `${basePath}/stations`,
           icon: Scale3d,
           color: "text-emerald-600",
           bgColor: "bg-emerald-50",
@@ -90,21 +93,21 @@ export function AppSidebar() {
       items: [
         {
           title: "Stations",
-          url: "/owner/stations",
+          url: `${basePath}/stations`,
           icon: Building2,
           color: "text-indigo-600",
           bgColor: "bg-indigo-50",
         },
         {
           title: "Employees",
-          url: "/owner/employees",
+          url: `${basePath}/employees`,
           icon: Users,
           color: "text-orange-600",
           bgColor: "bg-orange-50",
         },
         {
           title: "Credit Ledger",
-          url: "/owner/credit-ledger",
+          url: `${basePath}/credit-ledger`,
           icon: Banknote,
           color: "text-pink-600",
           bgColor: "bg-pink-50",
@@ -116,28 +119,28 @@ export function AppSidebar() {
       items: [
         {
           title: "Daily Reports",
-          url: "/owner/daily-reports",
+          url: `${basePath}/daily-reports`,
           icon: LineChart,
           color: "text-purple-600",
           bgColor: "bg-purple-50",
         },
         {
           title: "Reports",
-          url: "/owner/reports",
+          url: `${basePath}/reports`,
           icon: FileText,
           color: "text-green-600",
           bgColor: "bg-green-50",
         },
         {
           title: "Analytics",
-          url: "/owner/analytics",
+          url: `${basePath}/analytics`,
           icon: BarChart3,
           color: "text-red-600",
           bgColor: "bg-red-50",
         },
         {
           title: "Income & Receivables",
-          url: "/owner/income-report",
+          url: `${basePath}/income-report`,
           icon: IndianRupee,
           color: "text-teal-600",
           bgColor: "bg-teal-50",

@@ -8,6 +8,7 @@ import { AlertBadges } from "@/components/dashboard/AlertBadges";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { UpgradeModal } from "@/components/dashboard/UpgradeModal";
 import { useState, useEffect } from "react";
+import { getBasePath } from '@/lib/roleUtils';
 import { useActivityLogger } from "@/hooks/useActivityLogger";
 import { useFuelPricesData, normalizeFuelType } from "@/hooks/useFuelPricesData";
 import { useFuelPricesGlobal } from "../context/FuelPricesContext";
@@ -33,7 +34,8 @@ export default function Dashboard() {
     pendingClosures: 0,
     trendsData: [],
     fuelPrices: {},
-    alerts: []
+    alerts: [],
+    lastReading: null
   };
   
   // Debug: log user and dashboard data
@@ -117,7 +119,7 @@ export default function Dashboard() {
                 : 'No stations found. Create your first station to start tracking fuel sales.'}
             </p>
             {user?.role === 'owner' && (
-              <Button onClick={() => window.location.href = '/owner/stations'}>
+              <Button onClick={() => window.location.href = `${getBasePath(user?.role)}/stations`}>
                 Create Station
               </Button>
             )}
@@ -208,7 +210,7 @@ export default function Dashboard() {
 
   // Simplified dashboard for employees: only essential, accessible cards
   function EmployeeDashboard() {
-    const d: any = data as any;
+    const d: any = dashboardData as any;
     return (
       <div className="space-y-3">
         <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
@@ -277,7 +279,7 @@ export default function Dashboard() {
                 <CardDescription className="text-xs">Last 7 entries</CardDescription>
               </CardHeader>
               <CardContent>
-                <TrendsChart data={d.trendsData ?? data.trendsData} isLoading={!d.trendsData && !data.trendsData} />
+                <TrendsChart data={d.trendsData ?? dashboardData.trendsData} isLoading={!d.trendsData && !dashboardData.trendsData} />
               </CardContent>
             </Card>
           </div>

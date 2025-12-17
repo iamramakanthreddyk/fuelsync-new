@@ -31,7 +31,7 @@ export default function Pumps() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: pumps, isLoading } = usePumpsData();
+  const { data: pumps, isLoading, error } = usePumpsData();
   const { currentStation, isOwner, isAdmin } = useRoleAccess();
 
   // Add pump mutation - uses /stations/:stationId/pumps
@@ -153,6 +153,27 @@ export default function Pumps() {
     );
   }
 
+  if (error) {
+    console.error('Pumps loading error:', error);
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="p-6">
+            <p className="text-center text-red-600">
+              Error loading pumps: {error.message || 'Unknown error'}
+            </p>
+            <p className="text-center text-sm text-muted-foreground mt-2">
+              Current station: {currentStation ? currentStation.name : 'None'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Debug logging
+  console.log('Pumps data:', pumps, 'Type:', typeof pumps, 'Is array:', Array.isArray(pumps));
+
   return (
     <div className="container mx-auto p-6 space-y-6">
       <div className="flex justify-between items-center">
@@ -205,7 +226,7 @@ export default function Pumps() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {pumps?.map((pump) => (
+        {Array.isArray(pumps) && pumps.length > 0 ? pumps.map((pump) => (
           <Card key={pump.id} className="relative">
             <CardHeader>
               <div className="flex justify-between items-start">
@@ -309,10 +330,20 @@ export default function Pumps() {
               </div>
             </CardContent>
           </Card>
-        ))}
+        )) : (
+          <Card>
+            <CardContent className="pt-6 text-center">
+              <Fuel className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+              <h3 className="text-lg font-medium mb-2">No pumps found</h3>
+              <p className="text-muted-foreground">
+                {currentStation ? `No pumps configured for ${currentStation.name}` : 'No station selected'}
+              </p>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
-      {(!pumps || pumps.length === 0) && (
+      {(!Array.isArray(pumps) || pumps.length === 0) && (
         <Card>
           <CardContent className="pt-6 text-center">
             <Fuel className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
