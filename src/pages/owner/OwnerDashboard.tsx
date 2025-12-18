@@ -100,7 +100,6 @@ export default function OwnerDashboard() {
   const queryClient = useQueryClient();
   
   const allFuelPrices = queryClient.getQueryData(['all-fuel-prices', stations?.map(s => s.id).sort().join(',')]);
-  console.log('OwnerDashboard allFuelPrices from cache:', allFuelPrices);
 
   const fuelPricesResponse = useMemo(() => {
     if (!primaryStation?.id) return null;
