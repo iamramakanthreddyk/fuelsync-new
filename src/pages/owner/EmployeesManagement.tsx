@@ -3,7 +3,7 @@
  * Manage employees across all stations
  */
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -210,7 +210,7 @@ export default function EmployeesManagement() {
     data: stationsResponse
   } = useStations();
 
-  const stations = (stationsResponse as any)?.data || stationsResponse;
+  const stations = useMemo(() => (stationsResponse as any)?.data || stationsResponse, [stationsResponse]);
 
   // Fetch employees
   const { data: employees, isLoading } = useQuery({
@@ -390,11 +390,13 @@ export default function EmployeesManagement() {
     setNewPassword('');
   };
 
-  const filteredEmployees = employees?.filter((emp: Employee) =>
-    emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    emp.station?.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredEmployees = useMemo(() => {
+    return employees?.filter((emp: Employee) =>
+      emp.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      emp.station?.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [employees, searchTerm]);
 
   const handleAddDialogOpenChange = (open: boolean) => {
     setIsAddDialogOpen(open);

@@ -196,36 +196,6 @@ export default function StationDetail() {
     enabled: !!id
   });
 
-  // Get fuel prices from global cache instead of making API call
-  const prices = useMemo(() => {
-    if (!id) return [];
-    
-    // Get all fuel prices from global cache
-    const allFuelPrices = queryClient.getQueryData(['all-fuel-prices']);
-    
-    if (allFuelPrices && typeof allFuelPrices === 'object') {
-      const stationPrices = (allFuelPrices as any)[id];
-      
-      if (stationPrices && typeof stationPrices === 'object') {
-        // Convert to the expected FuelPrice array format
-        return Object.entries(stationPrices).map(([fuelType, priceData]: [string, any]) => ({
-          fuel_type: fuelType,
-          price_per_litre: priceData?.price_per_litre || 0,
-          fuelType: fuelType,
-          pricePerLitre: priceData?.price_per_litre || 0,
-          id: `${id}-${fuelType}`, // Generate an ID for compatibility
-          station_id: id,
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString()
-        }));
-      }
-    }
-    
-    return [];
-  }, [id, queryClient]);
-  
-  const pricesLoading = false; // No loading since we're reading from cache
-
   // Fetch creditors
   const { data: creditors, isLoading: creditorsLoading } = useQuery({
     queryKey: ['station-creditors', id],
@@ -554,7 +524,8 @@ export default function StationDetail() {
     });
   };
 
-  
+  // Fetch fuel prices using the custom hook - MUST be called before ANY early returns
+  const { data: fuelPrices, isLoading: fuelPricesLoading } = useFuelPricesData(id);
 
   if (stationLoading) {
     return (
@@ -571,9 +542,6 @@ export default function StationDetail() {
       </div>
     );
   }
-
-  // Fetch fuel prices using the custom hook
-  const { data: fuelPrices, isLoading: fuelPricesLoading } = useFuelPricesData(id);
 
   return (
     <div className="container mx-auto p-6 space-y-4">
