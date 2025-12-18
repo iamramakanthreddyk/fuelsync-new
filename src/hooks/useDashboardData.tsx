@@ -164,12 +164,19 @@ export const useDashboardData = (stationId?: string) => {
         const globalData = queryClient.getQueryData<Record<string, any[]>>(globalQueryKey);
         const rawFuelPrices = effectiveStationId && globalData ? globalData[effectiveStationId] || [] : [];
 
+        // Ensure rawFuelPrices is not empty
+        if (!rawFuelPrices.length) {
+          console.warn('No fuel prices found for station:', effectiveStationId);
+        }
+
         // Transform array format to object format expected by dashboard
         const fuelPrices: { petrol?: number; diesel?: number; cng?: number } = {};
         rawFuelPrices.forEach((price: any) => {
           const fuelType = price.fuel_type?.toLowerCase();
           if (fuelType && price.price_per_litre) {
-            fuelPrices[fuelType as keyof typeof fuelPrices] = price.price_per_litre;
+            fuelPrices[fuelType as keyof typeof fuelPrices] = parseFloat(price.price_per_litre);
+          } else {
+            console.warn('Invalid fuel price entry:', price);
           }
         });
 

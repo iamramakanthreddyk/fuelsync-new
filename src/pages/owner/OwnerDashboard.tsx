@@ -98,15 +98,16 @@ export default function OwnerDashboard() {
 
   // 2. Get fuel prices from global cache instead of making API call
   const queryClient = useQueryClient();
+  
+  const allFuelPrices = queryClient.getQueryData(['all-fuel-prices', stations?.map(s => s.id).sort().join(',')]);
+  console.log('OwnerDashboard allFuelPrices from cache:', allFuelPrices);
+
   const fuelPricesResponse = useMemo(() => {
     if (!primaryStation?.id) return null;
-    
-    // Get all fuel prices from global cache
-    const allFuelPrices = queryClient.getQueryData(['all-fuel-prices', stations?.map(s => s.id).sort().join(',')]);
-    
+
     if (allFuelPrices && typeof allFuelPrices === 'object') {
       const stationPrices = (allFuelPrices as any)[primaryStation.id];
-      
+
       if (stationPrices && typeof stationPrices === 'object') {
         // Convert to the expected format
         const current = Object.entries(stationPrices).map(([fuelType, priceData]: [string, any]) => ({
@@ -115,7 +116,7 @@ export default function OwnerDashboard() {
           fuelType: fuelType,
           pricePerLitre: priceData?.price_per_litre || 0
         }));
-        
+
         return {
           success: true,
           data: {
@@ -125,9 +126,10 @@ export default function OwnerDashboard() {
         };
       }
     }
-    
+
+    console.warn('OwnerDashboard: No fuel prices found in cache for station:', primaryStation?.id);
     return null;
-  }, [primaryStation?.id, stations, queryClient]);
+  }, [primaryStation?.id, stations, allFuelPrices]);
 
   const hasFuelPrices = (fuelPricesResponse?.data?.current?.length ?? 0) > 0;
 
@@ -142,6 +144,11 @@ export default function OwnerDashboard() {
   const hasNozzles = hasPumps && (pumpsResponse?.data?.some((pump: any) => 
     Array.isArray(pump.nozzles) && pump.nozzles.length > 0
   ) ?? false);
+
+  // Ensure fuel prices are being detected correctly
+  if (!hasFuelPrices) {
+    console.warn('No fuel prices detected for OwnerDashboard.');
+  }
 
   // Guard: Don't render if not owner
   if (!user || user.role !== 'owner') {
