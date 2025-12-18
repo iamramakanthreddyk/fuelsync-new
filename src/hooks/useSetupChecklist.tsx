@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useFuelPricesData } from "@/hooks/useFuelPricesData";
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useAuth } from "@/hooks/useAuth";
+import { getBasePath } from "@/lib/roleUtils";
 
 export function useSetupChecklist() {
   const navigate = useNavigate();
@@ -39,7 +40,7 @@ export function useSetupChecklist() {
         key: "sales_data_entered",
         label: "Enter your first reading",
         completed: !!data && data.totalReadings > 0,
-        action: () => navigate("/data-entry"),
+        action: () => navigate(`${getBasePath(user?.role)}/quick-entry`),
       }
     );
   }

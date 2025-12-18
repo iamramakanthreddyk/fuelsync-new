@@ -502,7 +502,9 @@ export default function QuickDataEntry() {
       setPaymentAllocation({ cash: 0, online: 0, credits: [] });
       // Invalidate and refetch pumps data
       queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
+      queryClient.invalidateQueries({ queryKey: ['pumps-data', selectedStation] });
       queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
+      queryClient.refetchQueries({ queryKey: ['pumps-data', selectedStation] });
       // Invalidate dashboard data to refresh today's sales
       queryClient.invalidateQueries({ queryKey: ['dashboard', selectedStation] });
       // Invalidate sales report

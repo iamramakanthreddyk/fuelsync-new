@@ -17,7 +17,7 @@ import type { Pump as PumpType, Nozzle as NozzleType } from '@/types/api';
 interface BackendPump {
   id: string;
   stationId: string;
-  pumpNumber: number;
+  pumpNumber: number | string; // API returns string, but we need number
   name: string;
   status: EquipmentStatusEnum;
   notes?: string;
@@ -40,10 +40,11 @@ interface BackendNozzle {
 
 // Transform backend format to frontend format
 function transformPump(pump: BackendPump): PumpType {
-  return {
+  console.log('Transforming pump:', pump);
+  const transformed = {
     id: pump.id,
     stationId: pump.stationId,
-    pumpNumber: pump.pumpNumber,
+    pumpNumber: typeof pump.pumpNumber === 'string' ? parseInt(pump.pumpNumber, 10) : pump.pumpNumber,
     name: pump.name,
     status: pump.status,
     notes: pump.notes,
@@ -54,7 +55,7 @@ function transformPump(pump: BackendPump): PumpType {
       pumpId: nozzle.pumpId,
       stationId: nozzle.stationId,
       nozzleNumber: nozzle.nozzleNumber,
-      fuelType: (nozzle.fuelType as 'petrol' | 'diesel'),
+      fuelType: nozzle.fuelType as FuelTypeEnum,
       status: nozzle.status,
       initialReading: nozzle.initialReading,
       lastReading: nozzle.lastReading,
@@ -63,14 +64,18 @@ function transformPump(pump: BackendPump): PumpType {
       updatedAt: ''
     } as NozzleType))
   };
+  console.log('Transformed pump result:', transformed);
+  return transformed;
 }
 
 export function usePumpsData() {
   const { currentStation, isAdmin } = useRoleAccess();
   const stationId = currentStation?.id;
 
+  console.log('usePumpsData - stationId:', stationId, 'isAdmin:', isAdmin, 'enabled:', !!stationId || isAdmin);
+
   return useQuery<Pump[]>({
-    queryKey: ['pumps', stationId],
+    queryKey: ['pumps-data', stationId],
     queryFn: async () => {
       if (!stationId && !isAdmin) {
         return [];
@@ -86,9 +91,14 @@ export function usePumpsData() {
         // Extract array data from wrapped response - handles both wrapped and unwrapped
         const pumpsData = extractApiArray(response, []);
 
+        console.log('Raw API response:', response);
+        console.log('Extracted pumpsData:', pumpsData, 'Type:', typeof pumpsData, 'Is array:', Array.isArray(pumpsData));
+
         if (Array.isArray(pumpsData) && pumpsData.length > 0) {
           // Transform each pump to frontend format
           const transformed = pumpsData.map(transformPump);
+          console.log('Transformed pumps:', transformed);
+          console.log('Returning transformed pumps from queryFn');
           return transformed;
         }
 
@@ -100,6 +110,9 @@ export function usePumpsData() {
       }
     },
     enabled: !!stationId || isAdmin,
-    staleTime: 30000,
+    staleTime: Infinity, // Pumps don't change often, fetch once and reuse
+    gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
+    refetchOnMount: false, // Don't refetch on mount if cached
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 }

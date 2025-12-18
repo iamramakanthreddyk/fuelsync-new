@@ -278,7 +278,9 @@ export default function EmployeeQuickEntry() {
       setReadingDate(new Date().toISOString().split('T')[0]);
       // Refetch data
       queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
+      queryClient.invalidateQueries({ queryKey: ['pumps-data', selectedStation] });
       queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
+      queryClient.refetchQueries({ queryKey: ['pumps-data', selectedStation] });
       queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
       queryClient.invalidateQueries({ queryKey: ['readings'] });
       queryClient.invalidateQueries({ queryKey: ['transactions', selectedStation] });

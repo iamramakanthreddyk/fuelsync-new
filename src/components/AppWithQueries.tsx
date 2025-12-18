@@ -196,14 +196,14 @@ function ManagerOrOwnerRoute({ children }: { children: React.ReactNode }) {
 
 function RoleBasedDataEntry() {
   const { user } = useAuth();
-  
-  // Employees get the simplified Quick Entry
+
+  // All users get the Quick Entry system (employees get simplified, managers/owners get enhanced)
   if (user?.role === 'employee') {
     return <EmployeeQuickEntry />;
   }
-  
-  // Managers and owners get the full DataEntry (with tabs)
-  return <DataEntry />;
+
+  // Managers and owners get the enhanced Quick Entry
+  return <QuickDataEntry />;
 }
 
 function RoleBasedSales() {
@@ -301,8 +301,10 @@ function AppContent() {
       return allPrices;
     },
     enabled: !!user && stations.length > 0, // Only run when user is authenticated and stations are loaded
-    staleTime: 1000 * 60 * 15, // 15 minutes - prices don't change often
-    gcTime: 1000 * 60 * 60, // 1 hour - keep in cache longer
+    staleTime: Infinity, // Fuel prices don't change often, fetch once and reuse
+    gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
+    refetchOnMount: false, // Don't refetch on mount if cached
+    refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 
   return (

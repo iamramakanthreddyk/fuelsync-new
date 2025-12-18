@@ -211,6 +211,7 @@ export function useCreatePump() {
       apiClient.post<ApiResponse<Pump>>(`/stations/${stationId}/pumps`, data),
     onSuccess: (_, { stationId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pumps(stationId) });
+      queryClient.invalidateQueries({ queryKey: ['pumps-data', stationId] });
       // Also invalidate stations to update pumpCount
       queryClient.invalidateQueries({ queryKey: queryKeys.stations });
     },
@@ -227,6 +228,7 @@ export function useUpdatePump() {
     onSuccess: () => {
       if (stationId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.pumps(stationId) });
+        queryClient.invalidateQueries({ queryKey: ['pumps-data', stationId] });
       }
       // Also invalidate stations to update pump status
       queryClient.invalidateQueries({ queryKey: queryKeys.stations });

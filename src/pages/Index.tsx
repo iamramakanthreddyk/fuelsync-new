@@ -1,5 +1,5 @@
 import React from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, Navigate } from 'react-router-dom';
 import AppLayout from '@/components/AppLayout';
 import Dashboard from './Dashboard';
 import DataEntry from './DataEntry';
@@ -16,10 +16,11 @@ const Index = () => {
   
   const renderPage = () => {
     switch (location.pathname) {
-      // Point old and new routes to DataEntry (backward compatible)
+      // Point old data-entry route to quick entry (backward compatible)
       case '/data-entry':
       case '/upload':
-        return <DataEntry />;
+        // Redirect to quick entry - the actual routing is handled by AppWithQueries
+        return <Navigate to="/quick-entry" replace />;
       case '/sales':
         return <Sales />;
       case '/prices':

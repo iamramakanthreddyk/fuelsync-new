@@ -45,6 +45,9 @@ export default function Pumps() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pumps'] });
+      if (currentStation?.id) {
+        queryClient.invalidateQueries({ queryKey: ['pumps-data', currentStation.id] });
+      }
       setIsAddPumpOpen(false);
       setNewPump({ name: '', is_active: true });
       toast({
@@ -77,6 +80,9 @@ export default function Pumps() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['pumps'] });
+      if (currentStation?.id) {
+        queryClient.invalidateQueries({ queryKey: ['pumps-data', currentStation.id] });
+      }
       setIsAddNozzleOpen(false);
       setSelectedPumpId(null);
       setNewNozzle({ fuel_type: FuelTypeEnum.PETROL });
@@ -172,7 +178,9 @@ export default function Pumps() {
   }
 
   // Debug logging
-  console.log('Pumps data:', pumps, 'Type:', typeof pumps, 'Is array:', Array.isArray(pumps));
+  console.log('Pumps component - pumps:', pumps, 'isLoading:', isLoading, 'error:', error);
+  console.log('Pumps component - currentStation:', currentStation);
+  console.log('Pumps component - Array.isArray(pumps):', Array.isArray(pumps), 'pumps.length:', pumps?.length);
 
   return (
     <div className="container mx-auto p-6 space-y-6">
@@ -185,11 +193,6 @@ export default function Pumps() {
         </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => navigate('/data-entry')}>
-            <ClipboardEdit className="w-4 h-4 mr-2" />
-            Enter Readings
-          </Button>
-          
           {(isOwner || isAdmin) && (
             <Dialog open={isAddPumpOpen} onOpenChange={setIsAddPumpOpen}>
               <DialogTrigger asChild>
@@ -315,15 +318,6 @@ export default function Pumps() {
                           </div>
                         )}
                       </div>
-                      <Button 
-                        size="sm" 
-                        variant="ghost"
-                        onClick={() => navigate('/data-entry')}
-                        className="ml-2"
-                      >
-                        <ClipboardEdit className="w-3 h-3 mr-1" />
-                        Enter
-                      </Button>
                     </div>
                   ))}
                 </div>

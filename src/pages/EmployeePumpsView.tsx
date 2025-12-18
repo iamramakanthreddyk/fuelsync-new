@@ -55,10 +55,6 @@ export default function EmployeePumpsView() {
             View pump and nozzle information {currentStation ? `for ${currentStation.name}` : 'across all stations'}
           </p>
         </div>
-        <Button variant="outline" onClick={() => navigate('/data-entry')} className="w-full sm:w-auto shrink-0">
-          <ClipboardEdit className="w-4 h-4 mr-2" />
-          Enter Readings
-        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -99,22 +95,6 @@ export default function EmployeePumpsView() {
             <p className="text-xs md:text-sm text-muted-foreground mt-1">
               Current station
             </p>
-          </CardContent>
-        </Card>
-
-        <Card className="hover:shadow-md transition-shadow sm:col-span-2 lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <CardTitle className="text-sm md:text-base font-medium">Quick Actions</CardTitle>
-            <ClipboardEdit className="h-5 w-5 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <Button
-              variant="outline"
-              onClick={() => navigate('/data-entry')}
-              className="w-full text-sm md:text-base"
-            >
-              Enter Fuel Readings
-            </Button>
           </CardContent>
         </Card>
       </div>
@@ -169,14 +149,6 @@ export default function EmployeePumpsView() {
                                   </div>
                                 )}
                               </div>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => navigate('/data-entry')}
-                                className="ml-3 flex-shrink-0 text-xs md:text-sm"
-                              >
-                                Enter Reading
-                              </Button>
                             </div>
                           ))}
                         </div>
