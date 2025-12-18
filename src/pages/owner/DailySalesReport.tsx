@@ -176,7 +176,7 @@ export default function DailySalesReport() {
         <Card className="flex-1 overflow-hidden min-w-[220px] md:min-w-[260px] xl:min-w-[340px]">
           <CardContent className="p-6">
             <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Sale Value</div>
-            <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-green-600 break-all md:break-normal">
+            <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-green-600 break-words">
               ₹{report!.totalSaleValue >= 100000 
                 ? `${safeToFixed(report!.totalSaleValue / 100000, 1)}L`
                 : safeToFixed(report!.totalSaleValue, 2)}
@@ -188,7 +188,7 @@ export default function DailySalesReport() {
         <Card className="flex-1 overflow-hidden min-w-[220px] md:min-w-[260px] xl:min-w-[340px]">
           <CardContent className="p-6">
             <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Liters</div>
-            <div className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-blue-600 break-all md:break-normal">
+            <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-blue-600 break-words">
               {report!.totalLiters >= 1000 
                 ? `${safeToFixed(report!.totalLiters / 1000, 1)}K L`
                 : `${safeToFixed(report!.totalLiters, 2)} L`}

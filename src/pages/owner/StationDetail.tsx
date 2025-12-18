@@ -47,6 +47,7 @@ import {
   CreditCard,
   CheckCircle2
 } from 'lucide-react';
+import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 
 // Import enums and types
 import type {
@@ -571,6 +572,9 @@ export default function StationDetail() {
     );
   }
 
+  // Fetch fuel prices using the custom hook
+  const { data: fuelPrices, isLoading: fuelPricesLoading } = useFuelPricesData(id);
+
   return (
     <div className="container mx-auto p-6 space-y-4">
       {/* Header */}
@@ -933,23 +937,20 @@ export default function StationDetail() {
             </Dialog>
           </div>
 
-          {pricesLoading ? (
+          {fuelPricesLoading ? (
             <div className="text-center py-6">Loading prices...</div>
-          ) : prices && prices.length > 0 ? (
+          ) : fuelPrices && fuelPrices.length > 0 ? (
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {prices.map((price: any) => (
+              {fuelPrices.map((price) => (
                 <Card key={price.id}>
                   <CardHeader>
                     <CardTitle className="text-lg capitalize">{price.fuelType}</CardTitle>
                     <CardDescription>
-                      Effective from {formatDateLocal(price.effectiveFrom)}
+                      Effective from {price.valid_from}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-3xl font-bold">₹{toFixedNumber(price.price, 2)}</div>
-                    <p className="text-sm text-muted-foreground mt-2">
-                      Updated {formatDateTimeLocal(price.createdAt)}
-                    </p>
+                    <div className="text-3xl font-bold">₹{price.price_per_litre}</div>
                   </CardContent>
                 </Card>
               ))}

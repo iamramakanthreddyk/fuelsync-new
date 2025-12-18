@@ -4,7 +4,7 @@
  */
 
 import { useState } from 'react';
-  import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -39,7 +39,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
-import { Plus, UserPlus, Edit, Trash2, Mail, Phone, Building2, Shield, Key } from 'lucide-react';
+import { Plus, UserPlus } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -490,73 +490,30 @@ export default function EmployeesManagement() {
       ) : filteredEmployees && filteredEmployees.length > 0 ? (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredEmployees.map((employee: Employee) => (
-            <Card key={employee.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader>
-                <div className="flex items-start justify-between">
-                  <div>
-                    <CardTitle className="text-lg">{employee.name}</CardTitle>
-                    <div className="flex items-center gap-2 mt-1">
-                      <Badge variant={employee.role === 'manager' ? 'default' : 'secondary'}>
-                        <Shield className="w-3 h-3 mr-1" />
-                        {employee.role}
-                      </Badge>
-                      <Badge variant={employee.isActive ? 'default' : 'outline'}>
-                        {employee.isActive ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {/* Contact */}
-                <div className="space-y-1 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    <span className="truncate">{employee.email}</span>
-                  </div>
-                  {employee.phone && (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-muted-foreground" />
-                      <span>{employee.phone}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Station */}
-                {employee.station && (
-                  <div className="flex items-center gap-2 text-sm">
-                    <Building2 className="w-4 h-4 text-muted-foreground" />
-                    <span className="truncate">
-                      {employee.station.name}
-                      {employee.station.code && ` (${employee.station.code})`}
-                    </span>
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="flex gap-2 pt-2">
+            // Redesigned employee cards for better visibility on laptops
+            <Card key={employee.id} className="flex-1 overflow-hidden min-w-[300px] md:min-w-[400px] xl:min-w-[500px]">
+              <CardContent className="p-6">
+                <div className="text-lg md:text-xl font-bold text-primary truncate">{employee.name}</div>
+                <div className="text-sm md:text-base text-muted-foreground truncate">{employee.email}</div>
+                <div className="text-sm md:text-base text-muted-foreground truncate">{employee.phone || 'N/A'}</div>
+                <div className="text-sm md:text-base text-muted-foreground truncate">Role: {employee.role}</div>
+                <div className="text-sm md:text-base text-muted-foreground truncate">Station: {employee.station?.name || 'Unassigned'}</div>
+                <div className="flex gap-4 mt-6">
+                  <Button
+                    variant="default"
+                    size="sm"
+                    className="px-4 py-2 rounded-lg shadow-md"
+                    onClick={() => handleEdit(employee)}
+                  >
+                    Edit Details
+                  </Button>
                   <Button
                     variant="outline"
                     size="sm"
-                    className="flex-1"
-                    onClick={() => handleEdit(employee)}
+                    className="px-4 py-2 rounded-lg shadow-md"
+                    onClick={() => handleResetPassword()}
                   >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={() => handleResetPasswordDialogOpen(employee)}
-                  >
-                    <Key className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => setDeleteEmployeeId(employee.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
+                    Reset Password
                   </Button>
                 </div>
               </CardContent>

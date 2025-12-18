@@ -6,7 +6,7 @@
 import { Card, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Building2, ArrowRight } from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { StationsList } from './StationsList';
 import { NavigateFunction } from 'react-router-dom';
 
@@ -47,15 +47,26 @@ export function StationsCard({ stations, isLoading, navigate }: StationsCardProp
               Performance overview and management
             </CardDescription>
           </div>
-          <Button 
-            onClick={() => navigate('/owner/stations')} 
-            size="sm" 
-            className="w-full sm:w-auto shadow-sm"
-            variant="outline"
-          >
-            <span className="inline">View All Stations</span>
-            <ArrowRight className="w-4 h-4 ml-2" />
-          </Button>
+          {stations.length > 0 && (
+            <div className="flex gap-4">
+              <Button
+                onClick={() => navigate(`/owner/daily-settlement/${stations[0].id}`)}
+                size="sm"
+                className="px-6 py-2 text-white bg-green-600 hover:bg-green-700 rounded-lg shadow-lg"
+                variant="default"
+              >
+                Settle
+              </Button>
+              <Button
+                onClick={() => navigate(`/owner/stations/${stations[0].id}`)}
+                size="sm"
+                className="px-6 py-2 text-white bg-blue-600 hover:bg-blue-700 rounded-lg shadow-lg"
+                variant="default"
+              >
+                Manage
+              </Button>
+            </div>
+          )}
         </div>
       </CardHeader>
       <StationsList stations={stations} isLoading={isLoading} navigate={navigate} />
