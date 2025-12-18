@@ -37,7 +37,9 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
-import { getBasePath } from '@/lib/roleUtils';import { useAuth } from "@/hooks/useAuth";import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { getBasePath } from '@/lib/roleUtils';
+import { useAuth } from '@/hooks/useAuth';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
 import {
   TrendingUp,
   AlertCircle,
@@ -135,6 +137,8 @@ interface SettlementRecord {
   recordedAt?: string;
   attempts?: number;
   mainSettlement?: { id?: string } | null;
+  recordedByUser?: { name: string; email?: string };
+  status?: string;
 }
 
 export default function DailySettlement() {
@@ -143,7 +147,8 @@ export default function DailySettlement() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  const { currentStation } = useRoleAccess();
+  const isManager = user?.role === 'manager';
+  const isOwner = user?.role === 'owner' || user?.role === 'super_admin';
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [actualCash, setActualCash] = useState<number>(0);
@@ -291,6 +296,17 @@ export default function DailySettlement() {
       }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
   };
 
+  // Get final settlement for selected date (for manager view)
+  const getFinalSettlementForDate = (): SettlementRecord | null => {
+    if (!previousSettlements || previousSettlements.length === 0) return null;
+    
+    // Filter to selected date and get final settlement
+    const settlementForDate = previousSettlements.find(
+      (s) => new Date(s.date).toISOString().split('T')[0] === selectedDate && s.isFinal
+    );
+    return settlementForDate || null;
+  };
+
   const handleSubmitSettlement = async () => {
     if (!dailySales) {
       toast({
@@ -391,6 +407,283 @@ export default function DailySettlement() {
             <p className="text-muted-foreground">No sales recorded for this date</p>
           </CardContent>
         </Card>
+      ) : isManager ? (
+        <>
+          {/* Manager View - Comprehensive Settlement Dashboard */}
+          {/* Manager Settlement Summary - Using settlement data */}
+          {(() => {
+            const finalSettlement = getFinalSettlementForDate();
+            if (finalSettlement) {
+              // Calculate total sales from settlement (handle undefined values)
+              const totalSales = (finalSettlement.employeeCash ?? 0) + (finalSettlement.employeeOnline ?? 0) + (finalSettlement.employeeCredit ?? 0);
+              
+              return (
+                <Card className="border-green-200 bg-green-50 p-3 sm:p-4 md:p-6">
+                  <CardHeader className="p-0 pb-3">
+                    <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                      <FileCheck className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
+                      Settlement Overview
+                    </CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">
+                      Daily settlement status and reconciliation summary
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-0 space-y-3 sm:space-y-4">
+                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 md:gap-4">
+                      <div className="p-2 sm:p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                        <div className="text-xs text-muted-foreground mb-1 truncate">Total Sales</div>
+                        <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-green-600 break-words">
+                          ₹{totalSales >= 100000
+                            ? `${safeToFixed(totalSales / 100000, 1)}L`
+                            : safeToFixed(totalSales, 2)}
+                        </div>
+                      </div>
+                      <div className="p-2 sm:p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                        <div className="text-xs text-muted-foreground mb-1 truncate">Expected Cash</div>
+                        <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-blue-600 break-words">
+                          ₹{finalSettlement.expectedCash >= 100000
+                            ? `${safeToFixed(finalSettlement.expectedCash / 100000, 1)}L`
+                            : safeToFixed(finalSettlement.expectedCash, 2)}
+                        </div>
+                      </div>
+                      <div className="p-2 sm:p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                        <div className="text-xs text-muted-foreground mb-1 truncate">Variance</div>
+                        <div className={`text-sm sm:text-lg md:text-xl lg:text-2xl font-bold break-words ${finalSettlement.variance >= 0 ? 'text-orange-600' : 'text-red-600'}`}>
+                          {finalSettlement.variance >= 0 ? '+' : ''}₹{safeToFixed(finalSettlement.variance, 2)}
+                        </div>
+                      </div>
+                      <div className="p-2 sm:p-3 md:p-4 bg-white rounded-lg border overflow-hidden">
+                        <div className="text-xs text-muted-foreground mb-1 truncate">Status</div>
+                        <div className="text-sm sm:text-lg md:text-xl lg:text-2xl font-bold text-purple-600 break-words">
+                          {finalSettlement.isFinal ? '✓ Final' : 'Draft'}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Payment Breakdown */}
+                    <div className="grid grid-cols-3 gap-1 sm:gap-2 md:gap-3 mt-3 sm:mt-4 pt-3 sm:pt-4 border-t">
+                      <div className="p-1.5 sm:p-2 md:p-3 bg-white rounded-lg border-2 border-green-200 overflow-hidden">
+                        <div className="text-xs text-muted-foreground mb-1 truncate">Cash</div>
+                        <div className="text-xs sm:text-sm md:text-base font-bold text-green-600 break-words">
+                          ₹{finalSettlement.actualCash >= 100000
+                            ? `${safeToFixed(finalSettlement.actualCash / 100000, 1)}L`
+                            : safeToFixed(finalSettlement.actualCash, 2)}
+                        </div>
+                      </div>
+                      <div className="p-1.5 sm:p-2 md:p-3 bg-white rounded-lg border-2 border-blue-200 overflow-hidden">
+                        <div className="text-xs text-muted-foreground mb-1 truncate">Online</div>
+                        <div className="text-xs sm:text-sm md:text-base font-bold text-blue-600 break-words">
+                          ₹{finalSettlement.online >= 100000
+                            ? `${safeToFixed(finalSettlement.online / 100000, 1)}L`
+                            : safeToFixed(finalSettlement.online, 2)}
+                        </div>
+                      </div>
+                      <div className="p-1.5 sm:p-2 md:p-3 bg-white rounded-lg border-2 border-orange-200 overflow-hidden">
+                        <div className="text-xs text-muted-foreground mb-1 truncate">Credit</div>
+                        <div className="text-xs sm:text-sm md:text-base font-bold text-orange-600 break-words">
+                          ₹{finalSettlement.credit >= 100000
+                            ? `${safeToFixed(finalSettlement.credit / 100000, 1)}L`
+                            : safeToFixed(finalSettlement.credit, 2)}
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            }
+            // If no final settlement, show "No settlement recorded" message
+            return (
+              <Card className="border-yellow-200 bg-yellow-50 p-3 sm:p-4 md:p-6">
+                <CardContent className="py-12 text-center">
+                  <AlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-4" />
+                  <p className="text-muted-foreground">No settlement recorded for {new Date(selectedDate).toLocaleDateString('en-IN')}</p>
+                </CardContent>
+              </Card>
+            );
+          })()}
+
+          {/* Manager Settlement History - Enhanced View */}
+          {previousSettlements && previousSettlements.length > 0 && (
+            <Card className="p-3 sm:p-4 md:p-6">
+              <CardHeader className="p-0 pb-3">
+                <CardTitle className="text-base sm:text-lg">Settlement History</CardTitle>
+                <CardDescription className="text-xs sm:text-sm">
+                  Detailed reconciliation records with employee vs owner confirmation
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="space-y-4 sm:space-y-6">
+                  {previousSettlements.map((settlement: SettlementRecord) => (
+                    <div key={settlement.id} className={`border-2 rounded-lg p-4 sm:p-6 space-y-4 ${settlement.isFinal ? 'border-green-300 bg-green-50' : 'border-gray-300 bg-gray-50'}`}>
+                      {/* Header */}
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                          <h4 className="font-bold text-lg sm:text-xl text-gray-800">
+                            {new Date(settlement.date).toLocaleDateString('en-IN', {
+                              weekday: 'long',
+                              day: 'numeric',
+                              month: 'long',
+                              year: 'numeric'
+                            })}
+                          </h4>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Recorded by {settlement.recordedByUser?.name || settlement.settledBy || 'Unknown'} • 
+                            {new Date(settlement.recordedAt || settlement.settledAt || settlement.date).toLocaleString('en-IN')}
+                          </p>
+                        </div>
+                        <div className="flex flex-col sm:items-end gap-2">
+                          <Badge variant={settlement.isFinal ? "default" : "secondary"} className="text-xs">
+                            {settlement.isFinal ? 'Final Settlement' : 'Draft Settlement'}
+                          </Badge>
+                          {settlement.duplicateCount && settlement.duplicateCount > 1 && (
+                            <Badge variant="outline" className="text-xs text-orange-600 border-orange-300">
+                              {settlement.duplicateCount} attempts
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Employee vs Owner Comparison */}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                          <div className="flex items-center gap-2 mb-3">
+                            <User className="w-4 h-4 text-blue-600" />
+                            <h5 className="font-semibold text-blue-800">Employee Reported</h5>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-sm text-blue-700">Cash:</span>
+                              <span className="font-bold text-blue-800">₹{safeToFixed(settlement.employeeCash ?? 0, 2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-blue-700">Online:</span>
+                              <span className="font-bold text-blue-800">₹{safeToFixed(settlement.employeeOnline ?? 0, 2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-blue-700">Credit:</span>
+                              <span className="font-bold text-blue-800">₹{safeToFixed(settlement.employeeCredit ?? 0, 2)}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                          <div className="flex items-center gap-2 mb-3">
+                            <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            <h5 className="font-semibold text-green-800">Owner Confirmed</h5>
+                          </div>
+                          <div className="space-y-2">
+                            <div className="flex justify-between">
+                              <span className="text-sm text-green-700">Cash:</span>
+                              <span className="font-bold text-green-800">₹{safeToFixed(settlement.actualCash, 2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-green-700">Online:</span>
+                              <span className="font-bold text-green-800">₹{safeToFixed(settlement.online, 2)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm text-green-700">Credit:</span>
+                              <span className="font-bold text-green-800">₹{safeToFixed(settlement.credit, 2)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Variance Analysis */}
+                      <div className="bg-white p-4 rounded-lg border">
+                        <h5 className="font-semibold text-gray-800 mb-3">Variance Analysis</h5>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          <div className={`p-3 rounded border ${Math.abs(settlement.variance ?? 0) < 1 ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}>
+                            <div className="text-xs text-muted-foreground mb-1">Cash Variance</div>
+                            <div className={`text-lg font-bold ${(settlement.variance ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {(settlement.variance ?? 0) >= 0 ? '+' : ''}₹{safeToFixed(settlement.variance ?? 0, 2)}
+                            </div>
+                          </div>
+                          <div className={`p-3 rounded border ${Math.abs(settlement.varianceOnline ?? 0) < 1 ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}>
+                            <div className="text-xs text-muted-foreground mb-1">Online Variance</div>
+                            <div className={`text-lg font-bold ${(settlement.varianceOnline ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {(settlement.varianceOnline ?? 0) >= 0 ? '+' : ''}₹{safeToFixed(settlement.varianceOnline ?? 0, 2)}
+                            </div>
+                          </div>
+                          <div className={`p-3 rounded border ${Math.abs(settlement.varianceCredit ?? 0) < 1 ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50'}`}>
+                            <div className="text-xs text-muted-foreground mb-1">Credit Variance</div>
+                            <div className={`text-lg font-bold ${(settlement.varianceCredit ?? 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                              {(settlement.varianceCredit ?? 0) >= 0 ? '+' : ''}₹{safeToFixed(settlement.varianceCredit ?? 0, 2)}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* All Settlements for this date (if duplicates) */}
+                      {settlement.duplicateCount && settlement.duplicateCount > 1 && settlement.allSettlements && (
+                        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                          <h5 className="font-semibold text-yellow-800 mb-3">All Settlement Attempts</h5>
+                          <div className="space-y-2 max-h-48 overflow-y-auto">
+                            {settlement.allSettlements.map((s, idx) => (
+                              <div key={s.id || idx} className={`p-3 rounded border text-sm ${s.isFinal ? 'border-green-300 bg-green-25' : 'border-gray-300 bg-white'}`}>
+                                <div className="flex justify-between items-start mb-2">
+                                  <span className="font-medium">
+                                    {new Date(s.settledAt || s.finalizedAt || s.recordedAt || s.date).toLocaleString('en-IN')}
+                                  </span>
+                                  {s.isFinal && <Badge variant="outline" className="text-green-700 border-green-600 text-xs">Final</Badge>}
+                                </div>
+                                <div className="grid grid-cols-3 gap-2 text-xs">
+                                  <div>Cash: ₹{safeToFixed(s.actualCash, 2)}</div>
+                                  <div>Online: ₹{safeToFixed(s.online, 2)}</div>
+                                  <div>Credit: ₹{safeToFixed(s.credit, 2)}</div>
+                                </div>
+                                <div className="text-xs text-muted-foreground mt-1">
+                                  Variance: {safeToFixed(s.variance, 2)} | Status: {s.status}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Manager Actions */}
+          <Card className="p-3 sm:p-4 md:p-6">
+            <CardHeader className="p-0 pb-3">
+              <CardTitle className="text-base sm:text-lg">Manager Actions</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                <Button
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-center gap-2"
+                  onClick={() => navigate(`${getBasePath(user?.role)}/readings`)}
+                >
+                  <FileCheck className="w-6 h-6" />
+                  <span className="text-sm font-medium">View Readings</span>
+                  <span className="text-xs text-muted-foreground">Review employee entries</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-center gap-2"
+                  onClick={() => navigate(`${getBasePath(user?.role)}/reports`)}
+                >
+                  <TrendingUp className="w-6 h-6" />
+                  <span className="text-sm font-medium">View Reports</span>
+                  <span className="text-xs text-muted-foreground">Daily sales reports</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="h-auto p-4 flex flex-col items-center gap-2"
+                  onClick={() => navigate(`${getBasePath(user?.role)}/dashboard`)}
+                >
+                  <ArrowLeft className="w-6 h-6" />
+                  <span className="text-sm font-medium">Back to Dashboard</span>
+                  <span className="text-xs text-muted-foreground">Station overview</span>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </>
       ) : (
         <>
           {/* Sales Summary */}

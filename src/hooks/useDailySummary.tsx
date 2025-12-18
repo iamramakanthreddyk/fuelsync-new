@@ -46,7 +46,7 @@ interface FinancialOverviewResponse {
 }
 
 export function useDailySummary(date: string) {
-  const { currentStation, isAdmin } = useRoleAccess();
+  const { currentStation, isAdmin, isOwner } = useRoleAccess();
   const stationId = currentStation?.id;
 
   return useQuery<DailySummaryData>({
@@ -59,7 +59,37 @@ export function useDailySummary(date: string) {
       if (stationId) params.set('stationId', stationId);
 
       try {
-        // Fetch daily data and financial overview in parallel
+        // For managers, only fetch daily data (financial overview requires owner+ permissions)
+        if (!isOwner && !isAdmin) {
+          const dailyResponse = await apiClient.get<ApiResponse<DashboardDailyResponse[]>>(`/dashboard/daily?${params.toString()}`);
+          
+          const dailyData = dailyResponse.success && dailyResponse.data?.[0] 
+            ? dailyResponse.data[0] 
+            : null;
+
+          // Calculate totals from daily data only
+          const salesTotal = dailyData?.totalSales ?? 0;
+          const cashAmount = dailyData?.cashSales ?? 0;
+          const onlineAmount = dailyData?.onlineSales ?? 0;
+          const creditAmount = dailyData?.creditSales ?? 0;
+
+          return {
+            sales_total: salesTotal,
+            payments_total: cashAmount + onlineAmount,
+            difference: salesTotal - (cashAmount + onlineAmount),
+            breakdown: {
+              cash: cashAmount,
+              card: 0, // Not available in daily endpoint
+              upi: onlineAmount,
+              credit: creditAmount
+            },
+            date,
+            closedAt: undefined,
+            closedBy: undefined
+          };
+        }
+
+        // For owners/admins, fetch both daily and financial data
         const [dailyResponse, financialResponse] = await Promise.all([
           apiClient.get<ApiResponse<DashboardDailyResponse[]>>(`/dashboard/daily?${params.toString()}`),
           apiClient.get<ApiResponse<FinancialOverviewResponse>>(`/dashboard/financial-overview?${params.toString()}`)

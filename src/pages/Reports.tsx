@@ -47,7 +47,7 @@ export default function Reports() {
 
   const handleExport = () => {
     // Export current preview as CSV if available
-    const rows = reportData?.data || [];
+    const rows = Array.isArray(reportData?.data) ? reportData.data : [];
     if (!rows || rows.length === 0) {
       toast({ title: 'Nothing to export', description: 'No report data available for the selected range.' });
       return;
@@ -203,8 +203,10 @@ export default function Reports() {
 
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">Loading report...</div>
-          ) : !reportData || (Array.isArray(reportData.data) && reportData.data.length === 0) ? (
-            <div className="text-center py-8 text-muted-foreground">No data for selected range</div>
+          ) : !reportData || !Array.isArray(reportData.data) || reportData.data.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              {!Array.isArray(reportData?.data) ? 'Error loading report data' : 'No data for selected range'}
+            </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm table-auto">

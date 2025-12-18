@@ -1,6 +1,7 @@
 import { apiClient } from '@/lib/api-client';
 import { NozzleReading, Pump, Nozzle, DashboardSummary } from '@/types/api';
 import { extractApiData } from '@/lib/api-response';
+import { ReportType } from '@/hooks/useReports';
 
 export class ApiService {
   async getNozzleReadings(stationId: string) {
@@ -117,9 +118,11 @@ export class ApiService {
     };
   }
 
-  async generateReport(stationId: string, startDate: string, endDate: string) {
-    const response = await apiClient.get<NozzleReading[]>(`/readings?stationId=${stationId}&startDate=${startDate}&endDate=${endDate}`);
-    return { data: response || [] };
+  async generateReport(stationId: string, startDate: string, endDate: string, reportType: ReportType = 'daily') {
+    const response = await apiClient.get<{ success: boolean; data: NozzleReading[] }>(`/readings?stationId=${stationId}&startDate=${startDate}&endDate=${endDate}`);
+    // Extract the actual data array from the response envelope
+    const readings = response?.data || [];
+    return { data: readings };
   }
 
   async getUploads(_stationId: string) {

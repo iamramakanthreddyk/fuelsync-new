@@ -125,24 +125,54 @@ export const useDashboardData = (stationId?: string) => {
           }>;
         } | null;
 
-        // Extract fuel prices from global cache instead of making API call
-        const fuelPrices: DashboardData['fuelPrices'] = {};
-        try {
-          // Use the global fuel prices cache
-          const stations = user?.stations || [];
-          const globalPrices = queryClient.getQueryData<Record<string, any[]>>(['all-fuel-prices', stations.map(s => s.id).sort().join(',')]);
+        // Fetch 7-day trends data for managers and above
+        let trendsData: Array<{ date: string; sales: number; payments: number }> = [];
+        if (user?.role && ['manager', 'owner', 'super_admin'].includes(user.role)) {
+          try {
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            const startDate = sevenDaysAgo.toISOString().split('T')[0];
+            const endDate = today;
 
-          if (globalPrices && globalPrices[effectiveStationId]) {
-            globalPrices[effectiveStationId].forEach((price: any) => {
-              const fuelType = (price.fuel_type || price.fuelType || '').toLowerCase();
-              if (fuelType && price.price_per_litre) {
-                fuelPrices[fuelType as keyof typeof fuelPrices] = price.price_per_litre;
-              }
-            });
+            const trendsResponse = await apiClient.get<{
+              success: boolean;
+              data: Array<{
+                date: string;
+                litres: number;
+                amount: number;
+                cash: number;
+                online: number;
+                credit: number;
+                readings: number;
+              }>;
+            }>(`/dashboard/daily?startDate=${startDate}&endDate=${endDate}&stationId=${effectiveStationId}`);
+
+            if (trendsResponse.success && trendsResponse.data) {
+              trendsData = trendsResponse.data.map(day => ({
+                date: day.date,
+                sales: day.amount,
+                payments: day.cash + day.online + day.credit
+              }));
+            }
+          } catch (error) {
+            console.warn('Could not fetch trends data:', error);
+            // trendsData remains empty array
           }
-        } catch (e) {
-          console.warn('Could not load fuel prices from cache:', e);
         }
+
+        // Get fuel prices from global cache and transform to expected format
+        const globalQueryKey = ['all-fuel-prices', user?.stations?.map(s => s.id).sort().join(',')];
+        const globalData = queryClient.getQueryData<Record<string, any[]>>(globalQueryKey);
+        const rawFuelPrices = effectiveStationId && globalData ? globalData[effectiveStationId] || [] : [];
+
+        // Transform array format to object format expected by dashboard
+        const fuelPrices: { petrol?: number; diesel?: number; cng?: number } = {};
+        rawFuelPrices.forEach((price: any) => {
+          const fuelType = price.fuel_type?.toLowerCase();
+          if (fuelType && price.price_per_litre) {
+            fuelPrices[fuelType as keyof typeof fuelPrices] = price.price_per_litre;
+          }
+        });
 
         return {
           todaySales: summaryData?.today?.amount ?? 0,
@@ -152,7 +182,7 @@ export const useDashboardData = (stationId?: string) => {
           pumps: summaryData?.pumps ?? [],
           lastReading: null, // Not available in current API
           pendingClosures: 0, // Not implemented yet
-          trendsData: [],
+          trendsData,
           fuelPrices,
           alerts: []
         };

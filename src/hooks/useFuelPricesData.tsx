@@ -104,16 +104,20 @@ export function useFuelPricesData(overrideStationId?: string) {
 
   // Read from the global fuel prices cache
   const globalQueryKey = ['all-fuel-prices', stations?.map(s => s.id).sort().join(',')];
+  const globalQuery = queryClient.getQueryState(globalQueryKey);
   const globalData = queryClient.getQueryData<Record<string, FuelPrice[]>>(globalQueryKey);
 
   // Transform the data to match the expected format
   const fuelPrices = stationId && globalData ? globalData[stationId] || [] : [];
 
+  // Return loading state based on whether global query is still fetching
+  const isLoading = globalQuery?.status === 'pending';
+
   // Return in the same format as useQuery
   return {
     data: fuelPrices,
-    isLoading: false, // Data should already be loaded by the global query
-    error: null,
+    isLoading,
+    error: globalQuery?.error,
     refetch: () => queryClient.invalidateQueries({ queryKey: globalQueryKey }),
   };
 }
