@@ -160,7 +160,6 @@ export default function Pumps() {
   }
 
   if (error) {
-    console.error('Pumps loading error:', error);
     return (
       <div className="container mx-auto p-6">
         <Card>
@@ -176,11 +175,6 @@ export default function Pumps() {
       </div>
     );
   }
-
-  // Debug logging
-  console.log('Pumps component - pumps:', pumps, 'isLoading:', isLoading, 'error:', error);
-  console.log('Pumps component - currentStation:', currentStation);
-  console.log('Pumps component - Array.isArray(pumps):', Array.isArray(pumps), 'pumps.length:', pumps?.length);
 
   return (
     <div className="container mx-auto p-6 space-y-6">

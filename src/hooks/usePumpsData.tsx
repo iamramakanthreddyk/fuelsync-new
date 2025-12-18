@@ -40,7 +40,6 @@ interface BackendNozzle {
 
 // Transform backend format to frontend format
 function transformPump(pump: BackendPump): PumpType {
-  console.log('Transforming pump:', pump);
   const transformed = {
     id: pump.id,
     stationId: pump.stationId,
@@ -64,15 +63,12 @@ function transformPump(pump: BackendPump): PumpType {
       updatedAt: ''
     } as NozzleType))
   };
-  console.log('Transformed pump result:', transformed);
   return transformed;
 }
 
 export function usePumpsData() {
   const { currentStation, isAdmin } = useRoleAccess();
   const stationId = currentStation?.id;
-
-  console.log('usePumpsData - stationId:', stationId, 'isAdmin:', isAdmin, 'enabled:', !!stationId || isAdmin);
 
   return useQuery<Pump[]>({
     queryKey: ['pumps-data', stationId],
@@ -91,21 +87,14 @@ export function usePumpsData() {
         // Extract array data from wrapped response - handles both wrapped and unwrapped
         const pumpsData = extractApiArray(response, []);
 
-        console.log('Raw API response:', response);
-        console.log('Extracted pumpsData:', pumpsData, 'Type:', typeof pumpsData, 'Is array:', Array.isArray(pumpsData));
-
         if (Array.isArray(pumpsData) && pumpsData.length > 0) {
           // Transform each pump to frontend format
           const transformed = pumpsData.map(transformPump);
-          console.log('Transformed pumps:', transformed);
-          console.log('Returning transformed pumps from queryFn');
           return transformed;
         }
 
-        console.warn('⚠️ No pumps data found');
         return [];
       } catch (error) {
-        console.error('❌ Error fetching pumps:', error);
         return [];
       }
     },

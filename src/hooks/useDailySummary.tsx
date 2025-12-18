@@ -130,7 +130,6 @@ export function useDailySummary(date: string) {
           date
         };
       } catch (error) {
-        console.error('[useDailySummary] Failed to fetch data:', error);
         // Return empty data on error
         return {
           sales_total: 0,

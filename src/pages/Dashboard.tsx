@@ -1,4 +1,3 @@
-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
 import { IndianRupee, TrendingUp, Clock, AlertTriangle, Lock } from "lucide-react";
@@ -38,10 +37,6 @@ export default function Dashboard() {
     lastReading: null
   };
   
-  // Debug: log user and dashboard data
-  console.log('Dashboard user:', user);
-  console.log('Dashboard data:', data);
-  console.log('Dashboard dashboardData:', dashboardData);
   const logActivity = useActivityLogger();
   useEffect(() => {
     logActivity("dashboard_view", {
@@ -52,7 +47,6 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ...existing code...
   const { data: fuelPricesList, isLoading: isPricesLoading } = useFuelPricesData();
   const roleAccess = useRoleAccess();
   const { currentStation, isEmployee } = roleAccess;
@@ -101,9 +95,6 @@ export default function Dashboard() {
       </div>
     );
   }
-  // Debug: log after loading
-  console.log('Dashboard loaded. User:', user);
-  console.log('Dashboard loaded. Data:', data);
 
   // Check if user has no stations assigned
   const hasNoStationsAlert = dashboardData.alerts?.some(alert => alert.id === 'no_stations');

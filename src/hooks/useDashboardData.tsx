@@ -155,7 +155,6 @@ export const useDashboardData = (stationId?: string) => {
               }));
             }
           } catch (error) {
-            console.warn('Could not fetch trends data:', error);
             // trendsData remains empty array
           }
         }
@@ -187,7 +186,6 @@ export const useDashboardData = (stationId?: string) => {
           alerts: []
         };
       } catch (error: unknown) {
-        console.error('Error loading dashboard data:', error);
         return {
           todaySales: 0,
           todayPayments: 0,
