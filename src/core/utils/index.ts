@@ -80,16 +80,6 @@ export function formatVolume(
 }
 
 /**
- * Format a percentage
- */
-export function formatPercentage(
-  value: number,
-  decimals: number = NUMBER_FORMATS.PERCENTAGE_DECIMALS
-): string {
-  return `${value >= 0 ? '+' : ''}${safeToFixed(value, decimals)}%`;
-}
-
-/**
  * Format a date
  */
 export function formatDate(

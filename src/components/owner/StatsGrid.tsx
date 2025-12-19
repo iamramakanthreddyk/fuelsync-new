@@ -20,7 +20,7 @@ export function StatsGrid({ stats, isLoading }: StatsGridProps) {
     <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-4">
       <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-blue-500 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
-          <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Stations</CardTitle>
+          <CardTitle className="text-xs font-medium text-muted-foreground">Stations</CardTitle>
           <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
             <Building2 className="h-4 w-4 text-blue-600 dark:text-blue-400" />
           </div>
@@ -39,7 +39,7 @@ export function StatsGrid({ stats, isLoading }: StatsGridProps) {
       </Card>
       <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-purple-500 bg-gradient-to-br from-purple-50/50 to-transparent dark:from-purple-950/20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
-          <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Employees</CardTitle>
+          <CardTitle className="text-xs font-medium text-muted-foreground">Employees</CardTitle>
           <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
             <Users className="h-4 w-4 text-purple-600 dark:text-purple-400" />
           </div>
@@ -53,7 +53,7 @@ export function StatsGrid({ stats, isLoading }: StatsGridProps) {
       </Card>
       <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500 bg-gradient-to-br from-green-50/50 to-transparent dark:from-green-950/20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
-          <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Today's Sales</CardTitle>
+          <CardTitle className="text-xs font-medium text-muted-foreground">Today's Sales</CardTitle>
           <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg">
             <IndianRupee className="h-4 w-4 text-green-600 dark:text-green-400" />
           </div>
@@ -70,7 +70,7 @@ export function StatsGrid({ stats, isLoading }: StatsGridProps) {
       </Card>
       <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-orange-500 bg-gradient-to-br from-orange-50/50 to-transparent dark:from-orange-950/20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4 sm:px-6 sm:pt-6">
-          <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Month Sales</CardTitle>
+          <CardTitle className="text-xs font-medium text-muted-foreground">Month Sales</CardTitle>
           <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg">
             <TrendingUp className="h-4 w-4 text-orange-600 dark:text-orange-400" />
           </div>

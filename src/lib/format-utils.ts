@@ -32,13 +32,6 @@ export function formatVolume(liters: number): string {
 }
 
 /**
- * Format percentage
- */
-export function formatPercentage(value: number, decimals: number = 1): string {
-  return `${value >= 0 ? '+' : ''}${formatNumber(value, decimals)}%`;
-}
-
-/**
  * Format compact number (1K, 1M, etc.)
  */
 export function formatCompactNumber(num: number): string {
@@ -88,4 +81,12 @@ export function calculatePercentageChange(current: number, previous: number): nu
 export function roundTo(num: number, decimals: number = 2): number {
   const factor = Math.pow(10, decimals);
   return Math.round(num * factor) / factor;
+}
+
+/**
+ * Format percentage with sign and "No change" for 0%
+ */
+export function formatPercentage(value: number): string {
+  if (value === 0) return 'No change';
+  return `${value >= 0 ? '+' : ''}${safeToFixed(value, 1)}%`;
 }

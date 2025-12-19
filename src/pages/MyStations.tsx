@@ -179,7 +179,7 @@ export default function MyStations() {
   }
 
   return (
-    <div className="container mx-auto p-4 md:p-6 space-y-6 md:space-y-8">
+    <div className="container mx-auto p-4 md:p-6 page-container space-y-6 md:space-y-8">
       {/* Header Section */}
       <div className="flex flex-col space-y-4 sm:space-y-0 sm:flex-row sm:justify-between sm:items-center">
         <div className="space-y-1">

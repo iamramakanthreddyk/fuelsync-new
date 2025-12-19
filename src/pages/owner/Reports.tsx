@@ -92,7 +92,9 @@ const FuelDistribution: React.FC<FuelDistributionProps> = ({ prices, className }
       <div className="space-y-4">
         {(() => {
           const total = Object.values(prices).reduce((sum, price) => sum + price, 0);
-          return Object.entries(prices).map(([fuelType, price]) => {
+          return Object.entries(prices)
+            .filter(([_, price]) => price > 0) // Only show fuel types with sales
+            .map(([fuelType, price]) => {
             // Assign color based on fuel type
             let color = 'bg-gray-400';
             if (fuelType === 'PETROL') color = 'bg-blue-500';
@@ -414,7 +416,7 @@ export default function Reports() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
-      <div className="container mx-auto p-6 space-y-8">
+      <div className="container mx-auto p-6 page-container space-y-8">
         {/* Header */}
         <ReportHeader
           title="Reports & Analytics"

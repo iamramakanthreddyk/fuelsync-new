@@ -309,7 +309,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="container-mobile space-y-mobile animate-fade-in pb-6">
+    <div className="container-mobile page-container space-y-mobile animate-fade-in pb-6">
       {/* Setup Checklist - Mobile optimized */}
       <div className="animate-slide-up">
         <SetupChecklist checklist={checklist} />
@@ -317,15 +317,15 @@ export default function Dashboard() {
       
       {/* Header Section with Fuel Prices - Compact unified header */}
       <div className="space-y-2">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+          <div className="flex-1 min-w-0">
             <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight text-foreground">Dashboard</h1>
             <p className="text-responsive-sm text-muted-foreground">
               Welcome back, <span className="font-medium text-foreground">{user?.name}</span>
             </p>
           </div>
-          {/* Fuel Prices in header on desktop, below on mobile */}
-          <div className="sm:ml-auto">
+          {/* Fuel Prices - Mobile optimized positioning */}
+          <div className="w-full sm:w-auto sm:ml-auto sm:flex-shrink-0">
             <FuelPriceCard prices={fuelPricesObj || {}} isLoading={isPricesLoading} canSetPrices={canSetPrices} />
           </div>
         </div>

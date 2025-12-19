@@ -23,7 +23,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/quick-entry')}
       >
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-yellow-600 transition-colors">
+          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-yellow-600 transition-colors">
             <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg group-hover:scale-110 transition-transform">
               <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
             </div>
@@ -50,7 +50,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/stations')}
       >
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-green-600 transition-colors">
+          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-green-600 transition-colors">
             <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:scale-110 transition-transform">
               <Scale3d className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
             </div>
@@ -77,7 +77,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/daily-reports')}
       >
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-indigo-600 transition-colors">
+          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-indigo-600 transition-colors">
             <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg group-hover:scale-110 transition-transform">
               <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
             </div>
@@ -104,7 +104,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/shifts')}
       >
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-orange-600 transition-colors">
+          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-orange-600 transition-colors">
             <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:scale-110 transition-transform">
               <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
             </div>
@@ -131,7 +131,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/stations')}
       >
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-primary transition-colors">
+          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-primary transition-colors">
             <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:scale-110 transition-transform">
               <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
             </div>
@@ -158,7 +158,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/employees')}
       >
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-primary transition-colors">
+          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-primary transition-colors">
             <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:scale-110 transition-transform">
               <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
             </div>
@@ -185,7 +185,7 @@ export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/credit-ledger')}
       >
         <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-base sm:text-lg group-hover:text-orange-600 transition-colors">
+          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-orange-600 transition-colors">
             <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:scale-110 transition-transform">
               <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
             </div>

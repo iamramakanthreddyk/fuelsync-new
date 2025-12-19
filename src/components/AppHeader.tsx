@@ -48,20 +48,15 @@ export function AppHeader() {
 
   return (
     <header style={headerStyle} className="fixed top-0 z-40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      {/* Mobile Header */}
-      <div className="md:hidden flex flex-col h-auto min-h-14 px-3 py-1 gap-1">
-        {/* Fuel Prices on mobile - only show for users with station access */}
-        {currentStation && (
+      {/* Mobile Header - only show when fuel prices are displayed */}
+      {currentStation && (
+        <div className="md:hidden flex flex-col h-auto min-h-14 px-3 py-1 gap-1">
+          {/* Fuel Prices on mobile - only show for users with station access */}
           <div className="flex justify-center px-2 pb-1">
             <FuelPriceCard prices={fuelPricesObj} isLoading={isPricesLoading} canSetPrices={canSetPrices} />
           </div>
-        )}
-      </div>
-      {/* Desktop Header */}
-      <div className="hidden md:flex items-center h-16 w-full px-6 justify-end">
-        <div className="flex items-center gap-6 flex-shrink-0">
         </div>
-      </div>
+      )}
     </header>
   );
 }

@@ -22,7 +22,7 @@ import { apiClient } from '@/lib/api-client';
 import { extractApiData } from '@/lib/api-response';
 import { useStations } from '@/hooks/api';
 import { getFuelColors } from '@/lib/fuelColors';
-import { safeToFixed } from '@/lib/format-utils';
+import { safeToFixed, formatPercentage } from '@/lib/format-utils';
 import { Station } from '@/types/api';
 import {
   TrendingUp,
@@ -157,7 +157,6 @@ export default function Analytics() {
   });
 
   const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-  const formatPercentage = (value: number) => `${value >= 0 ? '+' : ''}${safeToFixed(value, 1)}%`;
   const formatLitres = (litres: number) => `${safeToFixed(litres, 0)} L`;
 
   // Custom tooltip for charts
