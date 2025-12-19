@@ -28,3 +28,4 @@ backend/data/
 *.db
 backend/.env
 .env
+backend/.env
