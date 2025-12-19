@@ -34,7 +34,7 @@ import { useToast } from '@/hooks/use-toast';
 import { debounce } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { extractApiArray } from '@/lib/api-response';
-import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { getFuelBadgeClasses, getFuelColors } from '@/lib/fuelColors';
 import { Station } from '@/types/api';
 import { StationSettingsForm } from '@/components/owner/StationSettingsForm';
 import {
@@ -45,7 +45,8 @@ import {
   Settings,
   IndianRupee,
   CreditCard,
-  CheckCircle2
+  CheckCircle2,
+  Calendar
 } from 'lucide-react';
 import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 
@@ -837,101 +838,222 @@ export default function StationDetail() {
         </TabsContent>
 
         {/* Fuel Prices Tab */}
-        <TabsContent value="prices" className="space-y-4">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Fuel Prices</h2>
-            <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
-              <DialogTrigger asChild>
-                <Button>
-                  <IndianRupee className="w-4 h-4 mr-2" />
-                  Set Price
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Set Fuel Price</DialogTitle>
-                  <DialogDescription>Update price for a fuel type</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div>
-                    <Label htmlFor="fuelType">Fuel Type *</Label>
-                    <Select
-                      value={priceForm.fuelType}
-                      onValueChange={(value) => setPriceForm({ ...priceForm, fuelType: value as FuelType })}
+        <TabsContent value="prices" className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 className="text-2xl font-bold">Fuel Prices</h2>
+              <p className="text-muted-foreground">Current pricing for all fuel types</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  queryClient.invalidateQueries({ queryKey: ['station-prices', id] });
+                }}
+                size="sm"
+              >
+                Refresh
+              </Button>
+              <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <IndianRupee className="w-4 h-4 mr-2" />
+                    Set Price
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Set Fuel Price</DialogTitle>
+                    <DialogDescription>Update price for a fuel type</DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="fuelType">Fuel Type *</Label>
+                      <Select
+                        value={priceForm.fuelType}
+                        onValueChange={(value) => setPriceForm({ ...priceForm, fuelType: value as FuelType })}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
+                          <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
+                          <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label htmlFor="price">Price (₹/L) *</Label>
+                      <Input
+                        id="price"
+                        type="number"
+                        step="0.01"
+                        value={priceForm.price}
+                        onChange={(e) => setPriceForm({ ...priceForm, price: e.target.value })}
+                        placeholder="105.50"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="effectiveFrom">Effective From *</Label>
+                      <Input
+                        id="effectiveFrom"
+                        type="date"
+                        value={priceForm.effectiveFrom}
+                        onChange={(e) => setPriceForm({ ...priceForm, effectiveFrom: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsPriceDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button
+                      onClick={handleSetPrice}
+                      disabled={!priceForm.price || setPriceMutation.isPending}
                     >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
-                        <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
-                        <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
-                      </SelectContent>
-                    </Select>
+                      {setPriceMutation.isPending ? 'Setting...' : 'Set Price'}
+                    </Button>
                   </div>
-                  <div>
-                    <Label htmlFor="price">Price (₹/L) *</Label>
-                    <Input
-                      id="price"
-                      type="number"
-                      step="0.01"
-                      value={priceForm.price}
-                      onChange={(e) => setPriceForm({ ...priceForm, price: e.target.value })}
-                      placeholder="105.50"
-                    />
-                  </div>
-                  <div>
-                    <Label htmlFor="effectiveFrom">Effective From *</Label>
-                    <Input
-                      id="effectiveFrom"
-                      type="date"
-                      value={priceForm.effectiveFrom}
-                      onChange={(e) => setPriceForm({ ...priceForm, effectiveFrom: e.target.value })}
-                    />
-                  </div>
-                </div>
-                <div className="flex justify-end gap-2">
-                  <Button variant="outline" onClick={() => setIsPriceDialogOpen(false)}>
-                    Cancel
-                  </Button>
-                  <Button 
-                    onClick={handleSetPrice}
-                    disabled={!priceForm.price || setPriceMutation.isPending}
-                  >
-                    {setPriceMutation.isPending ? 'Setting...' : 'Set Price'}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
           {fuelPricesLoading ? (
-            <div className="text-center py-6">Loading prices...</div>
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+                <p className="text-muted-foreground">Loading fuel prices...</p>
+              </div>
+            </div>
           ) : fuelPrices && fuelPrices.length > 0 ? (
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {fuelPrices.map((price) => (
-                <Card key={price.id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg capitalize">{price.fuelType}</CardTitle>
-                    <CardDescription>
-                      Effective from {price.valid_from}
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold">₹{price.price_per_litre}</div>
-                  </CardContent>
-                </Card>
-              ))}
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+              {fuelPrices.map((price) => {
+                const fuelColors = getFuelColors(String(price.fuel_type || '').toLowerCase());
+                const isEffectiveToday = new Date(price.valid_from) <= new Date();
+
+                return (
+                  <Card
+                    key={price.id}
+                    className={`relative overflow-hidden border-2 transition-all duration-300 hover:shadow-lg hover:scale-[1.02] ${fuelColors.border} ${fuelColors.bg}/20`}
+                  >
+                    {/* Fuel type indicator stripe */}
+                    <div className={`absolute top-0 left-0 right-0 h-1 ${fuelColors.dot}`}></div>
+
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <div className={`p-2 rounded-lg ${fuelColors.bg} ${fuelColors.text}`}>
+                            <Fuel className="w-5 h-5" />
+                          </div>
+                          <div>
+                            <CardTitle className={`text-xl font-bold capitalize ${fuelColors.text}`}>
+                              {price.fuel_type}
+                            </CardTitle>
+                            <CardDescription className="text-sm">
+                              {isEffectiveToday ? 'Currently Active' : 'Scheduled'}
+                            </CardDescription>
+                          </div>
+                        </div>
+                        {!isEffectiveToday && (
+                          <Badge variant="outline" className="text-xs">
+                            Upcoming
+                          </Badge>
+                        )}
+                      </div>
+                    </CardHeader>
+
+                    <CardContent className="space-y-4">
+                      {/* Price Display */}
+                      <div className="text-center">
+                        <div className={`text-4xl font-bold ${fuelColors.text} mb-1`}>
+                          ₹{Number(price.price_per_litre).toFixed(2)}
+                        </div>
+                        <p className="text-sm text-muted-foreground">per litre</p>
+                      </div>
+
+                      {/* Effective Date */}
+                      <div className="flex items-center justify-center gap-2 text-sm">
+                        <Calendar className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          Effective: {new Date(price.valid_from).toLocaleDateString('en-IN', {
+                            day: 'numeric',
+                            month: 'short',
+                            year: 'numeric'
+                          })}
+                        </span>
+                      </div>
+
+                      {/* Status Indicator */}
+                      <div className="flex items-center justify-center">
+                        <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${
+                          isEffectiveToday
+                            ? 'bg-green-100 text-green-800'
+                            : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          <div className={`w-2 h-2 rounded-full ${
+                            isEffectiveToday ? 'bg-green-500' : 'bg-orange-500'
+                          }`}></div>
+                          {isEffectiveToday ? 'Active' : 'Pending'}
+                        </div>
+                      </div>
+                    </CardContent>
+
+                    {/* Subtle gradient overlay */}
+                    <div className={`absolute inset-0 bg-gradient-to-br ${fuelColors.bg}/5 pointer-events-none`}></div>
+                  </Card>
+                );
+              })}
             </div>
           ) : (
-            <Card>
-              <CardContent className="py-8 text-center">
-                <IndianRupee className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
-                <p className="text-muted-foreground mb-4">No fuel prices set</p>
+            <Card className="border-2 border-dashed border-muted-foreground/25">
+              <CardContent className="py-12 text-center">
+                <div className="mx-auto w-16 h-16 bg-muted/50 rounded-full flex items-center justify-center mb-4">
+                  <IndianRupee className="w-8 h-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">No Fuel Prices Set</h3>
+                <p className="text-muted-foreground mb-6 max-w-sm mx-auto">
+                  Set prices for different fuel types to start tracking your station's pricing.
+                </p>
                 <Button onClick={() => setIsPriceDialogOpen(true)}>
                   <Plus className="w-4 h-4 mr-2" />
                   Set First Price
                 </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Price Summary */}
+          {fuelPrices && fuelPrices.length > 0 && (
+            <Card className="bg-gradient-to-r from-slate-50 to-slate-100 border-slate-200">
+              <CardContent className="p-6">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold mb-2">Price Summary</h3>
+                  <p className="text-muted-foreground text-sm mb-4">
+                    {fuelPrices.length} fuel type{fuelPrices.length > 1 ? 's' : ''} configured
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                    <div className="text-center">
+                      <div className="font-semibold text-green-600">
+                        ₹{Math.min(...fuelPrices.map(p => Number(p.price_per_litre))).toFixed(2)}
+                      </div>
+                      <div className="text-muted-foreground">Lowest Price</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-semibold text-blue-600">
+                        ₹{(fuelPrices.reduce((sum, p) => sum + Number(p.price_per_litre), 0) / fuelPrices.length).toFixed(2)}
+                      </div>
+                      <div className="text-muted-foreground">Average Price</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="font-semibold text-purple-600">
+                        ₹{Math.max(...fuelPrices.map(p => Number(p.price_per_litre))).toFixed(2)}
+                      </div>
+                      <div className="text-muted-foreground">Highest Price</div>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           )}
