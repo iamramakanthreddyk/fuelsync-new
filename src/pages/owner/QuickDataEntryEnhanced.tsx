@@ -437,7 +437,7 @@ export default function QuickDataEntry() {
         const isLast = idx === entriesWithSale.length - 1;
         let cashAmt = round2(item.saleValue * cashRatio);
         let onlineAmt = round2(item.saleValue * onlineRatio);
-        let creditAmts: CreditAllocation[] = [];
+        const creditAmts: CreditAllocation[] = [];
 
         if (isLast) {
           cashAmt = round2(paymentAllocation.cash - allocatedCash);
@@ -513,7 +513,7 @@ export default function QuickDataEntry() {
       queryClient.invalidateQueries({ queryKey: ['stations'] });
     },
     onError: (error: unknown) => {
-      let title = 'Error';
+      const title = 'Error';
       let description = 'Failed to save readings';
       // Try to extract backend response details
       const anyErr = error as any;
@@ -523,7 +523,9 @@ export default function QuickDataEntry() {
         if (backendError.details) {
           try {
             description += `\nDetails: ${JSON.stringify(backendError.details)}`;
-          } catch (_) {}
+          } catch (_) {
+            // Ignore JSON stringify errors
+          }
         }
       } else if (error instanceof Error) {
         description = error.message;

@@ -310,6 +310,7 @@ function AppContent() {
   return (
     <Router>
       <Routes>
+        <Route path="/" element={<RoleBasedRedirect />} />
         <Route
           path="/login"
           element={

@@ -75,10 +75,11 @@ const getDefaultDateRange = (): DateRange => {
 // ============================================
 
 interface FuelDistributionProps {
+  prices: Record<string, number>;
   className?: string;
 }
 
-const FuelDistribution: React.FC<FuelDistributionProps> = ({ className }) => (
+const FuelDistribution: React.FC<FuelDistributionProps> = ({ prices, className }) => (
   <Card className={className}>
     <CardHeader>
       <CardTitle className="flex items-center gap-2">
@@ -90,7 +91,6 @@ const FuelDistribution: React.FC<FuelDistributionProps> = ({ className }) => (
     <CardContent>
       <div className="space-y-4">
         {(() => {
-          const { prices } = useFuelPricesGlobal();
           const total = Object.values(prices).reduce((sum, price) => sum + price, 0);
           return Object.entries(prices).map(([fuelType, price]) => {
             // Assign color based on fuel type
@@ -316,6 +316,9 @@ export default function Reports() {
   const { data: stationsResponse } = useStations();
   const stations = stationsResponse?.data ?? [];
 
+  // Fetch fuel prices for pie chart
+  const { prices } = useFuelPricesGlobal();
+
   // Fetch report data using custom hooks
   const { data: salesReports, isLoading: salesLoading } = useSalesReports({
     dateRange,
@@ -506,7 +509,7 @@ export default function Reports() {
                   isLoading={salesLoading}
                   className="md:col-span-2"
                 />
-                <FuelDistribution />
+                <FuelDistribution prices={prices} />
                 <TopStations stations={Array.isArray(stations) ? stations : []} />
               </div>
             </TabsContent>

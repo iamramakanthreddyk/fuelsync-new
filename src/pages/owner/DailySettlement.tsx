@@ -792,7 +792,10 @@ export default function DailySettlement() {
                 Employee Readings
               </CardTitle>
               <CardDescription className="text-xs sm:text-sm">
-                Review and select specific employee entries to include in this settlement
+                Review and select specific employee entries to include in this settlement.<br />
+                <span className="block mt-1 text-yellow-700">
+                  <b>Note:</b> Multiple readings may belong to the same transaction. The payment breakdown (cash, credit, online) shown is for the entire transaction and is divided among these readings. Grouped below for clarity.
+                </span>
               </CardDescription>
             </CardHeader>
             <CardContent className="p-0 space-y-3 sm:space-y-4">
@@ -847,47 +850,69 @@ export default function DailySettlement() {
                             </Button>
                           </div>
                           <div className="space-y-2 max-h-60 overflow-y-auto">
-                            {readingsForSettlement.unlinked.readings.map(reading => (
-                              <div
-                                key={reading.id}
-                                className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-colors ${
-                                  selectedReadingIds.includes(reading.id)
-                                    ? 'bg-purple-100 border-purple-400'
-                                    : 'bg-white hover:bg-gray-50 border-gray-200'
-                                }`}
-                                onClick={() => handleToggleReading(reading.id)}
-                              >
-                                <div className="flex items-center justify-between mb-1">
-                                  <div className="flex items-center gap-2 min-w-0 flex-1">
-                                    <Checkbox
-                                      checked={selectedReadingIds.includes(reading.id)}
-                                      onCheckedChange={() => handleToggleReading(reading.id)}
-                                    />
-                                    <div className="min-w-0 flex-1">
-                                      <span className="text-xs sm:text-sm font-medium block truncate">
-                                        Nozzle #{reading.nozzleNumber} - {reading.fuelType}
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">Last: {safeToFixed(reading.closingReading, 2)}</span>
+                            {/* Group readings by transactionId */}
+                            {Object.values(
+                              readingsForSettlement.unlinked.readings.reduce((acc: Record<string, any[]>, reading) => {
+                                const txId = reading.transaction?.id || 'no-tx';
+                                if (!acc[txId]) acc[txId] = [];
+                                acc[txId].push(reading);
+                                return acc;
+                              }, {} as Record<string, any[]>)
+                            ).map((group: any[], idx) => (
+                              <div key={group[0].transaction?.id || idx} className="border rounded-lg p-2 mb-2 bg-yellow-50">
+                                <div className="text-xs font-semibold text-yellow-700 mb-1">
+                                  Transaction ID: {group[0].transaction?.id || 'N/A'} | Payment: Cash ₹{safeToFixed(group[0].transaction?.paymentBreakdown?.cash || 0, 0)}, Online ₹{safeToFixed(group[0].transaction?.paymentBreakdown?.online || 0, 0)}, Credit ₹{safeToFixed(group[0].transaction?.paymentBreakdown?.credit || 0, 0)}
+                                </div>
+                                <div className="space-y-2">
+                                  {group.map(reading => (
+                                    <div
+                                      key={reading.id}
+                                      className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-colors ${
+                                        selectedReadingIds.includes(reading.id)
+                                          ? 'bg-purple-100 border-purple-400'
+                                          : 'bg-white hover:bg-gray-50 border-gray-200'
+                                      }`}
+                                      onClick={() => handleToggleReading(reading.id)}
+                                    >
+                                      <div className="flex items-center justify-between mb-1">
+                                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                                          <Checkbox
+                                            checked={selectedReadingIds.includes(reading.id)}
+                                            onCheckedChange={() => handleToggleReading(reading.id)}
+                                          />
+                                          <div className="min-w-0 flex-1">
+                                            <span className="text-xs sm:text-sm font-medium block truncate">
+                                              Nozzle #{reading.nozzleNumber} - {reading.fuelType}
+                                            </span>
+                                            <span className="text-xs text-muted-foreground">Last: {safeToFixed(reading.closingReading, 2)}</span>
+                                          </div>
+                                        </div>
+                                        <span className="text-xs sm:text-sm font-bold text-green-600 ml-2">
+                                          ₹{safeToFixed(reading.saleValue, 2)}
+                                        </span>
+                                      </div>
+                                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground ml-6">
+                                        <div className="truncate">{safeToFixed(reading.litresSold, 2)} L</div>
+                                        {/* Show payment breakdown only once per transaction group */}
+                                        {group[0].id === reading.id && (
+                                          <>
+                                            <div className="text-green-600 truncate">Cash: ₹{safeToFixed(reading.transaction?.paymentBreakdown?.cash || 0, 0)}</div>
+                                            <div className="text-blue-600 truncate">Online: ₹{safeToFixed(reading.transaction?.paymentBreakdown?.online || 0, 0)}</div>
+                                            <div className="text-orange-600 truncate">Credit: ₹{safeToFixed(reading.transaction?.paymentBreakdown?.credit || 0, 0)}</div>
+                                          </>
+                                        )}
+                                      </div>
+                                      {reading.recordedBy && (
+                                        <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 ml-6">
+                                          <User className="w-3 h-3" />
+                                          <span className="truncate">{reading.recordedBy.name}</span>
+                                          <Clock className="w-3 h-3 ml-2 flex-shrink-0" />
+                                          {new Date(reading.recordedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
+                                        </div>
+                                      )}
                                     </div>
-                                  </div>
-                                  <span className="text-xs sm:text-sm font-bold text-green-600 ml-2">
-                                    ₹{safeToFixed(reading.saleValue, 2)}
-                                  </span>
+                                  ))}
                                 </div>
-                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground ml-6">
-                                  <div className="truncate">{safeToFixed(reading.litresSold, 2)} L</div>
-                                  <div className="text-green-600 truncate">Cash: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.cash || 0, 0)}</div>
-                                  <div className="text-blue-600 truncate">Online: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.online || 0, 0)}</div>
-                                  <div className="text-orange-600 truncate">Credit: ₹{safeToFixed((reading.transaction as any)?.paymentBreakdown?.credit || 0, 0)}</div>
-                                </div>
-                                {reading.recordedBy && (
-                                  <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 ml-6">
-                                    <User className="w-3 h-3" />
-                                    <span className="truncate">{reading.recordedBy.name}</span>
-                                    <Clock className="w-3 h-3 ml-2 flex-shrink-0" />
-                                    {new Date(reading.recordedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                                  </div>
-                                )}
                               </div>
                             ))}
                           </div>
