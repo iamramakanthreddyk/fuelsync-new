@@ -416,7 +416,7 @@ export default function Reports() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
-      <div className="container mx-auto p-6 page-container space-y-8">
+      <div className="container mx-auto p-2 page-container space-y-4">
         {/* Header */}
         <ReportHeader
           title="Reports & Analytics"
@@ -463,7 +463,7 @@ export default function Reports() {
         </div>
 
         {/* Analytics Tabs */}
-        <div className="space-y-6">
+        <div className="space-y-3">
           <Tabs defaultValue="overview" className="w-full">
             <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 bg-gray-100 p-1 rounded-xl h-auto">
               <TabsTrigger
@@ -504,7 +504,7 @@ export default function Reports() {
             </TabsList>
 
             {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-6">
+            <TabsContent value="overview" className="space-y-3">
               <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 <RevenueTrendChart
                   salesReports={salesReports}
@@ -517,7 +517,7 @@ export default function Reports() {
             </TabsContent>
 
             {/* Sales Tab */}
-            <TabsContent value="sales" className="space-y-4">
+            <TabsContent value="sales" className="space-y-2">
               <ReportSection
                 title="Sales Reports"
                 description="Detailed sales breakdown by station and fuel type"
@@ -557,7 +557,7 @@ export default function Reports() {
                       </div>
                     </CardHeader>
                   </Card>
-                  <div className="space-y-4">
+                  <div className="space-y-2">
                     {(salesReports ?? []).map((report) => (
                       <SalesReportCard
                         key={`${report.stationId}-${report.date}`}
@@ -570,7 +570,7 @@ export default function Reports() {
             </TabsContent>
 
             {/* Nozzles Tab */}
-            <TabsContent value="nozzles" className="space-y-4">
+            <TabsContent value="nozzles" className="space-y-2">
               <ReportSection
                 title="Nozzle-wise Sales Breakdown"
                 description="Detailed sales performance by individual nozzles"
@@ -594,7 +594,7 @@ export default function Reports() {
             </TabsContent>
 
             {/* Shifts Tab */}
-            <TabsContent value="shifts" className="space-y-4">
+            <TabsContent value="shifts" className="space-y-2">
               <ReportSection
                 title="Shift Reports"
                 description="Employee shift details and performance"
@@ -609,7 +609,7 @@ export default function Reports() {
                 onExportCsv={() => handleExport('shifts')}
                 onPrintPdf={() => handlePrintPdf('shifts')}
               >
-                <div className="space-y-3">
+                <div className="space-y-1">
                   {(shiftReports ?? []).map((shift) => (
                     <ShiftCard key={shift.id} shift={shift} />
                   ))}

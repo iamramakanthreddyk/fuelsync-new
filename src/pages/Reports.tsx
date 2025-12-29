@@ -66,10 +66,10 @@ export default function Reports() {
   };
 
   return (
-    <div className="space-y-6">
+    <div>
       <div>
         <h1 className="text-3xl font-bold text-foreground">Reports & Analytics</h1>
-        <p className="text-muted-foreground mt-1">
+        <p className="text-muted-foreground">
           Generate detailed reports and view analytics for your fuel station.
         </p>
       </div>
@@ -140,9 +140,9 @@ export default function Reports() {
         </CardContent>
       </Card>
 
-      <div className="text-center py-8">
+      <div className="text-center">
         <span className="text-4xl">📊</span>
-        <p className="text-muted-foreground mt-2">Reports preview</p>
+        <p className="text-muted-foreground">Reports preview</p>
         <p className="text-sm text-muted-foreground">Preview of generated report rows</p>
       </div>
 
@@ -202,9 +202,9 @@ export default function Reports() {
           )}
 
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading report...</div>
+            <div className="text-center text-muted-foreground">Loading report...</div>
           ) : !reportData || !Array.isArray(reportData.data) || reportData.data.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            <div className="text-center text-muted-foreground">
               {!Array.isArray(reportData?.data) ? 'Error loading report data' : 'No data for selected range'}
             </div>
           ) : (

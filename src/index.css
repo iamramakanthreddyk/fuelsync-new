@@ -281,7 +281,7 @@
 
   /* Page container with header offset - only when fuel prices header is shown */
   .page-container {
-    padding-top: 12rem; /* 192px */
+    padding-top: 1rem; /* Reduced from 12rem to 1.5rem (24px) */
   }
 
   /* Hide scrollbar for mobile fuel price cards */
