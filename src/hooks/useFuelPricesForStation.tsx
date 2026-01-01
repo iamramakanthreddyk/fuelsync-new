@@ -12,6 +12,7 @@
 import { useMemo } from 'react';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { usePumps } from './api';
+import { useFuelPricesData } from './useFuelPricesData';
 
 export interface StationFuelPricesStatus {
   prices: Record<string, number>; // { PETROL: 105.50, DIESEL: 95.75 }
@@ -27,9 +28,10 @@ export interface StationFuelPricesStatus {
 export function useFuelPricesForStation(stationId?: string): StationFuelPricesStatus {
   const { pricesByStation } = useFuelPricesGlobal();
   const { data: pumpsResponse } = usePumps(stationId || '');
+  const { data: fuelPricesData, isLoading: fuelPricesLoading } = useFuelPricesData(stationId);
 
   return useMemo(() => {
-    if (!stationId || !pricesByStation) {
+    if (!stationId) {
       return {
         prices: {},
         hasPrices: false,
@@ -38,15 +40,26 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
       };
     }
 
-    // Get prices for this station from global context
+    // Get prices from global context
     const stationPrices = pricesByStation[stationId] || {};
-    const hasPrices = Object.keys(stationPrices).length > 0;
-
-    // Convert to array format
-    const pricesArray = Object.entries(stationPrices).map(([fuel_type, price_per_litre]) => ({
+    let hasPrices = Object.keys(stationPrices).length > 0;
+    let pricesArray = Object.entries(stationPrices).map(([fuel_type, price_per_litre]) => ({
       fuel_type,
       price_per_litre: Number(price_per_litre) || 0
     }));
+
+    // If global context doesn't have prices, use the direct data as fallback
+    if (!hasPrices && fuelPricesData && fuelPricesData.length > 0) {
+      hasPrices = true;
+      pricesArray = fuelPricesData.map(price => ({
+        fuel_type: price.fuel_type,
+        price_per_litre: price.price_per_litre
+      }));
+      // Convert to prices object
+      fuelPricesData.forEach(price => {
+        stationPrices[price.fuel_type] = price.price_per_litre;
+      });
+    }
 
     // Get fuel types from active nozzles
     const activeFuelTypes = new Set<string>();
@@ -71,5 +84,5 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
       missingFuelTypes,
       pricesArray
     };
-  }, [stationId, pricesByStation, pumpsResponse?.data]);
+  }, [stationId, pricesByStation, pumpsResponse?.data, fuelPricesData, fuelPricesLoading]);
 }

@@ -303,7 +303,7 @@ function AppContent() {
     enabled: !!user && stations.length > 0, // Only run when user is authenticated and stations are loaded
     staleTime: Infinity, // Fuel prices don't change often, fetch once and reuse
     gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
-    refetchOnMount: false, // Don't refetch on mount if cached
+    refetchOnMount: true, // Refetch on mount if no cache
     refetchOnWindowFocus: false, // Don't refetch on window focus
   });
 

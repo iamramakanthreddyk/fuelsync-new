@@ -107,17 +107,62 @@ export function useFuelPricesData(overrideStationId?: string) {
   const globalQuery = queryClient.getQueryState(globalQueryKey);
   const globalData = queryClient.getQueryData<Record<string, FuelPrice[]>>(globalQueryKey);
 
-  // Transform the data to match the expected format
-  const fuelPrices = stationId && globalData ? globalData[stationId] || [] : [];
+  // If global data is available, use it
+  if (globalData && stationId) {
+    const fuelPrices = globalData[stationId] || [];
+    return {
+      data: fuelPrices,
+      isLoading: globalQuery?.status === 'pending',
+      error: globalQuery?.error,
+      refetch: () => queryClient.invalidateQueries({ queryKey: globalQueryKey }),
+    };
+  }
 
-  // Return loading state based on whether global query is still fetching
-  const isLoading = globalQuery?.status === 'pending';
+  // If global data is not available, fetch directly for this station
+  const { data: directData, isLoading: directLoading, error: directError, refetch: directRefetch } = useQuery({
+    queryKey: ['fuel-prices', stationId],
+    queryFn: async () => {
+      if (!stationId) return [];
+      try {
+        const url = `/stations/${stationId}/prices`;
+        const response = await apiClient.get(url);
 
-  // Return in the same format as useQuery
+        let currentPrices: any[] = [];
+        if (response && typeof response === 'object' && 'data' in response) {
+          const data = response.data;
+          if (data && typeof data === 'object' && 'current' in data && Array.isArray(data.current)) {
+            currentPrices = data.current;
+          }
+        }
+
+        // Transform prices to match the expected format
+        const transformed = currentPrices.map((price: any) => ({
+          id: price.id,
+          station_id: stationId,
+          fuel_type: (price.fuelType || '').toString().toUpperCase(),
+          fuelType: price.fuelType,
+          price_per_litre: price.price,
+          pricePerLitre: price.price,
+          price: price.price,
+          valid_from: price.effectiveFrom,
+          created_by: price.createdBy,
+          created_at: price.createdAt
+        }));
+
+        return transformed;
+      } catch (error) {
+        console.error(`Failed to fetch prices for station ${stationId}:`, error);
+        return [];
+      }
+    },
+    enabled: !!stationId && !globalData, // Only fetch directly if global data is not available
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+
   return {
-    data: fuelPrices,
-    isLoading,
-    error: globalQuery?.error,
-    refetch: () => queryClient.invalidateQueries({ queryKey: globalQueryKey }),
+    data: directData || [],
+    isLoading: directLoading || globalQuery?.status === 'pending',
+    error: directError || globalQuery?.error,
+    refetch: directRefetch,
   };
 }
