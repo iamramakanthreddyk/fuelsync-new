@@ -4,6 +4,7 @@ import { Navigate } from 'react-router-dom';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
+import { MobileBottomNav } from "@/components/MobileBottomNav";
 import FuelSyncLogo from './FuelSyncLogo';
 import { useAuth } from '@/hooks/useAuth';
 import { Bell } from 'lucide-react';
@@ -29,7 +30,10 @@ export default function AppLayout({ children }: AppLayoutProps) {
           {/* Top Brand Bar */}
           <div className="fixed top-0 left-0 right-0 z-50 h-12 bg-white border-b border-slate-200/60 shadow-sm">
             <div className="flex items-center h-full px-4 gap-4">
-              <MobileMenuTrigger />
+              {/* Mobile menu trigger - hidden on mobile since we have bottom nav */}
+              <div className="hidden md:block">
+                <MobileMenuTrigger />
+              </div>
               <FuelSyncLogo size={32} variant="brand" showText={true} />
               <div className="flex-1"></div>
               <div className="hidden md:flex items-center gap-4">
@@ -95,13 +99,16 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
             <div className="flex-1 flex flex-col">
               <AppHeader />
-              <main className="flex-1 overflow-auto pt-5">
+              <main className="flex-1 overflow-auto pt-5 pb-20 md:pb-5">
                 <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 pt-6 md:pt-8">
                   {children}
                 </div>
               </main>
             </div>
           </div>
+
+          {/* Mobile Bottom Navigation */}
+          <MobileBottomNav />
         </>
       )}
     </SidebarProvider>
