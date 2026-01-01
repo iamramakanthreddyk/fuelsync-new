@@ -390,7 +390,7 @@ export default function DataEntry() {
         </div>
         
         {/* Show alert if prices are not set */}
-        <PricesRequiredAlert showIfMissing={true} compact={true} />
+        <PricesRequiredAlert showIfMissing={true} compact={true} hasPricesOverride={Boolean(fuelPrices && fuelPrices.length > 0)} />
         
         <Tabs defaultValue="manual" className="space-y-6 w-full">
           {/* TabsList */}

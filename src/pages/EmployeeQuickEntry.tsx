@@ -412,7 +412,7 @@ export default function EmployeeQuickEntry() {
         </div>
       </div>
 
-      <PricesRequiredAlert stationId={selectedStation} showIfMissing={true} compact={true} />
+      <PricesRequiredAlert stationId={selectedStation} showIfMissing={true} compact={true} hasPricesOverride={Boolean(fuelPrices && fuelPrices.length > 0)} />
 
       {/* STEP 1: READINGS ENTRY */}
       {step === 'readings' && (
