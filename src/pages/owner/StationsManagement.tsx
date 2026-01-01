@@ -39,7 +39,6 @@ import {
   Plus, 
   Building2, 
   Edit, 
-  Trash2,
   ArrowRight,
   MapPin,
   Phone,
@@ -337,7 +336,6 @@ const FuelPricesSection = ({ stationId }: FuelPricesSectionProps) => {
 
 export default function StationsManagement() {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [deleteStationId, setDeleteStationId] = useState<string | null>(null);
   const [formData, setFormData] = useState<StationFormData>(initialFormData);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [editingStation, setEditingStation] = useState<Station | null>(null);
@@ -374,42 +372,6 @@ export default function StationsManagement() {
     },
     onError: (error: unknown) => {
       let message = 'Failed to update station';
-      if (error && typeof error === 'object') {
-        const errObj = error as { response?: { data?: { error?: string } } };
-        if (
-          errObj.response &&
-          typeof errObj.response === 'object' &&
-          errObj.response.data &&
-          typeof errObj.response.data === 'object' &&
-          'error' in errObj.response.data
-        ) {
-          message = errObj.response.data.error || message;
-        }
-      }
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive'
-      });
-    }
-  });
-
-  // Delete station mutation
-  const deleteMutation = useMutation({
-    mutationFn: async (id: string) => {
-      const response = await apiClient.delete(`/stations/${id}`);
-      return response;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: queryKeys.stations });
-      toast({
-        title: 'Success',
-        description: 'Station deleted successfully'
-      });
-      setDeleteStationId(null);
-    },
-    onError: (error: unknown) => {
-      let message = 'Failed to delete station';
       if (error && typeof error === 'object') {
         const errObj = error as { response?: { data?: { error?: string } } };
         if (
@@ -481,12 +443,6 @@ export default function StationsManagement() {
       gstNumber: station.gstNumber || ''
     });
     setIsEditDialogOpen(true);
-  };
-
-  const handleDelete = () => {
-    if (deleteStationId) {
-      deleteMutation.mutate(deleteStationId);
-    }
   };
 
   const handleEditDialogOpenChange = (open: boolean) => {
@@ -685,17 +641,6 @@ export default function StationsManagement() {
                     >
                       <Edit className="w-4 h-4" />
                     </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setDeleteStationId(station.id);
-                      }}
-                      className="hover:bg-destructive/10 hover:border-destructive/30 text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
                   </div>
                 </div>
               </CardContent>
@@ -749,28 +694,6 @@ export default function StationsManagement() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={!!deleteStationId} onOpenChange={() => setDeleteStationId(null)}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete Station</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete this station? This action cannot be undone.
-              All associated data (pumps, nozzles, readings) will also be deleted.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-            >
-              {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

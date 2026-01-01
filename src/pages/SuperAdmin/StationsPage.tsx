@@ -14,7 +14,7 @@ import { getStatusBadgeClasses } from '@/lib/badgeColors';
 import { getUserMessage, getValidationErrors } from "@/lib/error-utils";
 import { handleApiCall } from "@/lib/handleApiCall";
 import { Station } from '@/types/api';
-import { Plus, Search, Edit, Trash2, Fuel, Info } from "lucide-react";
+import { Plus, Search, Edit, Fuel, Info } from "lucide-react";
 import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
 
 interface Owner {
@@ -244,23 +244,6 @@ export default function StationsPage() {
     setIsEditOpen(false);
     setSelectedStation(null);
     resetForm();
-    fetchData();
-  };
-
-  const handleDeleteStation = async (stationId: string) => {
-    const [, error] = await handleApiCall(() => apiClient.delete(`/stations/${stationId}`));
-    if (error) {
-      toast({
-        title: "Error",
-        description: getUserMessage(error),
-        variant: "destructive",
-      });
-      return;
-    }
-    toast({
-      title: "Station Deleted",
-      description: "Station has been deleted successfully",
-    });
     fetchData();
   };
 
@@ -624,27 +607,6 @@ export default function StationsPage() {
                         >
                           <Edit className="h-4 w-4 mr-2" /> Edit
                         </Button>
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <Button variant="destructive" size="sm">
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>Delete Station</AlertDialogTitle>
-                              <AlertDialogDescription>
-                                Are you sure you want to delete "{station.name}"? This will also remove all associated pumps, nozzles, and readings.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteStation(station.id)}>
-                                Delete
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
                       </div>
                     </TableCell>
                   </TableRow>
