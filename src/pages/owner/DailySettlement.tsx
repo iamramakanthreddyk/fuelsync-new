@@ -312,18 +312,35 @@ export default function DailySettlement() {
       return { cash: 0, online: 0, credit: 0, litres: 0, value: 0 };
     }
     const allReadings = [...(readingsForSettlement.unlinked?.readings || []), ...(readingsForSettlement.linked?.readings || [])];
-    return allReadings
-      .filter(r => selectedReadingIds.includes(r.id))
-      .reduce((acc, r) => {
-        const pb: any = (r.transaction as any)?.paymentBreakdown || {};
-        return {
-          cash: acc.cash + (parseFloat(pb.cash || 0) || 0),
-          online: acc.online + (parseFloat(pb.online || 0) || 0),
-          credit: acc.credit + (parseFloat(pb.credit || 0) || 0),
-          litres: acc.litres + r.litresSold,
-          value: acc.value + r.saleValue
-        };
-      }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
+    const selectedReadings = allReadings.filter(r => selectedReadingIds.includes(r.id));
+    
+    // Track which transactions we've already counted to avoid duplicating payment breakdown
+    const processedTransactionIds = new Set<string>();
+    
+    return selectedReadings.reduce((acc, r) => {
+      const transactionId = r.transaction?.id;
+      const pb: any = (r.transaction as any)?.paymentBreakdown || {};
+      
+      // Only add payment breakdown once per transaction
+      let cashToAdd = 0;
+      let onlineToAdd = 0;
+      let creditToAdd = 0;
+      
+      if (transactionId && !processedTransactionIds.has(transactionId)) {
+        cashToAdd = parseFloat(pb.cash || 0) || 0;
+        onlineToAdd = parseFloat(pb.online || 0) || 0;
+        creditToAdd = parseFloat(pb.credit || 0) || 0;
+        processedTransactionIds.add(transactionId);
+      }
+      
+      return {
+        cash: acc.cash + cashToAdd,
+        online: acc.online + onlineToAdd,
+        credit: acc.credit + creditToAdd,
+        litres: acc.litres + r.litresSold,
+        value: acc.value + r.saleValue
+      };
+    }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
   };
 
   // Get final settlement for selected date (for manager view)
@@ -1114,11 +1131,9 @@ export default function DailySettlement() {
                                                   ₹{safeToFixed(reading.saleValue, 2)}
                                                 </span>
                                               </div>
-                                              <div className="grid grid-cols-2 sm:grid-cols-4 gap-1 sm:gap-2 text-xs text-muted-foreground ml-6">
+                                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 sm:gap-2 text-xs text-muted-foreground ml-6">
                                                 <div className="truncate">{safeToFixed(reading.litresSold, 2)} L</div>
-                                                <div className="text-green-600 truncate">Cash: ₹{safeToFixed(reading.transaction?.paymentBreakdown?.cash || 0, 0)}</div>
-                                                <div className="text-blue-600 truncate">Online: ₹{safeToFixed(reading.transaction?.paymentBreakdown?.online || 0, 0)}</div>
-                                                <div className="text-orange-600 truncate">Credit: ₹{safeToFixed(reading.transaction?.paymentBreakdown?.credit || 0, 0)}</div>
+                                                <div className="truncate">₹{safeToFixed(reading.saleValue, 2)}</div>
                                               </div>
                                               {reading.recordedBy && (
                                                 <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 ml-6">

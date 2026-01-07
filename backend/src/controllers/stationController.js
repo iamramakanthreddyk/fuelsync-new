@@ -1413,22 +1413,40 @@ exports.getReadingsForSettlement = async (req, res, next) => {
     }
 
     // Calculate totals for unlinked readings
+    // Only count payment breakdown once per transaction, not once per reading
+    const processedUnlinkedTxIds = new Set();
     const unlinkedTotals = unlinkedReadings.reduce((acc, r) => {
+      const txId = r.transaction?.id;
       const pb = r.transaction?.paymentBreakdown || {};
-      acc.cash += parseFloat(pb.cash || 0);
-      acc.online += parseFloat(pb.online || 0);
-      acc.credit += parseFloat(pb.credit || 0);
+      
+      // Only add payment breakdown once per transaction
+      if (txId && !processedUnlinkedTxIds.has(txId)) {
+        acc.cash += parseFloat(pb.cash || 0);
+        acc.online += parseFloat(pb.online || 0);
+        acc.credit += parseFloat(pb.credit || 0);
+        processedUnlinkedTxIds.add(txId);
+      }
+      
       acc.litres += r.litresSold;
       acc.value += r.saleValue;
       return acc;
     }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
 
     // Calculate totals for linked readings
+    // Only count payment breakdown once per transaction, not once per reading
+    const processedLinkedTxIds = new Set();
     const linkedTotals = linkedReadings.reduce((acc, r) => {
+      const txId = r.transaction?.id;
       const pb = r.transaction?.paymentBreakdown || {};
-      acc.cash += parseFloat(pb.cash || 0);
-      acc.online += parseFloat(pb.online || 0);
-      acc.credit += parseFloat(pb.credit || 0);
+      
+      // Only add payment breakdown once per transaction
+      if (txId && !processedLinkedTxIds.has(txId)) {
+        acc.cash += parseFloat(pb.cash || 0);
+        acc.online += parseFloat(pb.online || 0);
+        acc.credit += parseFloat(pb.credit || 0);
+        processedLinkedTxIds.add(txId);
+      }
+      
       acc.litres += r.litresSold;
       acc.value += r.saleValue;
       return acc;
