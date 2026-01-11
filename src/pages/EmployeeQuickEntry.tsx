@@ -81,7 +81,7 @@ export default function EmployeeQuickEntry() {
   const pumps = pumpsResponse?.data;
 
   // Fetch fuel prices for the station
-  const { data: fuelPrices, isLoading: pricesLoading } = useFuelPricesData(selectedStation);
+  const { data: fuelPrices = [], isLoading: pricesLoading } = useFuelPricesData(selectedStation);
 
   // Fetch creditors for the station
   const { data: creditors = [] } = useQuery<Creditor[]>({
