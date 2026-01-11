@@ -300,18 +300,19 @@ export default function QuickDataEntry() {
     const byFuelType: Record<string, { liters: number; value: number }> = {};
 
     // Only consider readings that are currently entered and valid (unique nozzle IDs)
-    if (pumps && Array.isArray(fuelPrices)) {
+    const pumpsArray = Array.isArray(pumps) ? pumps : [];
+    if (pumpsArray.length > 0 && Array.isArray(fuelPrices)) {
       
       // Build a set of valid nozzle IDs from the current pumps
       const validNozzleIds = new Set(
-        pumps.flatMap(pump => (pump.nozzles ? pump.nozzles.map((nz: any) => nz.id) : []))
+        pumpsArray.flatMap(pump => (pump.nozzles ? pump.nozzles.map((nz: any) => nz.id) : []))
       );
       // Only process readings for valid, unique nozzle IDs
       Object.entries(readings).forEach(([nozzleId, reading]) => {
         if (!validNozzleIds.has(nozzleId)) return;
         if (!reading || !reading.readingValue) return;
         // Find the nozzle object
-        const nozzle = pumps.flatMap(p => p.nozzles || []).find((nz: any) => nz.id === nozzleId);
+        const nozzle = pumpsArray.flatMap(p => p.nozzles || []).find((nz: any) => nz.id === nozzleId);
         if (!nozzle) return;
         // Match UI logic for last reading (compareValue)
         const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
