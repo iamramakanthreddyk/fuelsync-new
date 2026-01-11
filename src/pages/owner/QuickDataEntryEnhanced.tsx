@@ -244,7 +244,7 @@ export default function QuickDataEntry() {
   const pumps = pumpsResponse?.data || (Array.isArray(pumpsResponse) ? pumpsResponse : null);
 
   // Get fuel prices for selected station from global context (preloaded on app init)
-  const { missingFuelTypes: missingPricesFuelTypes, pricesArray } = useFuelPricesForStation(selectedStation);
+  const { missingFuelTypes: missingPricesFuelTypes = [], pricesArray } = useFuelPricesForStation(selectedStation);
   // Convert to array format for compatibility with existing code
   const fuelPrices = pricesArray || [];
 

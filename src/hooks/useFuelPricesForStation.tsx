@@ -40,8 +40,8 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
       };
     }
 
-    // Get prices from global context
-    const stationPrices = pricesByStation[stationId] || {};
+    // Get prices from global context, ensure it's an object
+    const stationPrices = (pricesByStation && pricesByStation[stationId]) || {};
     let hasPrices = Object.keys(stationPrices).length > 0;
     let pricesArray = Object.entries(stationPrices).map(([fuel_type, price_per_litre]) => ({
       fuel_type,
