@@ -702,7 +702,7 @@ export default function QuickDataEntry() {
             </div>
           </CardContent>
         </Card>
-      ) : selectedStation && pumps && pumps.length > 0 ? (
+      ) : selectedStation && Array.isArray(pumps) && pumps.length > 0 ? (
         <>
           {/* Show warning if missing fuel prices */}
           {getMissingFuelTypes().length > 0 && (
