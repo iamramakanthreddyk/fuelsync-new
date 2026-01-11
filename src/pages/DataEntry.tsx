@@ -46,7 +46,7 @@ interface RefillData {
 
 export default function DataEntry() {
   // Fetch global fuel prices for the selected station
-  const { data: fuelPrices } = useFuelPricesData();
+  const { data: fuelPrices = [] } = useFuelPricesData();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedStation, setSelectedStation] = useState<string | null>(null);

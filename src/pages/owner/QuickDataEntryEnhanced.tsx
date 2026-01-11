@@ -246,7 +246,7 @@ export default function QuickDataEntry() {
   // Get fuel prices for selected station from global context (preloaded on app init)
   const { missingFuelTypes: missingPricesFuelTypes, pricesArray } = useFuelPricesForStation(selectedStation);
   // Convert to array format for compatibility with existing code
-  const fuelPrices = pricesArray;
+  const fuelPrices = pricesArray || [];
 
   // Fetch true last readings for all nozzles to use in payment allocation calculation
   const { data: allLastReadings, isLoading: allLastReadingsIsLoading } = useQuery({
