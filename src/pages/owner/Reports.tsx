@@ -118,51 +118,6 @@ const FuelDistribution: React.FC<FuelDistributionProps> = ({ prices, className }
   </Card>
 );
 
-interface TopStationsProps {
-  stations: Array<{ id: string; name: string; code?: string }>;
-  className?: string;
-}
-
-const TopStations: React.FC<TopStationsProps> = ({ stations, className }) => (
-  <Card className={className}>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <TrendingUp className="w-5 h-5 text-green-600" />
-        Top Stations
-      </CardTitle>
-      <CardDescription>Best performing stations</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-3">
-        {stations.slice(0, 3).map((station, idx) => (
-          <div key={station.id} className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-gradient-to-br from-green-400 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-bold">
-                {idx + 1}
-              </div>
-              <div>
-                <p className="font-medium text-sm">{station.name}</p>
-                {station.code && (
-                  <p className="text-xs text-gray-500">{station.code}</p>
-                )}
-              </div>
-            </div>
-            <div className="text-right">
-              <p className="font-bold text-green-600">
-                ₹{(Math.random() * 50000 + 20000).toFixed(0)}
-              </p>
-              <p className="text-xs text-gray-500">
-                +{Math.floor(Math.random() * 20 + 5)}%
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </CardContent>
-  </Card>
-);
-
-
 
 interface RevenueTrendChartProps {
   salesReports?: SalesReport[];
@@ -512,7 +467,6 @@ export default function Reports() {
                   className="md:col-span-2"
                 />
                 <FuelDistribution prices={prices} />
-                <TopStations stations={Array.isArray(stations) ? stations : []} />
               </div>
             </TabsContent>
 
