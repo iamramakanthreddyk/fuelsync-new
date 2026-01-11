@@ -173,7 +173,9 @@ const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: num
     return { litres: 0, saleValue: 0 };
   }
   const litres = Math.max(0, enteredValue - last);
-  const priceData = fuelPrices?.find(p => (p.fuel_type || '').toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
+  // Safety check: ensure fuelPrices is an array before calling .find()
+  const pricesArray = Array.isArray(fuelPrices) ? fuelPrices : [];
+  const priceData = pricesArray.find(p => (p.fuel_type || '').toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
   const price = parseFloat(String(priceData?.price_per_litre || 0));
   const saleValue = litres * price;
   return { litres, saleValue };
@@ -244,9 +246,9 @@ export default function QuickDataEntry() {
   const pumps = pumpsResponse?.data || (Array.isArray(pumpsResponse) ? pumpsResponse : null);
 
   // Get fuel prices for selected station from global context (preloaded on app init)
-  const { missingFuelTypes: missingPricesFuelTypes = [], pricesArray } = useFuelPricesForStation(selectedStation);
+  const { missingFuelTypes: missingPricesFuelTypes = [], pricesArray = [] } = useFuelPricesForStation(selectedStation);
   // Convert to array format for compatibility with existing code
-  const fuelPrices = pricesArray || [];
+  const fuelPrices = Array.isArray(pricesArray) ? pricesArray : [];
 
   // Fetch true last readings for all nozzles to use in payment allocation calculation
   const { data: allLastReadings, isLoading: allLastReadingsIsLoading } = useQuery({
