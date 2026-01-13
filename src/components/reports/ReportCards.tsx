@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { Users } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { cn } from '@/lib/utils';
 
 // ============================================
 // TYPES
@@ -102,58 +103,52 @@ export interface SalesReportCardProps {
 
 export const SalesReportCard: React.FC<SalesReportCardProps> = ({
   report,
-  dateFormatter = (date) => new Date(date).toLocaleDateString('en-IN', { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric' 
+  dateFormatter = (date) => new Date(date).toLocaleDateString('en-IN', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
   }),
   className,
-}) => (
-  <Card className={className}>
-    <CardHeader>
-      <div className="flex items-center justify-between">
-        <div>
-          <CardTitle className="text-lg">{report.stationName}</CardTitle>
-          <CardDescription>{dateFormatter(report.date)}</CardDescription>
-        </div>
-        <div className="text-right">
-          <div className="text-2xl font-bold">
-            ₹{report.totalSales.toLocaleString('en-IN')}
+}) => {
+  return (
+    <Card className={cn('w-full', className)}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0 flex-1">
+            <CardTitle className="text-sm md:text-lg truncate">{report.stationName}</CardTitle>
+            <CardDescription className="text-xs md:text-sm">{dateFormatter(report.date)}</CardDescription>
           </div>
-          <p className="text-sm text-muted-foreground">
-            {safeToFixed(report.totalQuantity)} L
-          </p>
+          <div className="text-right ml-2">
+            <div className="text-lg md:text-2xl font-bold text-green-600">
+              ₹{report.totalSales.toLocaleString('en-IN')}
+            </div>
+            <p className="text-xs md:text-sm text-muted-foreground">{safeToFixed(report.totalQuantity)} L</p>
+          </div>
         </div>
-      </div>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-2">
-        {(Array.isArray(report.fuelTypeSales) ? report.fuelTypeSales : []).map(
-          (fuel) => (
+      </CardHeader>
+      <CardContent className="pt-0">
+        <div className="space-y-2">
+          {(Array.isArray(report.fuelTypeSales) ? report.fuelTypeSales : []).map((fuel) => (
             <div
               key={`${fuel.fuelType}-${report.stationId}-${report.date}`}
-              className="flex items-center justify-between p-3 bg-muted rounded-lg"
+              className="flex items-center justify-between p-2 md:p-3 bg-muted/30 rounded-md border"
             >
-              <div className="flex items-center gap-3">
-                <Badge className={getFuelBadgeClasses(fuel.fuelType)}>
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Badge className={`${getFuelBadgeClasses(fuel.fuelType)} text-xs px-1.5 py-0.5 shrink-0`}>
                   {(fuel.fuelType || 'UNKNOWN').toUpperCase()}
                 </Badge>
-                <div>
-                  <div className="font-medium">
-                    ₹{fuel.sales.toLocaleString('en-IN')}
-                  </div>
-                  <div className="text-sm text-muted-foreground">
-                    {safeToFixed(fuel.quantity)} L • {fuel.transactions} transactions
-                  </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium text-sm md:text-base truncate">₹{fuel.sales.toLocaleString('en-IN')}</div>
+                  <div className="text-xs text-muted-foreground">{safeToFixed(fuel.quantity)} L • {fuel.transactions} txns</div>
                 </div>
               </div>
             </div>
-          )
-        )}
-      </div>
-    </CardContent>
-  </Card>
-);
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
 // ============================================
 // NOZZLE CARD
@@ -283,44 +278,44 @@ export interface PumpCardProps {
 }
 
 export const PumpCard: React.FC<PumpCardProps> = ({ pump, className }) => (
-  <Card className={className}>
-    <CardHeader>
+  <Card className={cn("w-full", className)}>
+    <CardHeader className="pb-3">
       <div className="flex items-center justify-between">
-        <div>
-          <CardTitle className="text-lg">
+        <div className="min-w-0 flex-1">
+          <CardTitle className="text-base md:text-lg truncate">
             Pump {pump.pumpNumber} - {pump.pumpName}
           </CardTitle>
-          <CardDescription>{pump.stationName}</CardDescription>
+          <CardDescription className="text-xs md:text-sm truncate">{pump.stationName}</CardDescription>
         </div>
-        <div className="text-right">
-          <div className="text-xl font-bold">
+        <div className="text-right ml-2">
+          <div className="text-lg md:text-xl font-bold text-green-600">
             ₹{pump.totalSales.toLocaleString('en-IN')}
           </div>
-          <p className="text-sm text-muted-foreground">
+          <p className="text-xs md:text-sm text-muted-foreground">
             {safeToFixed(pump.totalQuantity)} L • {pump.transactions} txns
           </p>
         </div>
       </div>
     </CardHeader>
-    <CardContent>
-      <div className="space-y-3">
-        <div className="text-sm font-medium text-muted-foreground">Nozzle Performance</div>
-        <div className="grid gap-2">
+    <CardContent className="pt-0">
+      <div className="space-y-2">
+        <div className="text-xs md:text-sm font-medium text-muted-foreground">Nozzle Performance</div>
+        <div className="space-y-2">
           {pump.nozzles.map((nozzle) => (
             <div
               key={nozzle.nozzleId || `${nozzle.nozzleNumber}-${pump.pumpId}`}
-              className="flex items-center justify-between p-2 bg-muted/50 rounded-md border"
+              className="flex items-center justify-between p-2 md:p-3 bg-muted/30 rounded-md border"
             >
-              <div className="flex items-center gap-2">
-                <Badge variant="outline" className="text-xs px-2 py-0.5">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <Badge variant="outline" className="text-xs px-1.5 py-0.5 shrink-0">
                   #{nozzle.nozzleNumber}
                 </Badge>
-                <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs px-2 py-0.5`}>
+                <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs px-1.5 py-0.5 shrink-0`}>
                   {nozzle.fuelType}
                 </Badge>
               </div>
-              <div className="text-right">
-                <div className="text-sm font-semibold">
+              <div className="text-right ml-2 shrink-0">
+                <div className="text-sm md:text-base font-semibold">
                   ₹{nozzle.sales.toLocaleString('en-IN')}
                 </div>
                 <div className="text-xs text-muted-foreground">

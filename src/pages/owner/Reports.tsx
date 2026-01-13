@@ -6,14 +6,13 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useFuelPricesGlobal } from '../../context/FuelPricesContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useStations } from '@/hooks/api';
 import {
   useSalesReports,
-  useShiftReports,
   usePumpPerformance,
   useNozzleBreakdown,
   calculateSalesTotals,
@@ -26,20 +25,15 @@ import {
   StatCard,
   SalesReportCard,
   NozzleCard,
-  ShiftCard,
   PumpCard,
   DateRange,
 } from '@/components/reports';
 import {
-  exportSalesReport,
-  exportNozzlesReport,
-  exportShiftsReport,
-  exportPumpsReport,
   printSalesReport,
   printNozzlesReport,
-  printShiftsReport,
   printPumpsReport,
 } from '@/lib/report-export';
+import { CHART_COLORS } from '@/lib/constants';
 import { safeToFixed } from '@/lib/format-utils';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -47,10 +41,7 @@ import {
   BarChart3,
   Activity,
   Droplet,
-  Clock,
-  PieChart,
   LineChart as LineChartIcon,
-  TrendingUp,
   IndianRupee,
 } from 'lucide-react';
 
@@ -71,7 +62,7 @@ const getDefaultDateRange = (): DateRange => {
 };
 
 // ============================================
-// OVERVIEW TAB COMPONENTS
+// FUEL DISTRIBUTION COMPONENT
 // ============================================
 
 interface FuelDistributionProps {
@@ -79,45 +70,74 @@ interface FuelDistributionProps {
   className?: string;
 }
 
-const FuelDistribution: React.FC<FuelDistributionProps> = ({ prices, className }) => (
-  <Card className={className}>
-    <CardHeader>
-      <CardTitle className="flex items-center gap-2">
-        <PieChart className="w-5 h-5 text-purple-600" />
-        Fuel Distribution
-      </CardTitle>
-      <CardDescription>Sales by fuel type</CardDescription>
-    </CardHeader>
-    <CardContent>
-      <div className="space-y-4">
-        {(() => {
-          const total = Object.values(prices).reduce((sum, price) => sum + price, 0);
-          return Object.entries(prices)
-            .filter(([_, price]) => price > 0) // Only show fuel types with sales
-            .map(([fuelType, price]) => {
-            // Assign color based on fuel type
-            let color = 'bg-gray-400';
-            if (fuelType === 'PETROL') color = 'bg-blue-500';
-            else if (fuelType === 'DIESEL') color = 'bg-green-500';
-            else if (fuelType === 'CNG') color = 'bg-orange-500';
-            // Calculate percentage
-            const percentage = total > 0 ? Math.round((price / total) * 100) : 0;
-            return (
-              <div key={fuelType} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className={`w-3 h-3 ${color} rounded-full`} />
-                  <span className="text-sm">{fuelType}</span>
-                </div>
-                <span className="font-medium">{percentage}%</span>
-              </div>
-            );
-          });
-        })()}
-      </div>
-    </CardContent>
-  </Card>
-);
+const FuelDistribution: React.FC<FuelDistributionProps> = ({ prices, className }) => {
+  // Transform data for pie chart
+  const total = Object.values(prices).reduce((sum, price) => sum + price, 0);
+  const pieData = Object.entries(prices)
+    .filter(([_, price]) => price > 0)
+    .map(([fuelType, price]) => ({
+      name: fuelType,
+      value: price,
+      percentage: total > 0 ? Math.round((price / total) * 100) : 0
+    }));
 
+  return (
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-sm md:text-lg">
+          <PieChart className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
+          Fuel Distribution
+        </CardTitle>
+        <CardDescription className="text-xs md:text-sm">Sales by fuel type</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="h-32 md:h-64 w-full">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={pieData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={({ name, percentage }) => `${name} ${percentage}%`}
+                outerRadius={50}
+                fill="#8884d8"
+                dataKey="value"
+              >
+                {pieData.map((_, index) => (
+                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Sales']}
+                labelFormatter={(label) => `${label}`}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Legend */}
+        <div className="flex flex-wrap justify-center gap-2 md:gap-4 mt-2 md:mt-4">
+          {pieData.map((item, index) => (
+            <div key={item.name} className="flex items-center gap-1 md:gap-2">
+              <div
+                className="w-2 h-2 md:w-3 md:h-3 rounded-full"
+                style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
+              />
+              <span className="text-xs md:text-sm text-muted-foreground">
+                {item.name} ({item.percentage}%)
+              </span>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// ============================================
+// REVENUE TREND CHART COMPONENT
+// ============================================
 
 interface RevenueTrendChartProps {
   salesReports?: SalesReport[];
@@ -161,14 +181,14 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
     return (
       <Card className={className}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+          <CardTitle className="flex items-center gap-2 text-sm md:text-lg">
             <LineChartIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
             Revenue Trend
           </CardTitle>
-          <CardDescription>Daily revenue over the selected period</CardDescription>
+          <CardDescription className="text-xs md:text-sm">Daily revenue over the selected period</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-48 md:h-64 flex items-center justify-center">
+          <div className="h-32 md:h-64 flex items-center justify-center">
             <div className="text-muted-foreground">Loading revenue data...</div>
           </div>
         </CardContent>
@@ -180,14 +200,14 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
     return (
       <Card className={className}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+          <CardTitle className="flex items-center gap-2 text-sm md:text-lg">
             <LineChartIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
             Revenue Trend
           </CardTitle>
-          <CardDescription>Daily revenue over the selected period</CardDescription>
+          <CardDescription className="text-xs md:text-sm">Daily revenue over the selected period</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-48 md:h-64 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-dashed border-blue-200">
+          <div className="h-32 md:h-64 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-dashed border-blue-200">
             <div className="text-center p-4">
               <LineChartIcon className="w-10 h-10 md:w-12 md:h-12 mx-auto text-blue-400 mb-3" />
               <p className="text-blue-600 font-medium text-sm md:text-base">
@@ -206,14 +226,14 @@ const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+        <CardTitle className="flex items-center gap-2 text-sm md:text-lg">
           <LineChartIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
           Revenue Trend
         </CardTitle>
-        <CardDescription>Daily revenue over the selected period</CardDescription>
+        <CardDescription className="text-xs md:text-sm">Daily revenue over the selected period</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="h-48 md:h-64">
+        <div className="h-32 md:h-64">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
@@ -281,10 +301,6 @@ export default function Reports() {
     dateRange,
     selectedStation,
   });
-  const { data: shiftReports, isLoading: shiftsLoading } = useShiftReports({
-    dateRange,
-    selectedStation,
-  });
   const { data: pumpPerformance, isLoading: pumpsLoading } = usePumpPerformance({
     dateRange,
     selectedStation,
@@ -296,46 +312,6 @@ export default function Reports() {
 
   // Calculate totals
   const totals = calculateSalesTotals(salesReports);
-
-  // Export handlers
-  const handleExport = (reportType: string) => {
-    const onSuccess = (filename: string) => {
-      toast({ title: 'Export Ready', description: `Downloaded ${filename}` });
-    };
-
-    try {
-      switch (reportType) {
-        case 'sales':
-          if (salesReports?.length) {
-            exportSalesReport(salesReports, dateRange, onSuccess);
-          }
-          break;
-        case 'nozzles':
-          if (nozzleBreakdown?.length) {
-            exportNozzlesReport(nozzleBreakdown, dateRange, onSuccess);
-          }
-          break;
-        case 'shifts':
-          if (shiftReports?.length) {
-            exportShiftsReport(shiftReports, dateRange, onSuccess);
-          }
-          break;
-        case 'pumps':
-          if (pumpPerformance?.length) {
-            exportPumpsReport(pumpPerformance, dateRange, onSuccess);
-          }
-          break;
-        default:
-          toast({
-            title: 'Nothing to export',
-            description: 'No rows available for selected report.',
-          });
-      }
-    } catch (err) {
-      console.error('Export error', err);
-      toast({ title: 'Export failed', description: 'Unable to export report' });
-    }
-  };
 
   const handlePrintPdf = (reportType: string) => {
     const onPopupBlocked = () => {
@@ -356,11 +332,6 @@ export default function Reports() {
           printNozzlesReport(nozzleBreakdown, dateRange, onPopupBlocked);
         }
         break;
-      case 'shifts':
-        if (shiftReports?.length) {
-          printShiftsReport(shiftReports, dateRange, onPopupBlocked);
-        }
-        break;
       case 'pumps':
         if (pumpPerformance?.length) {
           printPumpsReport(pumpPerformance, dateRange, onPopupBlocked);
@@ -377,10 +348,6 @@ export default function Reports() {
           title="Reports & Analytics"
           subtitle="Comprehensive insights into your fuel station performance"
           icon={BarChart3}
-          stats={[
-            { value: `₹${totals.sales.toLocaleString('en-IN')}`, label: 'Total Revenue' },
-            { value: `${safeToFixed(totals.quantity, 1)}L`, label: 'Fuel Dispensed' },
-          ]}
         />
 
         {/* Filters */}
@@ -420,47 +387,40 @@ export default function Reports() {
         {/* Analytics Tabs */}
         <div className="space-y-3">
           <Tabs defaultValue="overview" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3 lg:grid-cols-5 bg-gray-100 p-1 rounded-xl h-auto">
+            <TabsList className="grid w-full grid-cols-5 bg-slate-100 p-1 rounded-lg h-12 md:h-auto">
               <TabsTrigger
                 value="overview"
-                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 transition-all duration-200"
+                className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2"
               >
-                <PieChart className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-purple-500 data-[state=active]:text-white" />
-                <span className="hidden sm:inline">Overview</span>
+                <PieChart className="w-4 h-4 text-purple-600 data-[state=active]:text-purple-700" />
+                <span className="text-[10px] md:text-sm leading-tight">Overview</span>
               </TabsTrigger>
               <TabsTrigger
                 value="sales"
-                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 transition-all duration-200"
+                className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2"
               >
-                <BarChart3 className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-blue-500 data-[state=active]:text-white" />
-                <span className="hidden sm:inline">Sales</span>
+                <BarChart3 className="w-4 h-4 text-blue-600 data-[state=active]:text-blue-700" />
+                <span className="text-[10px] md:text-sm leading-tight">Sales</span>
               </TabsTrigger>
               <TabsTrigger
                 value="nozzles"
-                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 transition-all duration-200"
+                className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2"
               >
-                <Droplet className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-cyan-500 data-[state=active]:text-white" />
-                <span className="hidden sm:inline">Nozzles</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="shifts"
-                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 transition-all duration-200"
-              >
-                <Clock className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-green-500 data-[state=active]:text-white" />
-                <span className="hidden sm:inline">Shifts</span>
+                <Droplet className="w-4 h-4 text-cyan-600 data-[state=active]:text-cyan-700" />
+                <span className="text-[10px] md:text-sm leading-tight">Nozzles</span>
               </TabsTrigger>
               <TabsTrigger
                 value="pumps"
-                className="rounded-lg data-[state=active]:bg-blue-500 data-[state=active]:text-white data-[state=active]:shadow-md text-xs md:text-sm py-2 md:py-3 px-2 sm:px-4 col-span-2 md:col-span-1 transition-all duration-200"
+                className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2"
               >
-                <Activity className="w-4 h-4 md:w-5 md:h-5 sm:mr-2 text-blue-600 data-[state=active]:text-white" />
-                <span className="hidden sm:inline">Pumps</span>
+                <Activity className="w-4 h-4 text-orange-600 data-[state=active]:text-orange-700" />
+                <span className="text-[10px] md:text-sm leading-tight">Pumps</span>
               </TabsTrigger>
             </TabsList>
 
             {/* Overview Tab */}
-            <TabsContent value="overview" className="space-y-3">
-              <div className="grid gap-4 md:gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
+            <TabsContent value="overview" className="space-y-2 md:space-y-3">
+              <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 <RevenueTrendChart
                   salesReports={salesReports}
                   isLoading={salesLoading}
@@ -473,8 +433,8 @@ export default function Reports() {
             {/* Sales Tab */}
             <TabsContent value="sales" className="space-y-2">
               <ReportSection
-                title="Sales Reports"
-                description="Detailed sales breakdown by station and fuel type"
+                title="Sales"
+                description="By station & fuel type"
                 isLoading={salesLoading}
                 loadingText="Loading sales reports..."
                 isEmpty={!salesReports || salesReports.length === 0}
@@ -483,29 +443,28 @@ export default function Reports() {
                   title: 'No Sales Data',
                   description: 'No sales found for the selected date range and filters',
                 }}
-                onExportCsv={() => handleExport('sales')}
                 onPrintPdf={() => handlePrintPdf('sales')}
               >
                 <div>
                   {/* Grand Total Card */}
-                  <Card className="mb-4">
-                    <CardHeader>
+                  <Card className="mb-3 md:mb-4">
+                    <CardHeader className="pb-3">
                       <div className="flex items-center justify-between">
-                        <div>
-                          <CardTitle className="text-lg">Grand Total</CardTitle>
-                          <CardDescription>
-                            All stations, all days in selected range
+                        <div className="min-w-0 flex-1">
+                          <CardTitle className="text-sm md:text-lg">Grand Total</CardTitle>
+                          <CardDescription className="text-xs md:text-sm">
+                            All stations, selected period
                           </CardDescription>
                         </div>
-                        <div className="text-right">
-                          <div className="text-2xl font-bold">
+                        <div className="text-right ml-2">
+                          <div className="text-lg md:text-2xl font-bold text-green-600">
                             ₹{totals.sales.toLocaleString('en-IN')}
                           </div>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-xs md:text-sm text-muted-foreground">
                             {safeToFixed(totals.quantity)} L
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {totals.transactions} Transactions
+                            {totals.transactions} txns
                           </p>
                         </div>
                       </div>
@@ -526,8 +485,8 @@ export default function Reports() {
             {/* Nozzles Tab */}
             <TabsContent value="nozzles" className="space-y-2">
               <ReportSection
-                title="Nozzle-wise Sales Breakdown"
-                description="Detailed sales performance by individual nozzles"
+                title="Nozzle Sales"
+                description="Performance by nozzle"
                 isLoading={nozzlesLoading}
                 loadingText="Loading nozzle data..."
                 isEmpty={!nozzleBreakdown || nozzleBreakdown.length === 0}
@@ -536,36 +495,11 @@ export default function Reports() {
                   title: 'No Nozzle Data',
                   description: 'No nozzle sales data found for the selected period',
                 }}
-                onExportCsv={() => handleExport('nozzles')}
                 onPrintPdf={() => handlePrintPdf('nozzles')}
               >
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
                   {(nozzleBreakdown ?? []).map((nozzle: any) => (
                     <NozzleCard key={nozzle.nozzleId} nozzle={nozzle} />
-                  ))}
-                </div>
-              </ReportSection>
-            </TabsContent>
-
-            {/* Shifts Tab */}
-            <TabsContent value="shifts" className="space-y-2">
-              <ReportSection
-                title="Shift Reports"
-                description="Employee shift details and performance"
-                isLoading={shiftsLoading}
-                loadingText="Loading shift reports..."
-                isEmpty={!shiftReports || shiftReports.length === 0}
-                emptyState={{
-                  icon: Clock,
-                  title: 'No Shift Data',
-                  description: 'No shifts found for the selected date range and filters',
-                }}
-                onExportCsv={() => handleExport('shifts')}
-                onPrintPdf={() => handlePrintPdf('shifts')}
-              >
-                <div className="space-y-1">
-                  {(shiftReports ?? []).map((shift) => (
-                    <ShiftCard key={shift.id} shift={shift} />
                   ))}
                 </div>
               </ReportSection>
@@ -574,8 +508,8 @@ export default function Reports() {
             {/* Pumps Tab */}
             <TabsContent value="pumps" className="space-y-4">
               <ReportSection
-                title="Pump Performance"
-                description="Performance metrics by pump and nozzle"
+                title="Pumps"
+                description="Performance by pump & nozzle"
                 isLoading={pumpsLoading}
                 loadingText="Loading pump performance..."
                 isEmpty={!pumpPerformance || pumpPerformance.length === 0}
@@ -584,14 +518,14 @@ export default function Reports() {
                   title: 'No Pump Data',
                   description: 'No pump performance data found for the selected filters',
                 }}
-                onExportCsv={() => handleExport('pumps')}
                 onPrintPdf={() => handlePrintPdf('pumps')}
               >
-                <div className="space-y-4">
+                <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
                   {(pumpPerformance ?? []).map((pump) => (
                     <PumpCard
                       key={pump.pumpId || `${pump.pumpName}-${pump.pumpNumber}`}
                       pump={pump}
+                      className="h-fit"
                     />
                   ))}
                 </div>

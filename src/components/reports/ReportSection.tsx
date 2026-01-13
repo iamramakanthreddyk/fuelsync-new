@@ -6,7 +6,7 @@
 import React from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Download, LucideIcon } from 'lucide-react';
+import { Printer, LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface ReportSectionProps {
@@ -26,8 +26,6 @@ export interface ReportSectionProps {
     title: string;
     description: string;
   };
-  /** CSV export handler */
-  onExportCsv?: () => void;
   /** Print/PDF handler */
   onPrintPdf?: () => void;
   /** Children content to render when not loading and not empty */
@@ -43,7 +41,6 @@ export const ReportSection: React.FC<ReportSectionProps> = ({
   loadingText = 'Loading...',
   isEmpty = false,
   emptyState,
-  onExportCsv,
   onPrintPdf,
   children,
   className,
@@ -80,15 +77,10 @@ export const ReportSection: React.FC<ReportSectionProps> = ({
             {description && <CardDescription>{description}</CardDescription>}
           </div>
           <div className="flex items-center gap-2">
-            {onExportCsv && (
-              <Button variant="outline" size="sm" onClick={onExportCsv}>
-                <Download className="w-4 h-4 mr-2" />
-                CSV
-              </Button>
-            )}
             {onPrintPdf && (
-              <Button variant="ghost" size="sm" onClick={onPrintPdf}>
-                Print/PDF
+              <Button variant="ghost" size="sm" onClick={onPrintPdf} className="flex items-center gap-2">
+                <Printer className="w-4 h-4" />
+                <span className="hidden sm:inline">Print/PDF</span>
               </Button>
             )}
           </div>

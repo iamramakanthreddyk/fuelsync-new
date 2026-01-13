@@ -36,30 +36,35 @@ export function MobileBottomNav() {
       url: `${basePath}/dashboard`,
       icon: Home,
       color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
       title: "Quick Entry",
       url: `${basePath}/quick-entry`,
       icon: Zap,
       color: "text-amber-600",
+      bgColor: "bg-amber-50",
     },
     {
       title: "Stations",
       url: `${basePath}/stations`,
       icon: Building2,
       color: "text-indigo-600",
+      bgColor: "bg-indigo-50",
     },
     {
       title: "Reports",
       url: `${basePath}/reports`,
       icon: FileText,
       color: "text-green-600",
+      bgColor: "bg-green-50",
     },
     {
       title: "More",
       url: "#more",
       icon: Menu,
       color: "text-slate-600",
+      bgColor: "bg-slate-50",
       isMore: true,
     },
   ] : [
@@ -68,30 +73,35 @@ export function MobileBottomNav() {
       url: "/dashboard",
       icon: Home,
       color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
       title: "Quick Entry",
       url: "/quick-entry",
       icon: Zap,
       color: "text-amber-600",
+      bgColor: "bg-amber-50",
     },
     {
       title: "Sales",
       url: "/sales",
       icon: TrendingUp,
       color: "text-yellow-600",
+      bgColor: "bg-yellow-50",
     },
     {
       title: "Pumps",
       url: "/pumps",
       icon: Fuel,
       color: "text-blue-600",
+      bgColor: "bg-blue-50",
     },
     {
       title: "More",
       url: "#more",
       icon: Menu,
       color: "text-slate-600",
+      bgColor: "bg-slate-50",
       isMore: true,
     },
   ];
@@ -103,42 +113,49 @@ export function MobileBottomNav() {
       url: `${basePath}/employees`,
       icon: Users,
       color: "text-orange-600",
+      bgColor: "bg-orange-50",
     },
     {
       title: "Daily Settlement",
       url: `${basePath}/stations`,
       icon: Scale3d,
       color: "text-emerald-600",
+      bgColor: "bg-emerald-50",
     },
     {
       title: "Credit Ledger",
       url: `${basePath}/credit-ledger`,
       icon: Banknote,
       color: "text-pink-600",
+      bgColor: "bg-pink-50",
     },
     {
       title: "Daily Reports",
       url: `${basePath}/daily-reports`,
       icon: LineChart,
       color: "text-purple-600",
+      bgColor: "bg-purple-50",
     },
     {
       title: "Analytics",
       url: `${basePath}/analytics`,
       icon: BarChart3,
       color: "text-red-600",
+      bgColor: "bg-red-50",
     },
     {
       title: "Income & Receivables",
       url: `${basePath}/income-report`,
       icon: IndianRupee,
       color: "text-teal-600",
+      bgColor: "bg-teal-50",
     },
     {
       title: "Settings",
       url: "/settings",
       icon: Settings,
       color: "text-slate-600",
+      bgColor: "bg-slate-50",
     },
   ] : [
     ...(isManager ? [
@@ -147,12 +164,14 @@ export function MobileBottomNav() {
         url: "/stations",
         icon: Building2,
         color: "text-indigo-600",
+        bgColor: "bg-indigo-50",
       },
       {
         title: "Staff",
         url: "/staff",
         icon: Users,
         color: "text-orange-600",
+        bgColor: "bg-orange-50",
       },
     ] : []),
     {
@@ -160,12 +179,14 @@ export function MobileBottomNav() {
       url: "/reports",
       icon: FileText,
       color: "text-green-600",
+      bgColor: "bg-green-50",
     },
     {
       title: "Settings",
       url: "/settings",
       icon: Settings,
       color: "text-slate-600",
+      bgColor: "bg-slate-50",
     },
   ];
 
@@ -186,7 +207,7 @@ export function MobileBottomNav() {
   return (
     <>
       {/* Bottom Navigation Bar - Only visible on mobile */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-gray-200 shadow-lg">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-blue-50 via-white to-white border-t border-blue-100 shadow-2xl">
         <div className="flex items-center justify-around h-16 px-2">
           {/* Main Navigation Items */}
           {mainNavItems.map((item) => {
@@ -199,19 +220,21 @@ export function MobileBottomNav() {
                   <SheetTrigger asChild>
                     <Button
                       variant="ghost"
-                      className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-50 ${
-                        active ? 'text-blue-600 bg-blue-50' : ''
+                      className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all duration-200 ${
+                        active 
+                          ? `${item.bgColor} ${item.color} shadow-sm` 
+                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                       }`}
                     >
                       <Icon className={`w-6 h-6 mb-1 ${active ? item.color : ''}`} />
-                      <span className={`text-xs font-medium ${active ? item.color : ''}`}>
+                      <span className={`text-xs font-semibold ${active ? item.color : ''}`}>
                         {item.title}
                       </span>
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="bottom" className="h-[80vh] rounded-t-xl">
-                    <SheetHeader>
-                      <SheetTitle className="text-left">More Options</SheetTitle>
+                  <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl bg-gradient-to-b from-white to-gray-50">
+                    <SheetHeader className="bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg -mx-6 px-6 py-4 mb-6">
+                      <SheetTitle className="text-left text-white text-lg font-bold">More Options</SheetTitle>
                     </SheetHeader>
                     <div className="grid grid-cols-2 gap-3 mt-6">
                       {additionalMenuItems.map((menuItem) => {
@@ -221,10 +244,10 @@ export function MobileBottomNav() {
                             key={menuItem.url}
                             to={menuItem.url}
                             onClick={() => setIsMenuOpen(false)}
-                            className="flex flex-col items-center justify-center p-4 rounded-lg border border-gray-200 hover:border-gray-300 hover:bg-gray-50 transition-colors"
+                            className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 border-gray-100 hover:border-gray-300 transition-all duration-200 ${menuItem.bgColor} hover:shadow-md`}
                           >
                             <MenuIcon className={`w-8 h-8 mb-2 ${menuItem.color}`} />
-                            <span className="text-sm font-medium text-center">{menuItem.title}</span>
+                            <span className="text-xs font-semibold text-center text-gray-700">{menuItem.title}</span>
                           </Link>
                         );
                       })}
@@ -238,14 +261,14 @@ export function MobileBottomNav() {
               <Link
                 key={item.url}
                 to={item.url}
-                className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-colors ${
+                className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all duration-200 ${
                   active
-                    ? 'text-blue-600 bg-blue-50'
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-50'
+                    ? `${item.bgColor} ${item.color} shadow-sm`
+                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
                 }`}
               >
-                <Icon className={`w-6 h-6 mb-1 ${active ? item.color : ''}`} />
-                <span className={`text-xs font-medium ${active ? item.color : ''}`}>
+                <Icon className={`w-6 h-6 mb-1 transition-colors ${active ? item.color : ''}`} />
+                <span className={`text-xs font-semibold transition-colors ${active ? item.color : ''}`}>
                   {item.title}
                 </span>
               </Link>
@@ -254,7 +277,7 @@ export function MobileBottomNav() {
         </div>
 
         {/* Safe area padding for devices with home indicator */}
-        <div className="h-safe-area-inset-bottom bg-white" />
+        <div className="h-safe-area-inset-bottom bg-gradient-to-t from-blue-50 to-white" />
       </div>
 
     </>
