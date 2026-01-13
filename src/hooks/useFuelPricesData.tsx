@@ -102,23 +102,7 @@ export function useFuelPricesData(overrideStationId?: string) {
   const queryClient = useQueryClient();
   const stationId = overrideStationId || currentStation?.id;
 
-  // Read from the global fuel prices cache
-  const globalQueryKey = ['all-fuel-prices', stations?.map(s => s.id).sort().join(',')];
-  const globalQuery = queryClient.getQueryState(globalQueryKey);
-  const globalData = queryClient.getQueryData<Record<string, FuelPrice[]>>(globalQueryKey);
-
-  // If global data is available, use it
-  if (globalData && stationId) {
-    const fuelPrices = globalData[stationId] || [];
-    return {
-      data: fuelPrices,
-      isLoading: globalQuery?.status === 'pending',
-      error: globalQuery?.error,
-      refetch: () => queryClient.invalidateQueries({ queryKey: globalQueryKey }),
-    };
-  }
-
-  // If global data is not available, fetch directly for this station
+  // Always call useQuery to maintain hook order consistency
   const { data: directData, isLoading: directLoading, error: directError, refetch: directRefetch } = useQuery({
     queryKey: ['fuel-prices', stationId],
     queryFn: async () => {
@@ -155,14 +139,28 @@ export function useFuelPricesData(overrideStationId?: string) {
         return [];
       }
     },
-    enabled: !!stationId && !globalData, // Only fetch directly if global data is not available
+    enabled: !!stationId, // Always enabled, but data will be overridden by global if available
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
+  // Read from the global fuel prices cache
+  const globalQueryKey = ['all-fuel-prices', stations?.map(s => s.id).sort().join(',')];
+  const globalQuery = queryClient.getQueryState(globalQueryKey);
+  const globalData = queryClient.getQueryData<Record<string, FuelPrice[]>>(globalQueryKey);
+
+  // Use global data if available, otherwise use direct data
+  const finalData = (globalData && stationId && globalData[stationId]) ? globalData[stationId] : directData;
+  const finalLoading = globalQuery?.status === 'pending' ? true : directLoading;
+  const finalError = globalQuery?.error || directError;
+
   return {
-    data: directData || [],
-    isLoading: directLoading || globalQuery?.status === 'pending',
-    error: directError || globalQuery?.error,
-    refetch: directRefetch,
+    data: finalData || [],
+    isLoading: finalLoading,
+    error: finalError,
+    refetch: () => {
+      // Invalidate both global and direct queries
+      queryClient.invalidateQueries({ queryKey: globalQueryKey });
+      directRefetch();
+    },
   };
 }

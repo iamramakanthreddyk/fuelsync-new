@@ -21,6 +21,7 @@ import { FuelBadge } from '@/components/FuelBadge';
 import { apiClient } from '@/lib/api-client';
 import { extractApiData } from '@/lib/api-response';
 import { useStations } from '@/hooks/api';
+import { useVarianceSummary } from '@/hooks/useVarianceSummary';
 import { getFuelColors } from '@/lib/fuelColors';
 import { safeToFixed, formatPercentage } from '@/lib/format-utils';
 import { Station } from '@/types/api';
@@ -32,7 +33,8 @@ import {
   Droplet,
   Users,
   BarChart3,
-  Award
+  Award,
+  AlertCircle
 } from 'lucide-react';
 import {
   LineChart,
@@ -124,6 +126,23 @@ export default function Analytics() {
   });
   const [selectedStation, setSelectedStation] = useState<string>('all');
 
+  // Fetch stations
+  const {
+    data: stationsResponse
+  } = useStations();
+
+  const stations = stationsResponse?.data;
+
+  // Get first station for variance data
+  const firstStationId = selectedStation !== 'all' ? selectedStation : stations?.[0]?.id;
+
+  // Fetch variance summary
+  const { data: varianceSummary } = useVarianceSummary(
+    firstStationId,
+    dateRange.startDate,
+    dateRange.endDate
+  );
+
   // Quick date presets
   const setQuickRange = (days: number) => {
     const end = new Date().toISOString().split('T')[0];
@@ -132,13 +151,6 @@ export default function Analytics() {
       .split('T')[0];
     setDateRange({ startDate: start, endDate: end });
   };
-
-  // Fetch stations
-  const {
-    data: stationsResponse
-  } = useStations();
-
-  const stations = stationsResponse?.data;
 
   // Fetch analytics data
   const { data: analytics, isLoading } = useQuery({
@@ -155,6 +167,7 @@ export default function Analytics() {
       return extractApiData(response, null);
     }
   });
+
 
   const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
   const formatLitres = (litres: number) => `${safeToFixed(litres, 0)} L`;
@@ -436,6 +449,131 @@ export default function Analytics() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+
+          {/* Variance Trend Chart */}
+          {varianceSummary && (
+            <Card className="hover:shadow-lg transition-shadow">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <AlertCircle className={`w-5 h-5 ${
+                      varianceSummary.totalVariance > 0 ? 'text-red-600' :
+                      varianceSummary.totalVariance < 0 ? 'text-yellow-600' :
+                      'text-green-600'
+                    }`} />
+                    <CardTitle className="text-base sm:text-lg">Variance Analysis</CardTitle>
+                  </div>
+                  <Badge className={`text-xs font-bold ${
+                    varianceSummary.totalVariance > 0 ? 'bg-red-600' :
+                    varianceSummary.totalVariance < 0 ? 'bg-yellow-600' :
+                    'bg-green-600'
+                  } text-white`}>
+                    {varianceSummary.totalVariance > 0 ? '🚨 SHORTFALL' : varianceSummary.totalVariance < 0 ? '⚠️ OVERAGE' : '✓ BALANCED'}
+                  </Badge>
+                </div>
+                <CardDescription className="text-xs sm:text-sm">
+                  {varianceSummary.totalVariance > 0 
+                    ? `Missing: ₹${Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% shortfall)`
+                    : varianceSummary.totalVariance < 0
+                    ? `Extra: ₹${Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% overage)`
+                    : 'Perfect match - no variance'
+                  }
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="px-2 sm:px-6 pb-4 space-y-4">
+                {/* Explanation */}
+                <div className={`p-3 rounded-lg text-sm font-medium ${
+                  varianceSummary.totalVariance > 0 ? 'bg-red-100 text-red-900 border border-red-300' :
+                  varianceSummary.totalVariance < 0 ? 'bg-yellow-100 text-yellow-900 border border-yellow-300' :
+                  'bg-green-100 text-green-900 border border-green-300'
+                }`}>
+                  <div className="font-bold mb-1">
+                    {varianceSummary.totalVariance > 0 
+                      ? '⚠️ SHORTFALL - Cash Missing'
+                      : varianceSummary.totalVariance < 0
+                      ? '📊 OVERAGE - Extra Cash'
+                      : '✓ BALANCED - All Matched'
+                    }
+                  </div>
+                  <div className="text-xs">
+                    {varianceSummary.totalVariance > 0 
+                      ? `Expected ₹${safeToFixed(varianceSummary.totalExpectedCash, 0)} from readings but received only ₹${safeToFixed(varianceSummary.totalExpectedCash - varianceSummary.totalVariance, 0)}`
+                      : varianceSummary.totalVariance < 0
+                      ? `Expected ₹${safeToFixed(varianceSummary.totalExpectedCash, 0)} from readings but received ₹${safeToFixed(varianceSummary.totalExpectedCash - varianceSummary.totalVariance, 0)}`
+                      : `Received exactly ₹${safeToFixed(varianceSummary.totalExpectedCash, 0)} as expected`
+                    }
+                  </div>
+                </div>
+
+                {/* Summary Cards */}
+                <div className="grid grid-cols-3 gap-2">
+                  <div className={`p-2 sm:p-3 rounded border-2 ${
+                    varianceSummary.totalVariance > 0 ? 'bg-red-50 border-red-200' :
+                    varianceSummary.totalVariance < 0 ? 'bg-yellow-50 border-yellow-200' :
+                    'bg-green-50 border-green-200'
+                  }`}>
+                    <div className="text-xs text-muted-foreground font-bold">VARIANCE</div>
+                    <div className={`text-sm sm:text-lg font-bold ${
+                      varianceSummary.totalVariance > 0 ? 'text-red-700' :
+                      varianceSummary.totalVariance < 0 ? 'text-yellow-700' :
+                      'text-green-700'
+                    }`}>
+                      ₹{Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                  <div className="p-2 sm:p-3 rounded border-2 border-purple-200 bg-purple-50">
+                    <div className="text-xs text-muted-foreground font-bold">AVG/DAY</div>
+                    <div className="text-sm sm:text-lg font-bold text-purple-700">
+                      ₹{Math.abs(varianceSummary.avgDailyVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                    </div>
+                  </div>
+                  <div className="p-2 sm:p-3 rounded border-2 border-blue-200 bg-blue-50">
+                    <div className="text-xs text-muted-foreground font-bold">DAYS</div>
+                    <div className="text-sm sm:text-lg font-bold text-blue-700">
+                      {varianceSummary.dayCount}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Variance Chart */}
+                <ResponsiveContainer width="100%" height={250}>
+                  <AreaChart data={varianceSummary.byDay}>
+                    <defs>
+                      <linearGradient id="colorVariance" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4}/>
+                        <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05}/>
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 11 }}
+                      angle={-45}
+                      textAnchor="end"
+                      height={60}
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 11 }}
+                      tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`}
+                    />
+                    <Tooltip 
+                      formatter={(value: number) => `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                      contentStyle={{ fontSize: '12px' }}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="variance" 
+                      stroke="#dc2626" 
+                      strokeWidth={2}
+                      fillOpacity={1}
+                      fill="url(#colorVariance)"
+                      name="Variance (₹)"
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
 
           <div className="grid gap-4 lg:grid-cols-2">
             {/* Sales by Station - Pie Chart */}

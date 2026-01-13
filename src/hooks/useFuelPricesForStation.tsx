@@ -41,15 +41,20 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
     }
 
     // Get prices from global context, ensure it's an object
-    const stationPrices = (pricesByStation && pricesByStation[stationId]) || {};
+    const stationPrices = (pricesByStation && typeof pricesByStation === 'object' && pricesByStation[stationId]) || {};
     let hasPrices = Object.keys(stationPrices).length > 0;
-    let pricesArray = Object.entries(stationPrices).map(([fuel_type, price_per_litre]) => ({
-      fuel_type,
-      price_per_litre: Number(price_per_litre) || 0
-    }));
+    let pricesArray: Array<{ fuel_type: string; price_per_litre: number }> = [];
+
+    // Safely create pricesArray
+    if (stationPrices && typeof stationPrices === 'object') {
+      pricesArray = Object.entries(stationPrices).map(([fuel_type, price_per_litre]) => ({
+        fuel_type,
+        price_per_litre: Number(price_per_litre) || 0
+      }));
+    }
 
     // If global context doesn't have prices, use the direct data as fallback
-    if (!hasPrices && fuelPricesData && fuelPricesData.length > 0) {
+    if (!hasPrices && fuelPricesData && Array.isArray(fuelPricesData) && fuelPricesData.length > 0) {
       hasPrices = true;
       pricesArray = fuelPricesData.map(price => ({
         fuel_type: price.fuel_type,
@@ -63,19 +68,21 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
 
     // Get fuel types from active nozzles
     const activeFuelTypes = new Set<string>();
-    if (pumpsResponse?.data) {
+    if (pumpsResponse?.data && Array.isArray(pumpsResponse.data)) {
       pumpsResponse.data.forEach(pump => {
-        pump.nozzles?.forEach(nozzle => {
-          if (nozzle.status === 'active') {
-            activeFuelTypes.add(nozzle.fuelType.toUpperCase());
-          }
-        });
+        if (pump.nozzles && Array.isArray(pump.nozzles)) {
+          pump.nozzles.forEach(nozzle => {
+            if (nozzle.status === 'active') {
+              activeFuelTypes.add(nozzle.fuelType?.toUpperCase() || '');
+            }
+          });
+        }
       });
     }
 
     // Find missing fuel types (active in nozzles but no price set)
     const missingFuelTypes = Array.from(activeFuelTypes).filter(
-      fuelType => !stationPrices[fuelType]
+      fuelType => fuelType && !stationPrices[fuelType]
     );
 
     return {

@@ -1747,6 +1747,104 @@ exports.getSettlements = async (req, res, next) => {
  * - SETTLEMENT = Cash reconciliation (what cash we counted)
  * - Both needed for complete business control
  */
+exports.getVarianceSummary = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const { startDate, endDate } = req.query;
+    const user = req.user;
+
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    const { Settlement } = require('../models');
+    const { Op } = require('sequelize');
+
+    const where = { stationId };
+    if (startDate || endDate) {
+      where.date = {};
+      if (startDate) where.date[Op.gte] = startDate;
+      if (endDate) where.date[Op.lte] = endDate;
+    }
+
+    const settlements = await Settlement.findAll({
+      where,
+      order: [['date', 'ASC']]
+    });
+
+    if (!settlements || settlements.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          periodStart: startDate,
+          periodEnd: endDate,
+          settlementCount: 0,
+          totalVariance: 0,
+          avgDailyVariance: 0,
+          totalExpectedCash: 0,
+          variancePercentage: 0,
+          byDay: [],
+          summary: { status: 'NO_DATA', message: 'No settlements recorded' }
+        }
+      });
+    }
+
+    const byDay = {};
+    let totalVariance = 0;
+    let totalExpectedCash = 0;
+
+    settlements.forEach(s => {
+      const dateStr = typeof s.date === 'string' ? s.date : s.date.toISOString().split('T')[0];
+      const variance = parseFloat(s.variance || 0);
+      const expectedCash = parseFloat(s.expectedCash || 0);
+
+      if (!byDay[dateStr]) {
+        byDay[dateStr] = { date: dateStr, variance: 0, expectedCash: 0, settlementCount: 0 };
+      }
+
+      byDay[dateStr].variance += variance;
+      byDay[dateStr].expectedCash += expectedCash;
+      byDay[dateStr].settlementCount += 1;
+      totalVariance += variance;
+      totalExpectedCash += expectedCash;
+    });
+
+    const byDayArray = Object.values(byDay).map(day => ({
+      ...day,
+      variancePercentage: day.expectedCash > 0 ? parseFloat(((day.variance / day.expectedCash) * 100).toFixed(2)) : 0
+    }));
+
+    const avgDailyVariance = byDayArray.length > 0 ? totalVariance / byDayArray.length : 0;
+    const variancePercentage = totalExpectedCash > 0 ? parseFloat(((totalVariance / totalExpectedCash) * 100).toFixed(2)) : 0;
+
+    let status = 'HEALTHY';
+    if (Math.abs(variancePercentage) > 3) status = 'INVESTIGATE';
+    else if (Math.abs(variancePercentage) > 1) status = 'REVIEW';
+
+    res.json({
+      success: true,
+      data: {
+        periodStart: startDate,
+        periodEnd: endDate,
+        settlementCount: settlements.length,
+        dayCount: byDayArray.length,
+        totalVariance: parseFloat(totalVariance.toFixed(2)),
+        avgDailyVariance: parseFloat(avgDailyVariance.toFixed(2)),
+        totalExpectedCash: parseFloat(totalExpectedCash.toFixed(2)),
+        variancePercentage,
+        byDay: byDayArray,
+        summary: {
+          status,
+          interpretation: totalVariance > 0 ? 'Shortfall' : totalVariance < 0 ? 'Overage' : 'Perfect',
+          message: status === 'HEALTHY' ? `Variance is ${Math.abs(variancePercentage).toFixed(2)}% (acceptable)` : `${status} variance - ${Math.abs(variancePercentage).toFixed(2)}%`
+        }
+      }
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 exports.getSettlementVsSales = async (req, res, next) => {
   try {
     const { stationId } = req.params;

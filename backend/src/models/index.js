@@ -64,6 +64,12 @@ if (dialect === 'sqlite') {
     sequelize = new Sequelize(process.env.DATABASE_URL, {
       dialect: 'postgres',
       logging: false,
+      dialectOptions: {
+        ssl: {
+          require: true,
+          rejectUnauthorized: false  // Allow self-signed certificates
+        }
+      },
       pool: {
         max: 5,
         min: 0,
@@ -85,6 +91,19 @@ if (dialect === 'sqlite') {
       password: process.env.DB_PASSWORD || '',
     };
 
+    // Determine if SSL is required (for Railway and other hosted services)
+    const isRemoteHost = config.host && !config.host.includes('localhost') && !config.host.includes('127.0.0.1');
+    const dialectOptions = {};
+    
+    if (isRemoteHost) {
+      // Enable SSL for remote database connections (Railway, AWS RDS, etc.)
+      dialectOptions.ssl = {
+        require: true,
+        rejectUnauthorized: false  // Allow self-signed certificates
+      };
+      console.log('📝 [MODELS] SSL enabled for remote PostgreSQL connection');
+    }
+
     sequelize = new Sequelize(
       config.database,
       config.username,
@@ -94,6 +113,7 @@ if (dialect === 'sqlite') {
         port: config.port,
         dialect: 'postgres',
         logging: false,
+        dialectOptions,
         pool: {
           max: 5,
           min: 0,

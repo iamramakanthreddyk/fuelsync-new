@@ -108,6 +108,7 @@ router.get('/:stationId/readings', requireMinRole('manager'), stationController.
 router.get('/:stationId/readings-for-settlement', requireMinRole('manager'), stationController.getReadingsForSettlement);
 router.post('/:stationId/settlements', requireMinRole('manager'), stationController.recordSettlement);
 router.get('/:stationId/settlements', requireMinRole('manager'), stationController.getSettlements);
+router.get('/:stationId/variance-summary', requireMinRole('manager'), stationController.getVarianceSummary);
 router.get('/:stationId/settlement-vs-sales', requireMinRole('manager'), stationController.getSettlementVsSales);
 
 module.exports = router;

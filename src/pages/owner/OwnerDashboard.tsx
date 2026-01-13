@@ -11,15 +11,18 @@
  * - QuickEntryCardsGrid: Bottom navigation cards
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
-import { useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { extractApiData } from '@/lib/api-response';
 import { useStations, usePumps } from '@/hooks/api';
+import { useVarianceSummary } from '@/hooks/useVarianceSummary';
+import { safeToFixed } from '@/lib/format-utils';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { AlertCircle } from 'lucide-react';
 import {
   StatsGrid,
   PlanInfoAlert,
@@ -99,6 +102,18 @@ export default function OwnerDashboard() {
   // 2. Get fuel prices from global cache instead of making API call
   const queryClient = useQueryClient();
   
+  // Variance tracking
+  const today = new Date().toISOString().split('T')[0];
+  const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
+  const [varianceStartDate] = useState(firstDayOfMonth);
+  const [varianceEndDate] = useState(today);
+
+  const { data: varianceSummary } = useVarianceSummary(
+    primaryStation?.id,
+    varianceStartDate,
+    varianceEndDate
+  );
+
   const allFuelPrices = queryClient.getQueryData(['all-fuel-prices', stations?.map(s => s.id).sort().join(',')]);
 
   const fuelPricesResponse = useMemo(() => {
@@ -199,6 +214,89 @@ export default function OwnerDashboard() {
 
       {/* Stats Grid */}
       <StatsGrid stats={stats ?? null} isLoading={isLoading} />
+
+      {/* Variance Card */}
+      {varianceSummary && (
+        <Card className={`border-2 ${
+          varianceSummary.totalVariance > 0 ? 'border-red-300 bg-red-50' :
+          varianceSummary.totalVariance < 0 ? 'border-yellow-300 bg-yellow-50' :
+          'border-green-200 bg-green-50'
+        }`}>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <AlertCircle className={`w-5 h-5 ${
+                varianceSummary.totalVariance > 0 ? 'text-red-600' :
+                varianceSummary.totalVariance < 0 ? 'text-yellow-600' :
+                'text-green-600'
+              }`} />
+              Monthly Variance
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">{varianceStartDate} to {varianceEndDate}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid grid-cols-2 gap-2 sm:gap-3">
+              <div>
+                <div className="text-xs text-muted-foreground font-bold">
+                  {varianceSummary.totalVariance > 0 ? '🚨 SHORTFALL' : varianceSummary.totalVariance < 0 ? '⚠️ OVERAGE' : '✓ BALANCED'}
+                </div>
+                <div className={`text-lg sm:text-2xl font-bold ${
+                  varianceSummary.totalVariance > 0 ? 'text-red-700' :
+                  varianceSummary.totalVariance < 0 ? 'text-yellow-700' :
+                  'text-green-700'
+                }`}>
+                  ₹{Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground font-bold">% OF SALES</div>
+                <div className={`text-lg sm:text-2xl font-bold ${
+                  Math.abs(varianceSummary.variancePercentage) > 3 ? 'text-red-700' :
+                  Math.abs(varianceSummary.variancePercentage) > 1 ? 'text-yellow-700' :
+                  'text-green-700'
+                }`}>
+                  {safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}%
+                </div>
+              </div>
+            </div>
+
+            {/* Meaning explanation */}
+            <div className={`p-2 rounded text-xs font-medium ${
+              varianceSummary.totalVariance > 0 ? 'bg-red-100 text-red-800' :
+              varianceSummary.totalVariance < 0 ? 'bg-yellow-100 text-yellow-800' :
+              'bg-green-100 text-green-800'
+            }`}>
+              {varianceSummary.totalVariance > 0 
+                ? `⚠️ Expected ₹${safeToFixed(varianceSummary.totalExpectedCash, 0)} but received ₹${safeToFixed(varianceSummary.totalExpectedCash - varianceSummary.totalVariance, 0)} - MISSING CASH`
+                : varianceSummary.totalVariance < 0
+                ? `📊 Received ₹${safeToFixed(varianceSummary.totalExpectedCash - varianceSummary.totalVariance, 0)} but expected ₹${safeToFixed(varianceSummary.totalExpectedCash, 0)} - EXTRA CASH`
+                : `✓ Received exactly what was expected`
+              }
+            </div>
+
+            {/* Status badge */}
+            <Badge className={`w-full justify-center py-1.5 text-xs sm:text-sm font-bold ${
+              varianceSummary.summary.status === 'HEALTHY' ? 'bg-green-600 text-white' :
+              varianceSummary.summary.status === 'REVIEW' ? 'bg-yellow-600 text-white' :
+              'bg-red-600 text-white'
+            }`}>
+              {varianceSummary.summary.status === 'INVESTIGATE' ? '🚨 INVESTIGATE' :
+               varianceSummary.summary.status === 'REVIEW' ? '⚠️ REVIEW' :
+               '✓ HEALTHY'}
+            </Badge>
+
+            <div className="grid grid-cols-2 gap-2 text-xs border-t pt-2">
+              <div>
+                <span className="text-muted-foreground">Days:</span>
+                <span className="font-bold ml-1">{varianceSummary.dayCount}</span>
+              </div>
+              <div>
+                <span className="text-muted-foreground">Avg/Day:</span>
+                <span className="font-bold ml-1">₹{Math.abs(varianceSummary.avgDailyVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Stations Card with List */}
       <StationsCard 

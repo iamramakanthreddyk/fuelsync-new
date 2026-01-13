@@ -40,7 +40,6 @@ import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
 import { getBasePath } from '@/lib/roleUtils';
 import { useAuth } from '@/hooks/useAuth';
-import { useRoleAccess } from '@/hooks/useRoleAccess';
 import {
   TrendingUp,
   AlertCircle,
@@ -150,7 +149,6 @@ export default function DailySettlement() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const isManager = user?.role === 'manager';
-  const isOwner = user?.role === 'owner' || user?.role === 'super_admin';
 
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [actualCash, setActualCash] = useState<number>(0);
@@ -486,7 +484,7 @@ export default function DailySettlement() {
       {/* Quick Actions Banner - Only show if settlement needed */}
       {(() => {
         const finalSettlement = getFinalSettlementForDate();
-        if (!finalSettlement && dailySales && readingsForSettlement?.unlinked?.count > 0) {
+        if (!finalSettlement && dailySales && (readingsForSettlement?.unlinked?.count ?? 0) > 0) {
           return (
             <Card className="border-blue-300 bg-gradient-to-r from-blue-50 to-indigo-50">
               <CardContent className="p-3 sm:p-4">
@@ -1059,6 +1057,9 @@ export default function DailySettlement() {
                               const totalLiters = group.reduce((sum, reading) => sum + reading.litresSold, 0);
                               const paymentBreakdown = group[0].transaction?.paymentBreakdown;
                               const recordedBy = group[0].recordedBy;
+                              // Check if ALL readings from this transaction are selected
+                              const allReadingsSelected = group.every(r => selectedReadingIds.includes(r.id));
+                              const someReadingsSelected = group.some(r => selectedReadingIds.includes(r.id));
                               
                               return (
                                 <Collapsible
@@ -1066,14 +1067,29 @@ export default function DailySettlement() {
                                   open={isExpanded}
                                   onOpenChange={() => handleToggleTransaction(transactionId)}
                                 >
-                                  <Card className="border-l-4 border-l-yellow-400 bg-yellow-50/50">
+                                  <Card className={`border-l-4 transition-all ${
+                                    allReadingsSelected
+                                      ? 'border-l-green-500 bg-green-50 ring-2 ring-green-200'
+                                      : someReadingsSelected
+                                      ? 'border-l-blue-400 bg-blue-50'
+                                      : 'border-l-yellow-400 bg-yellow-50/50'
+                                  }`}>
                                     <CollapsibleTrigger asChild>
-                                      <CardHeader className="cursor-pointer hover:bg-yellow-50/80 transition-colors p-3">
-                                        <div className="flex items-center justify-between">
+                                      <CardHeader className="cursor-pointer hover:bg-opacity-80 transition-colors p-3">
+                                        <div className="flex items-center justify-between gap-2">
                                           <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 mb-1">
-                                              <Badge variant="outline" className="text-xs bg-yellow-100 text-yellow-800 border-yellow-300">
-                                                {group.length} reading{group.length > 1 ? 's' : ''}
+                                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                              <Badge className={`text-xs font-bold ${
+                                                allReadingsSelected
+                                                  ? 'bg-green-600 text-white'
+                                                  : someReadingsSelected
+                                                  ? 'bg-blue-600 text-white'
+                                                  : 'bg-yellow-600 text-white'
+                                              }`}>
+                                                {allReadingsSelected ? '✓ SELECTED' : someReadingsSelected ? 'PARTIAL' : 'NOT SELECTED'}
+                                              </Badge>
+                                              <Badge variant="outline" className="text-xs bg-white border-2 border-current font-semibold">
+                                                {group.length} reading{group.length > 1 ? 's' : ''} • 1 transaction
                                               </Badge>
                                               {recordedBy && (
                                                 <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -1082,35 +1098,74 @@ export default function DailySettlement() {
                                                 </div>
                                               )}
                                             </div>
-                                            <CardTitle className="text-sm font-medium text-left">
+                                            <CardTitle className="text-sm font-bold text-left">
                                               Transaction {transactionId === 'no-tx' ? 'N/A' : transactionId.slice(-8)}
                                             </CardTitle>
-                                            <CardDescription className="text-xs text-left flex items-center gap-4">
-                                              <span>{safeToFixed(totalLiters, 2)} L</span>
-                                              <span className="font-medium text-green-600">₹{safeToFixed(totalValue, 2)}</span>
+                                            <CardDescription className="text-xs text-left flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-3 mt-1">
+                                              <span className="font-bold text-gray-700">{safeToFixed(totalLiters, 2)} L</span>
+                                              <span className="font-bold text-green-600">₹{safeToFixed(totalValue, 2)} Total</span>
                                               {paymentBreakdown && (
-                                                <span className="text-xs">
-                                                  Cash: ₹{safeToFixed(paymentBreakdown.cash, 0)} | 
-                                                  Online: ₹{safeToFixed(paymentBreakdown.online, 0)} | 
-                                                  Credit: ₹{safeToFixed(paymentBreakdown.credit, 0)}
+                                                <span className="text-xs bg-white px-2 py-0.5 rounded border">
+                                                  💰 ₹{safeToFixed(paymentBreakdown.cash, 0)} | 💳 ₹{safeToFixed(paymentBreakdown.online, 0)} | 🤝 ₹{safeToFixed(paymentBreakdown.credit, 0)}
                                                 </span>
                                               )}
                                             </CardDescription>
                                           </div>
-                                          <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                          <div className="flex items-center gap-2 flex-shrink-0">
+                                            <Button
+                                              variant={allReadingsSelected ? "default" : "outline"}
+                                              size="sm"
+                                              className={`whitespace-nowrap text-xs font-bold ${
+                                                allReadingsSelected
+                                                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                  : 'border-gray-300 hover:bg-gray-100'
+                                              }`}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                // Toggle all readings in this transaction
+                                                if (allReadingsSelected) {
+                                                  // Deselect all from this transaction
+                                                  setSelectedReadingIds(prev => 
+                                                    prev.filter(id => !group.some(r => r.id === id))
+                                                  );
+                                                } else {
+                                                  // Select all from this transaction
+                                                  setSelectedReadingIds(prev => [
+                                                    ...prev,
+                                                    ...group.filter(r => !prev.includes(r.id)).map(r => r.id)
+                                                  ]);
+                                                }
+                                              }}
+                                            >
+                                              {allReadingsSelected ? (
+                                                <>
+                                                  <span>✓ Selected</span>
+                                                </>
+                                              ) : (
+                                                <>
+                                                  <span>📋 Select All</span>
+                                                </>
+                                              )}
+                                            </Button>
+                                            <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isExpanded ? 'rotate-180' : ''}`} />
+                                          </div>
                                         </div>
                                       </CardHeader>
                                     </CollapsibleTrigger>
                                     <CollapsibleContent>
-                                      <CardContent className="pt-0 pb-3">
-                                        <div className="space-y-2">
+                                      <CardContent className="pt-0 pb-3 px-3">
+                                        <div className="space-y-2 border-t pt-3">
+                                          <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
+                                            <span>📍 Nozzle Details:</span>
+                                            <span className="text-purple-600">(Click to toggle individual reading)</span>
+                                          </div>
                                           {group.map(reading => (
                                             <div
                                               key={reading.id}
-                                              className={`p-2 sm:p-3 rounded-lg border cursor-pointer transition-colors ${
+                                              className={`p-2 sm:p-3 rounded-lg border-2 cursor-pointer transition-all ${
                                                 selectedReadingIds.includes(reading.id)
-                                                  ? 'bg-purple-100 border-purple-400'
-                                                  : 'bg-white hover:bg-gray-50 border-gray-200'
+                                                  ? 'bg-purple-100 border-purple-400 shadow-md'
+                                                  : 'bg-white hover:bg-gray-50 border-gray-300'
                                               }`}
                                               onClick={() => handleToggleReading(reading.id)}
                                             >
@@ -1121,26 +1176,22 @@ export default function DailySettlement() {
                                                     onCheckedChange={() => handleToggleReading(reading.id)}
                                                   />
                                                   <div className="min-w-0 flex-1">
-                                                    <span className="text-xs sm:text-sm font-medium block truncate">
-                                                      Nozzle #{reading.nozzleNumber} - {reading.fuelType}
+                                                    <span className="text-xs sm:text-sm font-bold block truncate">
+                                                      Nozzle #{reading.nozzleNumber} - {reading.fuelType.toUpperCase()}
                                                     </span>
-                                                    <span className="text-xs text-muted-foreground">Last: {safeToFixed(reading.closingReading, 2)}</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                      Reading: {safeToFixed(reading.openingReading, 1)} → {safeToFixed(reading.closingReading, 1)}L
+                                                    </span>
                                                   </div>
                                                 </div>
-                                                <span className="text-xs sm:text-sm font-bold text-green-600 ml-2">
+                                                <span className="text-xs sm:text-sm font-bold text-green-600 ml-2 flex-shrink-0">
                                                   ₹{safeToFixed(reading.saleValue, 2)}
                                                 </span>
                                               </div>
-                                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1 sm:gap-2 text-xs text-muted-foreground ml-6">
-                                                <div className="truncate">{safeToFixed(reading.litresSold, 2)} L</div>
-                                                <div className="truncate">₹{safeToFixed(reading.saleValue, 2)}</div>
+                                              <div className="grid grid-cols-2 gap-1 sm:gap-2 text-xs text-muted-foreground ml-6">
+                                                <div className="truncate">💧 {safeToFixed(reading.litresSold, 2)} L sold</div>
+                                                <div className="truncate">⏰ {new Date(reading.recordedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}</div>
                                               </div>
-                                              {reading.recordedBy && (
-                                                <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1 ml-6">
-                                                  <Clock className="w-3 h-3 flex-shrink-0" />
-                                                  {new Date(reading.recordedAt).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
-                                                </div>
-                                              )}
                                             </div>
                                           ))}
                                         </div>
@@ -1430,8 +1481,9 @@ export default function DailySettlement() {
               </CardHeader>
               <CardContent className="p-0">
                 <div className="space-y-3 sm:space-y-6">
-                  {previousSettlements.map((settlement: SettlementRecord) => (
-                    <Collapsible key={settlement.id} open={expandedSettlements.has(settlement.id)} onOpenChange={() => handleToggleSettlement(settlement.id)}>
+                  {previousSettlements.map((settlement: SettlementRecord) => 
+                    settlement.id ? (
+                    <Collapsible key={settlement.id} open={expandedSettlements.has(settlement.id)} onOpenChange={() => handleToggleSettlement(settlement.id!)}>
                       <CollapsibleTrigger asChild>
                         <div className={`border rounded-lg p-3 sm:p-4 cursor-pointer hover:bg-gray-50 transition-colors ${settlement.isFinal ? 'border-green-600 bg-green-50' : 'border-muted'} ${settlement.mainSettlement && settlement.mainSettlement.id === settlement.id ? 'ring-2 ring-blue-300' : ''}`}>
                           <div className="flex items-center justify-between">
@@ -1450,7 +1502,7 @@ export default function DailySettlement() {
                                 {settlement.isFinal ? 'Final' : 'Draft'}
                               </Badge>
                             </div>
-                            <ChevronDown className={`w-4 h-4 transition-transform shrink-0 ${expandedSettlements.has(settlement.id) ? 'rotate-180' : ''}`} />
+                            <ChevronDown className={`w-4 h-4 transition-transform shrink-0 ${settlement.id && expandedSettlements.has(settlement.id) ? 'rotate-180' : ''}`} />
                           </div>
                         </div>
                       </CollapsibleTrigger>
@@ -1522,7 +1574,8 @@ export default function DailySettlement() {
                         </div>
                       </CollapsibleContent>
                     </Collapsible>
-                  ))}
+                    ) : null
+                  )}
                 </div>
               </CardContent>
             </Card>
