@@ -1554,6 +1554,21 @@ exports.recordSettlement = async (req, res, next) => {
     const parsedOnline = parseFloat(online || 0);
     const parsedCredit = parseFloat(credit || 0);
 
+    // VALIDATE all settlement amounts
+    const validationErrors = [];
+    if (parsedExpectedCash < 0) validationErrors.push('expectedCash cannot be negative');
+    if (parsedActualCash < 0) validationErrors.push('actualCash cannot be negative');
+    if (parsedOnline < 0) validationErrors.push('online amount cannot be negative');
+    if (parsedCredit < 0) validationErrors.push('credit amount cannot be negative');
+    
+    if (validationErrors.length > 0) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Invalid settlement amounts',
+        details: validationErrors
+      });
+    }
+
     // CALCULATE VARIANCE on backend (don't trust frontend value)
     const calculatedVariance = parsedExpectedCash - parsedActualCash;
 
@@ -1588,9 +1603,27 @@ exports.recordSettlement = async (req, res, next) => {
     employeeOnline = parseFloat(employeeOnline.toFixed(2));
     employeeCredit = parseFloat(employeeCredit.toFixed(2));
 
-    // Calculate variance for online and credit
+    // Calculate variance for all payment methods
     const varianceOnline = employeeOnline - parsedOnline;
     const varianceCredit = employeeCredit - parsedCredit;
+    
+    // VALIDATION: Check that owner-confirmed amounts don't exceed significant tolerance from employee reports
+    const TOLERANCE_PERCENTAGE = 5; // Allow 5% variance for rounding/corrections
+    const onlineVariancePercent = employeeOnline > 0 ? Math.abs(varianceOnline) / employeeOnline * 100 : 0;
+    const creditVariancePercent = employeeCredit > 0 ? Math.abs(varianceCredit) / employeeCredit * 100 : 0;
+    
+    // Log variances for debugging
+    console.log(`[SETTLEMENT VALIDATION] Online - Reported: ${employeeOnline}, Actual: ${parsedOnline}, Variance: ${varianceOnline} (${onlineVariancePercent.toFixed(2)}%)`);
+    console.log(`[SETTLEMENT VALIDATION] Credit - Reported: ${employeeCredit}, Actual: ${parsedCredit}, Variance: ${varianceCredit} (${creditVariancePercent.toFixed(2)}%)`);
+    
+    // Warn if variances exceed tolerance (but don't block)
+    const warningMessages = [];
+    if (onlineVariancePercent > TOLERANCE_PERCENTAGE && employeeOnline > 0) {
+      warningMessages.push(`Online variance ${onlineVariancePercent.toFixed(2)}% exceeds ${TOLERANCE_PERCENTAGE}% tolerance. Reported: ${employeeOnline}, Confirmed: ${parsedOnline}`);
+    }
+    if (creditVariancePercent > TOLERANCE_PERCENTAGE && employeeCredit > 0) {
+      warningMessages.push(`Credit variance ${creditVariancePercent.toFixed(2)}% exceeds ${TOLERANCE_PERCENTAGE}% tolerance. Reported: ${employeeCredit}, Confirmed: ${parsedCredit}`);
+    }
 
     // Persist settlement
     const sequelize = require('../models').sequelize;
@@ -1658,7 +1691,7 @@ exports.recordSettlement = async (req, res, next) => {
 
       await t.commit();
 
-      res.json({ 
+      const responseData = { 
         success: true, 
         data: record,
         metadata: {
@@ -1666,10 +1699,24 @@ exports.recordSettlement = async (req, res, next) => {
             varianceCalculation: `Cash: ${parsedExpectedCash} - ${parsedActualCash} = ${calculatedVariance}`,
             employeeReported: { cash: employeeCash, online: employeeOnline, credit: employeeCredit },
             ownerConfirmed: { cash: parsedActualCash, online: parsedOnline, credit: parsedCredit },
-            variances: { cash: calculatedVariance, online: varianceOnline, credit: varianceCredit },
+            variances: { 
+              cash: calculatedVariance, 
+              online: varianceOnline, 
+              credit: varianceCredit,
+              cashPercent: employeeCash > 0 ? ((calculatedVariance / employeeCash) * 100).toFixed(2) : '0.00',
+              onlinePercent: employeeOnline > 0 ? (onlineVariancePercent).toFixed(2) : '0.00',
+              creditPercent: employeeCredit > 0 ? (creditVariancePercent).toFixed(2) : '0.00'
+            },
             linkedReadings: linkedReadingsCount
           }
-      });
+      };
+      
+      // Add warnings if variances exceed tolerance
+      if (warningMessages.length > 0) {
+        responseData.warnings = warningMessages;
+      }
+      
+      res.json(responseData);
     } catch (err) {
       await t.rollback();
       throw err;

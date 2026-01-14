@@ -372,6 +372,73 @@ export default function DailySettlement() {
       return;
     }
 
+    // VALIDATION: Check that all amounts are non-negative
+    const validationErrors: string[] = [];
+    
+    if (actualCash < 0) {
+      validationErrors.push('Actual cash cannot be negative');
+    }
+    if (actualOnline < 0) {
+      validationErrors.push('Online amount cannot be negative');
+    }
+    if (actualCredit < 0) {
+      validationErrors.push('Credit amount cannot be negative');
+    }
+
+    // VALIDATION: Check that at least one amount is provided (cash, online, or credit)
+    const totalAmount = actualCash + actualOnline + actualCredit;
+    if (totalAmount <= 0) {
+      validationErrors.push('Please enter at least one payment amount (Cash, Online, or Credit)');
+    }
+
+    // VALIDATION: Warn if amounts differ significantly from employee reports
+    const selectedTotals = getSelectedTotals();
+    const TOLERANCE_PERCENT = 5;
+    
+    // Check cash variance
+    const cashVariance = Math.abs(selectedTotals.cash - actualCash);
+    const cashVariancePercent = selectedTotals.cash > 0 ? (cashVariance / selectedTotals.cash) * 100 : 0;
+    
+    // Check online variance
+    const onlineVariance = Math.abs(selectedTotals.online - actualOnline);
+    const onlineVariancePercent = selectedTotals.online > 0 ? (onlineVariance / selectedTotals.online) * 100 : 0;
+    
+    // Check credit variance
+    const creditVariance = Math.abs(selectedTotals.credit - actualCredit);
+    const creditVariancePercent = selectedTotals.credit > 0 ? (creditVariance / selectedTotals.credit) * 100 : 0;
+
+    const warnings: string[] = [];
+    
+    if (cashVariancePercent > TOLERANCE_PERCENT) {
+      warnings.push(`Cash variance: Employee reported ₹${selectedTotals.cash.toFixed(2)}, but you entered ₹${actualCash.toFixed(2)} (${cashVariancePercent.toFixed(1)}% difference)`);
+    }
+    
+    if (onlineVariancePercent > TOLERANCE_PERCENT) {
+      warnings.push(`Online variance: Employee reported ₹${selectedTotals.online.toFixed(2)}, but you entered ₹${actualOnline.toFixed(2)} (${onlineVariancePercent.toFixed(1)}% difference)`);
+    }
+    
+    if (creditVariancePercent > TOLERANCE_PERCENT) {
+      warnings.push(`Credit variance: Employee reported ₹${selectedTotals.credit.toFixed(2)}, but you entered ₹${actualCredit.toFixed(2)} (${creditVariancePercent.toFixed(1)}% difference)`);
+    }
+
+    // Show validation errors (blocking)
+    if (validationErrors.length > 0) {
+      toast({
+        title: 'Validation Error',
+        description: validationErrors.join('\n'),
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Show warnings (non-blocking, but ask for confirmation)
+    if (warnings.length > 0) {
+      const confirmMessage = `WARNING: Large variance detected:\n\n${warnings.join('\n')}\n\nDo you want to continue?`;
+      if (!window.confirm(confirmMessage)) {
+        return;
+      }
+    }
+
     // NOTE: Variance is calculated on backend, don't send it
     // Frontend shows it for user info, but backend recalculates to prevent manipulation
     setIsSubmitting(true);
@@ -1320,8 +1387,12 @@ export default function DailySettlement() {
                       id="actual-cash"
                       type="number"
                       step="0.01"
+                      min="0"
                       value={actualCash}
-                      onChange={(e) => setActualCash(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setActualCash(isNaN(val) || val < 0 ? 0 : val);
+                      }}
                       className="border-green-300 focus:border-green-500 text-sm sm:text-base md:text-lg font-bold"
                       placeholder="Enter actual cash received"
                     />
@@ -1337,8 +1408,12 @@ export default function DailySettlement() {
                       id="actual-online"
                       type="number"
                       step="0.01"
+                      min="0"
                       value={actualOnline}
-                      onChange={(e) => setActualOnline(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setActualOnline(isNaN(val) || val < 0 ? 0 : val);
+                      }}
                       className="border-blue-300 focus:border-blue-500 text-sm sm:text-base md:text-lg font-bold"
                       placeholder="Enter actual online received"
                     />
@@ -1354,8 +1429,12 @@ export default function DailySettlement() {
                       id="actual-credit"
                       type="number"
                       step="0.01"
+                      min="0"
                       value={actualCredit}
-                      onChange={(e) => setActualCredit(parseFloat(e.target.value) || 0)}
+                      onChange={(e) => {
+                        const val = parseFloat(e.target.value);
+                        setActualCredit(isNaN(val) || val < 0 ? 0 : val);
+                      }}
                       className="border-orange-300 focus:border-orange-500 text-sm sm:text-base md:text-lg font-bold"
                       placeholder="Enter credit given (sales on credit)"
                     />
@@ -1403,7 +1482,81 @@ export default function DailySettlement() {
                   </div>
                 )}
 
-                {/* Notes */}
+                {/* Online Variance - show when readings selected and online amount entered */}
+                {selectedReadingIds.length > 0 && actualOnline > 0 && (
+                  <div className={`p-3 sm:p-4 rounded-lg border-2 ${
+                    Math.abs(getSelectedTotals().online - actualOnline) < 1
+                      ? 'border-blue-300 bg-blue-100'
+                      : 'border-yellow-300 bg-yellow-100'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`font-bold text-sm sm:text-base ${
+                        Math.abs(actualOnline - getSelectedTotals().online) < 1
+                          ? 'text-blue-700'
+                          : 'text-yellow-700'
+                      }`}>
+                        {Math.abs(getSelectedTotals().online - actualOnline) < 1 ? (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 inline mr-2" />
+                            Online Match - No Variance
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-4 h-4 inline mr-2" />
+                            Online Variance
+                          </>
+                        )}
+                      </span>
+                      <div className={`text-sm sm:text-lg md:text-xl lg:text-2xl font-bold ${
+                        getSelectedTotals().online < actualOnline
+                          ? 'text-green-600'
+                          : getSelectedTotals().online > actualOnline
+                          ? 'text-red-600'
+                          : 'text-blue-600'
+                      }`}>
+                        {getSelectedTotals().online < actualOnline ? '+' : ''}₹{safeToFixed(getSelectedTotals().online - actualOnline, 2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Credit Variance - show when readings selected and credit amount entered */}
+                {selectedReadingIds.length > 0 && actualCredit > 0 && (
+                  <div className={`p-3 sm:p-4 rounded-lg border-2 ${
+                    Math.abs(getSelectedTotals().credit - actualCredit) < 1
+                      ? 'border-orange-300 bg-orange-100'
+                      : 'border-yellow-300 bg-yellow-100'
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <span className={`font-bold text-sm sm:text-base ${
+                        Math.abs(actualCredit - getSelectedTotals().credit) < 1
+                          ? 'text-orange-700'
+                          : 'text-yellow-700'
+                      }`}>
+                        {Math.abs(getSelectedTotals().credit - actualCredit) < 1 ? (
+                          <>
+                            <CheckCircle2 className="w-4 h-4 inline mr-2" />
+                            Credit Match - No Variance
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="w-4 h-4 inline mr-2" />
+                            Credit Variance
+                          </>
+                        )}
+                      </span>
+                      <div className={`text-sm sm:text-lg md:text-xl lg:text-2xl font-bold ${
+                        getSelectedTotals().credit < actualCredit
+                          ? 'text-green-600'
+                          : getSelectedTotals().credit > actualCredit
+                          ? 'text-red-600'
+                          : 'text-orange-600'
+                      }`}>
+                        {getSelectedTotals().credit < actualCredit ? '+' : ''}₹{safeToFixed(getSelectedTotals().credit - actualCredit, 2)}
+                      </div>
+                    </div>
+                  </div>
+                )}
                 <div className="space-y-2">
                   <Label htmlFor="notes" className="text-sm font-semibold">
                     Notes (Optional)
