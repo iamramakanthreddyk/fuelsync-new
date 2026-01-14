@@ -29,6 +29,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
+import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import { useSalesData } from "@/hooks/useSalesData";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { Skeleton } from "@/components/ui/skeleton";

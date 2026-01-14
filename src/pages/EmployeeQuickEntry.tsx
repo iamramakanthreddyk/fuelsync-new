@@ -18,6 +18,7 @@ import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { safeToFixed } from '@/lib/format-utils';
+import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { ReadingSaleCalculation } from '@/components/owner/ReadingSaleCalculation';
 import { TransactionPaymentSummary } from '@/components/owner/TransactionPaymentSummary';

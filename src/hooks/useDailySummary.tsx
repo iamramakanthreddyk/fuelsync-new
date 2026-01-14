@@ -30,7 +30,13 @@ interface DailySummaryData {
 
 interface DashboardDailyResponse {
   date: string;
-  totalSales?: number;
+  litres?: number;
+  amount?: number;
+  cash?: number;
+  online?: number;
+  credit?: number;
+  readings?: number;
+  totalSales?: number; // Keep for backward compatibility
   totalVolume?: number;
   fuelSales?: number;
   cashSales?: number;
@@ -68,10 +74,10 @@ export function useDailySummary(date: string) {
             : null;
 
           // Calculate totals from daily data only
-          const salesTotal = dailyData?.totalSales ?? 0;
-          const cashAmount = dailyData?.cashSales ?? 0;
-          const onlineAmount = dailyData?.onlineSales ?? 0;
-          const creditAmount = dailyData?.creditSales ?? 0;
+          const salesTotal = dailyData?.amount ?? dailyData?.totalSales ?? 0;
+          const cashAmount = dailyData?.cash ?? dailyData?.cashSales ?? 0;
+          const onlineAmount = dailyData?.online ?? dailyData?.onlineSales ?? 0;
+          const creditAmount = dailyData?.credit ?? dailyData?.creditSales ?? 0;
 
           return {
             sales_total: salesTotal,
@@ -105,10 +111,10 @@ export function useDailySummary(date: string) {
           : null;
 
         // Calculate totals from available data
-        const salesTotal = dailyData?.totalSales ?? financialData?.grossSales ?? 0;
-        const cashAmount = dailyData?.cashSales ?? financialData?.cashOnHand ?? 0;
-        const creditAmount = dailyData?.creditSales ?? financialData?.creditOutstanding ?? 0;
-        const onlineAmount = dailyData?.onlineSales ?? 0;
+        const salesTotal = dailyData?.amount ?? dailyData?.totalSales ?? financialData?.grossSales ?? 0;
+        const cashAmount = dailyData?.cash ?? dailyData?.cashSales ?? financialData?.cashOnHand ?? 0;
+        const creditAmount = dailyData?.credit ?? dailyData?.creditSales ?? financialData?.creditOutstanding ?? 0;
+        const onlineAmount = dailyData?.online ?? dailyData?.onlineSales ?? 0;
         
         // Card/UPI breakdown - split online payments (approximation if not available separately)
         const cardAmount = onlineAmount * 0.5;  // Approximate

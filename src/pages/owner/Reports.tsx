@@ -5,7 +5,7 @@
  * Refactored to use reusable components from @/components/reports
  */
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { useFuelPricesGlobal } from '../../context/FuelPricesContext';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -224,6 +224,13 @@ export default function Reports() {
   // Fetch stations
   const { data: stationsResponse } = useStations();
   const stations = stationsResponse?.data ?? [];
+
+  // Auto-select station for users with only one station (like managers)
+  useEffect(() => {
+    if (stations.length === 1 && selectedStation === 'all') {
+      setSelectedStation(stations[0].id);
+    }
+  }, [stations, selectedStation]);
 
   // Fetch fuel prices for pie chart
   const { prices } = useFuelPricesGlobal();

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,7 @@ export default function Reports() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [reportType, setReportType] = useState('daily');
-  const [selectedStation, setSelectedStation] = useState<string>('all');
+  const [selectedStation, setSelectedStation] = useState<string>('');
   const { user } = useAuth();
   const { toast } = useToast();
 
@@ -36,9 +36,16 @@ export default function Reports() {
   const { data: stationsResponse } = useStations();
   const stations = stationsResponse?.data;
 
+  // Set default station when stations load
+  useEffect(() => {
+    if (stations && stations.length > 0 && !selectedStation) {
+      setSelectedStation(stations[0].id);
+    }
+  }, [stations, selectedStation]);
+
   // Determine current station based on selection
-  const currentStation = selectedStation === 'all' 
-    ? user?.stations?.[0] 
+  const currentStation = !selectedStation || selectedStation === 'all' 
+    ? stations?.[0] 
     : stations?.find(s => s.id === selectedStation);
 
   // Use central hook for reports
@@ -103,9 +110,9 @@ export default function Reports() {
             </div>
             <div>
               <Label htmlFor="station">Station</Label>
-              <Select value={selectedStation} onValueChange={setSelectedStation}>
+              <Select value={selectedStation || 'all'} onValueChange={(value) => setSelectedStation(value === 'all' ? '' : value)}>
                 <SelectTrigger>
-                  <SelectValue />
+                  <SelectValue placeholder="Select a station" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Stations</SelectItem>
@@ -209,19 +216,21 @@ export default function Reports() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm table-auto">
-                <thead>
-                  <tr className="text-left">
+              <table className="w-full text-sm border-collapse">
+                <thead className="bg-muted">
+                  <tr className="text-left border-b">
                     {Object.keys(reportData.data[0] || {}).map((h) => (
-                      <th key={h} className="p-2 font-medium">{h}</th>
+                      <th key={h} className="p-3 font-semibold text-foreground whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {reportData.data.map((row: ReportRow, idx: number) => (
-                    <tr key={idx} className="border-t">
-                      {Object.values(row).map((val, i) => (
-                        <td key={i} className="p-2">{typeof val === 'number' ? val.toLocaleString('en-IN') : String(val)}</td>
+                    <tr key={idx} className="border-b hover:bg-muted/50 transition-colors">
+                      {Object.entries(row).map(([key, val]) => (
+                        <td key={key} className="p-3 text-foreground">
+                          {typeof val === 'string' && val.includes('₹') ? val : typeof val === 'number' ? val.toLocaleString('en-IN') : String(val)}
+                        </td>
                       ))}
                     </tr>
                   ))}

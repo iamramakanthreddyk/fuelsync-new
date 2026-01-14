@@ -513,7 +513,7 @@ export default function EmployeesManagement() {
                     variant="outline"
                     size="sm"
                     className="px-4 py-2 rounded-lg shadow-md"
-                    onClick={() => handleResetPassword()}
+                    onClick={() => handleResetPasswordDialogOpen(employee)}
                   >
                     Reset Password
                   </Button>

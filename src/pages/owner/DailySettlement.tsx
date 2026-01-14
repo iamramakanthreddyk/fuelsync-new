@@ -39,6 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
 import { getBasePath } from '@/lib/roleUtils';
+import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import { useAuth } from '@/hooks/useAuth';
 import {
   TrendingUp,

@@ -144,23 +144,77 @@ export default function Settlements() {
 
       {summary && (
         <>
-          <Card>
+          <Card className="border-0 shadow-lg bg-gradient-to-br from-blue-50 to-indigo-50">
             <CardHeader>
-              <CardTitle>Daily Summary</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-blue-900">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <ClipboardCheck className="w-5 h-5 text-blue-600" />
+                </div>
+                Daily Summary
+              </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                <p>Total Sales: {summary.sales_total}</p>
-                <p>Breakdown — Cash: {summary.breakdown.cash}, Card: {summary.breakdown.card}, UPI: {summary.breakdown.upi}, Credit: {summary.breakdown.credit}</p>
+              <div className="space-y-6">
+                {/* Total Sales */}
+                <div className="text-center p-4 bg-white rounded-lg border border-blue-200">
+                  <p className="text-sm text-blue-600 font-medium">Total Sales</p>
+                  <p className="text-3xl font-bold text-blue-900">₹{summary.sales_total.toLocaleString('en-IN')}</p>
+                </div>
+
+                {/* Payment Breakdown */}
+                <div>
+                  <h4 className="text-sm font-semibold text-gray-700 mb-3">Payment Breakdown</h4>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {/* Cash */}
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3 text-center">
+                      <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <span className="text-green-600 font-bold text-sm">₹</span>
+                      </div>
+                      <p className="text-xs text-green-700 font-medium">Cash</p>
+                      <p className="text-lg font-bold text-green-900">₹{summary.breakdown.cash.toLocaleString('en-IN')}</p>
+                    </div>
+
+                    {/* Card */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-center">
+                      <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <span className="text-blue-600 font-bold text-sm">💳</span>
+                      </div>
+                      <p className="text-xs text-blue-700 font-medium">Card</p>
+                      <p className="text-lg font-bold text-blue-900">₹{summary.breakdown.card.toLocaleString('en-IN')}</p>
+                    </div>
+
+                    {/* UPI */}
+                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-3 text-center">
+                      <div className="w-8 h-8 bg-purple-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <span className="text-purple-600 font-bold text-sm">📱</span>
+                      </div>
+                      <p className="text-xs text-purple-700 font-medium">UPI</p>
+                      <p className="text-lg font-bold text-purple-900">₹{summary.breakdown.upi.toLocaleString('en-IN')}</p>
+                    </div>
+
+                    {/* Credit */}
+                    <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 text-center">
+                      <div className="w-8 h-8 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-2">
+                        <span className="text-orange-600 font-bold text-sm">📊</span>
+                      </div>
+                      <p className="text-xs text-orange-700 font-medium">Credit</p>
+                      <p className="text-lg font-bold text-orange-900">₹{summary.breakdown.credit.toLocaleString('en-IN')}</p>
+                    </div>
+                  </div>
+                </div>
+
                 {isOwner && (
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 pt-4 border-t border-blue-200">
                     <Input
                       id="closureNotes"
                       value={closureNotes}
                       onChange={(e) => setClosureNotes(e.target.value)}
                       placeholder="Optional notes for this closure"
+                      className="flex-1"
                     />
-                    <Button onClick={handleClosureSubmit}>Close Day</Button>
+                    <Button onClick={handleClosureSubmit} className="bg-blue-600 hover:bg-blue-700">
+                      Close Day
+                    </Button>
                   </div>
                 )}
               </div>

@@ -119,9 +119,28 @@ export class ApiService {
   }
 
   async generateReport(stationId: string, startDate: string, endDate: string, reportType: ReportType = 'daily') {
-    const response = await apiClient.get<{ success: boolean; data: NozzleReading[] }>(`/readings?stationId=${stationId}&startDate=${startDate}&endDate=${endDate}`);
-    // Extract the actual data array from the response envelope
-    const readings = response?.data || [];
+    const response = await apiClient.get<{ success: boolean; data: { linked: { readings: NozzleReading[] }, unlinked: { readings: NozzleReading[] }, allReadingsCount: number }, readings: NozzleReading[] }>(`/stations/${stationId}/readings?startDate=${startDate}&endDate=${endDate}`);
+    
+    // Extract the actual data array from the response
+    // The API returns readings in response.readings (top-level array of all readings)
+    const readings = response?.readings || response?.data?.readings || [];
+    
+    // Map readings to report format based on report type
+    if (reportType === 'daily') {
+      return { 
+        data: readings.map((r: NozzleReading) => ({
+          Date: new Date(r.readingDate).toLocaleDateString('en-IN'),
+          Pump: r.nozzle?.pumpName || r.nozzle?.nozzleNumber || 'N/A',
+          Nozzle: r.nozzle?.nozzleNumber || 'N/A',
+          Fuel: r.fuelType || r.nozzle?.fuelType || 'N/A',
+          'Litres Sold': Number(r.litresSold).toFixed(2),
+          'Price/Litre': Number(r.pricePerLitre).toFixed(2),
+          'Total Amount': Number(r.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 }),
+          'Entered By': r.enteredByUser?.name || 'Unknown'
+        })) 
+      };
+    }
+    
     return { data: readings };
   }
 
