@@ -1,5 +1,3 @@
-
-
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { BarChart, Bar, XAxis, YAxis, LineChart, Line, PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
@@ -124,107 +122,115 @@ export function SalesCharts({ salesData, isLoading }: SalesChartsProps) {
   };
 
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <div className="grid grid-cols-1 gap-3 sm:gap-4 md:gap-6 lg:grid-cols-2">
       {/* Daily Sales Trend */}
-      <Card>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
             <TrendingUp className="w-5 h-5" />
             Daily Sales Trend
           </CardTitle>
-          <CardDescription>Sales amount over time</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Sales amount over time</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <LineChart data={dailyTrendData}>
-              <XAxis 
-                dataKey="date" 
-                tickFormatter={(value) => new Date(value).toLocaleDateString()}
-              />
-              <YAxis />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Line 
-                type="monotone" 
-                dataKey="amount" 
-                stroke="var(--color-amount)" 
-                strokeWidth={2}
-                dot={{ fill: "var(--color-amount)" }}
-              />
-            </LineChart>
+          <ChartContainer config={chartConfig} className="h-[220px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={dailyTrendData}>
+                <XAxis 
+                  dataKey="date" 
+                  tickFormatter={(value) => new Date(value).toLocaleDateString()}
+                />
+                <YAxis />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Line 
+                  type="monotone" 
+                  dataKey="amount" 
+                  stroke="var(--color-amount)" 
+                  strokeWidth={2}
+                  dot={{ fill: "var(--color-amount)" }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
       </Card>
 
       {/* Pump-wise Sales */}
-      <Card>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
             <BarChart3 className="w-5 h-5" />
             Pump-wise Sales
           </CardTitle>
-          <CardDescription>Sales breakdown by pump</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Sales breakdown by pump</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <BarChart data={pumpBreakdownData}>
-              <XAxis dataKey="pump" />
-              <YAxis />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 4, 0, 0]} />
-            </BarChart>
+          <ChartContainer config={chartConfig} className="h-[220px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={pumpBreakdownData}>
+                <XAxis dataKey="pump" />
+                <YAxis />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
       </Card>
 
       {/* Fuel Type Distribution */}
-      <Card>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
             <Fuel className="w-5 h-5" />
             Fuel Type Distribution
           </CardTitle>
-          <CardDescription>Volume by fuel type</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Volume by fuel type</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <PieChart>
-              <Pie
-                data={fuelTypeData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name} ${safeToFixed(percent * 100, 0)}%`}
-                outerRadius={80}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {fuelTypeData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <ChartTooltip content={<ChartTooltipContent />} />
-            </PieChart>
+          <ChartContainer config={chartConfig} className="h-[220px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={fuelTypeData}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name} ${safeToFixed(percent * 100, 0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {fuelTypeData.map((_, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <ChartTooltip content={<ChartTooltipContent />} />
+              </PieChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
       </Card>
 
       {/* Hourly Sales Pattern */}
-      <Card>
+      <Card className="w-full">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg md:text-xl">
             <BarChart3 className="w-5 h-5" />
             Hourly Sales Pattern
           </CardTitle>
-          <CardDescription>Sales throughout the day</CardDescription>
+          <CardDescription className="text-xs sm:text-sm">Sales throughout the day</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={chartConfig} className="h-[300px]">
-            <BarChart data={hourlyData}>
-              <XAxis dataKey="hour" />
-              <YAxis />
-              <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 4, 0, 0]} />
-            </BarChart>
+          <ChartContainer config={chartConfig} className="h-[220px] sm:h-[300px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={hourlyData}>
+                <XAxis dataKey="hour" />
+                <YAxis />
+                <ChartTooltip content={<ChartTooltipContent />} />
+                <Bar dataKey="amount" fill="var(--color-amount)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </ChartContainer>
         </CardContent>
       </Card>

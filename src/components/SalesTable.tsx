@@ -1,5 +1,3 @@
-
-
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -73,7 +71,7 @@ export function SalesTable({
                     </div>
                     <div className="bg-gray-50 rounded p-2">
                       <div className="text-muted-foreground text-xs">Volume</div>
-                      <div className="font-semibold truncate">{safeToFixed(s.delta_volume_l || 0, 2)} L</div>
+                      <div className="font-semibold truncate">{safeToFixed((s.litresSold ?? s.delta_volume_l ?? s.deltaVolumeL ?? 0), 2)} L</div>
                     </div>
                   </div>
 
