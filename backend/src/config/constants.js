@@ -19,7 +19,6 @@ module.exports = {
     CNG: 'cng',
     LPG: 'lpg',
     EV_CHARGING: 'ev_charging',  // Electric vehicle charging
-    EV: 'ev' // Accept 'ev' as alias for EV charging
   },
 
   /**
@@ -33,7 +32,6 @@ module.exports = {
     cng: 'CNG',
     lpg: 'LPG',
     ev_charging: 'EV Charging',
-    ev: 'EV Charging'
   },
 
   /**

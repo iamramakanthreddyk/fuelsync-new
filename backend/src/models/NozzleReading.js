@@ -126,6 +126,12 @@ module.exports = (sequelize) => {
       defaultValue: false,
       field: 'is_initial_reading'
     },
+    isManualEntry: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      field: 'is_manual_entry',
+      comment: 'Whether this reading was entered manually or parsed from receipt'
+    },
     notes: {
       type: DataTypes.TEXT
     },

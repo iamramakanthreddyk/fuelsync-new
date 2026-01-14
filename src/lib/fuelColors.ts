@@ -6,7 +6,6 @@ export type FuelType =
   | 'petrol'
   | 'diesel'
   | 'cng'
-  | 'ev'
   | 'lpg'
   | 'premium_petrol'
   | 'premium_diesel'

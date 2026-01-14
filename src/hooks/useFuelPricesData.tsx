@@ -68,8 +68,7 @@ export function normalizeFuelType(fuelType: string): string {
       return 'LPG';
     case FuelTypeEnum.EV_CHARGING:
     case 'ev_charging':
-    case 'ev':
-      return 'EV';
+      return 'EV_CHARGING';
     case FuelTypeEnum.PREMIUM_PETROL:
     case 'premium_petrol':
       return 'PREMIUM_PETROL';

@@ -505,7 +505,7 @@ export default function EmployeeQuickEntry() {
                                 <div key={nozzle.id} className="border rounded-lg p-2.5 bg-white">
                                   <div className="flex items-center justify-between mb-1.5">
                                     <Label className="text-xs font-semibold">
-                                      Nozzle {nozzle.nozzleNumber} - {nozzle.fuelType}
+                                      Nozzle {nozzle.nozzleNumber} - {FUEL_TYPE_LABELS[nozzle.fuelType] || nozzle.fuelType}
                                       {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
                                     </Label>
                                     <span className="text-xs text-muted-foreground">

@@ -198,70 +198,7 @@ export default function DailySalesReport() {
         </Card>
       </div>
 
-      {/* Sales by Fuel Type */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between p-4 pb-2 md:p-6 md:pb-2">
-          <div className="flex flex-row gap-6 items-center mr-4 w-full max-w-md">
-            <div className="flex-1 flex flex-col items-center justify-center p-4 bg-green-50 rounded-lg border border-green-100 min-w-0">
-              <div className="text-xs text-muted-foreground mb-1 truncate">Fuel Types</div>
-              <div className="text-2xl md:text-3xl font-extrabold text-green-700 break-all">{Object.keys(report!.byFuelType).length}</div>
-            </div>
-            <div className="flex-1 flex flex-col items-center justify-center p-4 bg-orange-50 rounded-lg border border-orange-100 min-w-0">
-              <div className="text-xs text-muted-foreground mb-1 truncate">Readings</div>
-              <div className="text-2xl md:text-3xl font-extrabold text-orange-700 break-all">
-                {report!.readingsCount >= 1000 
-                  ? `${safeToFixed(report!.readingsCount / 1000, 1)}K`
-                  : report!.readingsCount.toLocaleString()}
-              </div>
-            </div>
-          </div>
-          <CardTitle className="text-lg flex-1">Sales by Fuel Type</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Pie Chart */}
-            <div>
-              <ResponsiveContainer width="100%" height={280}>
-                <PieChart>
-                  <Pie
-                    data={fuelTypeArray}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label={({ name, percentage }) => `${name} (${safeToFixed(percentage, 1)}%)`}
-                  >
-                    {fuelTypeArray.map((_, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip formatter={(value: number) => `₹${safeToFixed(value, 2)}`} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-
-            {/* Breakdown Table */}
-            <div className="space-y-2">
-              {fuelTypeArray.map((fuel, index) => (
-                <div key={fuel.name} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                    />
-                    <span className="font-medium">{fuel.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <div className="text-sm font-semibold">₹{safeToFixed(fuel.value, 2)}</div>
-                    <div className="text-xs text-muted-foreground">{safeToFixed(fuel.liters, 2)} L</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Sales by Fuel Type section removed as requested - data was unusable/dummy */}
 
 
       {/* Print Footer */}

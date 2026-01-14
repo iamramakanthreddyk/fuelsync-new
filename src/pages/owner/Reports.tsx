@@ -62,78 +62,10 @@ const getDefaultDateRange = (): DateRange => {
 };
 
 // ============================================
-// FUEL DISTRIBUTION COMPONENT
+// FUEL DISTRIBUTION COMPONENT - REMOVED
 // ============================================
 
-interface FuelDistributionProps {
-  prices: Record<string, number>;
-  className?: string;
-}
-
-const FuelDistribution: React.FC<FuelDistributionProps> = ({ prices, className }) => {
-  // Transform data for pie chart
-  const total = Object.values(prices).reduce((sum, price) => sum + price, 0);
-  const pieData = Object.entries(prices)
-    .filter(([_, price]) => price > 0)
-    .map(([fuelType, price]) => ({
-      name: fuelType,
-      value: price,
-      percentage: total > 0 ? Math.round((price / total) * 100) : 0
-    }));
-
-  return (
-    <Card className={className}>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm md:text-lg">
-          <PieChart className="w-4 h-4 md:w-5 md:h-5 text-purple-600" />
-          Fuel Distribution
-        </CardTitle>
-        <CardDescription className="text-xs md:text-sm">Sales by fuel type</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="h-32 md:h-64 w-full">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={pieData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percentage }) => `${name} ${percentage}%`}
-                outerRadius={50}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {pieData.map((_, index) => (
-                  <Cell key={`cell-${index}`} fill={CHART_COLORS[index % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value: number) => [`₹${value.toLocaleString('en-IN')}`, 'Sales']}
-                labelFormatter={(label) => `${label}`}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Legend */}
-        <div className="flex flex-wrap justify-center gap-2 md:gap-4 mt-2 md:mt-4">
-          {pieData.map((item, index) => (
-            <div key={item.name} className="flex items-center gap-1 md:gap-2">
-              <div
-                className="w-2 h-2 md:w-3 md:h-3 rounded-full"
-                style={{ backgroundColor: CHART_COLORS[index % CHART_COLORS.length] }}
-              />
-              <span className="text-xs md:text-sm text-muted-foreground">
-                {item.name} ({item.percentage}%)
-              </span>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
+// FuelDistribution component removed as requested - data was unusable/dummy
 
 // ============================================
 // REVENUE TREND CHART COMPONENT
@@ -426,7 +358,7 @@ export default function Reports() {
                   isLoading={salesLoading}
                   className="md:col-span-2"
                 />
-                <FuelDistribution prices={prices} />
+                {/* FuelDistribution removed as requested */}
               </div>
             </TabsContent>
 

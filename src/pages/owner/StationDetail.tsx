@@ -36,6 +36,7 @@ import { debounce } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { extractApiArray } from '@/lib/api-response';
 import { getFuelBadgeClasses, getFuelColors } from '@/lib/fuelColors';
+import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import { Station } from '@/types/api';
 import { StationSettingsForm } from '@/components/owner/StationSettingsForm';
 import {
@@ -889,7 +890,7 @@ export default function StationDetail() {
                                       <div className="flex items-center gap-1.5 mb-0.5">
                                         <span className="font-medium">N{nozzle.nozzleNumber}</span>
                                         <Badge className={`${fuelColors.bg} ${fuelColors.text} ${fuelColors.border} text-xs px-1 py-0`}>
-                                          {nozzle.fuelType}
+                                          {FUEL_TYPE_LABELS[nozzle.fuelType] || nozzle.fuelType}
                                         </Badge>
                                       </div>
                                       <div className="text-xs text-muted-foreground">

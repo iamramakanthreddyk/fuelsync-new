@@ -219,7 +219,7 @@ export default function Sales() {
                     <div className="flex items-center gap-4">
                       <div className={`w-3 h-3 rounded-full ${getFuelColors(sale.fuelType).dot}`} />
                       <div>
-                        <div className="font-medium">{sale.fuelType?.toUpperCase()}</div>
+                        <div className="font-medium">{FUEL_TYPE_LABELS[sale.fuelType] || sale.fuelType}</div>
                         <div className="text-sm text-muted-foreground">
                           {sale.pumpName || `Pump ${sale.pumpId}`} • Nozzle {sale.nozzleNumber || sale.nozzleId}
                         </div>

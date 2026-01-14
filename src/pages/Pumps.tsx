@@ -14,7 +14,7 @@ import { Plus, Fuel, Gauge, ClipboardEdit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { usePumpsData } from "@/hooks/usePumpsData";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
-import { EquipmentStatusEnum, FuelTypeEnum } from "@/core/enums";
+import { EquipmentStatusEnum, FuelTypeEnum, FuelType } from "@/core/enums";
 import { FuelTypeSelect } from '@/components/FuelTypeSelect';
 
 export default function Pumps() {
@@ -270,7 +270,7 @@ export default function Pumps() {
                             <Label htmlFor="fuel_type">Fuel Type</Label>
                             <FuelTypeSelect
                               value={newNozzle.fuel_type}
-                              onValueChange={(value: string) => setNewNozzle(prev => ({ ...prev, fuel_type: value as FuelTypeEnum }))}
+                              onValueChange={(value: FuelType) => setNewNozzle(prev => ({ ...prev, fuel_type: value as FuelTypeEnum }))}
                             />
                           </div>
                           <Button onClick={handleAddNozzle} disabled={addNozzleMutation.isPending} className="w-full">

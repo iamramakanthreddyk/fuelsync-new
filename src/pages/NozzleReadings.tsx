@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { FuelType, FuelTypeEnum } from '@/core/enums';
 import { FuelTypeSelect } from '@/components/FuelTypeSelect';
+import { FUEL_TYPE_LABELS } from '@/lib/constants';
 
 export default function NozzleReadings() {
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -46,7 +47,11 @@ export default function NozzleReadings() {
   const createMutation = useMutation({
     mutationFn: (data: typeof newReading) => {
       if (!currentStation) throw new Error('No station selected');
-      return apiService.createManualReading(data, currentStation.id);
+      return apiService.createManualReading({
+        nozzleId: data.nozzle_id.toString(),
+        readingDate: data.reading_date,
+        readingValue: data.cumulative_volume
+      });
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nozzle-readings'] });
@@ -153,17 +158,7 @@ export default function NozzleReadings() {
 
   const readings = readingsData?.data || [];
 
-  const getStatusBadge = (isManual: boolean) => {
-    return isManual ? (
-      <Badge variant="outline" className="text-blue-600 bg-blue-50 border-blue-200">
-        Manual
-      </Badge>
-    ) : (
-      <Badge variant="outline" className="text-green-600 bg-green-50 border-green-200">
-        Parsed
-      </Badge>
-    );
-  };
+  // Status badge function removed - isManualEntry not available in API response
 
   return (
     <div className="space-y-6">
@@ -200,14 +195,14 @@ export default function NozzleReadings() {
                     <span className="text-2xl">{reading.fuelType === FuelTypeEnum.PETROL ? '⛽' : '🚛'}</span>
                     <div>
                       <p className="font-medium">
-                        {reading.pumpSno} - Nozzle {reading.nozzleId}
+                        Nozzle {reading.nozzleId}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(reading.readingDate).toLocaleDateString()} at {reading.readingTime}
+                        {new Date(reading.readingDate).toLocaleDateString()}
                       </p>
                       <div className="flex items-center gap-2 mt-1">
-                        <Badge className={getFuelBadgeClasses(reading.fuelType)}>{reading.fuelType}</Badge>
-                        {getStatusBadge(reading.isManualEntry)}
+                        <Badge className={getFuelBadgeClasses(reading.fuelType)}>{FUEL_TYPE_LABELS[reading.fuelType] || reading.fuelType}</Badge>
+                        {/* Manual entry status removed - data not available */}
                       </div>
                     </div>
                   </div>
@@ -254,7 +249,7 @@ export default function NozzleReadings() {
             </DialogHeader>
             <form onSubmit={handleUpdate} className="space-y-4">
               <div>
-                <Label>Pump: {editingReading.pumpSno} - Nozzle {editingReading.nozzleId}</Label>
+                <Label>Nozzle {editingReading.nozzleId}</Label>
               </div>
 
               <div>
@@ -265,6 +260,7 @@ export default function NozzleReadings() {
                     setEditingReading(prev => prev ? { ...prev, fuelType: value } : null)
                   }
                 />
+              </div>
               <div>
                 <Label htmlFor="edit_cumulative_volume">Current Reading (L)</Label>
                 <Input

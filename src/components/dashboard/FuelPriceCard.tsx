@@ -40,7 +40,7 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({
     { key: 'PETROL', label: 'Petrol' },
     { key: 'DIESEL', label: 'Diesel' },
     { key: 'CNG', label: 'CNG' },
-    { key: 'EV', label: 'EV' },
+    { key: 'EV_CHARGING', label: 'EV Charging' },
   ];
 
   const setPrices = fuelTypes.filter(

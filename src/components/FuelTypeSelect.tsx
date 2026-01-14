@@ -8,8 +8,8 @@ import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import { FuelType } from '@/core/enums';
 
 interface FuelTypeSelectProps {
-  value?: string;
-  onValueChange: (value: string) => void;
+  value?: FuelType;
+  onValueChange: (value: FuelType) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -23,7 +23,7 @@ export function FuelTypeSelect({
   disabled = false
 }: FuelTypeSelectProps) {
   return (
-    <Select value={value} onValueChange={onValueChange} disabled={disabled}>
+    <Select value={value} onValueChange={(value) => onValueChange(value as FuelType)} disabled={disabled}>
       <SelectTrigger className={className}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>

@@ -1244,7 +1244,7 @@ export default function DailySettlement() {
                                                   />
                                                   <div className="min-w-0 flex-1">
                                                     <span className="text-xs sm:text-sm font-bold block truncate">
-                                                      Nozzle #{reading.nozzleNumber} - {reading.fuelType.toUpperCase()}
+                                                      Nozzle #{reading.nozzleNumber} - {FUEL_TYPE_LABELS[reading.fuelType] || reading.fuelType}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground">
                                                       Reading: {safeToFixed(reading.openingReading, 1)} → {safeToFixed(reading.closingReading, 1)}L

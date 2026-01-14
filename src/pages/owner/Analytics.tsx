@@ -106,7 +106,7 @@ const getFuelChartColor = (fuelType: string): string => {
     'petrol': '#22c55e',  // green-500
     'diesel': '#3b82f6',  // blue-500
     'cng': '#a855f7',     // purple-500
-    'ev': '#eab308'       // yellow-500
+    'ev_charging': '#eab308'       // yellow-500
   };
   return colorMap[fuelType.toLowerCase()] || '#6b7280';
 };
@@ -624,47 +624,9 @@ export default function Analytics() {
                 )}
               </CardContent>
             </Card>
-
-            {/* Sales by Fuel Type - Bar Chart */}
-            <Card className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-2">
-                <div className="flex items-center gap-2">
-                  <Droplet className="w-5 h-5 text-purple-500" />
-                  <CardTitle className="text-base sm:text-lg">Sales by Fuel Type</CardTitle>
-                </div>
-                <CardDescription className="text-xs sm:text-sm">Revenue by category</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {((analytics?.salesByFuelType?.length ?? 0) === 0) ? (
-                  <div className="flex items-center justify-center h-48 text-muted-foreground text-sm">No fuel type sales data</div>
-                ) : (
-                  <>
-                    <ResponsiveContainer width="100%" height={300}>
-                      <BarChart data={analytics?.salesByFuelType ?? []}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                        <XAxis dataKey="fuelType" tick={{ fontSize: 11 }} />
-                        <YAxis
-                          tick={{ fontSize: 11 }}
-                          tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`}
-                        />
-                        <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="sales" fill="#3b82f6" radius={[8, 8, 0, 0]} name="Sales">
-                          {(analytics?.salesByFuelType ?? []).map((entry: { fuelType: string; sales: number; quantity: number; percentage: number }, index: number) => (
-                            <Cell key={`cell-${index}`} fill={getFuelChartColor(entry.fuelType)} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                    <div className="mt-4 flex flex-wrap gap-2">
-                      {(analytics?.salesByFuelType ?? []).map((fuel: { fuelType: string; sales: number; quantity: number; percentage: number }, idx: number) => (
-                        <FuelBadge key={idx} fuelType={fuel.fuelType} showDot />
-                      ))}
-                    </div>
-                  </>
-                )}
-              </CardContent>
-            </Card>
           </div>
+
+          {/* Sales by Fuel Type section removed as requested - data was unusable/dummy */}
 
           {/* Top Performing Stations - Mobile Optimized */}
           <Card className="hover:shadow-lg transition-shadow">

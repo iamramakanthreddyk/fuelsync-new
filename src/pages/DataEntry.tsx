@@ -19,6 +19,7 @@ import { IndianRupee, Fuel, Gauge } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { FuelTypeSelect } from '@/components/FuelTypeSelect';
+import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { getFuelColors } from '@/lib/fuelColors';
 import { PaymentSplit, SaleCalculation } from '@/components/readings';
@@ -454,7 +455,7 @@ export default function DataEntry() {
                             <SelectItem key={nz.id} value={nz.id}>
                               <div className="flex items-center gap-2">
                                 <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                                <span>Pump {nz.pump?.pumpNumber || nz.pumpNumber || '?'} - Nozzle {nz.nozzleNumber} - {nz.fuelType}</span>
+                                <span>Pump {nz.pump?.pumpNumber || nz.pumpNumber || '?'} - Nozzle {nz.nozzleNumber} - {FUEL_TYPE_LABELS[nz.fuelType] || nz.fuelType}</span>
                               </div>
                             </SelectItem>
                           );
@@ -588,7 +589,7 @@ export default function DataEntry() {
                     <Label htmlFor="refill-fuel">Fuel Type</Label>
                     <FuelTypeSelect
                       value={watchRefill('fuel_type')}
-                      onValueChange={value => setRefillValue('fuel_type', value as FuelType)}
+                      onValueChange={(value: FuelType) => setRefillValue('fuel_type', value)}
                     />
                   </div>
                   <div className="space-y-2">

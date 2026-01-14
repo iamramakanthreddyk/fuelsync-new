@@ -149,6 +149,7 @@ export interface NozzleReading {
   fuelType: FuelType;
   pricePerLitre: number;
   totalAmount: number;
+  isManualEntry: boolean;
   // Per-reading tender fields deprecated — use `transaction.paymentBreakdown` instead
   // cashAmount: number;
   // onlineAmount: number;
