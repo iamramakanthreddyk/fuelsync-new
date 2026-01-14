@@ -35,3 +35,5 @@ module.exports = {
     dialect: 'postgres',
     logging: false,
     dialectOptions: getDialectOptions(process.env.DB_HOST)
+  }
+};

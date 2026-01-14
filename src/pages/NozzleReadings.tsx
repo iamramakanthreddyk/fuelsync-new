@@ -14,6 +14,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { FuelType, FuelTypeEnum } from '@/core/enums';
+import { FuelTypeSelect } from '@/components/FuelTypeSelect';
 
 export default function NozzleReadings() {
   const [showAddDialog, setShowAddDialog] = useState(false);
@@ -77,7 +78,7 @@ export default function NozzleReadings() {
   });
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: { cumulative_volume: number; fuel_type: FuelType } }) =>
+    mutationFn: ({ id, data }: { id: string; data: { currentReading: number; fuel_type: FuelType } }) =>
       apiService.updateNozzleReading(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nozzle-readings'] });
@@ -137,7 +138,7 @@ export default function NozzleReadings() {
       updateMutation.mutate({
         id: editingReading.id,
         data: {
-          cumulative_volume: editingReading.cumulativeVolume,
+          currentReading: editingReading.currentReading,
           fuel_type: editingReading.fuelType as FuelType
         }
       });
@@ -213,8 +214,8 @@ export default function NozzleReadings() {
                   
                   <div className="flex items-center gap-4">
                     <div className="text-right">
-                      <p className="font-medium">{reading.cumulativeVolume.toLocaleString()}L</p>
-                      <p className="text-sm text-muted-foreground">Cumulative</p>
+                      <p className="font-medium">{reading.currentReading.toLocaleString()}L</p>
+                      <p className="text-sm text-muted-foreground">Current Reading</p>
                     </div>
                     
                     <div className="flex gap-2">
@@ -258,36 +259,21 @@ export default function NozzleReadings() {
 
               <div>
                 <Label htmlFor="edit_fuel_type">Fuel Type</Label>
-                <Select
+                <FuelTypeSelect
                   value={editingReading.fuelType}
-                  onValueChange={(value: FuelType) => 
+                  onValueChange={(value: FuelType) =>
                     setEditingReading(prev => prev ? { ...prev, fuelType: value } : null)
                   }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
-                    <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
-                    <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
-                    <SelectItem value={FuelTypeEnum.LPG}>LPG</SelectItem>
-                    <SelectItem value={FuelTypeEnum.PREMIUM_PETROL}>Premium Petrol</SelectItem>
-                    <SelectItem value={FuelTypeEnum.PREMIUM_DIESEL}>Premium Diesel</SelectItem>
-                    <SelectItem value={FuelTypeEnum.EV_CHARGING}>EV Charging</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
+                />
               <div>
-                <Label htmlFor="edit_cumulative_volume">Cumulative Volume (L)</Label>
+                <Label htmlFor="edit_cumulative_volume">Current Reading (L)</Label>
                 <Input
                   id="edit_cumulative_volume"
                   type="number"
                   step="0.001"
-                  value={editingReading.cumulativeVolume}
+                  value={editingReading.currentReading}
                   onChange={(e) => 
-                    setEditingReading(prev => prev ? { ...prev, cumulativeVolume: parseFloat(e.target.value) || 0 } : null)
+                    setEditingReading(prev => prev ? { ...prev, currentReading: parseFloat(e.target.value) || 0 } : null)
                   }
                   required
                 />

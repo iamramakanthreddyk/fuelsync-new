@@ -2,7 +2,15 @@
  * Consistent fuel type color scheme used throughout the application
  */
 
-export type FuelType = 'petrol' | 'diesel' | 'cng' | 'ev';
+export type FuelType =
+  | 'petrol'
+  | 'diesel'
+  | 'cng'
+  | 'ev'
+  | 'lpg'
+  | 'premium_petrol'
+  | 'premium_diesel'
+  | 'ev_charging';
 
 export interface FuelColorScheme {
   bg: string;
@@ -38,6 +46,30 @@ export const FUEL_COLORS: Record<string, FuelColorScheme> = {
     dot: 'bg-purple-500',
     hover: 'hover:bg-purple-200'
   },
+  lpg: {
+    bg: 'bg-pink-100',
+    text: 'text-pink-800',
+    border: 'border-pink-300',
+    ring: 'ring-pink-200',
+    dot: 'bg-pink-500',
+    hover: 'hover:bg-pink-200'
+  },
+  premium_petrol: {
+    bg: 'bg-orange-100',
+    text: 'text-orange-800',
+    border: 'border-orange-300',
+    ring: 'ring-orange-200',
+    dot: 'bg-orange-500',
+    hover: 'hover:bg-orange-200'
+  },
+  premium_diesel: {
+    bg: 'bg-teal-100',
+    text: 'text-teal-800',
+    border: 'border-teal-300',
+    ring: 'ring-teal-200',
+    dot: 'bg-teal-500',
+    hover: 'hover:bg-teal-200'
+  },
   ev: {
     bg: 'bg-yellow-100',
     text: 'text-yellow-800',
@@ -45,6 +77,14 @@ export const FUEL_COLORS: Record<string, FuelColorScheme> = {
     ring: 'ring-yellow-200',
     dot: 'bg-yellow-500',
     hover: 'hover:bg-yellow-200'
+  },
+  ev_charging: {
+    bg: 'bg-yellow-50',
+    text: 'text-yellow-900',
+    border: 'border-yellow-200',
+    ring: 'ring-yellow-100',
+    dot: 'bg-yellow-400',
+    hover: 'hover:bg-yellow-100'
   }
 };
 

@@ -18,6 +18,7 @@ import { CurrencyInput } from '@/components/inputs/CurrencyInput';
 import { IndianRupee, Fuel, Gauge } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
+import { FuelTypeSelect } from '@/components/FuelTypeSelect';
 import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { getFuelColors } from '@/lib/fuelColors';
 import { PaymentSplit, SaleCalculation } from '@/components/readings';
@@ -585,23 +586,10 @@ export default function DataEntry() {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="refill-fuel">Fuel Type</Label>
-                    <Select
+                    <FuelTypeSelect
                       value={watchRefill('fuel_type')}
                       onValueChange={value => setRefillValue('fuel_type', value as FuelType)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select fuel type" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
-                        <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
-                        <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
-                        <SelectItem value={FuelTypeEnum.LPG}>LPG</SelectItem>
-                        <SelectItem value={FuelTypeEnum.PREMIUM_PETROL}>Premium Petrol</SelectItem>
-                        <SelectItem value={FuelTypeEnum.PREMIUM_DIESEL}>Premium Diesel</SelectItem>
-                        <SelectItem value={FuelTypeEnum.EV_CHARGING}>EV Charging</SelectItem>
-                      </SelectContent>
-                    </Select>
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="refill-quantity">Quantity (L)</Label>

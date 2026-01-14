@@ -14,6 +14,7 @@ import InlineSettleForm from '../credit/InlineSettleForm';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { FuelTypeSelect } from '@/components/FuelTypeSelect';
 import {
   Dialog,
   DialogContent,
@@ -962,19 +963,10 @@ export default function StationDetail() {
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="fuelType">Fuel Type *</Label>
-                      <Select
+                      <FuelTypeSelect
                         value={priceForm.fuelType}
                         onValueChange={(value) => setPriceForm({ ...priceForm, fuelType: value as FuelType })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
-                          <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
-                          <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
-                        </SelectContent>
-                      </Select>
+                      />
                     </div>
                     <div>
                       <Label htmlFor="price">Price (₹/L) *</Label>
@@ -1288,19 +1280,10 @@ export default function StationDetail() {
           <div className="space-y-4">
             <div>
               <Label htmlFor="nozzleFuelType">Fuel Type *</Label>
-              <Select
+              <FuelTypeSelect
                 value={nozzleForm.fuelType}
                 onValueChange={(value) => setNozzleForm({ ...nozzleForm, fuelType: value as FuelType })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
-                  <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
-                  <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
-                </SelectContent>
-              </Select>
+              />
             </div>
             <div>
               <Label htmlFor="initialReading">Initial Reading *</Label>

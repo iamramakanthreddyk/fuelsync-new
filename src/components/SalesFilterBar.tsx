@@ -16,6 +16,7 @@ import {
 import { SlidersHorizontal, Fuel, Droplet, Zap } from "lucide-react";
 import type { Pump as PumpType, Nozzle as NozzleType } from '@/types/api';
 import { FuelTypeEnum } from '@/core/enums';
+import { FuelTypeSelect } from '@/components/FuelTypeSelect';
 
 interface SalesFilterBarProps {
   dateRange: { start: Date | null; end: Date | null };
@@ -118,13 +119,11 @@ export function SalesFilterBar({
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="all">All Fuels</SelectItem>
-          <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
-          <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
-          <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
-          <SelectItem value={FuelTypeEnum.LPG}>LPG</SelectItem>
-          <SelectItem value={FuelTypeEnum.PREMIUM_PETROL}>Premium Petrol</SelectItem>
-          <SelectItem value={FuelTypeEnum.PREMIUM_DIESEL}>Premium Diesel</SelectItem>
-          <SelectItem value={FuelTypeEnum.EV_CHARGING}>EV Charging</SelectItem>
+          {Object.entries(FUEL_TYPE_LABELS).map(([key, label]) => (
+            <SelectItem key={key} value={key}>
+              {label}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
 

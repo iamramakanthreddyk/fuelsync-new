@@ -15,6 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { usePumpsData } from "@/hooks/usePumpsData";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { EquipmentStatusEnum, FuelTypeEnum } from "@/core/enums";
+import { FuelTypeSelect } from '@/components/FuelTypeSelect';
 
 export default function Pumps() {
   const navigate = useNavigate();
@@ -74,7 +75,7 @@ export default function Pumps() {
   const addNozzleMutation = useMutation({
     mutationFn: async (nozzleData: { fuel_type: FuelTypeEnum; pump_id: string }) => {
       return await apiClient.post<{ success: boolean; data: unknown }>(`/stations/pumps/${nozzleData.pump_id}/nozzles`, {
-        fuelType: nozzleData.fuel_type.toLowerCase() as FuelTypeEnum,
+        fuelType: nozzleData.fuel_type,
         initialReading: 0
       });
     },
@@ -267,17 +268,10 @@ export default function Pumps() {
                         <div className="space-y-4">
                           <div>
                             <Label htmlFor="fuel_type">Fuel Type</Label>
-                            <Select value={newNozzle.fuel_type} onValueChange={(value: FuelTypeEnum) => setNewNozzle(prev => ({ ...prev, fuel_type: value }))}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value={FuelTypeEnum.PETROL}>Petrol</SelectItem>
-                                <SelectItem value={FuelTypeEnum.DIESEL}>Diesel</SelectItem>
-                                <SelectItem value={FuelTypeEnum.CNG}>CNG</SelectItem>
-                                <SelectItem value={FuelTypeEnum.EV_CHARGING}>EV Charging</SelectItem>
-                              </SelectContent>
-                            </Select>
+                            <FuelTypeSelect
+                              value={newNozzle.fuel_type}
+                              onValueChange={(value: string) => setNewNozzle(prev => ({ ...prev, fuel_type: value as FuelTypeEnum }))}
+                            />
                           </div>
                           <Button onClick={handleAddNozzle} disabled={addNozzleMutation.isPending} className="w-full">
                             {addNozzleMutation.isPending ? 'Adding...' : 'Add Nozzle'}
