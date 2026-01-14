@@ -599,15 +599,22 @@ exports.getPumps = async (req, res, next) => {
           const lastReadingResult = await NozzleReading.findOne({
             where: { nozzleId: nozzle.id },
             order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
-            attributes: ['readingValue', 'readingDate'],
+            attributes: ['id', 'readingValue', 'readingDate', 'createdAt'],
             raw: true
           });
           const lastReading = lastReadingResult ? parseFloat(lastReadingResult.readingValue || lastReadingResult.reading_value || 0) : null;
-          return {
+          const result = {
             ...nozzle,
             lastReading: lastReading !== null ? lastReading : (nozzle.initialReading !== undefined ? parseFloat(nozzle.initialReading) : 0),
             lastReadingDate: lastReadingResult ? lastReadingResult.readingDate : null
           };
+          
+          // Debug log to verify correct reading is selected
+          if (lastReadingResult) {
+            console.log(`[NOZZLE DEBUG] Nozzle ${nozzle.id}: lastReadingValue=${lastReading}, readingDate=${lastReadingResult.readingDate}, createdAt=${lastReadingResult.createdAt}`);
+          }
+          
+          return result;
         }));
 
         return {
@@ -1370,12 +1377,41 @@ exports.getReadingsForSettlement = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
+    // ALSO fetch all DailyTransactions for this date (authoritative source of payment data)
+    const dailyTransactions = await DailyTransaction.findAll({
+      where: {
+        stationId,
+        transactionDate: queryDate
+      },
+      attributes: ['id', 'transactionDate', 'paymentBreakdown'],
+      raw: true
+    });
+
+    // Build payment breakdown map from DailyTransactions (keyed by transaction ID)
+    const paymentMap = {};
+    let totalPaymentBreakdown = { cash: 0, online: 0, credit: 0 };
+    
+    dailyTransactions.forEach(tx => {
+      const pbData = tx.paymentBreakdown || {};
+      paymentMap[tx.id] = {
+        cash: parseFloat(pbData.cash || 0),
+        online: parseFloat(pbData.online || 0),
+        credit: parseFloat(pbData.credit || 0)
+      };
+      totalPaymentBreakdown.cash += parseFloat(pbData.cash || 0);
+      totalPaymentBreakdown.online += parseFloat(pbData.online || 0);
+      totalPaymentBreakdown.credit += parseFloat(pbData.credit || 0);
+    });
+
     // Categorize readings and include transaction.paymentBreakdown (DailyTransaction is authoritative)
     const unlinkedReadings = [];
     const linkedReadings = [];
 
     for (const reading of readings) {
-      const paymentBreakdown = (reading.transaction && (reading.transaction.paymentBreakdown || reading.transaction.payment_breakdown)) || {};
+      const txId = reading.transactionId;
+      const paymentBreakdown = txId && paymentMap[txId] 
+        ? paymentMap[txId]
+        : {};
 
       const readingData = {
         id: reading.id,
@@ -1412,12 +1448,11 @@ exports.getReadingsForSettlement = async (req, res, next) => {
       }
     }
 
-    // Calculate totals for unlinked readings
-    // Only count payment breakdown once per transaction, not once per reading
+    // Calculate totals for unlinked readings using the authoritative DailyTransaction payment data
     const processedUnlinkedTxIds = new Set();
     const unlinkedTotals = unlinkedReadings.reduce((acc, r) => {
       const txId = r.transaction?.id;
-      const pb = r.transaction?.paymentBreakdown || {};
+      const pb = paymentMap[txId] || {};
       
       // Only add payment breakdown once per transaction
       if (txId && !processedUnlinkedTxIds.has(txId)) {
@@ -1437,7 +1472,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
     const processedLinkedTxIds = new Set();
     const linkedTotals = linkedReadings.reduce((acc, r) => {
       const txId = r.transaction?.id;
-      const pb = r.transaction?.paymentBreakdown || {};
+      const pb = paymentMap[txId] || {};
       
       // Only add payment breakdown once per transaction
       if (txId && !processedLinkedTxIds.has(txId)) {
@@ -1447,7 +1482,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
         processedLinkedTxIds.add(txId);
       }
       
-      acc.litres += r.litresSold;
+      acc.litres += r.litresSold;;
       acc.value += r.saleValue;
       return acc;
     }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
@@ -1668,7 +1703,7 @@ exports.getSettlements = async (req, res, next) => {
     }
 
     // Query persisted settlements with variance analysis
-    const { Settlement, User } = require('../models');
+    const { Settlement, User, DailyTransaction } = require('../models');
     const rows = await Settlement.findAll({
       where: { stationId },
       include: [{ model: User, as: 'recordedByUser', attributes: ['name', 'email'] }],
@@ -1695,31 +1730,51 @@ exports.getSettlements = async (req, res, next) => {
         latestFinalId: latestFinal ? latestFinal.id : null,
         latestRecordId: arr[arr.length - 1].id,
         mainSettlement: main.toJSON(),
-        allSettlements: arr.map(s => s.toJSON())
+        allSettlements: arr.map(s => s.toJSON()),
+        settlementDate: date // Store date for later use
       };
     });
-    // Add variance analysis to each grouped main settlement (summary)
-    const enhancedSummary = summary.map(entry => {
-      const variance = parseFloat(entry.variance || 0);
-      const expectedCash = parseFloat(entry.expectedCash || 0);
-      const variancePercentage = expectedCash > 0 ? (variance / expectedCash) * 100 : 0;
+    
+    // Recalculate expectedCash based on current transactions and add variance analysis
+    const enhancedSummary = await Promise.all(summary.map(async (entry) => {
+      // Fetch all transactions for this settlement date
+      const transactions = await DailyTransaction.findAll({
+        where: { stationId, transactionDate: entry.settlementDate },
+        raw: true
+      });
+
+      // Sum cash from all transactions for this date
+      let recalculatedExpectedCash = 0;
+      transactions.forEach(txn => {
+        const pb = txn.payment_breakdown || txn.paymentBreakdown || {};
+        recalculatedExpectedCash += parseFloat(pb.cash || 0);
+      });
+      recalculatedExpectedCash = parseFloat(recalculatedExpectedCash.toFixed(2));
+
+      // Use recalculated expectedCash, but keep the original in a separate field for audit
+      const actualCash = parseFloat(entry.actualCash || 0);
+      const recalculatedVariance = recalculatedExpectedCash - actualCash;
+      const variancePercentage = recalculatedExpectedCash > 0 ? (recalculatedVariance / recalculatedExpectedCash) * 100 : 0;
 
       let varianceStatus = 'OK';
-      if (Math.abs(variance) > (expectedCash * 0.03)) {
+      if (Math.abs(recalculatedVariance) > (recalculatedExpectedCash * 0.03)) {
         varianceStatus = 'INVESTIGATE';
-      } else if (Math.abs(variance) > (expectedCash * 0.01)) {
+      } else if (Math.abs(recalculatedVariance) > (recalculatedExpectedCash * 0.01)) {
         varianceStatus = 'REVIEW';
       }
 
       return {
         ...entry,
+        expectedCash: recalculatedExpectedCash, // Update with recalculated value
+        originalExpectedCash: parseFloat(entry.expectedCash || 0), // Preserve original for audit
+        variance: parseFloat(recalculatedVariance.toFixed(2)), // Recalculate variance
         varianceAnalysis: {
           percentage: parseFloat(variancePercentage.toFixed(2)),
           status: varianceStatus,
-          interpretation: variance > 0 ? 'Shortfall' : variance < 0 ? 'Overage' : 'Perfect match'
+          interpretation: recalculatedVariance > 0 ? 'Shortfall' : recalculatedVariance < 0 ? 'Overage' : 'Perfect match'
         }
       };
-    });
+    }));
 
     // Return grouped summary with variance analysis (single response)
     res.json({
@@ -1729,7 +1784,8 @@ exports.getSettlements = async (req, res, next) => {
         count: enhancedSummary.length,
         persistenceInfo: 'All settlements persisted to database with ACID compliance',
         amountsPrecision: 'DECIMAL(12,2) - exact, no floating point errors',
-        duplicatesFlagged: true
+        duplicatesFlagged: true,
+        expectedCashRecalculated: 'True - expectedCash recalculated from current transactions for accuracy after post-settlement entries'
       }
     });
 

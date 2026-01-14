@@ -666,13 +666,28 @@ export default function EmployeeQuickEntry() {
               Back to Readings
             </Button>
             <Button
-              onClick={() => submitTransactionMutation.mutate()}
+              onClick={() => {
+                if (
+                  paymentBreakdown.cash <= 0 &&
+                  paymentBreakdown.online <= 0 &&
+                  paymentBreakdown.credit <= 0
+                ) {
+                  toast({
+                    title: 'Payment Required',
+                    description: 'Please enter at least one payment (cash, online, or credit)',
+                    variant: 'destructive'
+                  });
+                  return;
+                }
+                submitTransactionMutation.mutate();
+              }}
               disabled={
                 submitTransactionMutation.isPending ||
                 Math.abs(
                   (paymentBreakdown.cash + paymentBreakdown.online + paymentBreakdown.credit) -
                   saleSummary.totalSaleValue
-                ) > 0.01
+                ) > 0.01 ||
+                (paymentBreakdown.cash <= 0 && paymentBreakdown.online <= 0 && paymentBreakdown.credit <= 0)
               }
               className="flex-1"
             >

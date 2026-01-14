@@ -831,13 +831,21 @@ exports.getLatestReadingsForNozzles = async (req, res) => {
     for (const id of ids) {
       const latest = await NozzleReading.findOne({
         where: { nozzleId: id },
-        order: [['readingDate', 'DESC']]
+        order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
+        attributes: ['id', 'nozzleId', 'readingValue', 'readingDate', 'createdAt'],
+        raw: true
       });
       results[id] = latest ? latest.readingValue : null;
+      
+      // Debug log to verify which reading is being returned
+      if (latest) {
+        console.log(`[LATEST READING] Nozzle ${id}: value=${latest.readingValue}, date=${latest.readingDate}, createdAt=${latest.createdAt}`);
+      }
     }
     res.json({ success: true, data: results });
   } catch (err) {
     // Instead of 500, return empty data for no data or query errors
+    console.error('[ERROR] getLatestReadingsForNozzles:', err.message);
     res.json({ success: true, data: {} });
   }
 };

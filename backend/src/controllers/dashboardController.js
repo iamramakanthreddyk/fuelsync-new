@@ -1338,26 +1338,33 @@ exports.getIncomeReceivablesReport = async (req, res, next) => {
     let totalOnlineReceived = 0;
     let totalCreditPending = 0;
 
-    // Aggregate tender totals from DailyTransaction (authoritative source)
+    // Aggregate payment breakdown from DailyTransaction (authoritative source)
     try {
-      const txns = await sequelize.models.DailyTransaction.findAll({
-        where: { stationId, transactionDate: { [Op.between]: [queryStart, queryEnd] } },
+      const { DailyTransaction } = require('../models');
+      const txns = await DailyTransaction.findAll({
+        where: { 
+          stationId, 
+          transactionDate: { [Op.between]: [queryStart, queryEnd] } 
+        },
+        attributes: ['paymentBreakdown', 'transactionDate'],
         raw: true
       });
-      txns.forEach(tx => {
-        const pb = tx.payment_breakdown || tx.paymentBreakdown || {};
-        totalCashReceived += parseFloat(pb.cash || 0);
-        totalOnlineReceived += parseFloat(pb.online || 0);
-        totalCreditPending += parseFloat(pb.credit || 0);
-      });
+
+      if (txns && txns.length > 0) {
+        txns.forEach(tx => {
+          // Handle both camelCase and snake_case from raw query
+          const pbData = tx.paymentBreakdown;
+          
+          if (pbData && typeof pbData === 'object') {
+            totalCashReceived += parseFloat(pbData.cash || 0);
+            totalOnlineReceived += parseFloat(pbData.online || 0);
+            totalCreditPending += parseFloat(pbData.credit || 0);
+          }
+        });
+      }
     } catch (e) {
-      // Non-fatal: if DailyTransaction model not available, fall back to reading.transaction.paymentBreakdown
-      readings.forEach(r => {
-        const pb = (r.transaction && (r.transaction.paymentBreakdown || r.transaction.payment_breakdown)) || {};
-        totalCashReceived += parseFloat(pb.cash || 0);
-        totalOnlineReceived += parseFloat(pb.online || 0);
-        totalCreditPending += parseFloat(pb.credit || 0);
-      });
+      console.error('Error fetching DailyTransaction for payment breakdown:', e.message);
+      // If DailyTransaction fetch fails, don't fall back - report zeros with the error logged
     }
 
     // Aggregate settled (owner) values for the period

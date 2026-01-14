@@ -1,3 +1,5 @@
+
+import React from 'react';
 /**
  * Income Report - Simplified
  * Clean overview of key financial metrics
@@ -50,9 +52,14 @@ export default function IncomeReport() {
   const { data: stationsResponse } = useStations();
   const stations = stationsResponse?.data || [];
 
-  const [selectedStation, setSelectedStation] = useState<string>(
-    stations[0]?.id || ''
-  );
+  // Ensure selectedStation is always valid when stations list changes
+  const [selectedStation, setSelectedStation] = useState<string>('');
+  React.useEffect(() => {
+    if (stations.length > 0 && !selectedStation) {
+      setSelectedStation(stations[0].id);
+    }
+  }, [stations, selectedStation]);
+
   const [dateRange, setDateRange] = useState({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0]
@@ -173,7 +180,7 @@ export default function IncomeReport() {
 
   return (
     <div className="container mx-auto p-4 md:p-6 space-y-6">
-      {/* Header */}
+      {/* Header with Station Selector */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Income Report</h1>
@@ -181,10 +188,27 @@ export default function IncomeReport() {
             {new Date(reportData.period.startDate).toLocaleDateString('en-IN')} - {new Date(reportData.period.endDate).toLocaleDateString('en-IN')}
           </p>
         </div>
-        <Button onClick={handleExportCSV} variant="outline" size="sm">
-          <Download className="w-4 h-4 mr-2" />
-          Export
-        </Button>
+        <div className="flex flex-col sm:flex-row gap-2 items-center">
+          {/* Station Selector Dropdown */}
+          {stations.length > 1 && (
+            <Select value={selectedStation} onValueChange={setSelectedStation}>
+              <SelectTrigger className="min-w-[180px]">
+                <SelectValue placeholder="Select Station" />
+              </SelectTrigger>
+              <SelectContent>
+                {stations.map((station) => (
+                  <SelectItem key={station.id} value={station.id}>
+                    {station.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button onClick={handleExportCSV} variant="outline" size="sm">
+            <Download className="w-4 h-4 mr-2" />
+            Export
+          </Button>
+        </div>
       </div>
 
       {/* Controls */}

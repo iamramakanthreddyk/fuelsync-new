@@ -59,7 +59,7 @@ export function PricesRequiredAlert({
           <Button 
             size="sm" 
             variant="outline"
-            onClick={onSetPrices || (() => navigate('/prices'))}
+            onClick={onSetPrices || (() => stationId ? navigate(`/owner/stations/${stationId}/prices`) : navigate('/prices'))}
           >
             Set Prices
           </Button>
@@ -81,7 +81,7 @@ export function PricesRequiredAlert({
         </p>
         <div className="flex gap-2 flex-wrap">
           <Button 
-            onClick={onSetPrices || (() => navigate('/prices'))}
+            onClick={onSetPrices || (() => stationId ? navigate(`/owner/stations/${stationId}/prices`) : navigate('/prices'))}
             className="gap-2"
           >
             <IndianRupee className="w-4 h-4" />
@@ -89,7 +89,7 @@ export function PricesRequiredAlert({
           </Button>
           <Button 
             variant="outline"
-            onClick={() => navigate('/prices')}
+            onClick={() => stationId ? navigate(`/owner/stations/${stationId}/prices`) : navigate('/prices')}
           >
             View Prices Page
           </Button>

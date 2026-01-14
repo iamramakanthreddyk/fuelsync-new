@@ -6,7 +6,7 @@
 
 const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize, FuelPrice, Nozzle, Pump } = require('../models');
 // Minimal helper to compute litresSold and totalAmount similar to readingController
-async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap }) {
+async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap, forceNotInitial = false }) {
   // Find previous (last) reading for nozzle before or on date
   const lastReading = await NozzleReading.findOne({
     where: {
@@ -29,10 +29,10 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
     const init = nozzle && nozzle.initialReading !== undefined && nozzle.initialReading !== null ? parseFloat(String(nozzle.initialReading)) : null;
     if (init !== null) {
       previousReading = init;
-      isInitial = true;
+      isInitial = !forceNotInitial; // respect forceNotInitial flag
     } else {
       previousReading = 0;
-      isInitial = true; // treat first-ever reading as initial by default
+      isInitial = !forceNotInitial; // if forceNotInitial, mark as billable even if no previous reading
     }
   }
 
@@ -166,6 +166,22 @@ exports.createTransaction = async (req, res, next) => {
     const paymentTotal = parseFloat(paymentBreakdown.cash || 0) +
                         parseFloat(paymentBreakdown.online || 0) +
                         parseFloat(paymentBreakdown.credit || 0);
+
+    // CRITICAL VALIDATION: At least one payment method must be > 0
+    if (paymentTotal <= 0 || 
+        (parseFloat(paymentBreakdown.cash || 0) <= 0 && 
+         parseFloat(paymentBreakdown.online || 0) <= 0 && 
+         parseFloat(paymentBreakdown.credit || 0) <= 0)) {
+      return res.status(400).json({
+        success: false,
+        error: 'At least one payment method (cash, online, or credit) must be greater than 0',
+        details: {
+          cash: parseFloat(paymentBreakdown.cash || 0),
+          online: parseFloat(paymentBreakdown.online || 0),
+          credit: parseFloat(paymentBreakdown.credit || 0)
+        }
+      });
+    }
 
     // Build per-reading breakdown for better error messages
     const perReading = readings.map(r => ({ id: r.id, litresSold: parseFloat(r.litresSold || 0), totalAmount: parseFloat(r.totalAmount || 0) }));
@@ -376,7 +392,8 @@ exports.createQuickEntry = async (req, res, next) => {
           notes: notesVal,
           userId,
           transaction: t,
-          stationPricesMap
+          stationPricesMap,
+          forceNotInitial: true // CRITICAL: In quick entry with payment, readings are never initial
         });
         createdReadings.push(created);
       }
@@ -401,13 +418,34 @@ exports.createQuickEntry = async (req, res, next) => {
              parseFloat((paymentBreakdown && paymentBreakdown.online) || 0) +
              parseFloat((paymentBreakdown && paymentBreakdown.credit) || 0);
 
+      // CRITICAL VALIDATION: At least one payment method must be > 0
+      const cashAmt = parseFloat((paymentBreakdown && paymentBreakdown.cash) || 0);
+      const onlineAmt = parseFloat((paymentBreakdown && paymentBreakdown.online) || 0);
+      const creditAmt = parseFloat((paymentBreakdown && paymentBreakdown.credit) || 0);
+      
+      if (paymentTotal <= 0 || (cashAmt <= 0 && onlineAmt <= 0 && creditAmt <= 0)) {
+        await t.rollback();
+        return res.status(400).json({
+          success: false,
+          error: 'At least one payment method (cash, online, or credit) must be greater than 0',
+          details: {
+            cash: cashAmt,
+            online: onlineAmt,
+            credit: creditAmt,
+            totalSaleValue: parseFloat(totalSaleValue.toFixed(2))
+          }
+        });
+      }
+
       let diff = Math.abs(paymentTotal - totalSaleValue);
       const TOLERANCE = 0.5;
       let autoBalanced = false;
-      if (diff > TOLERANCE) {
+      
+      // Only auto-balance if there's a computed sale value
+      // If totalSaleValue is 0 (e.g., duplicate readings with no litres sold), 
+      // accept the payment as-is (could be miscellaneous income or service charge)
+      if (diff > TOLERANCE && totalSaleValue > 0) {
         // Auto-balance cash to match computed sale total
-        const onlineAmt = parseFloat((paymentBreakdown && paymentBreakdown.online) || 0);
-        const creditAmt = parseFloat((paymentBreakdown && paymentBreakdown.credit) || 0);
         const newCash = Math.max(0, parseFloat(totalSaleValue) - (onlineAmt + creditAmt));
         paymentTotal = newCash + onlineAmt + creditAmt;
         diff = Math.abs(paymentTotal - totalSaleValue);

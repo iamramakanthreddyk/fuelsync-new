@@ -218,6 +218,29 @@ module.exports = (sequelize) => {
   };
 
   /**
+   * CRITICAL VALIDATION: Prevent isInitialReading from being set to true in NozzleReading
+   * Initial readings are ONLY for nozzle setup (via Nozzle.initialReading)
+   * Sales readings (NozzleReading) must NEVER be marked as initial
+   */
+  NozzleReading.beforeCreate((reading) => {
+    // STRICT: Force isInitialReading to false for sales readings
+    // This prevents accidental marking of sales as initial readings
+    if (reading.isInitialReading === true) {
+      console.warn(`⚠️  ALERT: Attempted to create NozzleReading with isInitialReading=true. Forcing to false. Reading ID: ${reading.id}, nozzleId: ${reading.nozzleId}`);
+    }
+    reading.isInitialReading = false;
+  });
+
+  NozzleReading.beforeUpdate((reading) => {
+    // STRICT: Force isInitialReading to false for sales readings
+    // Prevent updates from accidentally setting initial flag
+    if (reading.changed('isInitialReading') && reading.isInitialReading === true) {
+      console.warn(`⚠️  ALERT: Attempted to update NozzleReading with isInitialReading=true. Forcing to false. Reading ID: ${reading.id}`);
+    }
+    reading.isInitialReading = false;
+  });
+
+  /**
    * Get the latest reading for a nozzle (for showing previous reading)
    */
   NozzleReading.getLatestReading = async function(nozzleId) {
