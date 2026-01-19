@@ -24,7 +24,7 @@ import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { getFuelColors } from '@/lib/fuelColors';
 import { PaymentSplit, SaleCalculation } from '@/components/readings';
 import type { PaymentSplitData } from '@/components/readings';
-import { readingService } from '@/services/readingService';
+import { useCreateReading } from '@/hooks/useDataQueries';
 import { Checkbox } from '@/components/ui/checkbox';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
@@ -246,7 +246,7 @@ export default function DataEntry() {
       // If payment split is provided, create a DailyTransaction linking this reading
       try {
         if (saleCalculation.saleValue > 0 && paymentSplit && result && (result as any).id) {
-          await readingService.createTransaction({
+          await apiClient.post('/api/v1/transactions', {
             stationId: data.station_id,
             readingIds: [(result as any).id],
             totalAmount: saleCalculation.saleValue,

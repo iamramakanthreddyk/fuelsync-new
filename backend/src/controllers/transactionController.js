@@ -2,9 +2,15 @@
  * Transaction Controller
  * Handles daily transaction creation and retrieval
  * Transactions record the payment breakdown for a day at station level
+ * 
+ * AUDIT LOGGING:
+ * - CREATE: DailyTransaction creation is logged with category 'finance', severity 'info'
+ * 
+ * All transaction operations are tracked via logAudit() from utils/auditLog
  */
 
 const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize, FuelPrice, Nozzle, Pump } = require('../models');
+const { logAudit } = require('../utils/auditLog');
 // Minimal helper to compute litresSold and totalAmount similar to readingController
 async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap, forceNotInitial = false }) {
   // Find previous (last) reading for nozzle before or on date
@@ -313,6 +319,29 @@ exports.createTransaction = async (req, res, next) => {
       );
       console.log('[DEBUG] NozzleReading.update result:', updateResult);
 
+      // Log daily transaction creation
+      const currentUser = await User.findByPk(userId);
+      await logAudit({
+        userId,
+        userEmail: currentUser?.email,
+        userRole: currentUser?.role,
+        stationId,
+        action: 'CREATE',
+        entityType: 'DailyTransaction',
+        entityId: dailyTxn.id,
+        newValues: {
+          id: dailyTxn.id,
+          transactionDate,
+          totalLiters,
+          totalSaleValue,
+          paymentBreakdown,
+          creditAllocations: creditAllocations.length
+        },
+        category: 'finance',
+        severity: 'info',
+        description: `Created daily transaction: ₹${totalSaleValue} from ${totalLiters}L of fuel`
+      });
+
       await t.commit();
 
       const result = await DailyTransaction.findByPk(dailyTxn.id, {
@@ -520,6 +549,30 @@ exports.createQuickEntry = async (req, res, next) => {
         { transactionId: dailyTxn.id },
         { where: { id: readingIds }, transaction: t }
       );
+
+      // Log quick entry transaction creation
+      const currentUser = await User.findByPk(userId);
+      await logAudit({
+        userId,
+        userEmail: currentUser?.email,
+        userRole: currentUser?.role,
+        stationId,
+        action: 'CREATE',
+        entityType: 'DailyTransaction',
+        entityId: dailyTxn.id,
+        newValues: {
+          id: dailyTxn.id,
+          transactionDate,
+          totalLiters,
+          totalSaleValue,
+          paymentBreakdown,
+          creditAllocations: creditAllocations?.length || 0,
+          readingsCount: readingIds?.length || 0
+        },
+        category: 'finance',
+        severity: 'info',
+        description: `Created quick entry: ₹${totalSaleValue} from ${totalLiters}L with ${(creditAllocations || []).length} credit allocations`
+      });
 
       await t.commit();
 

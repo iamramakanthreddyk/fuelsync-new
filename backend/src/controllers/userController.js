@@ -2,6 +2,13 @@
  * User Controller
  * User management with role-based access
  * 
+ * AUDIT LOGGING:
+ * - CREATE: User creation is logged with category 'data', severity 'info'
+ * - UPDATE: User updates are logged with before/after values
+ * - DELETE: User deletion is logged with category 'data', severity 'warning'
+ * 
+ * All CREATE/UPDATE/DELETE operations are tracked via logAudit() from utils/auditLog
+ * 
  * WHO CAN CREATE WHOM:
  * - super_admin: Can create owners
  * - owner: Can create managers and employees for their stations
@@ -18,6 +25,7 @@
 const { User, Station, Plan } = require('../models');
 const { Op } = require('sequelize');
 const { USER_ROLES } = require('../config/constants');
+const { logAudit } = require('../utils/auditLog');
 
 /**
  * Get users based on role permissions
@@ -284,6 +292,27 @@ exports.createUser = async (req, res, next) => {
       createdBy: currentUser.id
     });
 
+    // Log user creation
+    await logAudit({
+      userId: currentUser.id,
+      userEmail: currentUser.email,
+      userRole: currentUser.role,
+      stationId: stationId || null,
+      action: 'CREATE',
+      entityType: 'User',
+      entityId: user.id,
+      newValues: {
+        id: user.id,
+        email: user.email,
+        name,
+        role: roleNormalized,
+        stationId
+      },
+      category: 'data',
+      severity: 'info',
+      description: `Created ${roleNormalized} user: ${name} (${email})`
+    });
+
     res.status(201).json({
       success: true,
       data: user.toSafeObject(),
@@ -356,7 +385,25 @@ exports.updateUser = async (req, res, next) => {
       updateFields.planId = planId;
     }
 
+    const oldValues = user.toJSON();
     await user.update(updateFields);
+    const newValues = updateFields;
+
+    // Log user update
+    await logAudit({
+      userId: currentUser.id,
+      userEmail: currentUser.email,
+      userRole: currentUser.role,
+      stationId: user.stationId,
+      action: 'UPDATE',
+      entityType: 'User',
+      entityId: user.id,
+      oldValues: oldValues,
+      newValues: newValues,
+      category: 'data',
+      severity: 'info',
+      description: `Updated user: ${user.name} (${user.email})`
+    });
 
     res.json({
       success: true,
@@ -381,11 +428,11 @@ exports.deactivateUser = async (req, res, next) => {
     const user = await User.findByPk(id);
     if (!user) {
       return res.status(404).json({ success: false, error: 'User not found' });
-        
-          // Prevent deactivation of superadmin
-          if (user.role === 'super_admin' && isActive === false) {
-            return res.status(403).json({ success: false, error: 'Superadmin cannot be deactivated.' });
-          }
+    }
+
+    // Prevent deactivation of superadmin
+    if (user.role === 'super_admin') {
+      return res.status(403).json({ success: false, error: 'Superadmin cannot be deactivated.' });
     }
 
     // Can't deactivate yourself
@@ -399,7 +446,24 @@ exports.deactivateUser = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
+    const userData = user.toJSON();
     await user.update({ isActive: false });
+
+    // Log user deactivation
+    await logAudit({
+      userId: currentUser.id,
+      userEmail: currentUser.email,
+      userRole: currentUser.role,
+      stationId: user.stationId,
+      action: 'UPDATE',
+      entityType: 'User',
+      entityId: user.id,
+      oldValues: userData,
+      newValues: { isActive: false },
+      category: 'data',
+      severity: 'warning',
+      description: `Deactivated user: ${user.name} (${user.email})`
+    });
 
     res.json({
       success: true,

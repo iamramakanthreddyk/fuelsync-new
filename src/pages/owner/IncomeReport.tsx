@@ -102,7 +102,7 @@ export default function IncomeReport() {
         endDate: dateRange.endDate
       });
       const response = await apiClient.get<{ success: boolean; data: IncomeReportData }>(
-        `/dashboard/income-receivables?${params.toString()}`
+        `/analytics/income-receivables?${params.toString()}`
       );
       return response?.data;
     },

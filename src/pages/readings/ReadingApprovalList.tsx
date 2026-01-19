@@ -25,7 +25,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { CheckCircle2, XCircle, Fuel } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
-import { readingService } from '@/services/readingService';
+import { apiClient } from '@/lib/api-client';
 import { notificationService } from '@/services/notificationService';
 
 export default function ReadingApprovalList() {
@@ -38,7 +38,10 @@ export default function ReadingApprovalList() {
   // Fetch all readings and filter for pending status client-side
   const { data: allReadings = { data: [] }, isLoading } = useQuery({
     queryKey: ['all-readings'],
-    queryFn: () => readingService.getReadings(),
+    queryFn: async () => {
+      const res = await apiClient.get<any>('/api/v1/readings');
+      return { data: res || [] };
+    },
     refetchInterval: 30000,
   });
 
@@ -49,7 +52,7 @@ export default function ReadingApprovalList() {
   const approveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedReading) throw new Error('No reading selected');
-      return readingService.approveReading(selectedReading.id);
+      return apiClient.post(`/api/v1/readings/${selectedReading.id}/approve`, {});
     },
     onSuccess: () => {
       toast.success('Reading approved');
@@ -67,7 +70,7 @@ export default function ReadingApprovalList() {
     mutationFn: async () => {
       if (!selectedReading) throw new Error('No reading selected');
       if (!rejectionReason) throw new Error('Rejection reason required');
-      return readingService.rejectReading(selectedReading.id, rejectionReason);
+      return apiClient.post(`/api/v1/readings/${selectedReading.id}/reject`, { reason: rejectionReason });
     },
     onSuccess: () => {
       toast.warning('Reading rejected');

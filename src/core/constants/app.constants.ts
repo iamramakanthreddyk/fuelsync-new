@@ -70,10 +70,10 @@ export const ROUTES = {
   EXPENSES: '/expenses',
   FINANCIAL: '/financial',
   
-  // Reports
-  REPORTS: '/reports',
-  SALES_REPORT: '/reports/sales',
-  INVENTORY_REPORT: '/reports/inventory',
+  // Reports (now under analytics)
+  REPORTS: '/analytics',
+  SALES_REPORT: '/analytics/sales',
+  INVENTORY_REPORT: '/analytics/inventory',
   
   // Settings
   SETTINGS: '/settings',

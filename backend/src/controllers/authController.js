@@ -1,12 +1,23 @@
 /**
  * Authentication Controller
  * REQUIRES JWT_SECRET environment variable
+ * 
+ * Features:
+ * - JWT token generation
+ * - Login/logout with audit logging
+ * - Session tracking for concurrent login limits
  */
 
 const jwt = require('jsonwebtoken');
 const { User, Plan, Station } = require('../models');
+const { logAudit, checkConcurrentLoginLimit, getLoginHistory } = require('../utils/auditLog');
 
 const { Op } = require('sequelize');
+
+// Max concurrent logins allowed (configurable via env)
+const MAX_CONCURRENT_LOGINS = parseInt(process.env.MAX_CONCURRENT_LOGINS || '3', 10);
+const LOGIN_TIME_WINDOW_MINUTES = parseInt(process.env.LOGIN_TIME_WINDOW_MINUTES || '60', 10);
+
 /**
  * Get JWT secret - fallback to hardcoded if not set
  */
@@ -34,12 +45,25 @@ const generateToken = (userId, role) => {
 };
 
 /**
+ * Get client IP address from request
+ */
+const getClientIp = (req) => {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+         req.headers['x-real-ip'] ||
+         req.connection.remoteAddress ||
+         req.socket.remoteAddress ||
+         'unknown';
+};
+
+/**
  * User login
  * POST /api/v1/auth/login
  */
 exports.login = async (req, res, next) => {
   try {
     const { email, password } = req.body;
+    const clientIp = getClientIp(req);
+    const userAgent = req.headers['user-agent'] || 'unknown';
 
     if (!email || !password) {
       return res.status(400).json({
@@ -69,6 +93,20 @@ exports.login = async (req, res, next) => {
     });
 
     if (!user) {
+      // Log failed login attempt
+      await logAudit({
+        userEmail: email.toLowerCase(),
+        action: 'LOGIN',
+        entityType: 'User',
+        category: 'auth',
+        severity: 'warning',
+        success: false,
+        errorMessage: 'Invalid email or password',
+        ip: clientIp,
+        userAgent: userAgent,
+        description: `Failed login attempt for non-existent or inactive user`
+      });
+
       return res.status(401).json({
         success: false,
         error: 'Invalid email or password'
@@ -78,10 +116,60 @@ exports.login = async (req, res, next) => {
     // Check password
     const isMatch = await user.comparePassword(password);
     if (!isMatch) {
+      // Log failed login attempt
+      await logAudit({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        stationId: user.stationId,
+        action: 'LOGIN',
+        entityType: 'User',
+        category: 'auth',
+        severity: 'warning',
+        success: false,
+        errorMessage: 'Invalid password',
+        ip: clientIp,
+        userAgent: userAgent,
+        description: `Failed login - incorrect password`
+      });
+
       return res.status(401).json({
         success: false,
         error: 'Invalid email or password'
       });
+    }
+
+    // Check concurrent login limit (optional - only if limit > 0)
+    if (MAX_CONCURRENT_LOGINS > 0) {
+      const limitExceeded = await checkConcurrentLoginLimit(
+        user.id,
+        MAX_CONCURRENT_LOGINS,
+        LOGIN_TIME_WINDOW_MINUTES
+      );
+
+      if (limitExceeded) {
+        // Log login limit exceeded
+        await logAudit({
+          userId: user.id,
+          userEmail: user.email,
+          userRole: user.role,
+          stationId: user.stationId,
+          action: 'LOGIN',
+          entityType: 'User',
+          category: 'auth',
+          severity: 'critical',
+          success: false,
+          errorMessage: `Concurrent login limit (${MAX_CONCURRENT_LOGINS}) exceeded`,
+          ip: clientIp,
+          userAgent: userAgent,
+          description: `User exceeded maximum concurrent login limit of ${MAX_CONCURRENT_LOGINS} in ${LOGIN_TIME_WINDOW_MINUTES} minutes`
+        });
+
+        return res.status(429).json({
+          success: false,
+          error: `Too many concurrent logins. Maximum ${MAX_CONCURRENT_LOGINS} sessions allowed.`
+        });
+      }
     }
 
     // Update last login
@@ -151,6 +239,23 @@ exports.login = async (req, res, next) => {
         brand: 'FuelSync'
       }];
     }
+
+    // Log successful login
+    await logAudit({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      stationId: user.stationId,
+      action: 'LOGIN',
+      entityType: 'User',
+      entityId: user.id,
+      category: 'auth',
+      severity: 'info',
+      success: true,
+      ip: clientIp,
+      userAgent: userAgent,
+      description: `${user.role} user logged in successfully`
+    });
 
     res.json({
       success: true,
@@ -367,10 +472,41 @@ exports.changePassword = async (req, res, next) => {
  * POST /api/v1/auth/logout
  */
 exports.logout = async (req, res) => {
-  // For now, just respond success
-  // Client should remove token
-  res.json({
-    success: true,
-    message: 'Logged out successfully'
-  });
+  try {
+    // Log logout event
+    if (req.user) {
+      const clientIp = getClientIp(req);
+      const userAgent = req.headers['user-agent'] || 'unknown';
+
+      await logAudit({
+        userId: req.user.id,
+        userEmail: req.user.email,
+        userRole: req.user.role,
+        stationId: req.user.stationId,
+        action: 'LOGOUT',
+        entityType: 'User',
+        entityId: req.user.id,
+        category: 'auth',
+        severity: 'info',
+        success: true,
+        ip: clientIp,
+        userAgent: userAgent,
+        description: `User logged out`
+      });
+    }
+
+    // For now, just respond success
+    // Client should remove token
+    res.json({
+      success: true,
+      message: 'Logged out successfully'
+    });
+  } catch (error) {
+    console.error('Logout error:', error);
+    // Still return success - logout should not fail
+    res.json({
+      success: true,
+      message: 'Logged out'
+    });
+  }
 };

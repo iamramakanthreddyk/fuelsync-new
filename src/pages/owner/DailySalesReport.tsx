@@ -13,6 +13,7 @@ import { safeToFixed } from '@/lib/format-utils';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Download, ArrowLeft, Building2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { aggregateRawReadingsToSalesReports } from '@/hooks/useReportData';
 
 interface FuelTypeData {
   value: number;
@@ -37,20 +38,58 @@ interface ApiResponse {
 
 const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
 
+/**
+ * Convert aggregated SalesReport format to DailySalesReportData format
+ */
+function convertSalesReportToDailyReport(salesReports: any[]): DailySalesReportData[] {
+  return salesReports.map(report => {
+    const byFuelType: Record<string, FuelTypeData> = {};
+    
+    // Build fuel type breakdown
+    if (report.fuelTypeSales && Array.isArray(report.fuelTypeSales)) {
+      report.fuelTypeSales.forEach((fuel: any) => {
+        byFuelType[fuel.fuelType] = {
+          value: fuel.sales,
+          liters: fuel.quantity,
+          count: fuel.transactions
+        };
+      });
+    }
+    
+    return {
+      date: report.date,
+      stationId: report.stationId,
+      stationName: report.stationName,
+      totalSaleValue: report.totalSales,
+      totalLiters: report.totalQuantity,
+      readingsCount: report.totalTransactions,
+      byFuelType
+    };
+  });
+}
 
 export default function DailySalesReport() {
   const navigate = useNavigate();
   const selectedDate = new Date().toISOString().split('T')[0];
 
-  // Fetch sales report
+  // Fetch raw sales readings and aggregate them
   const { data: apiResponse, isLoading } = useQuery({
     queryKey: ['sales-report', selectedDate],
     queryFn: async () => {
-      const response = await apiClient.get<ApiResponse>(
-        `/reports/daily-sales?date=${selectedDate}`
+      const response = await apiClient.get<{ success: boolean; data: any[] }>(
+        `/analytics/sales?startDate=${selectedDate}&endDate=${selectedDate}`
       );
-      // Ensure we always return the full response
-      return response;
+      
+      // Extract raw readings
+      const rawReadings = response?.data || [];
+      
+      // Aggregate into SalesReport format
+      const aggregated = aggregateRawReadingsToSalesReports(rawReadings);
+      
+      // Convert to DailySalesReportData format
+      const dailyReports = convertSalesReportToDailyReport(aggregated);
+      
+      return { success: true, data: dailyReports };
     }
   });
 

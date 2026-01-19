@@ -1,11 +1,18 @@
 /**
  * Shift Controller
  * Employee shift management with cash reconciliation
+ * 
+ * AUDIT LOGGING:
+ * - START: Shift start is logged with category 'data', severity 'info'
+ * - END: Shift end is logged with category 'data', severity 'info'
+ * 
+ * All shift operations are tracked via logAudit() from utils/auditLog
  */
 
 const { Shift, User, Station, NozzleReading, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { canAccessStation, getAccessibleStationIds } = require('../middleware/accessControl');
+const { logAudit } = require('../utils/auditLog');
 
 /**
  * Start a new shift
@@ -79,6 +86,27 @@ exports.startShift = async (req, res, next) => {
         { model: Station, as: 'station', attributes: ['id', 'name'] }
       ]
     });
+
+    // Log shift start
+    await logAudit({
+      userId: req.userId,
+      userEmail: user.email,
+      userRole: user.role,
+      stationId: targetStationId,
+      action: 'CREATE',
+      entityType: 'Shift',
+      entityId: shift.id,
+      newValues: {
+        id: shift.id,
+        employeeId: targetEmployeeId,
+        employeeName: targetEmployee.name,
+        stationType: shiftType,
+        startTime: shift.startTime
+      },
+      category: 'data',
+      severity: 'info',
+      description: `${targetEmployee.name} started shift at ${shift.startTime}`
+    });
     
     res.status(201).json({
       success: true,
@@ -148,6 +176,26 @@ exports.endShift = async (req, res, next) => {
     
     // Cash handover logic removed
     
+    // Log shift end
+    await logAudit({
+      userId: req.userId,
+      userEmail: user.email,
+      userRole: user.role,
+      stationId: shift.stationId,
+      action: 'UPDATE',
+      entityType: 'Shift',
+      entityId: shift.id,
+      newValues: {
+        status: 'ended',
+        endTime,
+        cashCollected,
+        onlineCollected
+      },
+      category: 'data',
+      severity: 'info',
+      description: `${shift.employee.name} ended shift at ${endTime || 'auto'}`
+    });
+
     await t.commit();
     
     await shift.reload({

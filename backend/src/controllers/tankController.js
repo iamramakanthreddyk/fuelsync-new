@@ -1,11 +1,19 @@
 /**
  * Tank Controller
  * Flexible inventory management for fuel tanks
+ * 
+ * AUDIT LOGGING:
+ * - CREATE: Tank creation is logged with category 'data', severity 'info'
+ * - UPDATE: Tank updates are logged with before/after values
+ * - REFILL: Tank refills are logged with category 'finance', severity 'info'
+ * 
+ * All CREATE/UPDATE/REFILL operations are tracked via logAudit() from utils/auditLog
  */
 
 const { Tank, TankRefill, Station, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { canAccessStation } = require('../middleware/accessControl');
+const { logAudit } = require('../utils/auditLog');
 
 /**
  * Get all tanks for a station
@@ -164,6 +172,27 @@ exports.createTank = async (req, res, next) => {
       trackingMode: trackingMode || 'warning',
       notes
     });
+
+    // Log tank creation
+    await logAudit({
+      userId: req.userId,
+      userEmail: user.email,
+      userRole: user.role,
+      stationId,
+      action: 'CREATE',
+      entityType: 'Tank',
+      entityId: tank.id,
+      newValues: {
+        id: tank.id,
+        fuelType,
+        name,
+        capacity,
+        currentLevel: tank.currentLevel
+      },
+      category: 'data',
+      severity: 'info',
+      description: `Created tank for ${fuelType} with capacity ${capacity}L`
+    });
     
     res.status(201).json({
       success: true,
@@ -210,13 +239,33 @@ exports.updateTank = async (req, res, next) => {
     const allowedUpdates = ['name', 'capacity', 'lowLevelWarning', 'criticalLevelWarning', 
                            'lowLevelPercent', 'criticalLevelPercent', 'trackingMode', 'allowNegative', 'notes', 'isActive'];
     
+    const oldValues = tank.toJSON();
+    const newValues = {};
+    
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {
         tank[field] = updates[field];
+        newValues[field] = updates[field];
       }
     });
     
     await tank.save();
+
+    // Log tank update
+    await logAudit({
+      userId: req.userId,
+      userEmail: user.email,
+      userRole: user.role,
+      stationId: tank.stationId,
+      action: 'UPDATE',
+      entityType: 'Tank',
+      entityId: tank.id,
+      oldValues: oldValues,
+      newValues: newValues,
+      category: 'data',
+      severity: 'info',
+      description: `Updated tank: ${tank.name} (${tank.fuelType})`
+    });
     
     res.json({
       success: true,
@@ -379,6 +428,27 @@ exports.recordRefill = async (req, res, next) => {
     
     // Tank level is updated by afterCreate hook
     await tank.reload({ transaction: t });
+
+    // Log tank refill
+    await logAudit({
+      userId: req.userId,
+      userEmail: user.email,
+      userRole: user.role,
+      stationId: tank.stationId,
+      action: 'CREATE',
+      entityType: 'TankRefill',
+      entityId: refill.id,
+      newValues: {
+        id: refill.id,
+        tankId: tank.id,
+        litres: parseFloat(litres),
+        totalCost: refill.totalCost,
+        supplierName
+      },
+      category: 'finance',
+      severity: 'info',
+      description: `Recorded refill: +${litres}L of ${tank.fuelType} for ${tank.name}`
+    });
     
     await t.commit();
     

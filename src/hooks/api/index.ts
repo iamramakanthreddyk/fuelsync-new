@@ -537,7 +537,7 @@ export function useDashboardSummary(stationId: string, startDate?: string, endDa
   
   return useQuery({
     queryKey: queryKeys.dashboard(stationId, startDate, endDate),
-    queryFn: () => apiClient.get<ApiResponse<DashboardSummary>>(`/dashboard/summary?${params.toString()}`),
+    queryFn: () => apiClient.get<ApiResponse<DashboardSummary>>(`/analytics/summary?${params.toString()}`),
     enabled: !!stationId,
   });
 }

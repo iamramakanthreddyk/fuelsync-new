@@ -77,7 +77,7 @@ export default function OwnerDashboard() {
         const response = await apiClient.get<{
           success: boolean;
           data: DashboardStats;
-        }>(`/dashboard/owner/stats${user?.id ? `?ownerId=${user.id}` : ''}`);
+        }>(`/analytics/owner/stats${user?.id ? `?ownerId=${user.id}` : ''}`);
         return response ?? null;
       } catch (error) {
         return null;

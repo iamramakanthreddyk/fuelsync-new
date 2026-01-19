@@ -58,9 +58,14 @@ exports.getStationReadings = async (req, res, next) => {
  * - Owner can have multiple stations
  * - Station.ownerId links to owner User
  * - Staff have User.stationId for their assigned station
+ * 
+ * AUDIT LOGGING:
+ * - All CREATE, UPDATE, DELETE operations logged to AuditLog
+ * - Tracks: station creation, pump/nozzle changes, price updates
  */
 
 const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, sequelize } = require('../models');
+const { logAudit } = require('../utils/auditLog');
 const { Op, fn, col } = require('sequelize');
 const { FUEL_TYPES } = require('../config/constants');
 
@@ -333,6 +338,28 @@ exports.createStation = async (req, res, next) => {
         gstNumber
       }, { transaction: t });
 
+      // Log station creation
+      await logAudit({
+        userId: user.id,
+        userEmail: user.email,
+        userRole: user.role,
+        stationId: station.id,
+        action: 'CREATE',
+        entityType: 'Station',
+        entityId: station.id,
+        newValues: {
+          id: station.id,
+          name: station.name,
+          code: station.code,
+          ownerId: stationOwnerId,
+          city,
+          address
+        },
+        category: 'data',
+        severity: 'info',
+        description: `Created new station: ${name} (${stationCode})`
+      });
+
       await t.commit();
       res.status(201).json({ success: true, data: station, message: 'Station created successfully' });
     } catch (err) {
@@ -436,7 +463,25 @@ exports.updateStation = async (req, res, next) => {
       return res.status(404).json({ success: false, error: 'Station not found' });
     }
 
+    const oldValues = station.toJSON();
     await station.update(updates);
+
+    // Log station update
+    await logAudit({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      stationId: id,
+      action: 'UPDATE',
+      entityType: 'Station',
+      entityId: id,
+      oldValues: oldValues,
+      newValues: updates,
+      category: 'data',
+      severity: 'info',
+      description: `Updated station: ${station.name}`
+    });
+
     res.json({ success: true, data: station, message: 'Station updated' });
 
   } catch (error) {

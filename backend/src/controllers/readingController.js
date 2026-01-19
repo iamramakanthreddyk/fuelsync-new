@@ -2,6 +2,12 @@
  * Reading Controller
  * Core business logic for nozzle readings and sales calculation
  * 
+ * AUDIT LOGGING:
+ * - CREATE: Reading submission is logged with category 'data', severity 'info'
+ * - UPDATE: Reading updates are logged with before/after values
+ * 
+ * All CREATE/UPDATE operations are tracked via logAudit() from utils/auditLog
+ * 
  * ARCHITECTURE (Dec 2025):
  * 1. Nozzle Reading = What was SOLD (meter reading + calculated liters/value)
  *    - Only contains: readingValue, previousReading, litresSold, totalAmount, notes
@@ -21,6 +27,7 @@
 const { NozzleReading, Nozzle, Pump, Station, FuelPrice, User, Shift, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { canAccessStation, verifyNozzleAccess, getAccessibleStationIds } = require('../middleware/accessControl');
+const { logAudit } = require('../utils/auditLog');
 
 /**
  * Enter a new nozzle reading (SIMPLIFIED - payment tracking moved to transactions)
@@ -313,6 +320,27 @@ exports.createReading = async (req, res, next) => {
         // Fallback if model method doesn't accept transaction
         try { await nozzle.updateLastReading(currentValue, finalReadingDate); } catch (_) {}
       }
+
+      // Log reading submission
+      await logAudit({
+        userId,
+        userEmail: user.email,
+        userRole: user.role,
+        stationId,
+        action: 'CREATE',
+        entityType: 'NozzleReading',
+        entityId: reading.id,
+        newValues: {
+          id: reading.id,
+          nozzleId,
+          litresSold: calculatedLitresSold,
+          totalAmount: effectiveTotalAmount,
+          fuelType: nozzle.fuelType
+        },
+        category: 'data',
+        severity: 'info',
+        description: `Recorded reading: ${calculatedLitresSold}L of ${nozzle.fuelType} for ₹${effectiveTotalAmount}`
+      });
 
       await t.commit();
 

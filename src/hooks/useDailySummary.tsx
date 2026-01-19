@@ -1,11 +1,11 @@
 /**
  * useDailySummary Hook
  * 
- * Fetches daily summary data from the dashboard API.
+ * Fetches daily summary data from the analytics API.
  * Uses the actual backend endpoints:
- * - GET /api/v1/dashboard/summary
- * - GET /api/v1/dashboard/financial-overview
- * - GET /api/v1/dashboard/daily
+ * - GET /api/v1/analytics/summary
+ * - GET /api/v1/analytics/financial
+ * - GET /api/v1/analytics/daily
  */
 
 import { useQuery } from "@tanstack/react-query";
@@ -67,7 +67,7 @@ export function useDailySummary(date: string) {
       try {
         // For managers, only fetch daily data (financial overview requires owner+ permissions)
         if (!isOwner && !isAdmin) {
-          const dailyResponse = await apiClient.get<ApiResponse<DashboardDailyResponse[]>>(`/dashboard/daily?${params.toString()}`);
+          const dailyResponse = await apiClient.get<ApiResponse<DashboardDailyResponse[]>>(`/analytics/daily?${params.toString()}`);
           
           const dailyData = dailyResponse.success && dailyResponse.data?.[0] 
             ? dailyResponse.data[0] 
@@ -97,8 +97,8 @@ export function useDailySummary(date: string) {
 
         // For owners/admins, fetch both daily and financial data
         const [dailyResponse, financialResponse] = await Promise.all([
-          apiClient.get<ApiResponse<DashboardDailyResponse[]>>(`/dashboard/daily?${params.toString()}`),
-          apiClient.get<ApiResponse<FinancialOverviewResponse>>(`/dashboard/financial-overview?${params.toString()}`)
+          apiClient.get<ApiResponse<DashboardDailyResponse[]>>(`/analytics/daily?${params.toString()}`),
+          apiClient.get<ApiResponse<FinancialOverviewResponse>>(`/analytics/financial?${params.toString()}`)
         ]);
 
         // Extract data with defaults

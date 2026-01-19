@@ -21,7 +21,7 @@ const { requireMinRole } = require('./middleware/auth');
 const stationRoutes = require('./routes/stations');
 const readingRoutes = require('./routes/readings');
 const transactionRoutes = require('./routes/transactions');
-const dashboardRoutes = require('./routes/dashboard');
+const analyticsRoutes = require('./routes/analytics'); // Consolidated analytics & sales
 const creditRoutes = require('./routes/credits');
 const expenseRoutes = require('./routes/expenses');
 const tankRoutes = require('./routes/tanks');
@@ -29,8 +29,6 @@ const shiftRoutes = require('./routes/shifts');
 const configRoutes = require('./routes/config');
 const planRoutes = require('./routes/plans');
 const activityLogRoutes = require('./routes/activityLogs');
-const salesRoutes = require('./routes/sales');
-const reportRoutes = require('./routes/reports');
 const adminRoutes = require('./routes/admin');
 
 // Import constants for API info
@@ -180,7 +178,17 @@ app.get('/health/config', (req, res) => {
   res.json(config);
 });
 
-// API routes
+// API routes (v1 - Clean, Unified Architecture)
+// ============================================
+// ROUTE ORGANIZATION NOTES:
+// - All v1 routes use /api/v1/* prefix (recommended)
+// - Legacy /api/* aliases maintained for backward compatibility
+// - More specific routes (nested) MUST come BEFORE generic routes
+//   Example: /stations/:stationId/credits BEFORE /stations/:stationId/generic
+// - Route order in Express matters - first match wins
+// - RBAC enforced at route level: requireRole(), requireMinRole()
+// ============================================
+
 // NOTE: Order matters! More specific routes should come first
 // Credit and expense routes have paths like /stations/:stationId/credits
 // so they must be mounted BEFORE the generic /stations route
@@ -191,9 +199,7 @@ app.use('/api/v1', expenseRoutes);  // Expenses under /api/v1/stations/:id/expen
 app.use('/api/v1/stations', stationRoutes);
 app.use('/api/v1/readings', readingRoutes);
 app.use('/api/v1/transactions', transactionRoutes);  // Daily transaction management
-app.use('/api/v1/sales', salesRoutes); // Sales data from readings
-app.use('/api/v1/reports', reportRoutes); // Comprehensive reports
-app.use('/api/v1/dashboard', dashboardRoutes);
+app.use('/api/v1/analytics', analyticsRoutes);      // Consolidated: dashboard + sales + reports
 app.use('/api/v1/tanks', tankRoutes);   // Tanks management
 app.use('/api/v1/shifts', shiftRoutes); // Shift management
 app.use('/api/v1/config', configRoutes); // Configuration/dropdown endpoints
@@ -206,25 +212,6 @@ app.use('/api/v1/admin', adminRoutes);
 // Backwards-compatible alias for employees
 const employeesRoutes = require('./routes/employees');
 app.use('/api/v1/employees', employeesRoutes);
-
-// Backwards-compatible mounts (support older tests/clients using `/api/...` without /v1)
-app.use('/api/auth', authRoutes);
-app.use('/api/users', userRoutes);
-app.use('/api', creditRoutes);
-app.use('/api', expenseRoutes);
-// Provide short legacy mounts used in tests: /api/creditors and /api/expenses
-app.use('/api/creditors', creditRoutes);
-app.use('/api/expenses', expenseRoutes);
-// Provide POST legacy path for creating shifts via /api/shifts (compat)
-app.post('/api/shifts', (req, res, next) => {
-  if (req.user && req.user.role === 'employee') return res.status(403).json({ success: false, error: 'Insufficient permissions' });
-  return shiftRoutes.handle ? shiftRoutes.handle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
-});
-app.use('/api/stations', stationRoutes);
-app.use('/api/readings', readingRoutes);
-app.use('/api/sales', salesRoutes);
-app.use('/api/reports', reportRoutes);
-app.use('/api/dashboard', dashboardRoutes);
 
 // Legacy wrappers: ensure certain legacy paths return 403 for employee users (tests expect this)
 app.get('/api/reports/sales-summary', (req, res, next) => {
@@ -241,27 +228,34 @@ app.get('/api/reports/export', (req, res, next) => {
 });
 app.get('/api/dashboard/metrics', (req, res, next) => {
   if (req.user && req.user.role === 'employee') return res.status(403).json({ success: false, error: 'Insufficient permissions' });
-  return dashboardRoutes.handle ? dashboardRoutes.handle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
+  return reportRoutes.handle ? reportRoutes.handle(req, res, next) : res.status(404).json({ success: false, error: 'Not implemented' });
 });
+
+// ============================================
+// LEGACY API COMPATIBILITY ROUTES (/api prefix)
+// These are deprecated but maintained for backward compatibility with older clients
+// ============================================
+
+// Compatibility aliases - route to v1 controllers
+const pumpsRoutes = require('./routes/pumps');
+const nozzlesRoutes = require('./routes/nozzles');
+const fuelPricesRoutes = require('./routes/fuelPrices');
+const tankRefillsRoutes = require('./routes/tankRefills');
+
+// Legacy /api/* mounts (all route prefixes BEFORE v1 routes to avoid conflicts)
+app.use('/api/pumps', pumpsRoutes);
+app.use('/api/nozzles', nozzlesRoutes);
+app.use('/api/fuel-prices', fuelPricesRoutes);
+app.use('/api/tank-refills', tankRefillsRoutes);
 app.use('/api/tanks', tankRoutes);
 app.use('/api/shifts', shiftRoutes);
 app.use('/api/config', configRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/activity-logs', activityLogRoutes);
 app.use('/api/admin', adminRoutes);
-// compatibility aliases
-const pumpsRoutes = require('./routes/pumps');
-const nozzlesRoutes = require('./routes/nozzles');
-const fuelPricesRoutes = require('./routes/fuelPrices');
-const tankRefillsRoutes = require('./routes/tankRefills');
 
-app.use('/api/pumps', pumpsRoutes);
-app.use('/api/nozzles', nozzlesRoutes);
-app.use('/api/fuel-prices', fuelPricesRoutes);
+// v1 compatibility mounts
 app.use('/api/v1/tank-refills', tankRefillsRoutes);
-app.use('/api/tank-refills', tankRefillsRoutes);
-
-// Mount v1 compatibility for pumps/nozzles/fuel-prices so tests using /api/v1/... work
 app.use('/api/v1/pumps', pumpsRoutes);
 app.use('/api/v1/nozzles', nozzlesRoutes);
 app.use('/api/v1/fuel-prices', fuelPricesRoutes);
@@ -273,16 +267,45 @@ app.get('/api/v1', (req, res) => {
     version: '2.0.0',
     description: 'Fuel station management for Indian gas stations',
     endpoints: {
-      auth: '/api/v1/auth',
-      users: '/api/v1/users',
-      stations: '/api/v1/stations',
-      readings: '/api/v1/readings',
-      dashboard: '/api/v1/dashboard',
-      reports: '/api/v1/reports',
-      credits: '/api/v1/stations/:stationId/creditors',
-      expenses: '/api/v1/stations/:stationId/expenses',
-      tanks: '/api/v1/tanks',
-      shifts: '/api/v1/shifts'
+      // Authentication & User Management
+      auth: '/api/v1/auth (login, register, profile, change-password)',
+      users: '/api/v1/users (CRUD for users - role-based)',
+      
+      // Station Core Management
+      stations: '/api/v1/stations (CRUD, settings, staff)',
+      
+      // Readings & Transactions (Daily Entry)
+      readings: '/api/v1/readings (nozzle readings, create/update/delete)',
+      transactions: '/api/v1/transactions (daily settlement transactions, quick-entry)',
+      
+      // Analytics & Reporting
+      analytics: '/api/v1/analytics (dashboard, sales, financial reports)',
+      
+      // Station Sub-Resources (nested under stations)
+      'pumps': '/api/v1/stations/:stationId/pumps (CRUD)',
+      'nozzles': '/api/v1/stations/:stationId/pumps/:pumpId/nozzles (CRUD)',
+      'fuel_prices': '/api/v1/stations/:stationId/prices (get/set)',
+      'tanks': '/api/v1/stations/:stationId/tanks (CRUD, refills)',
+      'shifts': '/api/v1/stations/:stationId/shifts (lifecycle, summary)',
+      'daily_sales': '/api/v1/stations/:stationId/daily-sales (sales summary)',
+      'settlements': '/api/v1/stations/:stationId/settlements (record/list)',
+      
+      // Financial Management
+      credits: '/api/v1/stations/:stationId/creditors (CRUD, aging, settlements)',
+      expenses: '/api/v1/stations/:stationId/expenses (CRUD, summary, P&L)',
+      
+      // System Configuration
+      config: '/api/v1/config (dropdowns, enums)',
+      plans: '/api/v1/plans (subscription management)',
+      admin: '/api/v1/admin (backup, migrations)',
+      'activity_logs': '/api/v1/activity-logs (audit trail)',
+      employees: '/api/v1/employees (backward compatible alias)'
+    },
+    role_hierarchy: {
+      super_admin: 'Full system access (100)',
+      owner: 'Manage own stations & employees (75)',
+      manager: 'Manage station operations & approvals (50)',
+      employee: 'View own data & enter readings (25)'
     },
     config: {
       fuelTypes: Object.values(FUEL_TYPES),

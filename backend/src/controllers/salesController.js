@@ -13,32 +13,27 @@ const { Op } = require('sequelize');
  */
 exports.getSales = async (req, res) => {
   try {
-    const { station_id, date, start_date, end_date, fuel_type, payment_type } = req.query;
+    // Accept both camelCase (from frontend) and snake_case (legacy)
+    const { station_id, stationId, date, start_date, startDate, end_date, endDate, fuel_type, fuelType, payment_type, paymentType } = req.query;
     const userId = req.user.id;
     const userRole = req.user.role;
 
     // Build where clause
     const where = {};
 
-    // Station filter - required for non-super_admin
-    if (station_id) {
-      where.stationId = station_id;
+    // Station filter - required for non-super_admin (accept both camelCase and snake_case)
+    const effectiveStationId = station_id || stationId;
+    if (effectiveStationId) {
+      where.stationId = effectiveStationId;
     } else if (userRole !== 'super_admin') {
       // For non-super_admin, get their accessible stations
+      // Simple query: just check if user is the owner (avoid complex User association issues)
       const userStations = await Station.findAll({
         where: {
-          [Op.or]: [
-            { ownerId: userId },
-            { '$Users.id$': userId }
-          ]
+          ownerId: userId
         },
-        include: [{
-          model: User,
-          as: 'Users',
-          through: { attributes: [] },
-          required: false
-        }],
-        attributes: ['id']
+        attributes: ['id'],
+        raw: true
       });
       
       const stationIds = userStations.map(s => s.id);
@@ -48,30 +43,35 @@ exports.getSales = async (req, res) => {
       where.stationId = { [Op.in]: stationIds };
     }
 
-    // Date filters
-    if (date) {
-      where.readingDate = date;
-    } else if (start_date && end_date) {
+    // Date filters (accept both camelCase and snake_case)
+    const effectiveDate = date;
+    const effectiveStartDate = start_date || startDate;
+    const effectiveEndDate = end_date || endDate;
+
+    if (effectiveDate) {
+      where.readingDate = effectiveDate;
+    } else if (effectiveStartDate && effectiveEndDate) {
       where.readingDate = {
-        [Op.between]: [start_date, end_date]
+        [Op.between]: [effectiveStartDate, effectiveEndDate]
       };
-    } else if (start_date) {
+    } else if (effectiveStartDate) {
       where.readingDate = {
-        [Op.gte]: start_date
+        [Op.gte]: effectiveStartDate
       };
-    } else if (end_date) {
+    } else if (effectiveEndDate) {
       where.readingDate = {
-        [Op.lte]: end_date
+        [Op.lte]: effectiveEndDate
       };
     }
 
     // Only get readings with actual sales (but include initial readings that represent sales)
     where.litresSold = { [Op.gt]: 0 };
 
-    // Fuel type filter via nozzle
+    // Fuel type filter via nozzle (accept both camelCase and snake_case)
     const nozzleWhere = {};
-    if (fuel_type) {
-      nozzleWhere.fuelType = fuel_type;
+    const effectiveFuelType = fuel_type || fuelType;
+    if (effectiveFuelType) {
+      nozzleWhere.fuelType = effectiveFuelType;
     }
 
     // Fetch sales (readings with sales)

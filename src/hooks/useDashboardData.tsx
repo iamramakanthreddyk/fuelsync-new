@@ -100,7 +100,7 @@ export const useDashboardData = (stationId?: string) => {
             activeNozzles: number;
             today: { litres: number; amount: number };
           }>;
-        }>(`/dashboard/summary?stationId=${effectiveStationId}&startDate=${today}&endDate=${today}`);
+        }>(`/analytics/summary?stationId=${effectiveStationId}&startDate=${today}&endDate=${today}`);
 
         // The apiClient returns the envelope { success, data } — unwrap it safely
         const summaryData = extractApiData(summary, null) as {
@@ -145,7 +145,7 @@ export const useDashboardData = (stationId?: string) => {
                 credit: number;
                 readings: number;
               }>;
-            }>(`/dashboard/daily?startDate=${startDate}&endDate=${endDate}&stationId=${effectiveStationId}`);
+            }>(`/analytics/daily?startDate=${startDate}&endDate=${endDate}&stationId=${effectiveStationId}`);
 
             if (trendsResponse.success && trendsResponse.data) {
               trendsData = trendsResponse.data.map(day => ({

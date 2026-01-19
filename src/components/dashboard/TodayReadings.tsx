@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Fuel, Clock } from 'lucide-react';
-import { readingService } from '@/services/readingService';
+import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
 import { useAuth } from '@/hooks/useAuth';
 import { FuelType } from '@/core/enums';
@@ -26,8 +26,8 @@ export function TodayReadings({ className }: TodayReadingsProps) {
       }
 
       try {
-        const todayReadings = await readingService.getTodayReadings(currentStation.id);
-        setReadings(todayReadings);
+        const todayReadings = await apiClient.get<any[]>(`/api/v1/readings/today?stationId=${currentStation.id}`);
+        setReadings(todayReadings || []);
       } catch (error) {
         console.error('Error fetching today\'s readings:', error);
       } finally {

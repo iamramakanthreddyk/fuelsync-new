@@ -133,12 +133,9 @@ export default function Analytics() {
 
   const stations = stationsResponse?.data;
 
-  // Get first station for variance data
-  const firstStationId = selectedStation !== 'all' ? selectedStation : stations?.[0]?.id;
-
-  // Fetch variance summary
+  // Fetch variance summary - only when a specific station is selected
   const { data: varianceSummary } = useVarianceSummary(
-    firstStationId,
+    selectedStation !== 'all' ? selectedStation : undefined,
     dateRange.startDate,
     dateRange.endDate
   );
@@ -163,7 +160,7 @@ export default function Analytics() {
       if (selectedStation !== 'all') {
         params.append('stationId', selectedStation);
       }
-      const response = await apiClient.get(`/dashboard/owner/analytics?${params.toString()}`);
+      const response = await apiClient.get(`/analytics/owner/analytics?${params.toString()}`);
       return extractApiData(response, null);
     }
   });

@@ -16,6 +16,7 @@ import {
   usePumpPerformance,
   useNozzleBreakdown,
   calculateSalesTotals,
+  aggregateRawReadingsToSalesReports,
   SalesReport,
 } from '@/hooks/useReportData';
 import {
@@ -249,8 +250,34 @@ export default function Reports() {
     selectedStation,
   });
 
+  // Aggregate raw readings into sales reports if needed
+  const aggregatedSalesReports = useMemo(() => {
+    if (!salesReports || salesReports.length === 0) return [];
+    
+    const firstReport = salesReports[0];
+    
+    // Check if data is already in aggregated SalesReport format
+    // Aggregated format has: totalSales, totalQuantity, totalTransactions (camelCase)
+    // Raw format has: totalAmount, deltaVolumeL, readingDate (camelCase after apiClient conversion)
+    const hasAggregatedFormat = 'totalSales' in firstReport && 'totalQuantity' in firstReport;
+    const hasRawFormat = 'totalAmount' in firstReport || 'deltaVolumeL' in firstReport;
+    
+    if (hasAggregatedFormat) {
+      return salesReports;
+    }
+    
+    if (hasRawFormat) {
+      return aggregateRawReadingsToSalesReports(salesReports);
+    }
+    
+    // Fallback: treat as raw format
+    return aggregateRawReadingsToSalesReports(salesReports);
+  }, [salesReports]);
+
   // Calculate totals
-  const totals = calculateSalesTotals(salesReports);
+  const totals = calculateSalesTotals(aggregatedSalesReports);
+
+
 
   const handlePrintPdf = (reportType: string) => {
     const onPopupBlocked = () => {
@@ -262,8 +289,8 @@ export default function Reports() {
 
     switch (reportType) {
       case 'sales':
-        if (salesReports?.length) {
-          printSalesReport(salesReports, dateRange, onPopupBlocked);
+        if (aggregatedSalesReports?.length) {
+          printSalesReport(aggregatedSalesReports, dateRange, onPopupBlocked);
         }
         break;
       case 'nozzles':
@@ -361,7 +388,7 @@ export default function Reports() {
             <TabsContent value="overview" className="space-y-2 md:space-y-3">
               <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                 <RevenueTrendChart
-                  salesReports={salesReports}
+                  salesReports={aggregatedSalesReports}
                   isLoading={salesLoading}
                   className="md:col-span-2"
                 />
@@ -376,7 +403,7 @@ export default function Reports() {
                 description="By station & fuel type"
                 isLoading={salesLoading}
                 loadingText="Loading sales reports..."
-                isEmpty={!salesReports || salesReports.length === 0}
+                isEmpty={!aggregatedSalesReports || aggregatedSalesReports.length === 0}
                 emptyState={{
                   icon: FileText,
                   title: 'No Sales Data',
@@ -410,7 +437,7 @@ export default function Reports() {
                     </CardHeader>
                   </Card>
                   <div className="space-y-2">
-                    {(salesReports ?? []).map((report) => (
+                    {(aggregatedSalesReports ?? []).map((report) => (
                       <SalesReportCard
                         key={`${report.stationId}-${report.date}`}
                         report={report}

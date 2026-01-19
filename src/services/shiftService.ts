@@ -157,12 +157,12 @@ export const shiftService = {
 
 /**
  * Dashboard Alerts Service
- * Backend: /api/v1/dashboard/alerts/*
+ * Backend: /api/v1/analytics/alerts/*
  */
 export const dashboardAlertsService = {
   /**
    * Get shift status
-   * GET /api/v1/dashboard/shift-status
+   * GET /api/v1/analytics/shift-status
    */
   async getShiftStatus(): Promise<{
     myActiveShift: Shift | null;
@@ -178,7 +178,7 @@ export const dashboardAlertsService = {
       status: string;
     }>;
   }> {
-    const response = await apiClient.get<ApiResponse<any>>('/dashboard/shift-status');
+    const response = await apiClient.get<ApiResponse<any>>('/analytics/shift-status');
 
     if (!response.success || !response.data) {
       throw new Error('Failed to fetch shift status');
@@ -189,7 +189,7 @@ export const dashboardAlertsService = {
 
   /**
    * Get dashboard alerts
-   * GET /api/v1/dashboard/alerts
+   * GET /api/v1/analytics/alerts
    */
   async getAlerts(): Promise<{
     unreadCount: number;
@@ -206,7 +206,7 @@ export const dashboardAlertsService = {
       metadata?: any;
     }>;
   }> {
-    const response = await apiClient.get<ApiResponse<any>>('/dashboard/alerts');
+    const response = await apiClient.get<ApiResponse<any>>('/analytics/alerts');
 
     if (!response.success || !response.data) {
       throw new Error('Failed to fetch alerts');
@@ -217,10 +217,10 @@ export const dashboardAlertsService = {
 
   /**
    * Mark alert as read
-   * POST /api/v1/dashboard/alerts/:id/read
+   * POST /api/v1/analytics/alerts/:id/read
    */
   async markAlertRead(alertId: string): Promise<void> {
-    const response = await apiClient.post<ApiResponse<void>>(`/dashboard/alerts/${alertId}/read`);
+    const response = await apiClient.post<ApiResponse<void>>(`/analytics/alerts/${alertId}/read`);
 
     if (!response.success) {
       throw new Error('Failed to mark alert as read');
@@ -229,14 +229,14 @@ export const dashboardAlertsService = {
 
   /**
    * Get pending actions count
-   * GET /api/v1/dashboard/pending-actions
+   * GET /api/v1/analytics/pending-actions
    */
   async getPendingActions(): Promise<{
     shiftsToEnd: number;
     settlementsToReview: number;
     variancesToInvestigate: number;
   }> {
-    const response = await apiClient.get<ApiResponse<any>>('/dashboard/pending-actions');
+    const response = await apiClient.get<ApiResponse<any>>('/analytics/pending-actions');
 
     if (!response.success || !response.data) {
       throw new Error('Failed to fetch pending actions');

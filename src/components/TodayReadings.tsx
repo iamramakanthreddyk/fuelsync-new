@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { readingService, NozzleReading } from '@/services/readingService';
+import { apiClient } from '@/lib/api-client';
+import type { NozzleReading } from '@/services/readingService';
 import { FuelBadge } from '@/components/FuelBadge';
 import { Clock, User, TrendingUp } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
@@ -12,7 +13,10 @@ export function TodayReadings() {
   
   const { data: readings, isLoading, error } = useQuery({
     queryKey: ['today-readings', currentStation?.id],
-    queryFn: () => readingService.getTodayReadings(currentStation?.id || ''),
+    queryFn: async () => {
+      const res = await apiClient.get<NozzleReading[]>(`/api/v1/readings/today?stationId=${currentStation?.id}`);
+      return res || [];
+    },
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 

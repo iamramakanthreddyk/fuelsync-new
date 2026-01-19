@@ -91,6 +91,84 @@ const buildReportParams = ({ dateRange, selectedStation }: ReportQueryParams) =>
 };
 
 // ============================================
+// AGGREGATION HELPERS
+// ============================================
+
+/**
+ * Aggregate raw reading data into SalesReport format
+ * Groups by station and date, aggregates sales and fuel type breakdown
+ * NOTE: API response uses snake_case but apiClient converts to camelCase
+ */
+export function aggregateRawReadingsToSalesReports(readings: any[]): SalesReport[] {
+  if (!readings || readings.length === 0) return [];
+
+  // Group by station_id + date
+  // Note: Keys are camelCase (stationId, readingDate) due to apiClient conversion
+  const grouped = new Map<string, any[]>();
+  readings.forEach(reading => {
+    // Use camelCase keys (from apiClient conversion)
+    const stationId = reading.stationId;
+    const readingDate = reading.readingDate;
+    
+    const key = `${stationId}|${readingDate}`;
+    if (!grouped.has(key)) {
+      grouped.set(key, []);
+    }
+    grouped.get(key)!.push(reading);
+  });
+
+  // Convert to SalesReport format
+  const reports = Array.from(grouped.values()).map(readingsGroup => {
+    const firstReading = readingsGroup[0];
+    
+    // Handle camelCase field names from apiClient conversion
+    const totalSales = readingsGroup.reduce((sum, r) => {
+      const val = r.totalAmount ?? 0;
+      const num = typeof val === 'string' ? parseFloat(val) : Number(val);
+      return sum + (isNaN(num) ? 0 : num);
+    }, 0);
+    
+    const totalQuantity = readingsGroup.reduce((sum, r) => {
+      const val = r.deltaVolumeL ?? 0;
+      const num = typeof val === 'string' ? parseFloat(val) : Number(val);
+      return sum + (isNaN(num) ? 0 : num);
+    }, 0);
+
+    // Group by fuel type for breakdown
+    const fuelMap = new Map<string, any>();
+    readingsGroup.forEach(reading => {
+      const fuelType = reading.fuelType || 'unknown';
+      if (!fuelMap.has(fuelType)) {
+        fuelMap.set(fuelType, { fuelType, sales: 0, quantity: 0, transactions: 0 });
+      }
+      const fuel = fuelMap.get(fuelType)!;
+      const salesVal = reading.totalAmount ?? 0;
+      const salesNum = typeof salesVal === 'string' ? parseFloat(salesVal) : Number(salesVal);
+      fuel.sales += isNaN(salesNum) ? 0 : salesNum;
+      
+      const qtyVal = reading.deltaVolumeL ?? 0;
+      const qtyNum = typeof qtyVal === 'string' ? parseFloat(qtyVal) : Number(qtyVal);
+      fuel.quantity += isNaN(qtyNum) ? 0 : qtyNum;
+      fuel.transactions += 1;
+    });
+
+    const report: SalesReport = {
+      stationId: firstReading.stationId,
+      stationName: firstReading.stationName,
+      date: firstReading.readingDate || new Date().toISOString().split('T')[0],
+      totalSales: Math.round(totalSales * 100) / 100,
+      totalQuantity: Math.round(totalQuantity * 100) / 100,
+      totalTransactions: readingsGroup.length,
+      fuelTypeSales: Array.from(fuelMap.values()),
+    };
+    
+    return report;
+  });
+
+  return reports;
+}
+
+// ============================================
 // HOOKS
 // ============================================
 
@@ -102,10 +180,13 @@ export function useSalesReports({ dateRange, selectedStation }: ReportQueryParam
     queryKey: ['sales-reports', dateRange, selectedStation],
     queryFn: async () => {
       const params = buildReportParams({ dateRange, selectedStation });
-      const response = await apiClient.get<{ success: boolean; data: SalesReport[] }>(
-        `/reports/sales?${params}`
+      const response = await apiClient.get<{ success: boolean; data: any[] }>(
+        `/analytics/sales?${params}`
       );
-      return extractApiArray(response, []);
+      const rawReadings = extractApiArray(response, []);
+      
+      // Aggregate raw readings into SalesReport format
+      return aggregateRawReadingsToSalesReports(rawReadings);
     },
   });
 }
@@ -134,10 +215,24 @@ export function usePumpPerformance({ dateRange, selectedStation }: ReportQueryPa
     queryKey: ['pump-performance', dateRange, selectedStation],
     queryFn: async () => {
       const params = buildReportParams({ dateRange, selectedStation });
-      const response = await apiClient.get<{ success: boolean; data: PumpPerformance[] }>(
-        `/reports/pumps?${params}`
+      const response = await apiClient.get<{ success: boolean; data: { pumps: PumpPerformance[] } }>(
+        `/analytics/pump-performance?${params}`
       );
-      return extractApiArray(response, []);
+      
+      // Extract data object directly (not as array)
+      const dataObj = (response as any)?.data;
+      
+      // If data is an object with pumps property, return pumps
+      if (dataObj && typeof dataObj === 'object' && Array.isArray(dataObj.pumps)) {
+        return dataObj.pumps;
+      }
+      
+      // If data is already an array, return it
+      if (Array.isArray(dataObj)) {
+        return dataObj;
+      }
+      
+      return [];
     },
   });
 }
@@ -169,7 +264,7 @@ export function useNozzleBreakdown({ dateRange, selectedStation }: ReportQueryPa
             readings?: number;
           }>;
         };
-      }>(`/dashboard/nozzle-breakdown?${params}`);
+      }>(`/analytics/nozzle-breakdown?${params}`);
 
       const backendNozzles =
         (response as any)?.data?.nozzles || (response as any)?.nozzles || [];
@@ -198,13 +293,54 @@ export function useNozzleBreakdown({ dateRange, selectedStation }: ReportQueryPa
 /**
  * Calculate totals from sales reports
  */
-export function calculateSalesTotals(reports: SalesReport[] | undefined) {
-  if (!reports) return { sales: 0, quantity: 0, transactions: 0 };
+export function calculateSalesTotals(reports: any[] | undefined) {
+  if (!reports || reports.length === 0) return { sales: 0, quantity: 0, transactions: 0 };
+  
+  // Handle both aggregated report format and raw reading format
+  const firstReport = reports[0];
+  
+  // After API client converts snake_case to camelCase:
+  // Aggregated format has: totalSales, totalQuantity, totalTransactions, fuelTypeSales[]
+  // Raw format has: totalAmount, deltaVolumeL, readingDate, stationId
+  const hasAggregatedFormat = 'totalSales' in firstReport && 'totalQuantity' in firstReport && 'fuelTypeSales' in firstReport;
+  const hasRawFormat = 'totalAmount' in firstReport && 'deltaVolumeL' in firstReport && 'readingDate' in firstReport;
+  
+  if (hasAggregatedFormat) {
+    // Aggregated format: sum up the aggregated totals
+    return reports.reduce(
+      (acc, report) => {
+        const sales = Number(report.totalSales) || 0;
+        const quantity = Number(report.totalQuantity) || 0;
+        const transactions = Number(report.totalTransactions) || 0;
+        
+        return {
+          sales: acc.sales + sales,
+          quantity: acc.quantity + quantity,
+          transactions: acc.transactions + transactions,
+        };
+      },
+      { sales: 0, quantity: 0, transactions: 0 }
+    );
+  }
+  
+  if (hasRawFormat) {
+    // Raw reading format: sum individual readings (camelCase after API client conversion)
+    return reports.reduce(
+      (acc, reading) => ({
+        sales: acc.sales + (Number(reading.totalAmount) || 0),
+        quantity: acc.quantity + (Number(reading.deltaVolumeL) || 0),
+        transactions: acc.transactions + 1,
+      }),
+      { sales: 0, quantity: 0, transactions: 0 }
+    );
+  }
+  
+  // Fallback: assume raw format with camelCase
   return reports.reduce(
     (acc, report) => ({
-      sales: acc.sales + report.totalSales,
-      quantity: acc.quantity + report.totalQuantity,
-      transactions: acc.transactions + report.totalTransactions,
+      sales: acc.sales + (Number(report.totalAmount) || 0),
+      quantity: acc.quantity + (Number(report.deltaVolumeL) || 0),
+      transactions: acc.transactions + 1,
     }),
     { sales: 0, quantity: 0, transactions: 0 }
   );

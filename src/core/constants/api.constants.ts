@@ -129,13 +129,13 @@ export const SHIFT_ENDPOINTS = {
 // ============================================
 
 export const DASHBOARD_ENDPOINTS = {
-  SUMMARY: '/dashboard/summary',
-  DAILY_TOTALS: '/dashboard/daily-totals',
-  FUEL_BREAKDOWN: '/dashboard/fuel-breakdown',
-  PUMP_PERFORMANCE: '/dashboard/pump-performance',
-  FINANCIAL_OVERVIEW: '/dashboard/financial-overview',
-  SALES_TREND: '/dashboard/sales-trend',
-  ALERTS: '/dashboard/alerts',
+  SUMMARY: '/analytics/summary',
+  DAILY_TOTALS: '/analytics/daily',
+  FUEL_BREAKDOWN: '/analytics/sales',
+  PUMP_PERFORMANCE: '/analytics/pump-performance',
+  FINANCIAL_OVERVIEW: '/analytics/financial',
+  SALES_TREND: '/analytics/sales',
+  ALERTS: '/analytics/alerts',
 } as const;
 
 // ============================================
@@ -162,12 +162,11 @@ export const FINANCIAL_ENDPOINTS = {
 // ============================================
 
 export const REPORT_ENDPOINTS = {
-  SETTLEMENTS: '/reports/settlements',
-  SETTLEMENTS: '/reports/settlements',
-  SALES: '/reports/sales',
-  INVENTORY: '/reports/inventory',
-  FINANCIAL: '/reports/financial',
-  EMPLOYEE_PERFORMANCE: '/reports/employee-performance',
+  SETTLEMENTS: '/analytics/settlements',
+  SALES: '/analytics/sales',
+  INVENTORY: '/analytics/inventory',
+  FINANCIAL: '/analytics/financial',
+  EMPLOYEE_PERFORMANCE: '/analytics/employee-performance',
   EXPORT: '/reports/export',
 } as const;
 

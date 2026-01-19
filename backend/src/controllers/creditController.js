@@ -1,9 +1,14 @@
 /**
  * Credit Controller
  * Handles creditors and credit transactions with proper transactions
+ * 
+ * AUDIT LOGGING:
+ * - All creditor and credit transaction operations logged
+ * - Tracks: creditor creation/updates, credit sales, settlements
  */
 
 const { Creditor, CreditTransaction, CreditSettlementLink, Station, User, NozzleReading, sequelize } = require('../models');
+const { logAudit } = require('../utils/auditLog');
 const { Op } = require('sequelize');
 const { hasPermission, CREDIT_STATUS } = require('../config/constants');
 const { canAccessStation } = require('../middleware/accessControl');
@@ -213,6 +218,27 @@ const createCreditor = async (req, res) => {
       notes,
       createdBy: req.user.id
     });
+
+    // Log creditor creation
+    await logAudit({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      stationId,
+      action: 'CREATE',
+      entityType: 'Creditor',
+      entityId: creditor.id,
+      newValues: {
+        id: creditor.id,
+        name,
+        businessName,
+        creditLimit
+      },
+      category: 'data',
+      severity: 'info',
+      description: `Created creditor: ${name}`
+    });
+
     res.status(201).json({ success: true, data: creditor, creditor });
   } catch (error) {
     console.error('Create creditor error:', error);
@@ -237,12 +263,34 @@ const updateCreditor = async (req, res) => {
     }
     // Only allow updating specific fields
     const allowedUpdates = ['name', 'contactPerson', 'phone', 'email', 'address', 'businessName', 'gstNumber', 'creditLimit', 'notes', 'isActive'];
+    const oldValues = creditor.toJSON();
+    const newValues = {};
+    
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {
         creditor[field] = updates[field];
+        newValues[field] = updates[field];
       }
     });
+    
     await creditor.save();
+
+    // Log creditor update
+    await logAudit({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      stationId: creditor.stationId,
+      action: 'UPDATE',
+      entityType: 'Creditor',
+      entityId: creditor.id,
+      oldValues: oldValues,
+      newValues: newValues,
+      category: 'data',
+      severity: 'info',
+      description: `Updated creditor: ${creditor.name}`
+    });
+
     res.json({ success: true, data: creditor });
   } catch (error) {
     console.error('Update creditor error:', error);
@@ -318,6 +366,31 @@ const recordCreditSale = async (req, res) => {
         }, { transaction: t });
         transactions.push(transaction);
       }
+
+      // Log credit sale transactions
+      for (const txn of transactions) {
+        await logAudit({
+          userId: req.user.id,
+          userEmail: req.user.email,
+          userRole: req.user.role,
+          stationId,
+          action: 'CREATE',
+          entityType: 'CreditTransaction',
+          entityId: txn.id,
+          newValues: {
+            id: txn.id,
+            creditorId: txn.creditorId,
+            fuelType,
+            litres,
+            amount: txn.amount,
+            transactionType: 'credit'
+          },
+          category: 'finance',
+          severity: 'info',
+          description: `Recorded credit sale: ${litres}L of ${fuelType} for ₹${txn.amount}`
+        });
+      }
+
       await t.commit();
       res.status(201).json({
         success: true,
@@ -373,6 +446,29 @@ const recordCreditSale = async (req, res) => {
       currentBalance: parseFloat(creditor.currentBalance) + calculatedAmount,
       lastTransactionDate: new Date()
     }, { transaction: t });
+
+    // Log credit sale transaction
+    await logAudit({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      stationId,
+      action: 'CREATE',
+      entityType: 'CreditTransaction',
+      entityId: transaction.id,
+      newValues: {
+        id: transaction.id,
+        creditorId,
+        fuelType,
+        litres,
+        amount: calculatedAmount,
+        transactionType: 'credit'
+      },
+      category: 'finance',
+      severity: 'info',
+      description: `Recorded credit sale: ${litres}L of ${fuelType} for ₹${calculatedAmount}`
+    });
+
     await t.commit();
     res.status(201).json({
       success: true,
@@ -496,6 +592,28 @@ const recordSettlement = async (req, res) => {
       currentBalance: newBalance,
       lastTransactionDate: new Date()
     }, { transaction: t });
+
+    // Log settlement transaction
+    await logAudit({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      stationId,
+      action: 'CREATE',
+      entityType: 'Settlement',
+      entityId: transaction.id,
+      newValues: {
+        id: transaction.id,
+        creditorId,
+        amount: settlementAmount,
+        transactionType: 'settlement',
+        allocations: allocations.length
+      },
+      category: 'finance',
+      severity: 'info',
+      description: `Recorded settlement of ₹${settlementAmount} for creditor ${creditor.name}`
+    });
+
     await t.commit();
     // Fetch any allocation links for the settlement to return with response
     const allocationLinks = allocations.length > 0

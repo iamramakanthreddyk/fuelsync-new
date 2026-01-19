@@ -67,5 +67,5 @@ export async function fetchDashboardSummary(stationId: string, startDate?: strin
   const params = new URLSearchParams({ stationId });
   if (startDate) params.set('startDate', startDate);
   if (endDate) params.set('endDate', endDate);
-  return apiClient.get<ApiResponse<DashboardSummary>>(`/dashboard/summary?${params.toString()}`);
+  return apiClient.get<ApiResponse<DashboardSummary>>(`/analytics/summary?${params.toString()}`);
 }

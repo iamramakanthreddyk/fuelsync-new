@@ -139,7 +139,8 @@ export function useFuelPricesData(overrideStationId?: string) {
       }
     },
     enabled: !!stationId, // Always enabled, but data will be overridden by global if available
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 30 * 60 * 1000, // 30 minutes - prevent excessive refetches during navigation
+    gcTime: 45 * 60 * 1000,     // Keep in cache for 45 minutes before garbage collection
   });
 
   // Read from the global fuel prices cache

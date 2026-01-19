@@ -203,12 +203,13 @@ exports.getSummary = async (req, res, next) => {
  */
 exports.getNozzleBreakdown = async (req, res, next) => {
   try {
-    const { startDate, endDate, pumpId } = req.query;
+    const { startDate, endDate, pumpId, start_date, end_date, pump_id } = req.query;
     const user = await User.findByPk(req.userId);
     
     const today = new Date().toISOString().split('T')[0];
-    const start = startDate || today;
-    const end = endDate || today;
+    const start = startDate || start_date || today;
+    const end = endDate || end_date || today;
+    const effectivePumpId = pumpId || pump_id;
 
     const stationFilter = await getStationFilter(user);
     if (stationFilter === null) {
@@ -223,7 +224,7 @@ exports.getNozzleBreakdown = async (req, res, next) => {
         { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
       ]
     };
-    if (pumpId) whereClause.pumpId = pumpId;
+    if (effectivePumpId) whereClause.pumpId = effectivePumpId;
 
     // Fetch readings with nozzle and transaction data
     const readings = await NozzleReading.findAll({
@@ -305,10 +306,13 @@ exports.getNozzleBreakdown = async (req, res, next) => {
  */
 exports.getDailySummary = async (req, res, next) => {
   try {
-    const { startDate, endDate } = req.query;
+    const { startDate, endDate, start_date, end_date } = req.query;
     const user = await User.findByPk(req.userId);
 
-    if (!startDate || !endDate) {
+    const effectiveStartDate = startDate || start_date;
+    const effectiveEndDate = endDate || end_date;
+
+    if (!effectiveStartDate || !effectiveEndDate) {
       return res.status(400).json({ success: false, error: 'startDate and endDate are required' });
     }
 
@@ -321,7 +325,7 @@ exports.getDailySummary = async (req, res, next) => {
     const readings = await NozzleReading.findAll({
       where: { 
         ...stationFilter, 
-        readingDate: { [Op.between]: [startDate, endDate] },
+        readingDate: { [Op.between]: [effectiveStartDate, effectiveEndDate] },
         [Op.or]: [
           { isInitialReading: false },
           { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
@@ -397,12 +401,13 @@ exports.getDailySummary = async (req, res, next) => {
  */
 exports.getFuelBreakdown = async (req, res, next) => {
   try {
-    const { startDate, endDate } = req.query;
+    // Accept both camelCase and snake_case
+    const { startDate, endDate, start_date, end_date } = req.query;
     const user = await User.findByPk(req.userId);
 
     const today = new Date().toISOString().split('T')[0];
-    const start = startDate || today;
-    const end = endDate || today;
+    const start = startDate || start_date || today;
+    const end = endDate || end_date || today;
 
     const stationFilter = await getStationFilter(user);
     if (stationFilter === null) {
@@ -488,54 +493,126 @@ exports.getFuelBreakdown = async (req, res, next) => {
  */
 exports.getPumpPerformance = async (req, res, next) => {
   try {
-    const { startDate, endDate } = req.query;
+    // Accept both camelCase and snake_case
+    const { startDate, endDate, start_date, end_date } = req.query;
     const user = await User.findByPk(req.userId);
 
     const today = new Date().toISOString().split('T')[0];
-    const start = startDate || today;
-    const end = endDate || today;
+    const start = startDate || start_date || today;
+    const end = endDate || end_date || today;
 
     const stationFilter = await getStationFilter(user);
     if (stationFilter === null) {
       return res.json({ success: true, data: { pumps: [] } });
     }
 
-    // Use denormalized pumpId for faster query
-    const pumpStats = await NozzleReading.findAll({
-      where: { 
-        ...stationFilter, 
-        readingDate: { [Op.between]: [start, end] },
-        [Op.or]: [
-          { isInitialReading: false },
-          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
-        ]
-      },
-      include: [{ model: Pump, as: 'pump', attributes: ['id', 'name', 'pumpNumber', 'status'] }],
-      attributes: [
-        [fn('SUM', col('NozzleReading.litres_sold')), 'litres'],
-        [sequelize.literal(`SUM(NozzleReading.litres_sold * NozzleReading.price_per_litre)`), 'amount'],
-        [fn('SUM', col('NozzleReading.cash_amount')), 'cash'],
-        [fn('SUM', col('NozzleReading.online_amount')), 'online'],
-        [fn('SUM', col('NozzleReading.credit_amount')), 'credit'],
-        [fn('COUNT', col('NozzleReading.id')), 'readings']
-      ],
-      group: ['pump.id', 'pump.name', 'pump.pump_number', 'pump.status'],
-      raw: true, nest: true
+    // Get all nozzle readings for the period
+    // Extract station IDs from filter (may contain Op.in() operator)
+    let stationIds;
+    if (stationFilter.stationId) {
+      if (stationFilter.stationId[Op.in]) {
+        stationIds = stationFilter.stationId[Op.in];
+      } else if (Array.isArray(stationFilter.stationId)) {
+        stationIds = stationFilter.stationId;
+      } else {
+        stationIds = [stationFilter.stationId];
+      }
+    } else {
+      // Super admin - get all stations
+      const allStations = await Station.findAll({ attributes: ['id'] });
+      stationIds = allStations.map(s => s.id);
+    }
+    
+    // Query nozzle readings with pump and station info
+    const readings = await sequelize.query(`
+      SELECT 
+        nr."id",
+        nr."pump_id",
+        nr."nozzle_id",
+        nr."litres_sold",
+        nr."price_per_litre",
+        nr."cash_amount",
+        nr."online_amount",
+        nr."credit_amount",
+        p."name" as "pump_name",
+        p."pump_number",
+        n."nozzle_number",
+        n."fuel_type",
+        s."name" as "station_name"
+      FROM "nozzle_readings" nr
+      INNER JOIN "pumps" p ON nr."pump_id" = p."id"
+      INNER JOIN "nozzles" n ON nr."nozzle_id" = n."id"
+      INNER JOIN "stations" s ON nr."station_id" = s."id"
+      WHERE nr."station_id" IN (:stationIds)
+        AND (nr."is_initial_reading" = false 
+             OR (nr."is_initial_reading" = true AND nr."litres_sold" > 0))
+        AND nr."reading_date" BETWEEN :start AND :end
+      ORDER BY p."pump_number", n."nozzle_number"
+    `, {
+      replacements: { stationIds, start, end },
+      type: sequelize.QueryTypes.SELECT
+    });
+
+    // Group readings by pump
+    const pumpMap = new Map();
+    readings.forEach(r => {
+      if (!pumpMap.has(r.pump_id)) {
+        pumpMap.set(r.pump_id, {
+          pumpId: r.pump_id,
+          pumpName: r.pump_name,
+          pumpNumber: r.pump_number.toString(),
+          stationName: r.station_name,
+          totalSales: 0,
+          totalQuantity: 0,
+          transactions: 0,
+          nozzles: new Map()
+        });
+      }
+      
+      const pump = pumpMap.get(r.pump_id);
+      pump.totalSales += r.litres_sold * r.price_per_litre;
+      pump.totalQuantity += r.litres_sold;
+      pump.transactions += 1;
+
+      // Group nozzles by nozzle_id
+      if (!pump.nozzles.has(r.nozzle_id)) {
+        pump.nozzles.set(r.nozzle_id, {
+          nozzleId: r.nozzle_id,
+          nozzleNumber: r.nozzle_number.toString(),
+          fuelType: r.fuel_type,
+          sales: 0,
+          quantity: 0
+        });
+      }
+      
+      const nozzle = pump.nozzles.get(r.nozzle_id);
+      nozzle.sales += r.litres_sold * r.price_per_litre;
+      nozzle.quantity += r.litres_sold;
+    });
+
+    // Convert nozzle map to array and format numbers properly
+    const pumpPerformance = Array.from(pumpMap.values()).map(pump => {
+      const totalSalesNum = Number(pump.totalSales) || 0;
+      const totalQuantityNum = Number(pump.totalQuantity) || 0;
+      
+      return {
+        pumpId: pump.pumpId,
+        pumpName: pump.pumpName,
+        pumpNumber: pump.pumpNumber,
+        stationName: pump.stationName,
+        totalSales: Math.round(totalSalesNum * 100) / 100,
+        totalQuantity: Math.round(totalQuantityNum * 100) / 100,
+        transactions: pump.transactions,
+        nozzles: Array.from(pump.nozzles.values())
+      };
     });
 
     res.json({
       success: true,
       data: {
-        startDate: start, endDate: end,
-        pumps: pumpStats.map(p => ({
-          id: p.pump?.id, name: p.pump?.name, number: p.pump?.pumpNumber, status: p.pump?.status,
-          litres: parseFloat(p.litres || 0),
-          amount: parseFloat(p.amount || 0),
-          cash: parseFloat(p.cash || 0),
-          online: parseFloat(p.online || 0),
-          credit: parseFloat(p.credit || 0),
-          readings: parseInt(p.readings || 0)
-        }))
+        startDate: start, 
+        endDate: end,
+        pumps: pumpPerformance
       }
     });
   } catch (error) {
@@ -949,10 +1026,15 @@ exports.getOwnerStats = async (req, res, next) => {
  */
 exports.getOwnerAnalytics = async (req, res, next) => {
   try {
-    const { startDate, endDate, stationId } = req.query;
+    // Accept both camelCase and snake_case
+    const { startDate, endDate, stationId, start_date, end_date, station_id } = req.query;
     const user = await User.findByPk(req.userId);
 
-    if (!startDate || !endDate) {
+    const effectiveStartDate = startDate || start_date;
+    const effectiveEndDate = endDate || end_date;
+    const effectiveStationId = stationId || station_id;
+
+    if (!effectiveStartDate || !effectiveEndDate) {
       return res.status(400).json({
         success: false,
         error: 'Start date and end date are required'
@@ -961,8 +1043,8 @@ exports.getOwnerAnalytics = async (req, res, next) => {
 
     // Get owner's stations
     const stationFilter = { ownerId: user.id };
-    if (stationId && stationId !== 'all') {
-      stationFilter.id = stationId;
+    if (effectiveStationId && effectiveStationId !== 'all') {
+      stationFilter.id = effectiveStationId;
     }
 
     const stations = await Station.findAll({
@@ -1011,7 +1093,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       where: {
         stationId: { [Op.in]: stationIds },
         readingDate: {
-          [Op.between]: [startDate, endDate]
+          [Op.between]: [effectiveStartDate, effectiveEndDate]
         }
       },
       raw: true

@@ -28,7 +28,7 @@ export default function SettlementStationSelector() {
     queryFn: async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const response = await apiClient.get(`/reports/daily-sales?date=${today}`);
+        const response = await apiClient.get(`/analytics/sales?startDate=${today}&endDate=${today}`);
         
         if (response && typeof response === 'object' && 'data' in response) {
           return Array.isArray(response.data) ? response.data : [];

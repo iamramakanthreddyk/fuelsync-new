@@ -1,11 +1,19 @@
 /**
  * Expense Controller
  * Handles expenses and cost of goods tracking
+ * 
+ * AUDIT LOGGING:
+ * - CREATE: Expense creation is logged with category 'finance', severity 'info'
+ * - UPDATE: Expense updates are logged with before/after values
+ * - DELETE: Expense deletion is logged with severity 'warning'
+ * 
+ * All CREATE/UPDATE/DELETE operations are tracked via logAudit() from utils/auditLog
  */
 
 const { Expense, CostOfGoods, NozzleReading, CreditTransaction, Station } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
 const { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, FUEL_TYPES } = require('../config/constants');
+const { logAudit } = require('../utils/auditLog');
 
 /**
  * Get expense categories (for dropdown)
@@ -96,6 +104,26 @@ const createExpense = async (req, res) => {
       notes,
       enteredBy: req.user.id
     });
+
+    // Log expense creation
+    await logAudit({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      stationId,
+      action: 'CREATE',
+      entityType: 'Expense',
+      entityId: expense.id,
+      newValues: {
+        id: expense.id,
+        category,
+        description,
+        amount
+      },
+      category: 'finance',
+      severity: 'info',
+      description: `Created expense: ${description} (₹${amount})`
+    });
     
     res.status(201).json({ success: true, data: expense });
   } catch (error) {
@@ -117,15 +145,35 @@ const updateExpense = async (req, res) => {
       return res.status(404).json({ success: false, error: { message: 'Expense not found' } });
     }
     
+    const oldValues = expense.toJSON();
     const allowedUpdates = ['category', 'description', 'amount', 'expenseDate', 'receiptNumber', 'paymentMethod', 'notes'];
+    const newValues = {};
     
     allowedUpdates.forEach(field => {
       if (updates[field] !== undefined) {
         expense[field] = updates[field];
+        newValues[field] = updates[field];
       }
     });
     
     await expense.save();
+
+    // Log expense update
+    await logAudit({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      stationId: expense.stationId,
+      action: 'UPDATE',
+      entityType: 'Expense',
+      entityId: expense.id,
+      oldValues: oldValues,
+      newValues: newValues,
+      category: 'finance',
+      severity: 'info',
+      description: `Updated expense: ${expense.description}`
+    });
+
     res.json({ success: true, data: expense });
   } catch (error) {
     console.error('Update expense error:', error);
@@ -144,8 +192,27 @@ const deleteExpense = async (req, res) => {
     if (!expense) {
       return res.status(404).json({ success: false, error: { message: 'Expense not found' } });
     }
+
+    const stationId = expense.stationId;
+    const expenseData = expense.toJSON();
     
     await expense.destroy();
+
+    // Log expense deletion
+    await logAudit({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      stationId,
+      action: 'DELETE',
+      entityType: 'Expense',
+      entityId: id,
+      oldValues: expenseData,
+      category: 'finance',
+      severity: 'warning',
+      description: `Deleted expense: ${expenseData.description}`
+    });
+
     res.json({ success: true, message: 'Expense deleted' });
   } catch (error) {
     console.error('Delete expense error:', error);

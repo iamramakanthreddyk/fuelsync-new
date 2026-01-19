@@ -1,6 +1,17 @@
 /**
  * Auth Middleware
  * JWT verification - REQUIRES JWT_SECRET environment variable
+ * 
+ * ROLE-BASED ACCESS CONTROL (RBAC) HIERARCHY:
+ * - employee (level 1): Can view own station data, enter readings, record sales
+ * - manager (level 2): Can manage employee data, approve entries, view analytics
+ * - owner (level 3): Can manage multiple stations, create employees, view financial data
+ * - super_admin (level 4): Full system access, manage plans, manage all owners
+ * 
+ * Usage:
+ * - authenticate: Middleware to verify JWT token is valid
+ * - requireRole('owner', 'super_admin'): Exactly match roles
+ * - requireMinRole('manager'): At least this level or higher
  */
 
 const jwt = require('jsonwebtoken');

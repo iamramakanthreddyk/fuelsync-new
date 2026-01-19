@@ -1,3 +1,13 @@
+/**
+ * Admin Routes
+ * Password-protected endpoints for database backups, migrations, and diagnostics
+ * 
+ * Security: All routes require ADMIN_BACKUP_PASSWORD environment variable
+ * Pass via: x-backup-password header or body.password field
+ * 
+ * RBAC: These are standalone admin utilities, not tied to user roles
+ */
+
 const express = require('express');
 const router = express.Router();
 const { exec } = require('child_process');
