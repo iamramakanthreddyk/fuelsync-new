@@ -302,10 +302,11 @@ function AppContent() {
       return allPrices;
     },
     enabled: !!user && stations.length > 0, // Only run when user is authenticated and stations are loaded
-    staleTime: Infinity, // Fuel prices don't change often, fetch once and reuse
-    gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
-    refetchOnMount: true, // Refetch on mount if no cache
-    refetchOnWindowFocus: false, // Don't refetch on window focus
+    staleTime: 5 * 60 * 1000, // 5 minutes - fuel prices typically don't change that often but keep fresh
+    gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes after becoming unused
+    refetchOnMount: 'stale', // Refetch if data is stale when component mounts
+    refetchOnWindowFocus: 'stale', // Refetch if user switches window and data is stale
+    refetchOnReconnect: 'stale', // Refetch if reconnecting to internet and data is stale
   });
 
   return (

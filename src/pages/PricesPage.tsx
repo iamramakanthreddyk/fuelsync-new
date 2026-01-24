@@ -216,10 +216,10 @@ export default function PricesPage() {
       </div>
     );
   }  return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="w-full px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
       <div>
-        <h1 className="text-3xl font-bold">Fuel Prices</h1>
-        <p className="text-muted-foreground">
+        <h1 className="text-2xl sm:text-3xl font-bold">Fuel Prices</h1>
+        <p className="text-sm sm:text-base text-muted-foreground mt-1">
           Manage fuel prices for your stations
         </p>
       </div>
@@ -227,12 +227,12 @@ export default function PricesPage() {
       {/* Station Selection - Show if accessing from /prices route, hide if from /owner/stations/:id/prices */}
       {!routeStationId && (isOwner || isAdmin) && stations.length > 1 && (
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Select Station</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="text-sm sm:text-base">Select Station</CardTitle>
           </CardHeader>
           <CardContent>
             <Select value={defaultStationId} onValueChange={setSelectedStationId}>
-              <SelectTrigger>
+              <SelectTrigger className="text-sm sm:text-base">
                 <SelectValue placeholder="Choose a station" />
               </SelectTrigger>
               <SelectContent>
@@ -251,20 +251,22 @@ export default function PricesPage() {
       )}
 
       {/* Prices Header */}
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3">
         <div>
-          <h2 className="text-2xl font-semibold">
+          <h2 className="text-xl sm:text-2xl font-semibold">
             {currentStation ? currentStation.name : "Fuel Prices"}
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Set prices for different fuel types at this station
           </p>
         </div>
-        <FuelPriceAddButton
-          onAdd={openAddDialog}
-          disabled={missingFuelTypes.length === 0}
-          isVisible={isOwner || isAdmin}
-        />
+        <div className="w-full sm:w-auto">
+          <FuelPriceAddButton
+            onAdd={openAddDialog}
+            disabled={missingFuelTypes.length === 0}
+            isVisible={isOwner || isAdmin}
+          />
+        </div>
       </div>
 
       <FuelPriceDialog

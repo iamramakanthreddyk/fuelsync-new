@@ -35,39 +35,39 @@ export const FuelPricesGrid: React.FC<FuelPricesGridProps> = ({
   }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
       {fuelPrices.map((price) => (
         <Card key={`${price.station_id}-${price.fuel_type}`}>
-          <CardHeader>
-            <div className="flex justify-between items-start">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <IndianRupee className="w-5 h-5" />
-                  {price.fuel_type}
+          <CardHeader className="pb-2 sm:pb-3">
+            <div className="flex justify-between items-start gap-2">
+              <div className="min-w-0">
+                <CardTitle className="flex items-center gap-1 sm:gap-2 text-sm sm:text-base">
+                  <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+                  <span className="truncate">{price.fuel_type}</span>
                 </CardTitle>
-                <CardDescription>
+                <CardDescription className="text-xs sm:text-sm">
                   Current Price
                 </CardDescription>
               </div>
-              <Badge className={getFuelBadgeClasses(price.fuel_type.toLowerCase())}>
+              <Badge className={`${getFuelBadgeClasses(price.fuel_type.toLowerCase())} text-xs sm:text-sm flex-shrink-0`}>
                 {price.fuel_type}
               </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold text-primary flex items-center gap-1">
-              <IndianRupee className="w-5 h-5" />
-              {safeToFixed(price.price_per_litre, 2)}
+            <div className="text-2xl sm:text-3xl font-bold text-primary flex items-center gap-1">
+              <IndianRupee className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
+              <span className="break-words">{safeToFixed(price.price_per_litre, 2)}</span>
             </div>
-            <div className="text-sm text-muted-foreground mt-2">
-              <div>Updated: {new Date(price.valid_from).toLocaleDateString()}</div>
-              <div>Valid from: {new Date(price.valid_from).toLocaleString()}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground mt-2 space-y-1">
+              <div>Updated: {new Date(price.valid_from).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric' })}</div>
+              <div className="hidden sm:block">Valid from: {new Date(price.valid_from).toLocaleString()}</div>
             </div>
             {(isOwner || isAdmin) && (
               <Button
                 size="sm"
                 variant="outline"
-                className="mt-3"
+                className="mt-3 w-full sm:w-auto text-xs sm:text-sm"
                 onClick={() => onEdit(price.fuel_type, price.price_per_litre, price.id)}
               >
                 Edit

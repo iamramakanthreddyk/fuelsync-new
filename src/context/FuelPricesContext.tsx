@@ -40,12 +40,50 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
   const stations = stationsResponse?.data || [];
   const stationsKey = stations?.map(s => s.id).sort().join(',');
 
-  // Subscribe to global fuel prices cache - this will automatically update when cache changes
+  // Subscribe to global fuel prices cache
   const { data: allFuelPrices } = useQuery({
     queryKey: ['all-fuel-prices', stationsKey],
-    queryFn: () => null, // We don't need to fetch, just subscribe to existing cache
-    enabled: !!stationsKey, // Only subscribe when we have stations
-    staleTime: Infinity, // Never consider stale since we want to react to cache changes
+    queryFn: async () => {
+      // This query is pre-fetched in AppWithQueries, we just subscribe to its cache
+      if (!stations || stations.length === 0) {
+        return {};
+      }
+
+      const allPrices: Record<string, any[]> = {};
+      
+      // Fetch prices for all stations in parallel
+      await Promise.all(
+        stations.map(async (station) => {
+          try {
+            const url = `/stations/${station.id}/prices`;
+            const response = await apiClient.get(url);
+
+            let currentPrices: any[] = [];
+            if (response && typeof response === 'object' && 'data' in response) {
+              const data = response.data;
+              if (data && typeof data === 'object' && 'current' in data && Array.isArray(data.current)) {
+                currentPrices = data.current;
+              }
+            }
+
+            // Transform prices to match the expected format
+            const transformed = currentPrices.map((price: any) => ({
+              fuel_type: (price.fuelType || '').toString().toUpperCase(),
+              price_per_litre: price.price,
+            }));
+
+            allPrices[station.id] = transformed;
+          } catch (error) {
+            allPrices[station.id] = [];
+          }
+        })
+      );
+      
+      return allPrices;
+    },
+    enabled: !!stationsKey, // Only enable when we have stations
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
   });
 
   // Update prices when stationId or global cache changes
