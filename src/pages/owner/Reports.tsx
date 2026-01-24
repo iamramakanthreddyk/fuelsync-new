@@ -35,6 +35,7 @@ import {
   printSalesReport,
   printNozzlesReport,
   printPumpsReport,
+  printShortfallReport,
 } from '@/lib/report-export';
 import { CHART_COLORS } from '@/lib/constants';
 import { safeToFixed } from '@/lib/format-utils';
@@ -50,6 +51,7 @@ import {
   AlertCircle,
   TrendingDown,
   CheckCircle2,
+  AlertTriangle,
 } from 'lucide-react';
 
 // ============================================
@@ -229,23 +231,24 @@ interface EmployeeShortfallData {
   daysWithShortfall: number;
   averagePerDay: number;
   settlementsCount: number;
+  shortfallDates?: string[]; // ISO date strings (YYYY-MM-DD) - optional, for future backend enhancement
+  lastShortfallDate?: string; // Most recent shortfall date - optional, for future backend enhancement
+  employeeId?: string; // Optional employee ID from backend
 }
 
 interface EmployeeShortfallReportProps {
   dateRange: DateRange;
   selectedStation: string;
+  toast: ReturnType<typeof useToast>['toast'];
 }
 
 const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
   dateRange,
   selectedStation,
+  toast,
 }) => {
   const [endpointAvailable, setEndpointAvailable] = React.useState(true);
 
-  // Debug: Log props
-  React.useEffect(() => {
-    console.log('[EmployeeShortfallReport] Props received:', { dateRange, selectedStation });
-  }, [dateRange, selectedStation]);
 
   // Fetch shortfall data from backend
   const { data: shortfallData, isLoading: shortfallLoading } = useQuery({
@@ -255,13 +258,6 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
       const hasValidDates = dateRange?.startDate && dateRange?.endDate;
       const hasValidStation = selectedStation && selectedStation !== '';
       
-      console.log('[EmployeeShortfallReport] Query running with:', { 
-        selectedStation, 
-        startDate: dateRange?.startDate, 
-        endDate: dateRange?.endDate,
-        hasValidDates,
-        hasValidStation
-      });
       
       if (!hasValidStation || !hasValidDates) {
         console.warn('[EmployeeShortfallReport] Missing required params:', { selectedStation, dateRange });
@@ -269,13 +265,8 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
       }
       
       try {
-        console.log('[EmployeeShortfallReport] Making API call:', { 
-          selectedStation, 
-          startDate: dateRange.startDate, 
-          endDate: dateRange.endDate 
-        });
         
-        const response = await apiClient.get(
+        const response = await apiClient.get<any>(
           `/stations/${selectedStation}/employee-shortfalls`,
           {
             params: {
@@ -285,7 +276,6 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
           }
         );
         
-        console.log('[EmployeeShortfallReport] API response:', response);
         
         setEndpointAvailable(true);
         
@@ -355,8 +345,24 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
                   <div><strong>Endpoint needed:</strong></div>
                   <div className="text-amber-600">GET /api/v1/stations/:stationId/employee-shortfalls</div>
                   <div><strong>Parameters:</strong> startDate, endDate</div>
-                  <div className="mt-2"><strong>See:</strong> EMPLOYEE_SHORTFALL_REPORT.md for full implementation details</div>
+                  <div className="mt-2"><strong>See:</strong> EMPLOYEE_SHORTFALL_API_SPEC.md for full implementation details</div>
                 </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {employeeShortfalls.length > 0 && !shortfallLoading && !employeeShortfalls[0].lastShortfallDate && (
+        <Card className="border-blue-200 bg-blue-50 mb-6">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-4">
+              <AlertCircle className="w-6 h-6 text-blue-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-semibold text-blue-900 mb-1">Enhanced Date Tracking Coming Soon</h3>
+                <p className="text-sm text-blue-800">
+                  The backend API currently provides shortfall totals. To see specific dates when shortfalls occurred, the backend needs to include <code className="bg-white px-2 py-1 rounded text-blue-700 font-mono text-xs">lastShortfallDate</code> and <code className="bg-white px-2 py-1 rounded text-blue-700 font-mono text-xs">shortfallDates[]</code> in the response.
+                </p>
               </div>
             </div>
           </CardContent>
@@ -374,6 +380,16 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
           title: 'No Shortfalls',
           description: 'No cash shortfalls recorded for the selected period.',
         }}
+        onPrintPdf={() => {
+          if (employeeShortfalls?.length) {
+            printShortfallReport(employeeShortfalls, dateRange, () => {
+              toast({
+                title: 'Popup blocked',
+                description: 'Please allow popups to use Print/PDF export.',
+              });
+            });
+          }
+        }}
       >
         {!endpointAvailable ? (
           <div className="text-center py-12">
@@ -390,35 +406,34 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               <StatCard
                 icon={TrendingDown}
-                label="Total Shortfall"
+                title="Total Cash Loss"
                 value={`₹${safeToFixed(summaryStats.totalShortfall, 2)}`}
-                trend={summaryStats.totalShortfall > 0 ? 'negative' : 'neutral'}
-                className={summaryStats.totalShortfall > 0 ? 'border-red-200 bg-red-50' : ''}
+                trend={summaryStats.totalShortfall > 0 ? { value: 0, direction: 'down' as const } : { value: 0, direction: 'neutral' as const }}
+                className="border-slate-200 bg-white"
               />
               <StatCard
                 icon={Users}
-                label="Employees Affected"
+                title="Employees Involved"
                 value={`${summaryStats.employeesAffected}`}
-                className="border-amber-200 bg-amber-50"
+                className="border-slate-200 bg-white"
               />
               <StatCard
                 icon={AlertCircle}
-                label="Avg per Employee"
-                value={`₹${safeToFixed(summaryStats.averageShortfallPerEmployee, 2)}`}
-                className="border-orange-200 bg-orange-50"
+                title="Avg Days with Loss"
+                value={`${safeToFixed(employeeShortfalls.reduce((sum, emp) => sum + emp.daysWithShortfall, 0) / employeeShortfalls.length || 0, 1)}`}
+                className="border-slate-200 bg-white"
               />
               {summaryStats.highestShortfallEmployee && (
                 <StatCard
-                  icon={AlertCircle}
-                  label="Highest Shortfall"
+                  icon={AlertTriangle}
+                  title="Worst Performer"
                   value={summaryStats.highestShortfallEmployee.employeeName}
-                  subtitle={`₹${safeToFixed(summaryStats.highestShortfallEmployee.totalShortfall, 2)}`}
-                  className="border-red-200 bg-red-50"
+                  className="border-slate-200 bg-white"
                 />
               )}
             </div>
 
-            {/* Employee Shortfall Table */}
+            {/* Employee Shortfall Table - Responsive */}
             {employeeShortfalls.length > 0 && (
               <Card className="border-slate-200">
                 <CardHeader className="pb-3">
@@ -431,7 +446,8 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <div className="overflow-x-auto">
+                  {/* Desktop Table */}
+                  <div className="hidden sm:block overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-slate-200">
@@ -439,6 +455,9 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
                           <th className="text-right py-2 px-3 font-semibold text-slate-700">Total Shortfall</th>
                           <th className="text-right py-2 px-3 font-semibold text-slate-700">Days with Shortfall</th>
                           <th className="text-right py-2 px-3 font-semibold text-slate-700">Avg / Day</th>
+                          {employeeShortfalls[0]?.lastShortfallDate && (
+                            <th className="text-right py-2 px-3 font-semibold text-slate-700">Last Shortfall Date</th>
+                          )}
                           <th className="text-right py-2 px-3 font-semibold text-slate-700">Settlements</th>
                         </tr>
                       </thead>
@@ -468,6 +487,16 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
                                   ₹{safeToFixed(emp.averagePerDay, 2)}
                                 </div>
                               </td>
+                              {emp.lastShortfallDate && (
+                                <td className="text-right py-3 px-3">
+                                  <div 
+                                    className="text-slate-600 text-sm cursor-help border-b border-dotted border-slate-300 w-fit ml-auto"
+                                    title={`All shortfall dates: ${emp.shortfallDates?.map(d => new Date(d).toLocaleDateString('en-IN')).join(', ')}`}
+                                  >
+                                    {new Date(emp.lastShortfallDate).toLocaleDateString('en-IN')}
+                                  </div>
+                                </td>
+                              )}
                               <td className="text-right py-3 px-3">
                                 <div className="text-slate-600">{emp.settlementsCount}</div>
                               </td>
@@ -475,6 +504,42 @@ const EmployeeShortfallReport: React.FC<EmployeeShortfallReportProps> = ({
                           ))}
                       </tbody>
                     </table>
+                  </div>
+                  {/* Mobile Summary Card with List - Only one card rendered */}
+                  <div className="sm:hidden">
+                    <div className="rounded-lg border border-slate-200 bg-white shadow-sm p-2">
+                      <div className="font-semibold text-slate-800 text-base mb-2">Employee Shortfall Breakdown</div>
+                      <div>
+                        {employeeShortfalls
+                          .sort((a, b) => b.totalShortfall - a.totalShortfall)
+                          .map((emp, idx, arr) => (
+                            <div key={idx}>
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="font-medium text-slate-900 text-sm">{emp.employeeName}</span>
+                                <span className="font-bold text-slate-700 text-sm">₹{safeToFixed(emp.totalShortfall, 2)}</span>
+                              </div>
+                              <div className="flex flex-wrap text-xs text-slate-600 gap-x-4 gap-y-1 mb-2">
+                                <div><span className="font-semibold">Days:</span> {emp.daysWithShortfall}</div>
+                                <div><span className="font-semibold">Avg/Day:</span> ₹{safeToFixed(emp.averagePerDay, 2)}</div>
+                                {emp.lastShortfallDate && (
+                                  <div>
+                                    <span className="font-semibold">Last Date:</span>{' '}
+                                    <span 
+                                      title={emp.shortfallDates?.map(d => new Date(d).toLocaleDateString('en-IN')).join(', ')}
+                                      className="cursor-help border-b border-dotted border-slate-400"
+                                    >
+                                      {new Date(emp.lastShortfallDate).toLocaleDateString('en-IN')}
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                              {idx < arr.length - 1 && (
+                                <div className="border-t border-slate-100 my-2" />
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -497,7 +562,7 @@ export default function Reports() {
 
   // Fetch stations
   const { data: stationsResponse } = useStations();
-  const stations = stationsResponse?.data ?? [];
+  const stations = (stationsResponse as any)?.data ?? [];
 
   // Auto-select station for users with only one station (like managers)
   useEffect(() => {
@@ -605,21 +670,21 @@ export default function Reports() {
             value={`₹${totals.sales.toLocaleString('en-IN')}`}
             trend={{ value: 12.5, direction: 'up' }}
             icon={IndianRupee}
-            variant="green"
+            className="bg-white border-slate-200 text-slate-900"
           />
           <StatCard
             title="Fuel Dispensed"
             value={`${safeToFixed(totals.quantity, 1)}L`}
             trend={{ value: 8.2, direction: 'up' }}
             icon={Droplet}
-            variant="blue"
+            className="bg-white border-slate-200 text-slate-900"
           />
           <StatCard
             title="Transactions"
             value={totals.transactions.toString()}
             trend={{ value: 15.3, direction: 'up' }}
             icon={Activity}
-            variant="purple"
+            className="bg-white border-slate-200 text-slate-900"
           />
         </div>
 
@@ -767,7 +832,7 @@ export default function Reports() {
                 onPrintPdf={() => handlePrintPdf('pumps')}
               >
                 <div className="grid gap-4 grid-cols-1 lg:grid-cols-2">
-                  {(pumpPerformance ?? []).map((pump) => (
+                  {(pumpPerformance ?? []).map((pump: any) => (
                     <PumpCard
                       key={pump.pumpId || `${pump.pumpName}-${pump.pumpNumber}`}
                       pump={pump}
@@ -783,6 +848,7 @@ export default function Reports() {
               <EmployeeShortfallReport
                 dateRange={dateRange}
                 selectedStation={selectedStation}
+                toast={toast}
               />
             </TabsContent>
           </Tabs>

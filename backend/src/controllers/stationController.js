@@ -2267,33 +2267,47 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
       Object.entries(shortfallData).forEach(([empKey, empData]) => {
         const employeeName = empData.employeeName || empData.employee_name || 'Unknown';
         const shortfallAmount = parseFloat(empData.shortfall || 0);
+        
+        // Format date as YYYY-MM-DD
+        const settlementDate = settlement.date instanceof Date 
+          ? settlement.date.toISOString().split('T')[0]
+          : settlement.date;
 
         if (!employeeMap.has(employeeName)) {
           employeeMap.set(employeeName, {
             employeeName,
+            employeeId: empData.employeeId || empData.employee_id,
             totalShortfall: 0,
             daysWithShortfall: new Set(),
+            shortfallDates: new Set(),
             settlementsCount: 0
           });
         }
 
         const emp = employeeMap.get(employeeName);
         emp.totalShortfall += shortfallAmount;
-        emp.daysWithShortfall.add(settlement.date); // Track unique dates
+        emp.daysWithShortfall.add(settlementDate); // Track unique dates
+        emp.shortfallDates.add(settlementDate); // Add to date array
         emp.settlementsCount += 1;
       });
     });
 
     // Convert to array and calculate metrics
-    const result = Array.from(employeeMap.values()).map(emp => ({
-      employeeName: emp.employeeName,
-      totalShortfall: parseFloat(emp.totalShortfall.toFixed(2)),
-      daysWithShortfall: emp.daysWithShortfall.size,
-      averagePerDay: emp.daysWithShortfall.size > 0 
-        ? parseFloat((emp.totalShortfall / emp.daysWithShortfall.size).toFixed(2))
-        : 0,
-      settlementsCount: emp.settlementsCount
-    }));
+    const result = Array.from(employeeMap.values()).map(emp => {
+      const sortedDates = Array.from(emp.shortfallDates).sort();
+      return {
+        employeeName: emp.employeeName,
+        employeeId: emp.employeeId,
+        totalShortfall: parseFloat(emp.totalShortfall.toFixed(2)),
+        daysWithShortfall: emp.daysWithShortfall.size,
+        averagePerDay: emp.daysWithShortfall.size > 0 
+          ? parseFloat((emp.totalShortfall / emp.daysWithShortfall.size).toFixed(2))
+          : 0,
+        settlementsCount: emp.settlementsCount,
+        shortfallDates: sortedDates,
+        lastShortfallDate: sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null
+      };
+    });
 
     // Sort by highest shortfall first
     result.sort((a, b) => b.totalShortfall - a.totalShortfall);

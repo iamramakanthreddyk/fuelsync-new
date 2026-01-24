@@ -232,6 +232,55 @@ function createPrintWindow(config: PrintConfig): Window | null {
   return w;
 }
 
+export function printShortfallReport<T extends Record<string, any>>(
+  data: T[],
+  dateRange: DateRange,
+  onPopupBlocked?: () => void
+) {
+  const w = createPrintWindow({ reportType: 'shortfall', dateRange, onPopupBlocked });
+  if (!w) return;
+
+  const totalShortfall = data.reduce((sum, emp) => sum + (emp.totalShortfall || 0), 0);
+  const totalDays = data.reduce((sum, emp) => sum + (emp.daysWithShortfall || 0), 0);
+
+  w.document.write(`<div class="summary-box">
+    <strong>Shortfall Summary</strong>
+    <div class="summary-row"><span>Total Shortfall Amount:</span><span>${currency(totalShortfall)}</span></div>
+    <div class="summary-row"><span>Employees Affected:</span><span>${data.length}</span></div>
+    <div class="summary-row"><span>Total Days with Shortfall:</span><span>${totalDays}</span></div>
+  </div>`);
+
+  w.document.write(
+    `<table><thead><tr><th>Employee</th><th>Total Shortfall</th><th>Days with Shortfall</th><th>Avg/Day</th><th>Last Shortfall Date</th><th>Settlements</th></tr></thead><tbody>`
+  );
+  
+  data.forEach((emp) => {
+    const shortfallDateDisplay = emp.lastShortfallDate 
+      ? new Date(emp.lastShortfallDate).toLocaleDateString('en-IN')
+      : '-';
+    w.document.write(`<tr>
+      <td>${emp.employeeName}</td>
+      <td>${currency(emp.totalShortfall)}</td>
+      <td>${emp.daysWithShortfall}</td>
+      <td>${currency(emp.averagePerDay)}</td>
+      <td>${shortfallDateDisplay}</td>
+      <td>${emp.settlementsCount}</td>
+    </tr>`);
+  });
+
+  w.document.write(`<tr class="total-row">
+    <td><strong>Total</strong></td>
+    <td><strong>${currency(totalShortfall)}</strong></td>
+    <td><strong>${totalDays}</strong></td>
+    <td></td>
+    <td></td>
+    <td></td>
+  </tr>`);
+
+  w.document.write(`</tbody></table>`);
+  finalizePrintWindow(w);
+}
+
 function finalizePrintWindow(w: Window) {
   w.document.write(`</body></html>`);
   w.document.close();
