@@ -420,13 +420,13 @@ export default function EmployeeQuickEntry() {
         <>
           {/* Date Selection */}
           <Card>
-            <CardContent className="p-4">
-              <div className="grid gap-3 sm:grid-cols-3">
+            <CardContent className="p-3 sm:p-4">
+              <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-3">
                 <div>
                   <Label className="text-xs sm:text-sm text-muted-foreground">Station</Label>
-                  <div className="mt-1.5 flex items-center gap-2 p-2 bg-gray-50 rounded-md border">
-                    <Building2 className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-sm font-medium">{stationName}</span>
+                  <div className="mt-1.5 flex items-center gap-2 p-2 bg-gray-50 rounded-md border text-sm sm:text-base">
+                    <Building2 className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    <span className="font-medium truncate">{stationName}</span>
                   </div>
                 </div>
                 <div>
@@ -437,11 +437,11 @@ export default function EmployeeQuickEntry() {
                     value={readingDate}
                     onChange={(e) => setReadingDate(e.target.value)}
                     max={new Date().toISOString().split('T')[0]}
-                    className="mt-1.5"
+                    className="mt-1.5 text-base sm:text-sm"
                   />
                 </div>
                 <div className="flex items-end">
-                  <div className="w-full text-xs text-muted-foreground bg-gray-50 p-2.5 rounded-md border">
+                  <div className="w-full text-muted-foreground bg-gray-50 p-2.5 rounded-md border text-sm sm:text-base">
                     <span className="font-semibold text-gray-700">{totalNozzles} nozzles</span>
                   </div>
                 </div>
@@ -468,28 +468,28 @@ export default function EmployeeQuickEntry() {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
                 {/* Pump/Nozzles List */}
-                <div className="lg:col-span-2 space-y-3">
+                <div className="lg:col-span-2 space-y-2 sm:space-y-3">
                   {pumps.map((pump) => (
                     <Card key={pump.id} className="hover:shadow-md transition-shadow">
-                      <CardHeader className="pb-2">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                              <Fuel className="w-4 h-4 text-primary" />
+                      <CardHeader className="pb-2 sm:pb-3">
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <Fuel className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-primary" />
                             </div>
-                            <div>
-                              <h3 className="font-semibold text-sm">Pump {pump.pumpNumber}</h3>
-                              <p className="text-xs text-muted-foreground">{pump.name}</p>
+                            <div className="min-w-0">
+                              <h3 className="font-semibold text-xs sm:text-sm">Pump {pump.pumpNumber}</h3>
+                              <p className="text-xs text-muted-foreground truncate">{pump.name}</p>
                             </div>
                           </div>
-                          <Badge variant="outline" className="text-xs">{pump.status}</Badge>
+                          <Badge variant="outline" className="text-xs flex-shrink-0">{pump.status}</Badge>
                         </div>
                       </CardHeader>
-                      <CardContent className="space-y-3">
+                      <CardContent className="space-y-2 sm:space-y-3">
                         {pump.nozzles && pump.nozzles.length > 0 ? (
-                          <div className="space-y-3">
+                          <div className="space-y-2 sm:space-y-3">
                             {pump.nozzles.map((nozzle) => {
                               const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
                               const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
@@ -503,25 +503,26 @@ export default function EmployeeQuickEntry() {
                               const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
 
                               return (
-                                <div key={nozzle.id} className="border rounded-lg p-2.5 bg-white">
-                                  <div className="flex items-center justify-between mb-1.5">
-                                    <Label className="text-xs font-semibold">
+                                <div key={nozzle.id} className="border rounded-lg p-2 sm:p-2.5 bg-white">
+                                  <div className="flex items-center justify-between mb-1.5 gap-2">
+                                    <Label className="text-xs sm:text-sm font-semibold truncate">
                                       Nozzle {nozzle.nozzleNumber} - {FUEL_TYPE_LABELS[nozzle.fuelType] || nozzle.fuelType}
                                       {!hasFuelPrice && <span className="text-red-500 ml-1">*</span>}
                                     </Label>
-                                    <span className="text-xs text-muted-foreground">
+                                    <span className="text-xs text-muted-foreground whitespace-nowrap flex-shrink-0">
                                       Last: {safeToFixed(compareValue, 1)}
                                     </span>
                                   </div>
                                   <div className="relative">
                                     <Input
                                       type="number"
+                                      inputMode="decimal"
                                       step="any"
                                       placeholder="Enter current reading"
                                       value={reading?.readingValue || ''}
                                       onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
                                       disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
-                                      className={`text-sm h-8 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
+                                      className={`text-base sm:text-sm h-10 sm:h-9 font-size-base ${!hasFuelPrice ? 'border-red-300 bg-red-50' : ''}`}
                                     />
                                     {reading?.readingValue && enteredValue > compareValue && (
                                       <div className="absolute right-2.5 top-1/2 -translate-y-1/2 text-green-500">
@@ -561,20 +562,20 @@ export default function EmployeeQuickEntry() {
                 {/* Summary Card */}
                 <div className="lg:col-span-1">
                   {pendingCount > 0 && saleSummary.totalSaleValue > 0 ? (
-                    <Card className="border-2 border-green-200 bg-green-50 sticky top-4">
-                      <CardContent className="p-3 md:p-4 space-y-4">
+                    <Card className="border-2 border-green-200 bg-green-50 lg:sticky lg:top-4">
+                      <CardContent className="p-3 sm:p-4 space-y-3 sm:space-y-4">
                         <div>
-                          <p className="text-xs text-muted-foreground">Total Sale Value</p>
-                          <p className="text-2xl font-bold text-green-600">
+                          <p className="text-xs sm:text-sm text-muted-foreground">Total Sale Value</p>
+                          <p className="text-xl sm:text-2xl font-bold text-green-600 break-words">
                             ₹{saleSummary.totalSaleValue >= 100000 
                               ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`
                               : safeToFixed(saleSummary.totalSaleValue, 2)}
                           </p>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-3">
                           <div>
                             <p className="text-xs text-muted-foreground">Liters</p>
-                            <p className="text-lg font-semibold">
+                            <p className="text-base sm:text-lg font-semibold break-words">
                               {saleSummary.totalLiters >= 1000 
                                 ? `${safeToFixed(saleSummary.totalLiters / 1000, 1)}K`
                                 : safeToFixed(saleSummary.totalLiters, 1)}
@@ -582,14 +583,14 @@ export default function EmployeeQuickEntry() {
                           </div>
                           <div>
                             <p className="text-xs text-muted-foreground">Readings</p>
-                            <p className="text-lg font-semibold">{pendingCount}/{totalNozzles}</p>
+                            <p className="text-base sm:text-lg font-semibold">{pendingCount}/{totalNozzles}</p>
                           </div>
                         </div>
                         <Button
                           onClick={handleSubmitReadings}
                           disabled={submitReadingsMutation.isPending || pendingCount === 0}
-                          size="lg"
-                          className="w-full"
+                          size="sm"
+                          className="w-full text-sm sm:text-base h-9 sm:h-10"
                         >
                           {submitReadingsMutation.isPending ? (
                             'Saving...'

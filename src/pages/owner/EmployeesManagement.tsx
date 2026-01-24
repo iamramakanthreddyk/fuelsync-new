@@ -100,20 +100,21 @@ function EmployeeFormContent({
   onStationChange,
 }: EmployeeFormProps) {
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
-          <Label htmlFor="name">Full Name *</Label>
+          <Label htmlFor="name" className="text-sm sm:text-base">Full Name *</Label>
           <Input
             id="name"
             value={formData.name}
             onChange={e => onNameChange(e.target.value)}
             placeholder="John Doe"
             autoComplete="off"
+            className="text-sm sm:text-base"
           />
         </div>
         <div>
-          <Label htmlFor="email">Email *</Label>
+          <Label htmlFor="email" className="text-sm sm:text-base">Email *</Label>
           <Input
             id="email"
             type="email"
@@ -121,23 +122,25 @@ function EmployeeFormContent({
             onChange={e => onEmailChange(e.target.value)}
             placeholder="john@example.com"
             autoComplete="off"
+            className="text-sm sm:text-base"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
-          <Label htmlFor="phone">Phone</Label>
+          <Label htmlFor="phone" className="text-sm sm:text-base">Phone</Label>
           <Input
             id="phone"
             value={formData.phone}
             onChange={e => onPhoneChange(e.target.value)}
             placeholder="+91-9876543210"
             autoComplete="off"
+            className="text-sm sm:text-base"
           />
         </div>
         <div>
-          <Label htmlFor="password">Password {isEdit && '(leave blank to keep current)'}</Label>
+          <Label htmlFor="password" className="text-sm sm:text-base">Password {isEdit && '(leave blank to keep current)'}</Label>
           <Input
             id="password"
             type="password"
@@ -145,18 +148,19 @@ function EmployeeFormContent({
             onChange={e => onPasswordChange(e.target.value)}
             placeholder={isEdit ? 'Leave blank to keep current' : 'Enter password'}
             autoComplete="off"
+            className="text-sm sm:text-base"
           />
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
         <div>
-          <Label htmlFor="role">Role *</Label>
+          <Label htmlFor="role" className="text-sm sm:text-base">Role *</Label>
           <Select
             value={formData.role}
             onValueChange={onRoleChange}
           >
-            <SelectTrigger>
+            <SelectTrigger className="text-sm sm:text-base">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -166,12 +170,12 @@ function EmployeeFormContent({
           </Select>
         </div>
         <div>
-          <Label htmlFor="stationId">Assign to Station *</Label>
+          <Label htmlFor="stationId" className="text-sm sm:text-base">Assign to Station *</Label>
           <Select
             value={formData.stationId}
             onValueChange={onStationChange}
           >
-            <SelectTrigger>
+            <SelectTrigger className="text-sm sm:text-base">
               <SelectValue placeholder="Select station" />
             </SelectTrigger>
             <SelectContent>
@@ -414,26 +418,26 @@ export default function EmployeesManagement() {
   };
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="w-full px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Employees Management</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl font-bold">Employees Management</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Manage employees and managers across all stations
           </p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={handleAddDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button>
+            <Button size="sm" className="w-full sm:w-auto h-9 sm:h-10">
               <Plus className="w-4 h-4 mr-2" />
               Add Employee
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-2xl">
+          <DialogContent className="max-w-2xl w-[95vw] sm:w-full">
             <DialogHeader>
-              <DialogTitle>Add New Employee</DialogTitle>
-              <DialogDescription>Create a new employee or manager account</DialogDescription>
+              <DialogTitle className="text-lg sm:text-xl">Add New Employee</DialogTitle>
+              <DialogDescription className="text-sm sm:text-base">Create a new employee or manager account</DialogDescription>
             </DialogHeader>
             <EmployeeFormContent
               formData={formData}
@@ -445,13 +449,14 @@ export default function EmployeesManagement() {
               onRoleChange={(value) => setFormData({ ...formData, role: value })}
               onStationChange={(value) => setFormData({ ...formData, stationId: value })}
             />
-            <div className="flex justify-end gap-2">
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+            <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} className="w-full sm:w-auto text-sm sm:text-base">
                 Cancel
               </Button>
               <Button 
                 onClick={handleCreate}
                 disabled={!formData.name || !formData.email || !formData.stationId || !formData.password || createMutation.isPending}
+                className="w-full sm:w-auto text-sm sm:text-base"
               >
                 {createMutation.isPending ? 'Creating...' : 'Create Employee'}
               </Button>
@@ -462,19 +467,19 @@ export default function EmployeesManagement() {
 
       {/* Search and Filter */}
       <Card>
-        <CardHeader>
-          <CardTitle>Search & Filter</CardTitle>
+        <CardHeader className="pb-2 sm:pb-3">
+          <CardTitle className="text-base sm:text-lg">Search & Filter</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex gap-4">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
             <Input
               placeholder="Search by name, email, or station..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="flex-1"
+              className="flex-1 text-sm sm:text-base"
             />
             {filterStationId && (
-              <Badge variant="secondary" className="px-4 py-2">
+              <Badge variant="secondary" className="px-3 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm w-fit">
                 Filtered by station
               </Badge>
             )}
@@ -485,26 +490,26 @@ export default function EmployeesManagement() {
       {/* Employees List */}
       {isLoading ? (
         <Card>
-          <CardContent className="py-12">
-            <div className="text-center text-muted-foreground">Loading employees...</div>
+          <CardContent className="py-8 sm:py-12">
+            <div className="text-center text-sm sm:text-base text-muted-foreground">Loading employees...</div>
           </CardContent>
         </Card>
       ) : filteredEmployees && filteredEmployees.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           {filteredEmployees.map((employee: Employee) => (
-            // Redesigned employee cards for better visibility on laptops
-            <Card key={employee.id} className="flex-1 overflow-hidden min-w-[300px] md:min-w-[400px] xl:min-w-[500px]">
-              <CardContent className="p-6">
-                <div className="text-lg md:text-xl font-bold text-primary truncate">{employee.name}</div>
-                <div className="text-sm md:text-base text-muted-foreground truncate">{employee.email}</div>
-                <div className="text-sm md:text-base text-muted-foreground truncate">{employee.phone || 'N/A'}</div>
-                <div className="text-sm md:text-base text-muted-foreground truncate">Role: {employee.role}</div>
-                <div className="text-sm md:text-base text-muted-foreground truncate">Station: {employee.station?.name || 'Unassigned'}</div>
-                <div className="flex gap-4 mt-6">
+            // Redesigned employee cards for better visibility on all devices
+            <Card key={employee.id} className="flex-1 overflow-hidden">
+              <CardContent className="p-3 sm:p-6">
+                <div className="text-base sm:text-lg md:text-xl font-bold text-primary truncate">{employee.name}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground truncate mt-1">{employee.email}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground truncate">{employee.phone || 'N/A'}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground truncate">Role: {employee.role}</div>
+                <div className="text-xs sm:text-sm text-muted-foreground truncate">Station: {employee.station?.name || 'Unassigned'}</div>
+                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
                   <Button
                     variant="default"
                     size="sm"
-                    className="px-4 py-2 rounded-lg shadow-md"
+                    className="w-full sm:w-auto text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2"
                     onClick={() => handleEdit(employee)}
                   >
                     Edit Details
@@ -512,7 +517,7 @@ export default function EmployeesManagement() {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="px-4 py-2 rounded-lg shadow-md"
+                    className="w-full sm:w-auto text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2"
                     onClick={() => handleResetPasswordDialogOpen(employee)}
                   >
                     Reset Password
@@ -524,16 +529,16 @@ export default function EmployeesManagement() {
         </div>
       ) : (
         <Card>
-          <CardContent className="py-12">
-            <div className="text-center space-y-4">
-              <UserPlus className="w-16 h-16 mx-auto text-muted-foreground" />
+          <CardContent className="py-8 sm:py-12">
+            <div className="text-center space-y-3 sm:space-y-4">
+              <UserPlus className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground" />
               <div>
-                <h3 className="text-lg font-semibold mb-2">No Employees Yet</h3>
-                <p className="text-muted-foreground mb-4">
+                <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">No Employees Yet</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">
                   {searchTerm ? 'No employees match your search' : 'Get started by adding your first employee'}
                 </p>
                 {!searchTerm && (
-                  <Button onClick={() => setIsAddDialogOpen(true)}>
+                  <Button size="sm" onClick={() => setIsAddDialogOpen(true)} className="text-xs sm:text-sm">
                     <Plus className="w-4 h-4 mr-2" />
                     Add Employee
                   </Button>
@@ -546,10 +551,10 @@ export default function EmployeesManagement() {
 
       {/* Edit Dialog */}
       <Dialog open={isEditDialogOpen} onOpenChange={handleEditDialogOpenChange}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle>Edit Employee</DialogTitle>
-            <DialogDescription>Update employee information</DialogDescription>
+            <DialogTitle className="text-lg sm:text-xl">Edit Employee</DialogTitle>
+            <DialogDescription className="text-sm sm:text-base">Update employee information</DialogDescription>
           </DialogHeader>
           <EmployeeFormContent
             isEdit
@@ -562,13 +567,14 @@ export default function EmployeesManagement() {
             onRoleChange={(value) => setFormData({ ...formData, role: value })}
             onStationChange={(value) => setFormData({ ...formData, stationId: value })}
           />
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)} className="w-full sm:w-auto text-sm sm:text-base">
               Cancel
             </Button>
             <Button 
               onClick={handleUpdate}
               disabled={!formData.name || !formData.email || !formData.stationId || updateMutation.isPending}
+              className="w-full sm:w-auto text-sm sm:text-base"
             >
               {updateMutation.isPending ? 'Updating...' : 'Update Employee'}
             </Button>
@@ -578,18 +584,18 @@ export default function EmployeesManagement() {
 
       {/* Delete Confirmation */}
       <AlertDialog open={!!deleteEmployeeId} onOpenChange={() => setDeleteEmployeeId(null)}>
-        <AlertDialogContent>
+        <AlertDialogContent className="w-[95vw] sm:w-full">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete Employee</AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogTitle className="text-base sm:text-lg">Delete Employee</AlertDialogTitle>
+            <AlertDialogDescription className="text-sm sm:text-base">
               Are you sure you want to delete this employee? This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+            <AlertDialogCancel className="w-full sm:w-auto text-sm sm:text-base">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="w-full sm:w-auto text-sm sm:text-base bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {deleteMutation.isPending ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
@@ -599,16 +605,16 @@ export default function EmployeesManagement() {
 
       {/* Reset Password Dialog */}
       <Dialog open={isResetPasswordDialogOpen} onOpenChange={handleResetPasswordDialogClose}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-md w-[95vw] sm:w-full">
           <DialogHeader>
-            <DialogTitle>Reset Password</DialogTitle>
-            <DialogDescription>
+            <DialogTitle className="text-base sm:text-lg">Reset Password</DialogTitle>
+            <DialogDescription className="text-sm sm:text-base">
               Reset the password for {resetPasswordEmployee?.name}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             <div>
-              <Label htmlFor="newPassword">New Password *</Label>
+              <Label htmlFor="newPassword" className="text-sm sm:text-base">New Password *</Label>
               <Input
                 id="newPassword"
                 type="password"
@@ -616,19 +622,21 @@ export default function EmployeesManagement() {
                 onChange={(e) => setNewPassword(e.target.value)}
                 placeholder="Enter new password"
                 autoComplete="new-password"
+                className="text-sm sm:text-base"
               />
-              <p className="text-sm text-muted-foreground mt-1">
+              <p className="text-xs sm:text-sm text-muted-foreground mt-1">
                 Password must be at least 6 characters long
               </p>
             </div>
           </div>
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={handleResetPasswordDialogClose}>
+          <div className="flex flex-col sm:flex-row sm:justify-end gap-2 sm:gap-3">
+            <Button variant="outline" onClick={handleResetPasswordDialogClose} className="w-full sm:w-auto text-sm sm:text-base">
               Cancel
             </Button>
             <Button
               onClick={handleResetPassword}
               disabled={!newPassword || newPassword.length < 6 || resetPasswordMutation.isPending}
+              className="w-full sm:w-auto text-sm sm:text-base"
             >
               {resetPasswordMutation.isPending ? 'Resetting...' : 'Reset Password'}
             </Button>

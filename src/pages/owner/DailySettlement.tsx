@@ -25,7 +25,7 @@
  * IMPORTANT: Backend recalculates variance to prevent frontend tampering
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -49,7 +49,8 @@ import {
   FileCheck,
   User,
   Clock,
-  ChevronDown
+  ChevronDown,
+  Pencil
 } from 'lucide-react';
 import { Button as NavButton } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -162,7 +163,7 @@ export default function DailySettlement() {
   const [markAsFinal, setMarkAsFinal] = useState(true); // Default to final settlement
   const [expandedTransactions, setExpandedTransactions] = useState<Set<string>>(new Set()); // Track expanded transaction cards
   const [expandedSettlements, setExpandedSettlements] = useState<Set<string>>(new Set()); // Track expanded settlement cards
-
+  const [editingField, setEditingField] = useState<string | null>(null); // Track which field is in edit mode: 'cash', 'online', or 'credit'
   // Fetch daily sales data
   const { data: dailySales, isLoading: salesLoading } = useQuery({
     queryKey: ['daily-sales', stationId, selectedDate],
@@ -353,6 +354,20 @@ export default function DailySettlement() {
     return settlementForDate || null;
   };
 
+  // Auto-sync actual amounts to match employee-reported amounts when readings selected
+  // This way owner doesn't have to re-enter if they agree
+  useEffect(() => {
+    if (selectedReadingIds.length > 0) {
+      const totals = getSelectedTotals();
+      // Only auto-sync if actual amounts are still at default (0)
+      if (actualCash === 0 && actualOnline === 0 && actualCredit === 0) {
+        setActualCash(totals.cash);
+        setActualOnline(totals.online);
+        setActualCredit(totals.credit);
+      }
+    }
+  }, [selectedReadingIds]);
+
   const handleSubmitSettlement = async () => {
     if (!dailySales) {
       toast({
@@ -443,6 +458,39 @@ export default function DailySettlement() {
     // NOTE: Variance is calculated on backend, don't send it
     // Frontend shows it for user info, but backend recalculates to prevent manipulation
     setIsSubmitting(true);
+    
+    // Track employee-wise shortfalls for reporting
+    const allReadings = [...(readingsForSettlement.unlinked?.readings || []), ...(readingsForSettlement.linked?.readings || [])];
+    const selectedReadings = allReadings.filter(r => selectedReadingIds.includes(r.id));
+    
+    // Calculate employee-wise shortfalls by grouping readings by employee
+    const employeeShortfalls: Record<string, { employeeName: string; shortfall: number; count: number }> = {};
+    
+    // Only track if there's a cash shortfall (actual < expected)
+    if (getSelectedTotals().cash > actualCash) {
+      const shortfall = getSelectedTotals().cash - actualCash;
+      selectedReadings.forEach(reading => {
+        const employeeName = reading.recordedBy?.name || 'Unknown Employee';
+        const employeeId = reading.recordedBy?.id || 'unknown';
+        const key = employeeId || employeeName;
+        
+        if (!employeeShortfalls[key]) {
+          employeeShortfalls[key] = { employeeName, shortfall: 0, count: 0 };
+        }
+        employeeShortfalls[key].count += 1;
+      });
+      
+      // Distribute shortfall proportionally among employees
+      const totalCount = selectedReadings.length;
+      selectedReadings.forEach(reading => {
+        const employeeName = reading.recordedBy?.name || 'Unknown Employee';
+        const employeeId = reading.recordedBy?.id || 'unknown';
+        const key = employeeId || employeeName;
+        const proportionalShortfall = (shortfall / totalCount);
+        employeeShortfalls[key].shortfall += proportionalShortfall;
+      });
+    }
+    
     submitSettlementMutation.mutate({
       date: selectedDate,
       stationId,
@@ -454,7 +502,9 @@ export default function DailySettlement() {
       notes,
       // REQUIRED: Include selected reading IDs
       readingIds: selectedReadingIds,
-      isFinal: markAsFinal
+      isFinal: markAsFinal,
+      // NEW: Track employee-wise shortfalls
+      employeeShortfalls: Object.keys(employeeShortfalls).length > 0 ? employeeShortfalls : undefined
     });
     setIsSubmitting(false);
   };
@@ -1329,6 +1379,39 @@ export default function DailySettlement() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0 space-y-4 sm:space-y-6">
+                {/* Employee Summary for selected readings */}
+                {selectedReadingIds.length > 0 && (
+                  <div className="bg-amber-50 p-3 sm:p-4 rounded-lg border border-amber-200">
+                    <h4 className="font-semibold text-amber-900 mb-2 flex items-center gap-2">
+                      <User className="w-4 h-4" />
+                      Employees Involved
+                    </h4>
+                    <div className="flex flex-wrap gap-2">
+                      {(() => {
+                        const allReadings = [...(readingsForSettlement?.unlinked?.readings || []), ...(readingsForSettlement?.linked?.readings || [])];
+                        const selectedReadings = allReadings.filter(r => selectedReadingIds.includes(r.id));
+                        const employeeMap = new Map<string, { name: string; count: number }>();
+                        
+                        selectedReadings.forEach(r => {
+                          const empName = r.recordedBy?.name || 'Unknown';
+                          const empId = r.recordedBy?.id || 'unknown';
+                          const key = empId || empName;
+                          if (!employeeMap.has(key)) {
+                            employeeMap.set(key, { name: empName, count: 0 });
+                          }
+                          employeeMap.get(key)!.count += 1;
+                        });
+                        
+                        return Array.from(employeeMap.values()).map((emp, idx) => (
+                          <Badge key={idx} variant="outline" className="bg-white border-amber-300 text-amber-900">
+                            {emp.name} ({emp.count})
+                          </Badge>
+                        ));
+                      })()}
+                    </div>
+                  </div>
+                )}
+                
                 {/* Settlement Summary */}
                 <div className="bg-white p-4 rounded-lg border border-blue-200">
                   <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
@@ -1381,67 +1464,157 @@ export default function DailySettlement() {
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
                   <div className="space-y-2">
-                    <Label htmlFor="actual-cash" className="text-sm font-semibold">
-                      Actual Cash Received
+                    <Label htmlFor="actual-cash" className="text-sm font-semibold flex items-center justify-between">
+                      <span>Actual Cash Received</span>
+                      <span className="text-xs font-normal text-green-600 bg-green-100 px-2 py-1 rounded">
+                        Reported: ₹{safeToFixed(getSelectedTotals().cash, 2)}
+                      </span>
                     </Label>
-                    <Input
-                      id="actual-cash"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={actualCash}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        setActualCash(isNaN(val) || val < 0 ? 0 : val);
-                      }}
-                      className="border-green-300 focus:border-green-500 text-sm sm:text-base md:text-lg font-bold"
-                      placeholder="Enter actual cash received"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Physical cash from pump/register
-                    </p>
+                    <div className="relative">
+                      {actualCash === getSelectedTotals().cash && editingField !== 'cash' ? (
+                        // When they agree with reported amount, show as display-only badge (unless editing)
+                        <div 
+                          className="bg-green-50 border-2 border-green-300 rounded-lg px-4 py-3 text-center cursor-pointer hover:bg-green-100 transition-colors flex items-center justify-center gap-2" 
+                          onClick={() => setEditingField('cash')}
+                        >
+                          <div>
+                            <div className="text-lg sm:text-xl font-bold text-green-700">
+                              ₹{safeToFixed(getSelectedTotals().cash, 2)}
+                            </div>
+                            <div className="text-xs text-green-600 mt-1">Matches employee report ✓</div>
+                          </div>
+                          <Pencil className="w-4 h-4 text-green-600 flex-shrink-0" />
+                        </div>
+                      ) : (
+                        // Show input field when they disagree or editing is active
+                        <Input
+                          id="actual-cash"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={actualCash === 0 && getSelectedTotals().cash === 0 ? '' : actualCash}
+                          onChange={(e) => {
+                            if (e.target.value === '') {
+                              setActualCash(0);
+                            } else {
+                              const val = parseFloat(e.target.value);
+                              setActualCash(isNaN(val) || val < 0 ? 0 : val);
+                            }
+                          }}
+                          onBlur={() => setEditingField(null)}
+                          autoFocus={editingField === 'cash'}
+                          className="border-orange-300 focus:border-orange-500 text-base sm:text-base md:text-lg font-bold h-10 sm:h-9"
+                          placeholder={selectedReadingIds.length > 0 ? safeToFixed(getSelectedTotals().cash, 2) : "Corrected amount"}
+                        />
+                      )}
+                    </div>
+                    {actualCash !== getSelectedTotals().cash && getSelectedTotals().cash !== 0 && (
+                      <p className="text-xs text-orange-600 font-medium">
+                        Variance: ₹{safeToFixed(Math.abs(getSelectedTotals().cash - actualCash), 2)} ({((Math.abs(getSelectedTotals().cash - actualCash) / getSelectedTotals().cash) * 100).toFixed(1)}%)
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="actual-online" className="text-sm font-semibold">
-                      Actual Online Received
+                    <Label htmlFor="actual-online" className="text-sm font-semibold flex items-center justify-between">
+                      <span>Actual Online Received</span>
+                      <span className="text-xs font-normal text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                        Reported: ₹{safeToFixed(getSelectedTotals().online, 2)}
+                      </span>
                     </Label>
-                    <Input
-                      id="actual-online"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={actualOnline}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        setActualOnline(isNaN(val) || val < 0 ? 0 : val);
-                      }}
-                      className="border-blue-300 focus:border-blue-500 text-sm sm:text-base md:text-lg font-bold"
-                      placeholder="Enter actual online received"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      UPI, card, netbanking, etc.
-                    </p>
+                    <div className="relative">
+                      {actualOnline === getSelectedTotals().online && editingField !== 'online' ? (
+                        // When they agree with reported amount, show as display-only badge (unless editing)
+                        <div 
+                          className="bg-blue-50 border-2 border-blue-300 rounded-lg px-4 py-3 text-center cursor-pointer hover:bg-blue-100 transition-colors flex items-center justify-center gap-2"
+                          onClick={() => setEditingField('online')}
+                        >
+                          <div>
+                            <div className="text-lg sm:text-xl font-bold text-blue-700">
+                              ₹{safeToFixed(getSelectedTotals().online, 2)}
+                            </div>
+                            <div className="text-xs text-blue-600 mt-1">Matches employee report ✓</div>
+                          </div>
+                          <Pencil className="w-4 h-4 text-blue-600 flex-shrink-0" />
+                        </div>
+                      ) : (
+                        // Show input field when they disagree or editing is active
+                        <Input
+                          id="actual-online"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={actualOnline === 0 && getSelectedTotals().online === 0 ? '' : actualOnline}
+                          onChange={(e) => {
+                            if (e.target.value === '') {
+                              setActualOnline(0);
+                            } else {
+                              const val = parseFloat(e.target.value);
+                              setActualOnline(isNaN(val) || val < 0 ? 0 : val);
+                            }
+                          }}
+                          onBlur={() => setEditingField(null)}
+                          autoFocus={editingField === 'online'}
+                          className="border-orange-300 focus:border-orange-500 text-base sm:text-base md:text-lg font-bold h-10 sm:h-9"
+                          placeholder={selectedReadingIds.length > 0 ? safeToFixed(getSelectedTotals().online, 2) : "Corrected amount"}
+                        />
+                      )}
+                    </div>
+                    {actualOnline !== getSelectedTotals().online && getSelectedTotals().online !== 0 && (
+                      <p className="text-xs text-orange-600 font-medium">
+                        Variance: ₹{safeToFixed(Math.abs(getSelectedTotals().online - actualOnline), 2)} ({((Math.abs(getSelectedTotals().online - actualOnline) / getSelectedTotals().online) * 100).toFixed(1)}%)
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2 sm:col-span-2 lg:col-span-1">
-                    <Label htmlFor="actual-credit" className="text-sm font-semibold">
-                      Credit Given
+                    <Label htmlFor="actual-credit" className="text-sm font-semibold flex items-center justify-between">
+                      <span>Credit Given</span>
+                      <span className="text-xs font-normal text-amber-600 bg-amber-100 px-2 py-1 rounded">
+                        Reported: ₹{safeToFixed(getSelectedTotals().credit, 2)}
+                      </span>
                     </Label>
-                    <Input
-                      id="actual-credit"
-                      type="number"
-                      step="0.01"
-                      min="0"
-                      value={actualCredit}
-                      onChange={(e) => {
-                        const val = parseFloat(e.target.value);
-                        setActualCredit(isNaN(val) || val < 0 ? 0 : val);
-                      }}
-                      className="border-orange-300 focus:border-orange-500 text-sm sm:text-base md:text-lg font-bold"
-                      placeholder="Enter credit given (sales on credit)"
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Sales made on credit (creditors' debt, owner's earning)
-                    </p>
+                    <div className="relative">
+                      {actualCredit === getSelectedTotals().credit && editingField !== 'credit' ? (
+                        // When they agree with reported amount, show as display-only badge (unless editing)
+                        <div 
+                          className="bg-amber-50 border-2 border-amber-300 rounded-lg px-4 py-3 text-center cursor-pointer hover:bg-amber-100 transition-colors flex items-center justify-center gap-2"
+                          onClick={() => setEditingField('credit')}
+                        >
+                          <div>
+                            <div className="text-lg sm:text-xl font-bold text-amber-700">
+                              ₹{safeToFixed(getSelectedTotals().credit, 2)}
+                            </div>
+                            <div className="text-xs text-amber-600 mt-1">Matches employee report ✓</div>
+                          </div>
+                          <Pencil className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                        </div>
+                      ) : (
+                        // Show input field when they disagree or editing is active
+                        <Input
+                          id="actual-credit"
+                          type="number"
+                          step="0.01"
+                          min="0"
+                          value={actualCredit === 0 && getSelectedTotals().credit === 0 ? '' : actualCredit}
+                          onChange={(e) => {
+                            if (e.target.value === '') {
+                              setActualCredit(0);
+                            } else {
+                              const val = parseFloat(e.target.value);
+                              setActualCredit(isNaN(val) || val < 0 ? 0 : val);
+                            }
+                          }}
+                          onBlur={() => setEditingField(null)}
+                          autoFocus={editingField === 'credit'}
+                          className="border-orange-300 focus:border-orange-500 text-base sm:text-base md:text-lg font-bold h-10 sm:h-9"
+                          placeholder={selectedReadingIds.length > 0 ? safeToFixed(getSelectedTotals().credit, 2) : "Corrected amount"}
+                        />
+                      )}
+                    </div>
+                    {actualCredit !== getSelectedTotals().credit && getSelectedTotals().credit !== 0 && (
+                      <p className="text-xs text-orange-600 font-medium">
+                        Variance: ₹{safeToFixed(Math.abs(getSelectedTotals().credit - actualCredit), 2)} ({((Math.abs(getSelectedTotals().credit - actualCredit) / getSelectedTotals().credit) * 100).toFixed(1)}%)
+                      </p>
+                    )}
                   </div>
                 </div>
 

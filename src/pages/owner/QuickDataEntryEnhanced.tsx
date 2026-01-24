@@ -62,7 +62,7 @@ function NozzleReadingRow({
             value={reading?.readingValue !== undefined && reading?.readingValue !== null ? reading.readingValue : ''}
             onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
             disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
-            className={`text-xs sm:text-sm h-10 sm:h-11 font-semibold w-full break-words overflow-hidden ${!hasFuelPrice ? 'border-red-300 bg-red-50 text-red-900' : 'border-slate-300 text-slate-900'}`}
+            className={`text-base sm:text-sm h-10 sm:h-9 font-semibold w-full break-words overflow-hidden ${!hasFuelPrice ? 'border-red-300 bg-red-50 text-red-900' : 'border-slate-300 text-slate-900'}`}
           />
           {/* Status indicators */}
           {reading?.readingValue && !lastReadingLoading && enteredValue !== undefined && (
@@ -654,7 +654,7 @@ export default function QuickDataEntry() {
             <div>
               <Label htmlFor="station" className="text-xs sm:text-sm font-semibold text-slate-700">Station</Label>
               <Select value={selectedStation} onValueChange={setSelectedStation}>
-                <SelectTrigger id="station" className="mt-1 sm:mt-1.5 text-xs sm:text-sm h-8 sm:h-9">
+                <SelectTrigger id="station" className="mt-1 sm:mt-1.5 text-base sm:text-sm h-10 sm:h-9">
                   <SelectValue placeholder="Choose a station" />
                 </SelectTrigger>
                 <SelectContent>
@@ -677,11 +677,11 @@ export default function QuickDataEntry() {
                 value={readingDate}
                 onChange={(e) => setReadingDate(e.target.value)}
                 max={new Date().toISOString().split('T')[0]}
-                className="mt-1 sm:mt-1.5 text-xs sm:text-sm h-8 sm:h-9"
+                className="mt-1 sm:mt-1.5 text-base sm:text-sm h-10 sm:h-9"
               />
             </div>
             <div className="flex items-end">
-              <div className="w-full text-xs sm:text-sm text-slate-600 bg-slate-50 p-2 sm:p-2.5 rounded-md border border-slate-200 font-semibold">
+              <div className="w-full text-sm sm:text-sm text-slate-600 bg-slate-50 p-2 sm:p-2.5 rounded-md border border-slate-200 font-semibold">
                 {selectedStation && pumps ? (
                   <span className="text-slate-700">{totalNozzles} nozzles</span>
                 ) : (
@@ -716,10 +716,10 @@ export default function QuickDataEntry() {
           {/* Two Column Layout: Pumps + Summary */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* Left: Pump Nozzles (2 cols) */}
-            <div className="lg:col-span-2 space-y-2">
+            <div className="lg:col-span-2 space-y-2 sm:space-y-3">
               {pumps.map((pump) => (
                 <Card key={pump.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500 border-slate-200">
-                  <CardHeader className="pb-3 px-2 sm:px-6 py-3">
+                  <CardHeader className="pb-3 px-3 sm:px-6 py-3">
                     <div className="flex items-start sm:items-center justify-between gap-2">
                       <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
                         <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -735,7 +735,7 @@ export default function QuickDataEntry() {
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-2 px-2 sm:px-6 py-3">
+                  <CardContent className="space-y-2 px-3 sm:px-6 py-3">
                     {pump.nozzles && pump.nozzles.length > 0 ? (
                       <div className="grid grid-cols-1 gap-2">
                         {pump.nozzles.map((nozzle: any) => (
@@ -762,15 +762,14 @@ export default function QuickDataEntry() {
             </div>
 
             {/* Right: Payment Summary (1 col) */}
-
-            <div className="lg:col-span-1 space-y-3">
+            <div className="lg:col-span-1 space-y-3 lg:sticky lg:top-4">
               {/* Show backend stats for today's sales */}
               {pendingCount === 0 && dashboardData?.todaySales && dashboardData.todaySales > 0 && (
                 <Card className="border-2 border-blue-200 bg-blue-50">
-                  <CardContent className="p-3 md:p-4 space-y-3">
+                  <CardContent className="p-3 sm:p-4 space-y-3">
                     <div>
                       <p className="text-xs text-muted-foreground">Today's Sales</p>
-                      <p className="text-xl md:text-2xl font-bold text-blue-600 break-all md:break-normal">
+                      <p className="text-lg sm:text-2xl font-bold text-blue-600 break-words">
                         ₹{dashboardData.todaySales >= 100000
                           ? `${safeToFixed(dashboardData.todaySales / 100000, 1)}L`
                           : safeToFixed(dashboardData.todaySales, 2)}
@@ -784,25 +783,25 @@ export default function QuickDataEntry() {
               {pendingCount > 0 && saleSummary.totalSaleValue > 0 && (
                 <>
                   <Card className="border-2 border-green-400 bg-green-50 shadow-md">
-                    <CardContent className="p-3 sm:p-4 space-y-3">
-                      <div className="flex flex-col gap-3">
+                    <CardContent className="p-3 sm:p-4 space-y-2 sm:space-y-3">
+                      <div className="flex flex-col gap-2 sm:gap-3">
                         <div>
                           <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">Sale Summary</p>
-                          <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-green-700 break-words">
+                          <p className="text-lg sm:text-2xl font-extrabold text-green-700 break-words">
                             ₹{saleSummary.totalSaleValue >= 100000 
                               ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`
                               : safeToFixed(saleSummary.totalSaleValue, 2)}
                           </p>
                         </div>
-                        <div className="text-left sm:text-right">
+                        <div className="text-left">
                           <p className="text-xs text-muted-foreground">Readings Entered</p>
                           <p className="text-base sm:text-lg font-bold">{pendingCount} <span className="text-xs text-gray-500">/ {totalNozzles}</span></p>
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 gap-2">
+                      <div className="grid grid-cols-1 gap-2 text-xs sm:text-sm">
                         {Object.entries(saleSummary.byFuelType).map(([fuel, val]) => (
-                          <div key={fuel} className="flex items-center justify-between text-xs sm:text-sm gap-2">
-                            <span className="font-medium text-green-900 truncate">{fuel}</span>
+                          <div key={fuel} className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-green-900 truncate flex-1">{fuel}</span>
                             <span className="text-green-700 whitespace-nowrap">{safeToFixed(val.liters, 2)} L</span>
                             <span className="text-green-700 font-semibold whitespace-nowrap">₹{safeToFixed(val.value, 2)}</span>
                           </div>
@@ -833,7 +832,7 @@ export default function QuickDataEntry() {
                       ) > 0.01
                     }
                     size="lg"
-                    className="w-full mt-2"
+                    className="w-full mt-3 sm:mt-4 h-10 sm:h-11 text-base sm:text-sm"
                   >
                     {submitReadingsMutation.isPending ? (
                       'Saving...'

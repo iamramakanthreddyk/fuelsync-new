@@ -167,6 +167,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 interface RequestOptions {
   headers?: Record<string, string>;
   signal?: AbortSignal;
+  params?: Record<string, string | number | boolean>;
 }
 
 /**
@@ -178,7 +179,21 @@ async function request<T>(
   data?: unknown,
   options?: RequestOptions
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  let url = `${API_BASE_URL}${endpoint}`;
+  
+  // Add query parameters for GET requests
+  if (method === 'GET' && options?.params) {
+    const queryParams = new URLSearchParams();
+    Object.entries(options.params).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        queryParams.append(key, String(value));
+      }
+    });
+    const queryString = queryParams.toString();
+    if (queryString) {
+      url = `${url}?${queryString}`;
+    }
+  }
   
   const config: RequestInit = {
     method,

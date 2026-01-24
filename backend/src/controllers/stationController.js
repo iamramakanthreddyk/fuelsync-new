@@ -1583,7 +1583,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
 exports.recordSettlement = async (req, res, next) => {
   try {
     const { stationId } = req.params;
-    const { date, actualCash, expectedCash, notes, online, credit, isFinal, readingIds } = req.body;
+    const { date, actualCash, expectedCash, notes, online, credit, isFinal, readingIds, employeeShortfalls } = req.body;
     const user = req.user;
 
     // Check station access
@@ -1699,6 +1699,7 @@ exports.recordSettlement = async (req, res, next) => {
         varianceOnline: parseFloat(varianceOnline.toFixed(2)),
         varianceCredit: parseFloat(varianceCredit.toFixed(2)),
         notes: notes || '',
+        employeeShortfalls: employeeShortfalls || null,
         recordedBy: user.id,
         recordedAt: new Date(),
         isFinal: !!isFinal,
@@ -2176,6 +2177,142 @@ exports.getStationDiagnostics = async (req, res, next) => {
 
   } catch (error) {
     console.error('❌ Diagnostic error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Get employee shortfall analysis for a station
+ * Aggregates employee-wise shortfalls from settlements
+ * 
+ * Query params:
+ *   startDate: YYYY-MM-DD
+ *   endDate: YYYY-MM-DD
+ */
+exports.getEmployeeShortfalls = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const { startDate, endDate } = req.query;
+    const user = req.user;
+
+    // Validate dates first
+    if (!startDate || !endDate) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'startDate and endDate are required',
+        example: 'GET /api/v1/stations/:stationId/employee-shortfalls?startDate=2026-01-01&endDate=2026-01-31'
+      });
+    }
+
+    const { Settlement, Station } = require('../models');
+    const { Op, sequelize } = require('sequelize');
+
+    // Handle "all" case - get shortfalls for all user's stations
+    let stationIds = [stationId];
+    
+    if (stationId === 'all') {
+      // Get all stations owned by user (simpler approach)
+      const userStations = await Station.findAll({
+        where: { ownerId: user.id },
+        attributes: ['id'],
+        raw: true
+      });
+
+      stationIds = userStations.map(s => s.id);
+      
+      if (stationIds.length === 0) {
+        return res.json({
+          success: true,
+          data: [],
+          metadata: {
+            stationId: 'all',
+            dateRange: { startDate, endDate },
+            totalEmployeesAffected: 0,
+            totalShortfallAmount: 0
+          }
+        });
+      }
+    } else {
+      // Check single station access
+      if (!(await canAccessStation(user, stationId))) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+    }
+
+    // Fetch all settlements for station(s) in date range
+    const settlements = await Settlement.findAll({
+      where: {
+        stationId: {
+          [Op.in]: stationIds
+        },
+        date: {
+          [Op.gte]: startDate,
+          [Op.lte]: endDate
+        }
+      },
+      raw: true
+    });
+
+    // Aggregate employee shortfalls from settlement data
+    const employeeMap = new Map();
+
+    settlements.forEach(settlement => {
+      if (!settlement.employee_shortfalls && !settlement.employeeShortfalls) {
+        return; // Skip if no shortfall data
+      }
+
+      // Handle both camelCase (from ORM) and snake_case (from raw query)
+      const shortfallData = settlement.employee_shortfalls || settlement.employeeShortfalls || {};
+
+      Object.entries(shortfallData).forEach(([empKey, empData]) => {
+        const employeeName = empData.employeeName || empData.employee_name || 'Unknown';
+        const shortfallAmount = parseFloat(empData.shortfall || 0);
+
+        if (!employeeMap.has(employeeName)) {
+          employeeMap.set(employeeName, {
+            employeeName,
+            totalShortfall: 0,
+            daysWithShortfall: new Set(),
+            settlementsCount: 0
+          });
+        }
+
+        const emp = employeeMap.get(employeeName);
+        emp.totalShortfall += shortfallAmount;
+        emp.daysWithShortfall.add(settlement.date); // Track unique dates
+        emp.settlementsCount += 1;
+      });
+    });
+
+    // Convert to array and calculate metrics
+    const result = Array.from(employeeMap.values()).map(emp => ({
+      employeeName: emp.employeeName,
+      totalShortfall: parseFloat(emp.totalShortfall.toFixed(2)),
+      daysWithShortfall: emp.daysWithShortfall.size,
+      averagePerDay: emp.daysWithShortfall.size > 0 
+        ? parseFloat((emp.totalShortfall / emp.daysWithShortfall.size).toFixed(2))
+        : 0,
+      settlementsCount: emp.settlementsCount
+    }));
+
+    // Sort by highest shortfall first
+    result.sort((a, b) => b.totalShortfall - a.totalShortfall);
+
+    res.json({
+      success: true,
+      data: result,
+      metadata: {
+        stationId,
+        dateRange: { startDate, endDate },
+        totalEmployeesAffected: result.length,
+        totalShortfallAmount: parseFloat(
+          result.reduce((sum, e) => sum + e.totalShortfall, 0).toFixed(2)
+        )
+      }
+    });
+
+  } catch (error) {
+    console.error('Employee shortfall error:', error);
     next(error);
   }
 };

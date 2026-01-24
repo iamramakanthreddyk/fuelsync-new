@@ -74,6 +74,12 @@ module.exports = (sequelize) => {
     notes: {
       type: DataTypes.TEXT
     },
+    employeeShortfalls: {
+      type: DataTypes.JSON,
+      defaultValue: null,
+      field: 'employee_shortfalls',
+      comment: 'JSON object tracking employee-wise shortfalls: {empId: {employeeName, shortfall, count}}'
+    },
     recordedBy: {
       type: DataTypes.UUID,
       field: 'recorded_by',

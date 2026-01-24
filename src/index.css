@@ -152,6 +152,29 @@
     line-height: 1.5;
   }
 
+  /* Prevent iOS auto-zoom on input focus */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Ensure input fields don't cause zoom */
+  input[type="date"],
+  input[type="time"],
+  input[type="datetime-local"],
+  input[type="month"],
+  input[type="week"],
+  input[type="number"],
+  input[type="tel"],
+  input[type="email"],
+  input[type="url"],
+  input[type="search"],
+  input[type="text"],
+  input[type="password"] {
+    font-size: 16px !important;
+  }
+
   /* Consistent paragraph and text sizes */
   p {
     font-size: 1rem; /* 16px */
