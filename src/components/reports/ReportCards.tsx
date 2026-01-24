@@ -187,22 +187,20 @@ export const NozzleCard: React.FC<NozzleCardProps> = ({ nozzle, className }) => 
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <p className="text-xs text-muted-foreground">Total Sales</p>
-            <p className="text-lg font-bold">
-              ₹{totalSales.toLocaleString('en-IN')}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Volume</p>
-            <p className="text-lg font-bold">{safeToFixed(totalQuantity)} L</p>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground">Transactions</p>
-            <p className="text-lg font-bold">{transactions}</p>
-          </div>
+      <CardContent className="space-y-2">
+        <div className="flex items-center justify-between gap-2 bg-blue-50 rounded-lg p-3 border-l-4 border-blue-500">
+          <span className="text-[10px] text-blue-600 font-bold uppercase">Sales</span>
+          <span className="text-lg font-bold text-blue-700">
+            ₹{totalSales.toLocaleString('en-IN')}
+          </span>
+        </div>
+        <div className="flex items-center justify-between gap-2 bg-green-50 rounded-lg p-3 border-l-4 border-green-500">
+          <span className="text-[10px] text-green-600 font-bold uppercase">Volume</span>
+          <span className="text-lg font-bold text-green-700">{safeToFixed(totalQuantity)} L</span>
+        </div>
+        <div className="flex items-center justify-between gap-2 bg-purple-50 rounded-lg p-3 border-l-4 border-purple-500">
+          <span className="text-[10px] text-purple-600 font-bold uppercase">Trans.</span>
+          <span className="text-lg font-bold text-purple-700">{transactions}</span>
         </div>
       </CardContent>
     </Card>
