@@ -208,7 +208,140 @@ module.exports = (sequelize) => {
       { fields: ['pump_id', 'reading_date'] },
       { fields: ['fuel_type', 'reading_date'] },
       { fields: ['creditor_id'] }
-    ]
+    ],
+    hooks: {
+      // ============================================
+      // TANK LEVEL UPDATE HOOKS
+      // Automatically update tank.currentLevel when sales are recorded
+      // This enables real-time tank level tracking
+      // ============================================
+      
+      /**
+       * After a new reading is created, subtract litresSold from tank
+       * Links nozzle → tank via fuelType + stationId (implicit mapping)
+       */
+      afterCreate: async (reading, options) => {
+        const litresSold = parseFloat(reading.litresSold) || 0;
+        if (litresSold <= 0) return; // No sale to record
+        
+        try {
+          const { Tank, Nozzle } = sequelize.models;
+          
+          // Get the nozzle to find fuel type (if not denormalized)
+          let fuelType = reading.fuelType;
+          if (!fuelType) {
+            const nozzle = await Nozzle.findByPk(reading.nozzleId, { 
+              transaction: options.transaction 
+            });
+            if (nozzle) fuelType = nozzle.fuelType;
+          }
+          
+          if (!fuelType) return;
+          
+          // Find the tank for this fuel type at this station
+          const tank = await Tank.findOne({
+            where: { 
+              stationId: reading.stationId, 
+              fuelType: fuelType,
+              isActive: true 
+            },
+            transaction: options.transaction
+          });
+          
+          if (!tank) return; // No tank tracking for this fuel type
+          
+          // Decrease tank level (can go negative if owner forgot refill)
+          await tank.update({
+            currentLevel: parseFloat(tank.currentLevel) - litresSold
+          }, { transaction: options.transaction });
+          
+        } catch (error) {
+          console.error('[NozzleReading Hook] Error updating tank level:', error.message);
+          // Don't throw - tank update failure shouldn't block sale recording
+        }
+      },
+      
+      /**
+       * After reading is updated, adjust tank level for the difference
+       */
+      afterUpdate: async (reading, options) => {
+        if (!reading.changed('litresSold')) return;
+        
+        const previousLitres = parseFloat(reading.previous('litresSold')) || 0;
+        const newLitres = parseFloat(reading.litresSold) || 0;
+        const difference = newLitres - previousLitres;
+        
+        if (difference === 0) return;
+        
+        try {
+          const { Tank, Nozzle } = sequelize.models;
+          
+          let fuelType = reading.fuelType;
+          if (!fuelType) {
+            const nozzle = await Nozzle.findByPk(reading.nozzleId, { 
+              transaction: options.transaction 
+            });
+            if (nozzle) fuelType = nozzle.fuelType;
+          }
+          
+          if (!fuelType) return;
+          
+          const tank = await Tank.findOne({
+            where: { 
+              stationId: reading.stationId, 
+              fuelType: fuelType, 
+              isActive: true 
+            },
+            transaction: options.transaction
+          });
+          
+          if (tank) {
+            await tank.update({
+              currentLevel: parseFloat(tank.currentLevel) - difference
+            }, { transaction: options.transaction });
+          }
+        } catch (error) {
+          console.error('[NozzleReading Hook] Error adjusting tank level on update:', error.message);
+        }
+      },
+      
+      /**
+       * After reading is deleted, add litres back to tank
+       */
+      afterDestroy: async (reading, options) => {
+        const litresSold = parseFloat(reading.litresSold) || 0;
+        if (litresSold <= 0) return;
+        
+        try {
+          const { Tank, Nozzle } = sequelize.models;
+          
+          let fuelType = reading.fuelType;
+          if (!fuelType) {
+            const nozzle = await Nozzle.findByPk(reading.nozzleId);
+            if (nozzle) fuelType = nozzle.fuelType;
+          }
+          
+          if (!fuelType) return;
+          
+          const tank = await Tank.findOne({
+            where: { 
+              stationId: reading.stationId, 
+              fuelType: fuelType, 
+              isActive: true 
+            },
+            transaction: options.transaction
+          });
+          
+          if (tank) {
+            await tank.update({
+              currentLevel: parseFloat(tank.currentLevel) + litresSold
+            }, { transaction: options.transaction });
+          }
+        } catch (error) {
+          console.error('[NozzleReading Hook] Error restoring tank level on delete:', error.message);
+        }
+      }
+    }
   });
 
   NozzleReading.associate = (models) => {

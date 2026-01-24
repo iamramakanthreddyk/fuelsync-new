@@ -82,11 +82,6 @@ module.exports = (sequelize) => {
       allowNull: true
     },
     
-    invoiceDate: {
-      type: DataTypes.DATEONLY,
-      allowNull: true
-    },
-    
     // Delivery details
     vehicleNumber: {
       type: DataTypes.STRING(20),
@@ -94,27 +89,17 @@ module.exports = (sequelize) => {
       comment: 'Tanker vehicle number'
     },
     
-    driverName: {
-      type: DataTypes.STRING(100),
-      allowNull: true
-    },
-    
-    driverPhone: {
-      type: DataTypes.STRING(20),
-      allowNull: true
-    },
-    
-    // Tank readings for verification
-    tankLevelBefore: {
+    // Level tracking for visibility
+    levelBefore: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: true,
-      comment: 'Tank level before refill (for verification)'
+      comment: 'Tank level before refill in liters'
     },
     
-    tankLevelAfter: {
+    levelAfter: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: true,
-      comment: 'Tank level after refill'
+      comment: 'Tank level after refill in liters'
     },
     
     // Entry type
@@ -182,16 +167,39 @@ module.exports = (sequelize) => {
         refill.isBackdated = refill.refillDate < today;
       },
       
+      /**
+       * After refill is created, update tank level AND tracking fields
+       * 
+       * Updates:
+       * - currentLevel: += litres
+       * - levelAfterLastRefill: new level (for "sales since" calculation)
+       * - lastRefillDate: refill date
+       * - lastRefillAmount: litres added
+       * 
+       * Note: Only update tracking fields for actual refills, not corrections
+       */
       afterCreate: async (refill, options) => {
-        // Update tank level
         const Tank = sequelize.models.Tank;
         const tank = await Tank.findByPk(refill.tankId, { transaction: options.transaction });
         
         if (tank) {
           const litres = parseFloat(refill.litres);
-          await tank.update({
-            currentLevel: parseFloat(tank.currentLevel) + litres
-          }, { transaction: options.transaction });
+          const newLevel = parseFloat(tank.currentLevel) + litres;
+          
+          // Build update data
+          const updateData = {
+            currentLevel: newLevel
+          };
+          
+          // Only update "since last refill" tracking for actual refills (not corrections/adjustments)
+          // This ensures sales tracking resets only on real fuel deliveries
+          if (refill.entryType === 'refill' || refill.entryType === 'initial') {
+            updateData.levelAfterLastRefill = newLevel;
+            updateData.lastRefillDate = refill.refillDate;
+            updateData.lastRefillAmount = Math.abs(litres); // Always positive for display
+          }
+          
+          await tank.update(updateData, { transaction: options.transaction });
         }
       },
       
@@ -250,6 +258,13 @@ module.exports = (sequelize) => {
 
     return this.findAndCountAll({
       where,
+      attributes: [
+        'id', 'tankId', 'stationId', 'litres', 'refillDate', 'refillTime',
+        'costPerLitre', 'totalCost', 'supplierName', 'invoiceNumber',
+        'vehicleNumber', 'levelBefore', 'levelAfter', 'entryType',
+        'isBackdated', 'isVerified', 'verifiedBy', 'verifiedAt',
+        'enteredBy', 'notes', 'createdAt', 'updatedAt'
+      ],
       include: [
         { model: sequelize.models.User, as: 'enteredByUser', attributes: ['id', 'name'] },
         { model: sequelize.models.Tank, as: 'tank', attributes: ['id', 'fuelType', 'name'] }

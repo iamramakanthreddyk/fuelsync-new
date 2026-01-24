@@ -99,8 +99,8 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
             <div className="flex-1 flex flex-col">
               <AppHeader />
-              <main className="flex-1 overflow-auto pt-5 pb-20 md:pb-5">
-                <div className="w-full px-4 md:px-6 lg:px-8 xl:px-12 pt-6 md:pt-8">
+              <main className="flex-1 overflow-auto pt-4 pb-24 md:pb-6">
+                <div className="w-full px-3 md:px-6 lg:px-8 xl:px-12 pt-4 md:pt-8">
                   {children}
                 </div>
               </main>

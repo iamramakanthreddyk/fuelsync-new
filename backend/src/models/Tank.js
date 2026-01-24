@@ -40,6 +40,13 @@ module.exports = (sequelize) => {
       comment: 'Optional display name for the tank'
     },
     
+    // Custom fuel display name (owner-friendly: MSD, HSM, XP 95)
+    displayFuelName: {
+      type: DataTypes.STRING(50),
+      allowNull: true,
+      comment: 'Custom fuel display name (e.g., MSD, HSM, XP 95). Falls back to fuelType if null.'
+    },
+    
     // Tank capacity in litres
     capacity: {
       type: DataTypes.DECIMAL(12, 2),
@@ -51,14 +58,39 @@ module.exports = (sequelize) => {
     },
     
     // Current fuel level (estimated/tracked)
+    // NOTE: Can be negative if owner forgets to enter a refill
+    // Negative level = alert to owner that they missed recording a refill
     currentLevel: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,
       defaultValue: 0,
-      validate: {
-        min: 0
-      },
-      comment: 'Current estimated fuel level in litres'
+      comment: 'Current fuel level in litres. Can be negative (indicates missed refill entry).'
+    },
+    
+    // ============================================
+    // "SINCE LAST REFILL" TRACKING FIELDS
+    // These enable showing: "Last refill: +5000L on Jan 5, Sold since: 3000L"
+    // ============================================
+    
+    // Level right after the most recent refill
+    levelAfterLastRefill: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true,
+      comment: 'Tank level immediately after last refill. salesSinceLastRefill = this - currentLevel'
+    },
+    
+    // Date of most recent refill
+    lastRefillDate: {
+      type: DataTypes.DATEONLY,
+      allowNull: true,
+      comment: 'Date of the most recent refill'
+    },
+    
+    // Amount added in most recent refill
+    lastRefillAmount: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: true,
+      comment: 'Litres added in the most recent refill'
     },
     
     // Warning thresholds
@@ -175,6 +207,7 @@ module.exports = (sequelize) => {
 
   /**
    * Get current status with warning level
+   * Handles negative levels (indicates missed refill entry)
    */
   Tank.prototype.getStatus = function() {
     const level = parseFloat(this.currentLevel);
@@ -186,7 +219,11 @@ module.exports = (sequelize) => {
     let status = 'normal';
     let message = null;
 
-    if (level <= 0) {
+    // Handle negative levels (owner forgot to enter a refill)
+    if (level < 0) {
+      status = 'negative';
+      message = `Tank level is negative (${level.toFixed(0)}L). Did you forget to record a refill?`;
+    } else if (level === 0) {
       status = 'empty';
       message = 'Tank is empty';
     } else if (level <= criticalThreshold) {
@@ -209,6 +246,80 @@ module.exports = (sequelize) => {
       lowThreshold,
       criticalThreshold
     };
+  };
+
+  /**
+   * Get comprehensive tank status for API response
+   * Includes "since last refill" tracking and negative level alerts
+   * 
+   * @returns {Object} Full tank status with all tracking data
+   */
+  Tank.prototype.getFullStatus = function() {
+    const currentLevel = parseFloat(this.currentLevel);
+    const capacity = parseFloat(this.capacity);
+    const levelAfterLastRefill = parseFloat(this.levelAfterLastRefill) || currentLevel;
+    
+    // Calculate sales since last refill (simple subtraction)
+    // If no refill recorded yet, shows 0
+    const salesSinceLastRefill = this.levelAfterLastRefill 
+      ? Math.max(0, levelAfterLastRefill - currentLevel) 
+      : 0;
+    
+    // Get basic status
+    const basicStatus = this.getStatus();
+    
+    // Build the response
+    const result = {
+      // Core data
+      id: this.id,
+      stationId: this.stationId,
+      fuelType: this.fuelType,
+      displayFuelName: this.displayFuelName || this.fuelType, // Fallback to fuelType
+      name: this.name,
+      currentLevel,
+      capacity,
+      percentFull: Math.round((Math.max(0, currentLevel) / capacity) * 100),
+      
+      // Status info
+      status: basicStatus.status,
+      statusMessage: basicStatus.message,
+      isNegative: currentLevel < 0,
+      
+      // Thresholds
+      lowThreshold: basicStatus.lowThreshold,
+      criticalThreshold: basicStatus.criticalThreshold,
+      
+      // "Since last refill" tracking
+      lastRefill: {
+        date: this.lastRefillDate || null,
+        amount: parseFloat(this.lastRefillAmount) || 0,
+        levelAfter: this.levelAfterLastRefill ? levelAfterLastRefill : null,
+        salesSince: salesSinceLastRefill
+      },
+      
+      // Calibration info
+      lastDip: {
+        reading: this.lastDipReading ? parseFloat(this.lastDipReading) : null,
+        date: this.lastDipDate || null
+      },
+      
+      // Settings
+      trackingMode: this.trackingMode,
+      allowNegative: this.allowNegative,
+      isActive: this.isActive
+    };
+    
+    // Add alert if negative (forgot to enter refill)
+    if (currentLevel < 0) {
+      result.alert = {
+        type: 'negative_level',
+        severity: 'warning',
+        message: 'Tank level is negative. Did you forget to record a refill?',
+        suggestedAction: 'Enter the missed refill to correct the level'
+      };
+    }
+    
+    return result;
   };
 
   /**

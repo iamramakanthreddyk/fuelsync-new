@@ -487,8 +487,13 @@ export function useCreateExpense() {
 
 // ============================================
 // TANK HOOKS
+// Enhanced with "since last refill" tracking
 // ============================================
 
+/**
+ * Fetch all tanks for a station with full status
+ * Includes "since last refill" tracking data
+ */
 export function useTanks(stationId: string) {
   return useQuery({
     queryKey: queryKeys.tanks(stationId),
@@ -497,6 +502,30 @@ export function useTanks(stationId: string) {
   });
 }
 
+/**
+ * Fetch single tank with full details
+ */
+export function useTank(tankId: string) {
+  return useQuery({
+    queryKey: queryKeys.tank(tankId),
+    queryFn: () => apiClient.get<ApiResponse<Tank>>(`/tanks/${tankId}`),
+    enabled: !!tankId,
+  });
+}
+
+/**
+ * Fetch tank warnings (low, critical, empty, negative)
+ */
+export function useTankWarnings() {
+  return useQuery({
+    queryKey: ['tanks', 'warnings'],
+    queryFn: () => apiClient.get<ApiResponse<Tank[]>>('/tanks/warnings'),
+  });
+}
+
+/**
+ * Create a new tank
+ */
 export function useCreateTank() {
   const queryClient = useQueryClient();
   
@@ -505,19 +534,78 @@ export function useCreateTank() {
       apiClient.post<ApiResponse<Tank>>(`/stations/${stationId}/tanks`, data),
     onSuccess: (_, { stationId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tanks(stationId) });
+      queryClient.invalidateQueries({ queryKey: ['tanks', 'warnings'] });
     },
   });
 }
 
+/**
+ * Update tank settings
+ */
+export function useUpdateTank() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ tankId, data }: { tankId: string; data: Partial<Tank> }) => 
+      apiClient.put<ApiResponse<Tank>>(`/tanks/${tankId}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tanks'] });
+    },
+  });
+}
+
+/**
+ * Record a tank refill
+ */
 export function useRecordRefill() {
   const queryClient = useQueryClient();
   
   return useMutation({
     mutationFn: ({ tankId, data }: { tankId: string; data: Partial<TankRefill> }) => 
-      apiClient.post<ApiResponse<TankRefill>>(`/tanks/${tankId}/refills`, data),
+      apiClient.post<ApiResponse<TankRefill>>(`/tanks/${tankId}/refill`, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tanks'] });
     },
+  });
+}
+
+/**
+ * Calibrate tank with dip reading
+ */
+export function useCalibrateTank() {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: ({ tankId, dipReading, date, notes }: { 
+      tankId: string; 
+      dipReading: number; 
+      date?: string;
+      notes?: string;
+    }) => 
+      apiClient.post<ApiResponse<Tank>>(`/tanks/${tankId}/calibrate`, { dipReading, date, notes }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tanks'] });
+    },
+  });
+}
+
+/**
+ * Fetch tank refill history
+ */
+export function useTankRefills(tankId: string, filters?: { startDate?: string; endDate?: string; page?: number; limit?: number }) {
+  const params = new URLSearchParams();
+  if (filters?.startDate) params.set('startDate', filters.startDate);
+  if (filters?.endDate) params.set('endDate', filters.endDate);
+  if (filters?.page) params.set('page', filters.page.toString());
+  if (filters?.limit) params.set('limit', filters.limit.toString());
+  
+  const queryString = params.toString();
+  const url = queryString ? `/tanks/${tankId}/refills?${queryString}` : `/tanks/${tankId}/refills`;
+  
+  return useQuery({
+    queryKey: ['tanks', tankId, 'refills', filters],
+    queryFn: () => apiClient.get<ApiResponse<TankRefill[]>>(url),
+    enabled: !!tankId,
   });
 }
 

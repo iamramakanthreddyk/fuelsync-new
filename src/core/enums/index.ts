@@ -168,6 +168,18 @@ export enum PaymentMethodEnum {
 export type PaymentMethod = `${PaymentMethodEnum}`;
 
 /**
+ * Payment method display labels
+ */
+export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
+  cash: 'Cash',
+  upi: 'UPI',
+  card: 'Card',
+  credit: 'Credit',
+  fleet_card: 'Fleet Card',
+  wallet: 'Wallet',
+};
+
+/**
  * Credit transaction status
  */
 export enum CreditStatusEnum {

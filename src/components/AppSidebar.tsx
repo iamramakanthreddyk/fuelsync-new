@@ -34,7 +34,8 @@ import {
   ChevronRight,
   User,
   Crown,
-  Shield
+  Shield,
+  Droplets
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -97,6 +98,13 @@ export function AppSidebar() {
           icon: Building2,
           color: "text-indigo-600",
           bgColor: "bg-indigo-50",
+        },
+        {
+          title: "Inventory",
+          url: `${basePath}/inventory`,
+          icon: Droplets,
+          color: "text-cyan-600",
+          bgColor: "bg-cyan-50",
         },
         {
           title: "Employees",
@@ -193,6 +201,13 @@ export function AppSidebar() {
           icon: Fuel,
           color: "text-blue-600",
           bgColor: "bg-blue-50",
+        },
+        {
+          title: "Inventory",
+          url: "/inventory",
+          icon: Droplets,
+          color: "text-cyan-600",
+          bgColor: "bg-cyan-50",
         },
       ]
     },

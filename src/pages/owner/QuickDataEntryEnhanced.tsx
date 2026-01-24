@@ -30,25 +30,25 @@ function NozzleReadingRow({
   const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
 
   return (
-    <div className="border rounded-lg p-4 bg-white hover:bg-gray-50/50 transition-colors">
-      {/* Header - Clean and organized */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="text-xs font-medium px-2 py-1">
-              #{nozzle.nozzleNumber}
-            </Badge>
-            <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs font-medium px-2 py-1`}>
-              {nozzle.fuelType}
-            </Badge>
-          </div>
+    <div className="border rounded-lg p-2 sm:p-4 bg-white hover:bg-slate-50 transition-colors border-slate-200">
+      {/* Header - Clean and organized - Improved mobile layout */}
+      <div className="flex flex-col gap-2 mb-3">
+        {/* Row 1: Badges */}
+        <div className="flex items-center gap-1 flex-wrap">
+          <Badge variant="outline" className="text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 border-slate-300 whitespace-nowrap">
+            #{nozzle.nozzleNumber}
+          </Badge>
+          <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 whitespace-nowrap`}>
+            {nozzle.fuelType}
+          </Badge>
           {!hasFuelPrice && (
-            <span className="text-red-500 text-xs font-medium">⚠ No price</span>
+            <span className="text-red-600 text-xs font-bold bg-red-50 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded whitespace-nowrap">⚠ No price</span>
           )}
         </div>
-        <div className="text-right">
-          <div className="text-xs text-muted-foreground">Previous</div>
-          <div className="text-sm font-medium">{safeToFixed(compareValue, 1)} L</div>
+        {/* Row 2: Previous reading */}
+        <div className="text-left">
+          <div className="text-xs text-slate-500 font-medium">Previous</div>
+          <div className="text-base sm:text-lg font-bold text-slate-900 break-words">{safeToFixed(compareValue, 1)} L</div>
         </div>
       </div>
 
@@ -62,15 +62,15 @@ function NozzleReadingRow({
             value={reading?.readingValue !== undefined && reading?.readingValue !== null ? reading.readingValue : ''}
             onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
             disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
-            className={`text-sm h-9 ${!hasFuelPrice ? 'border-red-300 bg-red-50' : 'border-gray-300'}`}
+            className={`text-xs sm:text-sm h-10 sm:h-11 font-semibold w-full break-words overflow-hidden ${!hasFuelPrice ? 'border-red-300 bg-red-50 text-red-900' : 'border-slate-300 text-slate-900'}`}
           />
           {/* Status indicators */}
           {reading?.readingValue && !lastReadingLoading && enteredValue !== undefined && (
             <div className="absolute right-3 top-1/2 -translate-y-1/2">
               {enteredValue > compareValue ? (
-                <Check className="w-4 h-4 text-green-600" />
+                <Check className="w-5 h-5 text-emerald-600 font-bold" />
               ) : (
-                <span className="text-xs text-red-600 font-medium">Invalid</span>
+                <span className="text-xs text-red-700 font-bold">Invalid</span>
               )}
             </div>
           )}
@@ -78,7 +78,7 @@ function NozzleReadingRow({
 
         {/* Sale calculation - Only show when valid */}
         {reading?.readingValue && enteredValue !== undefined && enteredValue > compareValue && hasFuelPrice && (
-          <div className="mt-3 p-3 bg-green-50 rounded-md border border-green-200">
+          <div className="mt-3 p-3 bg-emerald-50 rounded-lg border-2 border-emerald-200">
             <ReadingSaleCalculation
               nozzleNumber={nozzle.nozzleNumber}
               fuelType={nozzle.fuelType}
@@ -92,9 +92,9 @@ function NozzleReadingRow({
 
         {/* Error message - Only show when needed */}
         {!hasFuelPrice && (
-          <div className="mt-2 p-2 bg-red-50 rounded-md border border-red-200">
-            <p className="text-xs text-red-700 font-medium">
-              Set fuel price in Prices page
+          <div className="mt-2 p-2.5 bg-red-50 rounded-lg border-2 border-red-200">
+            <p className="text-xs text-red-700 font-bold">
+              ⚠️ Set fuel price in Prices page
             </p>
           </div>
         )}
@@ -626,20 +626,20 @@ export default function QuickDataEntry() {
   const totalNozzles = pumps?.reduce((sum, pump) => sum + (pump.nozzles?.length || 0), 0) || 0;
 
   return (
-    <div className="container mx-auto p-2 sm:p-4 space-y-3 sm:space-y-4 max-w-7xl">
+    <div className="container mx-auto p-2 sm:p-4 space-y-3 sm:space-y-4 max-w-full lg:max-w-7xl">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl sm:text-2xl font-bold flex items-center gap-2">
-            <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+            <Zap className="w-6 h-6 sm:w-7 sm:h-7 text-amber-500" />
             Quick Entry
           </h1>
-          <p className="text-sm sm:text-base text-muted-foreground">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Fast nozzle reading entry with live calculations
           </p>
         </div>
         {pendingCount > 0 && (
-          <Badge className="text-sm px-3 py-1.5 bg-yellow-500 hover:bg-yellow-600">
+          <Badge className="text-xs sm:text-sm px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white font-semibold w-fit">
             {pendingCount} / {totalNozzles}
           </Badge>
         )}
@@ -648,20 +648,20 @@ export default function QuickDataEntry() {
       {selectedStation && <PricesRequiredAlert stationId={selectedStation} showIfMissing={true} compact={true} hasPricesOverride={Boolean(fuelPrices && fuelPrices.length > 0)} />}
 
       {/* Station & Date Selection - Compact */}
-      <Card>
-        <CardContent className="p-4">
-          <div className="grid gap-3 sm:grid-cols-3">
+      <Card className="border-slate-200">
+        <CardContent className="p-2 sm:p-4">
+          <div className="grid gap-2 sm:gap-3 grid-cols-1 sm:grid-cols-3">
             <div>
-              <Label htmlFor="station" className="text-xs sm:text-sm">Station</Label>
+              <Label htmlFor="station" className="text-xs sm:text-sm font-semibold text-slate-700">Station</Label>
               <Select value={selectedStation} onValueChange={setSelectedStation}>
-                <SelectTrigger id="station" className="mt-1.5">
+                <SelectTrigger id="station" className="mt-1 sm:mt-1.5 text-xs sm:text-sm h-8 sm:h-9">
                   <SelectValue placeholder="Choose a station" />
                 </SelectTrigger>
                 <SelectContent>
                   {stations?.map((station) => (
                     <SelectItem key={station.id} value={station.id}>
                       <div className="flex items-center gap-2">
-                        <Building2 className="w-4 h-4" />
+                        <Building2 className="w-3 h-3 sm:w-4 sm:h-4" />
                         {station.name}
                       </div>
                     </SelectItem>
@@ -670,22 +670,22 @@ export default function QuickDataEntry() {
               </Select>
             </div>
             <div>
-              <Label htmlFor="date" className="text-xs sm:text-sm">Date</Label>
+              <Label htmlFor="date" className="text-xs sm:text-sm font-semibold text-slate-700">Date</Label>
               <Input
                 id="date"
                 type="date"
                 value={readingDate}
                 onChange={(e) => setReadingDate(e.target.value)}
                 max={new Date().toISOString().split('T')[0]}
-                className="mt-1.5"
+                className="mt-1 sm:mt-1.5 text-xs sm:text-sm h-8 sm:h-9"
               />
             </div>
             <div className="flex items-end">
-              <div className="w-full text-xs text-muted-foreground bg-gray-50 p-2.5 rounded-md border">
+              <div className="w-full text-xs sm:text-sm text-slate-600 bg-slate-50 p-2 sm:p-2.5 rounded-md border border-slate-200 font-semibold">
                 {selectedStation && pumps ? (
-                  <span className="font-semibold text-gray-700">{totalNozzles} nozzles</span>
+                  <span className="text-slate-700">{totalNozzles} nozzles</span>
                 ) : (
-                  <span>Select station</span>
+                  <span className="text-slate-500">Select station</span>
                 )}
               </div>
             </div>
@@ -706,38 +706,38 @@ export default function QuickDataEntry() {
         <>
           {/* Show warning if missing fuel prices */}
           {getMissingFuelTypes().length > 0 && (
-            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-              <p className="text-xs font-semibold text-amber-900">
-                ⚠ Missing prices for: <span className="text-amber-700 font-bold">{getMissingFuelTypes().join(', ')}</span>
+            <div className="p-3 bg-amber-50 border-2 border-amber-200 rounded-lg">
+              <p className="text-xs font-bold text-amber-900">
+                ⚠️ Missing prices for: <span className="text-amber-700">{getMissingFuelTypes().join(', ')}</span>
               </p>
             </div>
           )}
 
           {/* Two Column Layout: Pumps + Summary */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 sm:gap-4">
             {/* Left: Pump Nozzles (2 cols) */}
             <div className="lg:col-span-2 space-y-2">
               {pumps.map((pump) => (
-                <Card key={pump.id} className="hover:shadow-md transition-shadow border-l-4 border-l-blue-500">
-                  <CardHeader className="pb-3">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-blue-100 flex items-center justify-center">
-                          <Fuel className="w-5 h-5 text-blue-600" />
+                <Card key={pump.id} className="hover:shadow-lg transition-shadow border-l-4 border-l-blue-500 border-slate-200">
+                  <CardHeader className="pb-3 px-2 sm:px-6 py-3">
+                    <div className="flex items-start sm:items-center justify-between gap-2">
+                      <div className="flex items-start sm:items-center gap-2 sm:gap-3 min-w-0 flex-1">
+                        <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-lg bg-blue-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <Fuel className="w-4 sm:w-5 h-4 sm:h-5 text-blue-600" />
                         </div>
-                        <div>
-                          <h3 className="font-semibold text-base">Pump {pump.pumpNumber}</h3>
-                          <p className="text-sm text-muted-foreground">{pump.name}</p>
+                        <div className="min-w-0 flex-1">
+                          <h3 className="font-bold text-sm sm:text-base text-slate-900 break-words">Pump {pump.pumpNumber}</h3>
+                          <p className="text-xs sm:text-sm text-slate-600 truncate">{pump.name}</p>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-xs px-3 py-1">
-                        {pump.nozzles?.length || 0} nozzles
+                      <Badge variant="outline" className="text-xs px-1.5 sm:px-3 py-0.5 sm:py-1 font-semibold border-slate-300 flex-shrink-0 whitespace-nowrap">
+                        {pump.nozzles?.length || 0}
                       </Badge>
                     </div>
                   </CardHeader>
-                  <CardContent className="space-y-2">
+                  <CardContent className="space-y-2 px-2 sm:px-6 py-3">
                     {pump.nozzles && pump.nozzles.length > 0 ? (
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 gap-2">
                         {pump.nozzles.map((nozzle: any) => (
                           <NozzleReadingRow
                             key={nozzle.id}
@@ -784,27 +784,27 @@ export default function QuickDataEntry() {
               {pendingCount > 0 && saleSummary.totalSaleValue > 0 && (
                 <>
                   <Card className="border-2 border-green-400 bg-green-50 shadow-md">
-                    <CardContent className="p-4 space-y-4">
-                      <div className="flex items-center justify-between">
+                    <CardContent className="p-3 sm:p-4 space-y-3">
+                      <div className="flex flex-col gap-3">
                         <div>
                           <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">Sale Summary</p>
-                          <p className="text-2xl md:text-3xl font-extrabold text-green-700">
+                          <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-green-700 break-words">
                             ₹{saleSummary.totalSaleValue >= 100000 
                               ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`
                               : safeToFixed(saleSummary.totalSaleValue, 2)}
                           </p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-left sm:text-right">
                           <p className="text-xs text-muted-foreground">Readings Entered</p>
-                          <p className="text-lg font-bold">{pendingCount} <span className="text-xs text-gray-500">/ {totalNozzles}</span></p>
+                          <p className="text-base sm:text-lg font-bold">{pendingCount} <span className="text-xs text-gray-500">/ {totalNozzles}</span></p>
                         </div>
                       </div>
                       <div className="grid grid-cols-1 gap-2">
                         {Object.entries(saleSummary.byFuelType).map(([fuel, val]) => (
-                          <div key={fuel} className="flex items-center justify-between text-sm">
-                            <span className="font-medium text-green-900">{fuel}</span>
-                            <span className="text-green-700">{safeToFixed(val.liters, 2)} L</span>
-                            <span className="text-green-700 font-semibold">₹{safeToFixed(val.value, 2)}</span>
+                          <div key={fuel} className="flex items-center justify-between text-xs sm:text-sm gap-2">
+                            <span className="font-medium text-green-900 truncate">{fuel}</span>
+                            <span className="text-green-700 whitespace-nowrap">{safeToFixed(val.liters, 2)} L</span>
+                            <span className="text-green-700 font-semibold whitespace-nowrap">₹{safeToFixed(val.value, 2)}</span>
                           </div>
                         ))}
                       </div>

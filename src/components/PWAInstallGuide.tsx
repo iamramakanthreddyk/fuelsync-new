@@ -6,8 +6,13 @@ import { Button } from '@/components/ui/button';
  * PWA Installation guide banner for mobile and desktop
  * Shows instructions to install the app
  * Complements PWAInstallPrompt for users whose browsers don't support beforeinstallprompt
+ * 
+ * TEMPORARILY DISABLED - Remove the return statement below to re-enable
  */
 export function PWAInstallGuide() {
+  // Temporarily disabled - comment out the line below to re-enable
+  return null;
+
   const [show, setShow] = useState(false);
   const [dismissed, setDismissed] = useState(false);
   const [isMobile, setIsMobile] = useState(false);

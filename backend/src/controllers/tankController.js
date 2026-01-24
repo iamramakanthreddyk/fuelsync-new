@@ -18,6 +18,8 @@ const { logAudit } = require('../utils/auditLog');
 /**
  * Get all tanks for a station
  * GET /api/v1/stations/:stationId/tanks
+ * 
+ * Response includes full status with "since last refill" tracking
  */
 exports.getTanks = async (req, res, next) => {
   try {
@@ -32,11 +34,18 @@ exports.getTanks = async (req, res, next) => {
       });
     }
     
-    const tanks = await Tank.getStationTanks(stationId);
+    // Get tanks with full status (includes "since last refill" data)
+    const tanks = await Tank.findAll({
+      where: { stationId, isActive: true },
+      order: [['fuelType', 'ASC'], ['name', 'ASC']]
+    });
+    
+    // Map to include full status with tracking info
+    const tanksWithStatus = tanks.map(tank => tank.getFullStatus());
     
     res.json({
       success: true,
-      data: tanks
+      data: tanksWithStatus
     });
   } catch (error) {
     console.error('Get tanks error:', error);
@@ -47,6 +56,9 @@ exports.getTanks = async (req, res, next) => {
 /**
  * Get tank warnings for dashboard
  * GET /api/v1/tanks/warnings
+ * 
+ * Returns tanks with low, critical, empty, or NEGATIVE status
+ * Negative status indicates owner may have forgotten to record a refill
  */
 exports.getTankWarnings = async (req, res, next) => {
   try {
@@ -58,15 +70,33 @@ exports.getTankWarnings = async (req, res, next) => {
       const stations = await Station.findAll({ where: { ownerId: user.id } });
       const warnings = [];
       for (const station of stations) {
-        const stationWarnings = await Tank.getTanksWithWarnings(station.id);
-        warnings.push(...stationWarnings.map(w => ({ ...w, stationName: station.name })));
+        const stationTanks = await Tank.findAll({
+          where: { stationId: station.id, isActive: true }
+        });
+        
+        // Filter to tanks with warning-level status (including negative)
+        for (const tank of stationTanks) {
+          const fullStatus = tank.getFullStatus();
+          if (['low', 'critical', 'empty', 'negative'].includes(fullStatus.status)) {
+            warnings.push({
+              ...fullStatus,
+              stationName: station.name
+            });
+          }
+        }
       }
       return res.json({ success: true, data: warnings });
     } else if (user.stationId) {
       stationId = user.stationId;
     }
     
-    const warnings = await Tank.getTanksWithWarnings(stationId);
+    const tanks = await Tank.findAll({
+      where: { stationId, isActive: true }
+    });
+    
+    const warnings = tanks
+      .map(tank => tank.getFullStatus())
+      .filter(status => ['low', 'critical', 'empty', 'negative'].includes(status.status));
     
     res.json({
       success: true,
@@ -81,6 +111,12 @@ exports.getTankWarnings = async (req, res, next) => {
 /**
  * Get single tank with details
  * GET /api/v1/tanks/:id
+ * 
+ * Returns full status including:
+ * - Current level and percent
+ * - "Since last refill" tracking (date, amount, sales since)
+ * - Alert if level is negative
+ * - Recent refill history
  */
 exports.getTank = async (req, res, next) => {
   try {
@@ -115,11 +151,16 @@ exports.getTank = async (req, res, next) => {
       });
     }
     
+    // Get full status with "since last refill" tracking
+    const fullStatus = tank.getFullStatus();
+    
     res.json({
       success: true,
       data: {
-        ...tank.toJSON(),
-        status: tank.getStatus()
+        ...fullStatus,
+        station: tank.station,
+        refills: tank.refills,
+        notes: tank.notes
       }
     });
   } catch (error) {
@@ -131,11 +172,26 @@ exports.getTank = async (req, res, next) => {
 /**
  * Create a new tank
  * POST /api/v1/stations/:stationId/tanks
+ * 
+ * Supports custom fuel display names (MSD, HSM, XP 95) via displayFuelName
+ * Initial level sets the starting point for "since last refill" tracking
  */
 exports.createTank = async (req, res, next) => {
   try {
     const { stationId } = req.params;
-    const { fuelType, name, capacity, currentLevel, lowLevelWarning, criticalLevelWarning, lowLevelPercent, criticalLevelPercent, trackingMode, notes } = req.body;
+    const { 
+      fuelType, 
+      name, 
+      displayFuelName,  // Custom fuel name (e.g., "MSD", "HSM", "XP 95")
+      capacity, 
+      currentLevel, 
+      lowLevelWarning, 
+      criticalLevelWarning, 
+      lowLevelPercent, 
+      criticalLevelPercent, 
+      trackingMode, 
+      notes 
+    } = req.body;
     
     const user = await User.findByPk(req.userId);
     
@@ -159,12 +215,20 @@ exports.createTank = async (req, res, next) => {
       });
     }
     
+    // Calculate initial level for tracking
+    const initialLevel = parseFloat(currentLevel) || 0;
+    
     const tank = await Tank.create({
       stationId,
       fuelType,
       name,
+      displayFuelName: displayFuelName || null, // Custom fuel name (MSD, HSM, etc.)
       capacity,
-      currentLevel: currentLevel || 0,
+      currentLevel: initialLevel,
+      // Initialize "since last refill" tracking with initial level
+      levelAfterLastRefill: initialLevel > 0 ? initialLevel : null,
+      lastRefillDate: initialLevel > 0 ? new Date().toISOString().split('T')[0] : null,
+      lastRefillAmount: initialLevel > 0 ? initialLevel : null,
       lowLevelWarning,
       criticalLevelWarning,
       lowLevelPercent,
@@ -172,6 +236,19 @@ exports.createTank = async (req, res, next) => {
       trackingMode: trackingMode || 'warning',
       notes
     });
+
+    // If initial level is set, create an "initial" entry in tank_refills for audit
+    if (initialLevel > 0) {
+      await TankRefill.create({
+        tankId: tank.id,
+        stationId,
+        litres: initialLevel,
+        refillDate: new Date().toISOString().split('T')[0],
+        entryType: 'initial',
+        enteredBy: req.userId,
+        notes: `Initial tank setup with ${initialLevel}L`
+      });
+    }
 
     // Log tank creation
     await logAudit({
@@ -185,22 +262,23 @@ exports.createTank = async (req, res, next) => {
       newValues: {
         id: tank.id,
         fuelType,
+        displayFuelName: tank.displayFuelName,
         name,
         capacity,
         currentLevel: tank.currentLevel
       },
       category: 'data',
       severity: 'info',
-      description: `Created tank for ${fuelType} with capacity ${capacity}L`
+      description: `Created tank for ${tank.displayFuelName || fuelType} with capacity ${capacity}L`
     });
+    
+    // Return full status with "since last refill" tracking
+    const fullStatus = tank.getFullStatus();
     
     res.status(201).json({
       success: true,
-      data: {
-        ...tank.toJSON(),
-        status: tank.getStatus()
-      },
-      message: `Tank created for ${fuelType}. Current level: ${tank.currentLevel}L`
+      data: fullStatus,
+      message: `Tank created for ${fullStatus.displayFuelName}. Current level: ${tank.currentLevel}L`
     });
   } catch (error) {
     console.error('Create tank error:', error);
@@ -211,6 +289,11 @@ exports.createTank = async (req, res, next) => {
 /**
  * Update tank settings
  * PUT /api/v1/tanks/:id
+ * 
+ * Allows updating:
+ * - displayFuelName: Custom fuel name (MSD, HSM, XP 95)
+ * - capacity, thresholds, tracking mode
+ * - Does NOT allow direct currentLevel changes (use refill/calibrate instead)
  */
 exports.updateTank = async (req, res, next) => {
   try {
@@ -235,9 +318,20 @@ exports.updateTank = async (req, res, next) => {
       });
     }
     
-    // Allowed updates
-    const allowedUpdates = ['name', 'capacity', 'lowLevelWarning', 'criticalLevelWarning', 
-                           'lowLevelPercent', 'criticalLevelPercent', 'trackingMode', 'allowNegative', 'notes', 'isActive'];
+    // Allowed updates (displayFuelName added for custom fuel naming)
+    const allowedUpdates = [
+      'name', 
+      'displayFuelName',  // Custom fuel name (MSD, HSM, XP 95)
+      'capacity', 
+      'lowLevelWarning', 
+      'criticalLevelWarning', 
+      'lowLevelPercent', 
+      'criticalLevelPercent', 
+      'trackingMode', 
+      'allowNegative', 
+      'notes', 
+      'isActive'
+    ];
     
     const oldValues = tank.toJSON();
     const newValues = {};
@@ -264,15 +358,13 @@ exports.updateTank = async (req, res, next) => {
       newValues: newValues,
       category: 'data',
       severity: 'info',
-      description: `Updated tank: ${tank.name} (${tank.fuelType})`
+      description: `Updated tank: ${tank.displayFuelName || tank.name} (${tank.fuelType})`
     });
     
+    // Return full status
     res.json({
       success: true,
-      data: {
-        ...tank.toJSON(),
-        status: tank.getStatus()
-      }
+      data: tank.getFullStatus()
     });
   } catch (error) {
     console.error('Update tank error:', error);
@@ -358,7 +450,7 @@ exports.recordRefill = async (req, res, next) => {
     const { 
       litres, refillDate, refillTime,
       costPerLitre, totalCost,
-      supplierName, invoiceNumber, invoiceDate,
+      supplierName, invoiceNumber,
       vehicleNumber, driverName, driverPhone,
       notes
     } = req.body;
@@ -405,6 +497,9 @@ exports.recordRefill = async (req, res, next) => {
       }
     }
 
+    // Calculate level after refill
+    const tankLevelAfter = tankLevelBefore + parseFloat(litres);
+
     const refill = await TankRefill.create({
       tankId: tank.id,
       stationId: tank.stationId,
@@ -415,12 +510,9 @@ exports.recordRefill = async (req, res, next) => {
       totalCost: totalCost || (costPerLitre ? parseFloat(litres) * parseFloat(costPerLitre) : null),
       supplierName,
       invoiceNumber,
-      invoiceDate,
       vehicleNumber,
-      driverName,
-      driverPhone,
-      tankLevelBefore,
-      tankLevelAfter: tankLevelBefore + parseFloat(litres),
+      levelBefore: tankLevelBefore,
+      levelAfter: tankLevelAfter,
       entryType: 'refill',
       enteredBy: req.userId,
       notes
@@ -593,7 +685,7 @@ exports.updateRefill = async (req, res, next) => {
     
     // Only allow certain field updates (not litres to preserve tank level accuracy)
     const allowedUpdates = ['refillDate', 'refillTime', 'costPerLitre', 'totalCost', 
-                           'supplierName', 'invoiceNumber', 'invoiceDate', 
+                           'supplierName', 'invoiceNumber',
                            'vehicleNumber', 'driverName', 'driverPhone', 'notes'];
     
     allowedUpdates.forEach(field => {

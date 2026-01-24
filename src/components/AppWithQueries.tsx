@@ -49,6 +49,7 @@ import QuickDataEntry from '@/pages/owner/QuickDataEntryEnhanced';
 import SettlementStationSelector from '@/pages/owner/SettlementStationSelector';
 import DailySettlement from '@/pages/owner/DailySettlement';
 import DailySalesReport from '@/pages/owner/DailySalesReport';
+import Inventory from '@/pages/owner/Inventory';
 
 // Cash Management pages
 import ShiftManagement from '@/pages/shifts/ShiftManagement';
@@ -394,6 +395,11 @@ function AppContent() {
                     <Route path="/manager/income-report" element={<IncomeReport />} />
                     <Route path="/manager/shifts" element={<ShiftManagement />} />
                     <Route path="/manager/cash-report" element={<CashReconciliationReport />} />
+                    <Route path="/manager/inventory" element={
+                      <ManagerOrOwnerRoute>
+                        <Inventory />
+                      </ManagerOrOwnerRoute>
+                    } />
                     <Route path="/manager/credit-ledger" element={
                       <ManagerOrOwnerRoute>
                         <CreditLedger />
@@ -425,6 +431,11 @@ function AppContent() {
                     <Route path="/owner/income-report" element={<IncomeReport />} />
                     <Route path="/owner/shifts" element={<ShiftManagement />} />
                     <Route path="/owner/cash-report" element={<CashReconciliationReport />} />
+                    <Route path="/owner/inventory" element={
+                      <ManagerOrOwnerRoute>
+                        <Inventory />
+                      </ManagerOrOwnerRoute>
+                    } />
                     <Route path="/owner/credit-ledger" element={
                       <ManagerOrOwnerRoute>
                         <CreditLedger />

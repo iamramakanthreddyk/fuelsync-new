@@ -16,7 +16,8 @@ import {
   Settings,
   TrendingUp,
   Fuel,
-  Scale3d
+  Scale3d,
+  Droplets
 } from 'lucide-react';
 
 export function MobileBottomNav() {
@@ -109,6 +110,13 @@ export function MobileBottomNav() {
   // Additional menu items for the "More" sheet - excluding main nav items
   const additionalMenuItems = isOwnerRole ? [
     {
+      title: "Inventory",
+      url: `${basePath}/inventory`,
+      icon: Droplets,
+      color: "text-cyan-600",
+      bgColor: "bg-cyan-50",
+    },
+    {
       title: "Employees",
       url: `${basePath}/employees`,
       icon: Users,
@@ -158,6 +166,13 @@ export function MobileBottomNav() {
       bgColor: "bg-slate-50",
     },
   ] : [
+    {
+      title: "Inventory",
+      url: "/inventory",
+      icon: Droplets,
+      color: "text-cyan-600",
+      bgColor: "bg-cyan-50",
+    },
     ...(isManager ? [
       {
         title: "Stations",
@@ -207,8 +222,10 @@ export function MobileBottomNav() {
   return (
     <>
       {/* Bottom Navigation Bar - Only visible on mobile */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-blue-50 via-white to-white border-t border-blue-100 shadow-2xl">
-        <div className="flex items-center justify-around h-16 px-2">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200/70 shadow-xl">
+        {/* Separator line for better visual clarity */}
+        <div className="h-0.5 bg-gradient-to-r from-transparent via-slate-300/50 to-transparent"></div>
+        <div className="flex items-center justify-around h-16 px-1 safe-area-inset-bottom">
           {/* Main Navigation Items */}
           {mainNavItems.map((item) => {
             const Icon = item.icon;
@@ -220,23 +237,23 @@ export function MobileBottomNav() {
                   <SheetTrigger asChild>
                     <Button
                       variant="ghost"
-                      className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all duration-200 ${
+                      className={`flex flex-col items-center justify-center flex-1 py-2 px-0.5 rounded-lg transition-all duration-300 ${
                         active 
-                          ? `${item.bgColor} ${item.color} shadow-sm` 
-                          : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                          ? `${item.bgColor} ${item.color} shadow-md scale-105` 
+                          : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                       }`}
                     >
-                      <Icon className={`w-6 h-6 mb-1 ${active ? item.color : ''}`} />
-                      <span className={`text-xs font-semibold ${active ? item.color : ''}`}>
+                      <Icon className={`w-5 h-5 mb-0.5 transition-all ${item.color}`} />
+                      <span className={`text-[10px] font-semibold tracking-wide ${active ? item.color : 'text-slate-700'}`}>
                         {item.title}
                       </span>
                     </Button>
                   </SheetTrigger>
-                  <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl bg-gradient-to-b from-white to-gray-50">
-                    <SheetHeader className="bg-gradient-to-r from-blue-600 to-blue-500 text-white rounded-lg -mx-6 px-6 py-4 mb-6">
-                      <SheetTitle className="text-left text-white text-lg font-bold">More Options</SheetTitle>
+                  <SheetContent side="bottom" className="h-[82vh] rounded-t-3xl bg-gradient-to-b from-white via-white to-slate-50">
+                    <SheetHeader className="bg-gradient-to-r from-blue-600 via-blue-500 to-cyan-500 text-white rounded-2xl -mx-6 px-6 py-6 mb-8 shadow-lg">
+                      <SheetTitle className="text-left text-white text-xl font-bold tracking-wide">More Options</SheetTitle>
                     </SheetHeader>
-                    <div className="grid grid-cols-2 gap-3 mt-6">
+                    <div className="grid grid-cols-2 gap-4 mt-6 px-1">
                       {additionalMenuItems.map((menuItem) => {
                         const MenuIcon = menuItem.icon;
                         return (
@@ -244,10 +261,10 @@ export function MobileBottomNav() {
                             key={menuItem.url}
                             to={menuItem.url}
                             onClick={() => setIsMenuOpen(false)}
-                            className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 border-gray-100 hover:border-gray-300 transition-all duration-200 ${menuItem.bgColor} hover:shadow-md`}
+                            className={`flex flex-col items-center justify-center p-5 rounded-2xl border-2 border-slate-200 hover:border-slate-300 transition-all duration-300 ${menuItem.bgColor} hover:shadow-2xl hover:scale-110 active:scale-95`}
                           >
-                            <MenuIcon className={`w-8 h-8 mb-2 ${menuItem.color}`} />
-                            <span className="text-xs font-semibold text-center text-gray-700">{menuItem.title}</span>
+                            <MenuIcon className={`w-9 h-9 mb-3 ${menuItem.color}`} />
+                            <span className="text-xs font-bold text-center text-slate-800 leading-tight">{menuItem.title}</span>
                           </Link>
                         );
                       })}
@@ -261,14 +278,14 @@ export function MobileBottomNav() {
               <Link
                 key={item.url}
                 to={item.url}
-                className={`flex flex-col items-center justify-center flex-1 py-2 px-1 rounded-lg transition-all duration-200 ${
+                className={`flex flex-col items-center justify-center flex-1 py-2 px-0.5 rounded-lg transition-all duration-300 ${
                   active
-                    ? `${item.bgColor} ${item.color} shadow-sm`
-                    : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                    ? `${item.bgColor} ${item.color} shadow-md scale-105`
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
                 }`}
               >
-                <Icon className={`w-6 h-6 mb-1 transition-colors ${active ? item.color : ''}`} />
-                <span className={`text-xs font-semibold transition-colors ${active ? item.color : ''}`}>
+                <Icon className={`w-5 h-5 mb-0.5 transition-all ${item.color}`} />
+                <span className={`text-[10px] font-semibold tracking-wide ${active ? item.color : 'text-slate-700'}`}>
                   {item.title}
                 </span>
               </Link>
@@ -277,7 +294,7 @@ export function MobileBottomNav() {
         </div>
 
         {/* Safe area padding for devices with home indicator */}
-        <div className="h-safe-area-inset-bottom bg-gradient-to-t from-blue-50 to-white" />
+        <div className="h-safe-area-inset-bottom" />
       </div>
 
     </>

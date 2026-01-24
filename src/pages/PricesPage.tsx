@@ -13,6 +13,7 @@ import { FuelPriceDialog } from "@/components/prices/FuelPriceDialog";
 import { FuelPricesGrid } from '@/components/prices/FuelPricesGrid';
 import { FuelPriceAddButton } from '@/components/prices/FuelPriceAddButton';
 import { apiClient } from '@/lib/api-client';
+import { FuelTypeEnum, FUEL_TYPE_LABELS } from '@/core/enums';
 import {
   Select,
   SelectContent,
@@ -62,15 +63,16 @@ export default function PricesPage() {
     return stations.find(s => s.id === defaultStationId) || stations[0];
   }, [defaultStationId, stations]);
 
-  const ALL_FUEL_TYPES: ("PETROL" | "DIESEL" | "CNG" | "EV")[] = ["PETROL", "DIESEL", "CNG", "EV"];
+  // Use fuel types from the single source of truth
+  const ALL_FUEL_TYPES = Object.values(FuelTypeEnum);
   // Ensure fuelPrices is an array before calling map
   const presentFuelTypes = Array.isArray(fuelPrices) ? fuelPrices.map(p => p.fuel_type) : [];
   const missingFuelTypes = ALL_FUEL_TYPES.filter(
     ft => !presentFuelTypes.includes(ft)
   );
 
-  function isValidFuelType(ft: string): ft is "PETROL" | "DIESEL" | "CNG" | "EV" {
-    return ["PETROL", "DIESEL", "CNG", "EV"].includes(ft);
+  function isValidFuelType(ft: string): boolean {
+    return Object.values(FuelTypeEnum).includes(ft as FuelTypeEnum);
   }
 
   // Show loading if stations are not loaded yet

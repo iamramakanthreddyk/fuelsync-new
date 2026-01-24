@@ -190,33 +190,128 @@ export interface Tank {
   stationId: string;
   fuelType: FuelType;
   name?: string;
+  /** Custom fuel display name (e.g., "MSD", "HSM", "XP 95"). Falls back to fuelType if not set. */
+  displayFuelName?: string;
   capacity: number;
+  /** Current fuel level in litres. Can be negative if owner forgot to record a refill. */
   currentLevel: number;
   lowLevelWarning: number;
   criticalLevelWarning: number;
+  lowLevelPercent?: number;
+  criticalLevelPercent?: number;
+  trackingMode?: 'strict' | 'warning' | 'disabled';
+  allowNegative?: boolean;
+  
+  // "Since last refill" tracking fields
+  /** Tank level immediately after the last refill */
+  levelAfterLastRefill?: number;
+  /** Date of the most recent refill */
+  lastRefillDate?: string;
+  /** Litres added in the most recent refill */
+  lastRefillAmount?: number;
+  
+  // Calibration
+  lastDipReading?: number;
+  lastDipDate?: string;
+  
   isActive: boolean;
+  notes?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/**
+ * Full tank status returned by API (includes calculated fields)
+ * Used for dashboard display with "since last refill" tracking
+ */
+export interface TankFullStatus {
+  id: string;
+  stationId: string;
+  fuelType: FuelType;
+  /** Custom fuel name or fallback to fuelType */
+  displayFuelName: string;
+  name?: string;
+  currentLevel: number;
+  capacity: number;
+  /** Percentage of capacity (0-100), clamped for negative levels */
+  percentFull: number;
+  
+  // Status info
+  /** Current status: 'normal' | 'low' | 'critical' | 'empty' | 'negative' | 'overflow' */
+  status: 'normal' | 'low' | 'critical' | 'empty' | 'negative' | 'overflow';
+  statusMessage?: string;
+  /** True if level is negative (indicates missed refill entry) */
+  isNegative: boolean;
+  
+  // Thresholds
+  lowThreshold: number;
+  criticalThreshold: number;
+  
+  // "Since last refill" tracking
+  lastRefill: {
+    date: string | null;
+    amount: number;
+    levelAfter: number | null;
+    /** Litres sold since last refill = levelAfterLastRefill - currentLevel */
+    salesSince: number;
+  };
+  
+  // Calibration
+  lastDip: {
+    reading: number | null;
+    date: string | null;
+  };
+  
+  // Settings
+  trackingMode: 'strict' | 'warning' | 'disabled';
+  allowNegative: boolean;
+  isActive: boolean;
+  
+  // Alert for negative level
+  alert?: {
+    type: 'negative_level';
+    severity: 'warning';
+    message: string;
+    suggestedAction: string;
+  };
 }
 
 export interface TankRefill {
   id: string;
   tankId: string;
   stationId: string;
+  /** Litres added (positive for refill, can be negative for corrections) */
   litres: number;
-  previousLevel: number;
-  newLevel: number;
+  /** Tank level before this refill */
+  tankLevelBefore?: number;
+  /** Tank level after this refill */
+  tankLevelAfter?: number;
+  /** @deprecated Use tankLevelBefore instead */
+  previousLevel?: number;
+  /** @deprecated Use tankLevelAfter instead */
+  newLevel?: number;
   refillDate: string;
   refillTime?: string;
   costPerLitre?: number;
   totalCost?: number;
   invoiceNumber?: string;
+  invoiceDate?: string;
   supplierName?: string;
   vehicleNumber?: string;
   driverName?: string;
+  driverPhone?: string;
+  /** Type of entry: 'refill' | 'adjustment' | 'correction' | 'initial' */
+  entryType: 'refill' | 'adjustment' | 'correction' | 'initial';
+  isBackdated?: boolean;
+  isVerified?: boolean;
+  verifiedBy?: string;
+  verifiedAt?: string;
   notes?: string;
-  recordedBy: string;
+  enteredBy: string;
+  /** @deprecated Use enteredBy instead */
+  recordedBy?: string;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Creditor {
