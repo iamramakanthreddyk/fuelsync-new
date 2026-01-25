@@ -2,6 +2,11 @@
  * Get readings for a station (test compatibility)
  * GET /stations/:stationId/readings
  */
+
+// Filter to exclude sample readings from all queries
+const { Op } = require('sequelize');
+const EXCLUDE_SAMPLE_READINGS = { isSample: { [Op.ne]: true } };
+
 exports.getStationReadings = async (req, res, next) => {
   try {
     const { stationId } = req.params;
@@ -66,7 +71,7 @@ exports.getStationReadings = async (req, res, next) => {
 
 const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, sequelize } = require('../models');
 const { logAudit } = require('../utils/auditLog');
-const { Op, fn, col } = require('sequelize');
+const { fn, col } = require('sequelize');
 const { FUEL_TYPES } = require('../config/constants');
 
 console.log('[INIT] stationController loaded');
@@ -162,8 +167,7 @@ exports.getStations = async (req, res, next) => {
     });
 
     // Calculate today's sales for each station
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = new Date().toISOString().split('T')[0];
     
     const stationIds = stations.map(s => s.id);
     const todaySalesData = await NozzleReading.findAll({
@@ -172,10 +176,9 @@ exports.getStations = async (req, res, next) => {
         [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'todaySales']
       ],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: { [Op.in]: stationIds },
-        readingDate: {
-          [Op.gte]: today
-        },
+        readingDate: today,
         [Op.or]: [
           { isInitialReading: false },
           { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
@@ -417,13 +420,17 @@ exports.getStation = async (req, res, next) => {
     }
 
     // Compute today's sales for this station
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    const today = new Date().toISOString().split('T')[0];
     const todaySalesResult = await NozzleReading.findOne({
       attributes: [[sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'todaySales']],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: id,
-        readingDate: { [Op.gte]: today }
+        readingDate: today,
+        [Op.or]: [
+          { isInitialReading: false },
+          { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+        ]
       },
       raw: true
     });

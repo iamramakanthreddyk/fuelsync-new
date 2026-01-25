@@ -8,12 +8,17 @@ const { Op, fn, col, literal } = require('sequelize');
 const { sequelize } = require('../models');
 const { FUEL_TYPE_LABELS } = require('../config/constants');
 
+// Filter to exclude sample readings from all analytics queries
+const EXCLUDE_SAMPLE_READINGS = { isSample: { [Op.ne]: true } };
+
 /**
  * Helper to get station filter based on user role
  * Handles owners who access stations via Station.ownerId (not User.stationId)
  */
-const getStationFilter = async (user) => {
-  if (user.role === 'super_admin') return {};
+const getStationFilter = async (user, requestedStationId = null) => {
+  if (user.role === 'super_admin') {
+    return requestedStationId ? { stationId: requestedStationId } : {};
+  }
   
   if (user.role === 'owner') {
     // Owner accesses stations they own via Station.ownerId
@@ -23,6 +28,15 @@ const getStationFilter = async (user) => {
     });
     const stationIds = ownerStations.map(s => s.id);
     if (stationIds.length === 0) return null;
+    
+    // If specific station requested, verify user has access
+    if (requestedStationId) {
+      if (!stationIds.includes(requestedStationId)) {
+        return null; // User doesn't have access to this station
+      }
+      return { stationId: requestedStationId };
+    }
+    
     return { stationId: { [Op.in]: stationIds } };
   }
   
@@ -69,6 +83,7 @@ exports.getSummary = async (req, res, next) => {
     const todayReadings = await NozzleReading.findAll({
       where: { 
         ...stationFilter, 
+        ...EXCLUDE_SAMPLE_READINGS,
         readingDate: today,
         [Op.or]: [
           { isInitialReading: false },
@@ -132,6 +147,7 @@ exports.getSummary = async (req, res, next) => {
     const pumpStats = await NozzleReading.findAll({
       where: { 
         ...stationFilter, 
+        ...EXCLUDE_SAMPLE_READINGS,
         readingDate: today,
         [Op.or]: [
           { isInitialReading: false },
@@ -203,7 +219,7 @@ exports.getSummary = async (req, res, next) => {
  */
 exports.getNozzleBreakdown = async (req, res, next) => {
   try {
-    const { startDate, endDate, pumpId, start_date, end_date, pump_id } = req.query;
+    const { startDate, endDate, pumpId, start_date, end_date, pump_id, stationId } = req.query;
     const user = await User.findByPk(req.userId);
     
     const today = new Date().toISOString().split('T')[0];
@@ -211,13 +227,14 @@ exports.getNozzleBreakdown = async (req, res, next) => {
     const end = endDate || end_date || today;
     const effectivePumpId = pumpId || pump_id;
 
-    const stationFilter = await getStationFilter(user);
+    const stationFilter = await getStationFilter(user, stationId);
     if (stationFilter === null) {
       return res.json({ success: true, data: { nozzles: [] } });
     }
 
     const whereClause = {
       ...stationFilter,
+      ...EXCLUDE_SAMPLE_READINGS,
       readingDate: { [Op.between]: [start, end] },
       [Op.or]: [
         { isInitialReading: false },
@@ -306,7 +323,7 @@ exports.getNozzleBreakdown = async (req, res, next) => {
  */
 exports.getDailySummary = async (req, res, next) => {
   try {
-    const { startDate, endDate, start_date, end_date } = req.query;
+    const { startDate, endDate, start_date, end_date, stationId } = req.query;
     const user = await User.findByPk(req.userId);
 
     const effectiveStartDate = startDate || start_date;
@@ -316,7 +333,7 @@ exports.getDailySummary = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'startDate and endDate are required' });
     }
 
-    const stationFilter = await getStationFilter(user);
+    const stationFilter = await getStationFilter(user, stationId);
     if (stationFilter === null) {
       return res.json({ success: true, data: [] });
     }
@@ -325,6 +342,7 @@ exports.getDailySummary = async (req, res, next) => {
     const readings = await NozzleReading.findAll({
       where: { 
         ...stationFilter, 
+        ...EXCLUDE_SAMPLE_READINGS,
         readingDate: { [Op.between]: [effectiveStartDate, effectiveEndDate] },
         [Op.or]: [
           { isInitialReading: false },
@@ -402,14 +420,14 @@ exports.getDailySummary = async (req, res, next) => {
 exports.getFuelBreakdown = async (req, res, next) => {
   try {
     // Accept both camelCase and snake_case
-    const { startDate, endDate, start_date, end_date } = req.query;
+    const { startDate, endDate, start_date, end_date, stationId } = req.query;
     const user = await User.findByPk(req.userId);
 
     const today = new Date().toISOString().split('T')[0];
     const start = startDate || start_date || today;
     const end = endDate || end_date || today;
 
-    const stationFilter = await getStationFilter(user);
+    const stationFilter = await getStationFilter(user, stationId);
     if (stationFilter === null) {
       return res.json({ success: true, data: { breakdown: [] } });
     }
@@ -418,6 +436,7 @@ exports.getFuelBreakdown = async (req, res, next) => {
     const readings = await NozzleReading.findAll({
       where: { 
         ...stationFilter, 
+        ...EXCLUDE_SAMPLE_READINGS,
         readingDate: { [Op.between]: [start, end] },
         [Op.or]: [
           { isInitialReading: false },
@@ -494,14 +513,14 @@ exports.getFuelBreakdown = async (req, res, next) => {
 exports.getPumpPerformance = async (req, res, next) => {
   try {
     // Accept both camelCase and snake_case
-    const { startDate, endDate, start_date, end_date } = req.query;
+    const { startDate, endDate, start_date, end_date, stationId } = req.query;
     const user = await User.findByPk(req.userId);
 
     const today = new Date().toISOString().split('T')[0];
     const start = startDate || start_date || today;
     const end = endDate || end_date || today;
 
-    const stationFilter = await getStationFilter(user);
+    const stationFilter = await getStationFilter(user, stationId);
     if (stationFilter === null) {
       return res.json({ success: true, data: { pumps: [] } });
     }
@@ -627,7 +646,7 @@ exports.getPumpPerformance = async (req, res, next) => {
  */
 exports.getFinancialOverview = async (req, res, next) => {
   try {
-    const { month } = req.query;
+    const { month, stationId } = req.query;
     const user = await User.findByPk(req.userId);
     
     const targetMonth = month || new Date().toISOString().slice(0, 7);
@@ -635,7 +654,7 @@ exports.getFinancialOverview = async (req, res, next) => {
     const startDate = `${year}-${mon}-01`;
     const endDate = new Date(year, mon, 0).toISOString().split('T')[0];
 
-    const stationFilter = await getStationFilter(user);
+    const stationFilter = await getStationFilter(user, stationId);
     if (stationFilter === null) {
       return res.json({ success: true, data: { month: targetMonth, noData: true } });
     }
@@ -644,6 +663,7 @@ exports.getFinancialOverview = async (req, res, next) => {
     const salesResult = await NozzleReading.findOne({
       where: { 
         ...stationFilter, 
+        ...EXCLUDE_SAMPLE_READINGS,
         readingDate: { [Op.between]: [startDate, endDate] },
         [Op.or]: [
           { isInitialReading: false },
@@ -963,6 +983,7 @@ exports.getOwnerStats = async (req, res, next) => {
         }]
       }],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         readingDate: {
           [Op.gte]: today
         }
@@ -993,6 +1014,7 @@ exports.getOwnerStats = async (req, res, next) => {
         }]
       }],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         readingDate: {
           [Op.gte]: monthStart
         }
@@ -1091,6 +1113,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
         [fn('SUM', col('litres_sold')), 'totalQuantity']
       ],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [effectiveStartDate, effectiveEndDate]
@@ -1106,6 +1129,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
         [fn('SUM', col('litres_sold')), 'totalQuantity']
       ],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [prevStart.toISOString().split('T')[0], prevEnd.toISOString().split('T')[0]]
@@ -1144,6 +1168,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
         [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales']
       ],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
@@ -1181,6 +1206,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
         attributes: []
       }],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
@@ -1213,6 +1239,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
         [fn('SUM', col('litres_sold')), 'quantity']
       ],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
@@ -1253,6 +1280,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
             [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales']
           ],
           where: {
+            ...EXCLUDE_SAMPLE_READINGS,
             stationId: s.stationId,
             readingDate: {
               [Op.between]: [prevStart.toISOString().split('T')[0], prevEnd.toISOString().split('T')[0]]
@@ -1368,6 +1396,7 @@ exports.getIncomeReceivablesReport = async (req, res, next) => {
     // Get all readings for the period
     const readings = await NozzleReading.findAll({
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId,
         readingDate: { [Op.between]: [queryStart, queryEnd] }
       },

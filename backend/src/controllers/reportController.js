@@ -6,6 +6,9 @@
 const { NozzleReading, Nozzle, Pump, Station, User, Shift, sequelize } = require('../models');
 const { Op, fn, col } = require('sequelize');
 
+// Filter to exclude sample readings from all reports
+const EXCLUDE_SAMPLE_READINGS = { isSample: { [Op.ne]: true } };
+
 /**
  * Helper to get station filter based on user role
  */
@@ -74,6 +77,7 @@ exports.getSalesReports = async (req, res, next) => {
         [fn('COUNT', col('NozzleReading.id')), 'totalTransactions']
       ],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
@@ -95,6 +99,7 @@ exports.getSalesReports = async (req, res, next) => {
         [fn('COUNT', col('NozzleReading.id')), 'transactions']
       ],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: { [Op.in]: stationIds },
         readingDate: {
           [Op.between]: [startDate, endDate]
@@ -332,6 +337,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         }]
       }],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         pumpId: { [Op.in]: pumpIds }, // Filter by pump IDs we know belong to user's stations
         readingDate: {
           [Op.between]: [startDate, endDate]
@@ -363,6 +369,7 @@ exports.getPumpPerformance = async (req, res, next) => {
         required: false
       }],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         pumpId: { [Op.in]: pumpIds }, // Filter by pump IDs
         readingDate: {
           [Op.between]: [startDate, endDate]
@@ -478,6 +485,7 @@ exports.getDailySalesReport = async (req, res, next) => {
         [fn('COUNT', col('NozzleReading.id')), 'readingsCount']
       ],
       where: {
+        ...EXCLUDE_SAMPLE_READINGS,
         stationId: { [Op.in]: stationIds },
         readingDate: queryDate
       },
@@ -682,6 +690,161 @@ exports.getSampleReadingsReport = async (req, res, next) => {
 
   } catch (error) {
     console.error('Sample readings report error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Get sample reading statistics and frequency
+ * Shows testing frequency and patterns for quality verification
+ * GET /api/v1/reports/sample-statistics
+ * Query: ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&stationId=uuid
+ */
+exports.getSampleStatistics = async (req, res, next) => {
+  try {
+    const { startDate, endDate, stationId } = req.query;
+    const user = await User.findByPk(req.userId);
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'Start date and end date are required'
+      });
+    }
+
+    const stationFilter = await getStationFilter(user, stationId);
+    if (stationFilter === null) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized'
+      });
+    }
+
+    const stations = await Station.findAll({
+      where: stationFilter,
+      attributes: ['id', 'name', 'code']
+    });
+
+    if (stations.length === 0) {
+      return res.json({ success: true, data: { summary: {}, details: [] } });
+    }
+
+    const stationIds = stations.map(s => s.id);
+
+    // Get sample reading statistics
+    const stats = await NozzleReading.findAll({
+      attributes: [
+        'readingDate',
+        [fn('COUNT', col('id')), 'sampleCount'],
+        [fn('SUM', col('litres_sold')), 'totalLitres'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalValue']
+      ],
+      where: {
+        stationId: { [Op.in]: stationIds },
+        readingDate: { [Op.between]: [startDate, endDate] },
+        isSample: true
+      },
+      group: ['readingDate'],
+      order: [['readingDate', 'DESC']],
+      raw: true
+    });
+
+    // Get per-nozzle frequency
+    const nozzleFrequency = await NozzleReading.findAll({
+      attributes: [
+        'nozzleId',
+        'stationId',
+        [fn('COUNT', col('id')), 'sampleCount'],
+        [fn('MAX', col('created_at')), 'lastSampleDate']
+      ],
+      include: [{
+        model: Nozzle,
+        as: 'nozzle',
+        attributes: ['id', 'nozzleNumber', 'fuelType'],
+        include: [{
+          model: Pump,
+          as: 'pump',
+          attributes: ['id', 'pumpNumber', 'name']
+        }]
+      }],
+      where: {
+        stationId: { [Op.in]: stationIds },
+        readingDate: { [Op.between]: [startDate, endDate] },
+        isSample: true
+      },
+      group: ['nozzleId', 'stationId', 'nozzle.id', 'nozzle->pump.id'],
+      order: [[col('COUNT(id)'), 'DESC']],
+      raw: false
+    });
+
+    // Get per-user frequency (who performed the tests)
+    const userFrequency = await NozzleReading.findAll({
+      attributes: [
+        'enteredBy',
+        [fn('COUNT', col('id')), 'sampleCount'],
+        [fn('MAX', col('created_at')), 'lastSampleDate']
+      ],
+      include: [{
+        model: User,
+        as: 'enteredByUser',
+        attributes: ['id', 'name', 'email', 'role']
+      }],
+      where: {
+        stationId: { [Op.in]: stationIds },
+        readingDate: { [Op.between]: [startDate, endDate] },
+        isSample: true
+      },
+      group: ['enteredBy', 'enteredByUser.id'],
+      order: [[col('COUNT(id)'), 'DESC']],
+      raw: false
+    });
+
+    // Calculate summary statistics
+    const totalSamples = stats.reduce((sum, s) => sum + (parseInt(s.sampleCount) || 0), 0);
+    const avgSamplesPerDay = stats.length > 0 ? (totalSamples / stats.length).toFixed(2) : 0;
+    const daysWithSamples = stats.length;
+    const totalDays = Math.floor((new Date(endDate) - new Date(startDate)) / (1000 * 60 * 60 * 24)) + 1;
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          dateRange: { startDate, endDate },
+          totalDays,
+          daysWithSamples,
+          totalSampleReadings: totalSamples,
+          avgSamplesPerDay,
+          testingCoverage: `${((daysWithSamples / totalDays) * 100).toFixed(1)}%`,
+          stationsIncluded: stations.length
+        },
+        dailyStats: stats.map(s => ({
+          date: s.readingDate,
+          sampleCount: parseInt(s.sampleCount),
+          totalLitres: parseFloat(s.totalLitres || 0),
+          totalValue: parseFloat(s.totalValue || 0)
+        })),
+        nozzleFrequency: nozzleFrequency.map(n => ({
+          nozzleId: n.nozzleId,
+          nozzleNumber: n.nozzle?.nozzleNumber,
+          fuelType: n.nozzle?.fuelType,
+          pumpNumber: n.nozzle?.pump?.pumpNumber,
+          pumpName: n.nozzle?.pump?.name,
+          sampleCount: parseInt(n.dataValues.sampleCount),
+          lastSampleDate: n.dataValues.lastSampleDate
+        })),
+        userFrequency: userFrequency.map(u => ({
+          userId: u.enteredBy,
+          userName: u.enteredByUser?.name,
+          userEmail: u.enteredByUser?.email,
+          userRole: u.enteredByUser?.role,
+          sampleCount: parseInt(u.dataValues.sampleCount),
+          lastSampleDate: u.dataValues.lastSampleDate
+        }))
+      }
+    });
+
+  } catch (error) {
+    console.error('Sample statistics error:', error);
     next(error);
   }
 };
