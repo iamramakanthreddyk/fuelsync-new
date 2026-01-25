@@ -1158,6 +1158,8 @@ exports.getOwnerAnalytics = async (req, res, next) => {
     const prevQuantity = parseFloat(previousPeriod?.totalQuantity || 0);
 
     const salesGrowth = prevSales > 0 ? ((totalSales - prevSales) / prevSales) * 100 : 0;
+    // Note: quantityGrowth is now calculated per fuel type (see salesByFuelTypeData)
+    // Combined quantity doesn't make sense since fuel types are different products
     const quantityGrowth = prevQuantity > 0 ? ((totalQuantity - prevQuantity) / prevQuantity) * 100 : 0;
     const averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
 
@@ -1191,8 +1193,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       };
     });
 
-    // Sales by fuel type
-
+    // Sales by fuel type - current period
     // Join NozzleReading with Nozzle to get canonical fuelType
     const salesByFuelType = await NozzleReading.findAll({
       attributes: [
@@ -1216,19 +1217,65 @@ exports.getOwnerAnalytics = async (req, res, next) => {
       raw: true
     });
 
+    // Sales by fuel type - previous period (for growth calculation)
+    const prevSalesByFuelType = await NozzleReading.findAll({
+      attributes: [
+        [sequelize.col('nozzle.fuel_type'), 'fuelType'],
+        [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
+        [fn('SUM', col('litres_sold')), 'quantity']
+      ],
+      include: [{
+        model: Nozzle,
+        as: 'nozzle',
+        attributes: []
+      }],
+      where: {
+        ...EXCLUDE_SAMPLE_READINGS,
+        stationId: { [Op.in]: stationIds },
+        readingDate: {
+          [Op.between]: [prevStart.toISOString().split('T')[0], prevEnd.toISOString().split('T')[0]]
+        }
+      },
+      group: ['nozzle.fuel_type'],
+      raw: true
+    });
+
+    const prevFuelTypeMap = new Map(prevSalesByFuelType.map(f => [f.fuelType || 'Unknown', { quantity: parseFloat(f.quantity || 0), sales: parseFloat(f.sales || 0) }]));
+
     const salesByFuelTypeData = salesByFuelType.map(f => {
       const sales = parseFloat(f.sales || 0);
+      const quantity = parseFloat(f.quantity || 0);
+      const fuelType = f.fuelType ? f.fuelType : 'Unknown';
+      
+      // Calculate growth per fuel type
+      const prevData = prevFuelTypeMap.get(fuelType) || { quantity: 0, sales: 0 };
+      const quantityGrowth = prevData.quantity > 0 ? ((quantity - prevData.quantity) / prevData.quantity) * 100 : 0;
+      const salesGrowthFuel = prevData.sales > 0 ? ((sales - prevData.sales) / prevData.sales) * 100 : 0;
+      
       return {
-        fuelType: f.fuelType ? f.fuelType : 'Unknown',
+        fuelType,
         sales,
-        quantity: parseFloat(f.quantity || 0),
-        percentage: totalSales > 0 ? (sales / totalSales) * 100 : 0
+        quantity,
+        percentage: totalSales > 0 ? (sales / totalSales) * 100 : 0,
+        quantityGrowth: Math.round(quantityGrowth * 100) / 100,
+        salesGrowth: Math.round(salesGrowthFuel * 100) / 100
       };
     });
 
-    // Recompute totals from aggregates to be robust against dialect/aliasing differences
+    // Recompute total sales from aggregates to be robust against dialect/aliasing differences
     totalSales = salesByStationData.reduce((s, it) => s + (it.sales || 0), 0);
+    
+    // Compute total quantity from fuel type breakdown
+    // Note: This is a sum across different fuel types (diesel + petrol + cng, etc.)
+    // It's provided for UI display/reference only. For analytics, use per-fuel-type quantities in salesByFuelType
     totalQuantity = salesByFuelTypeData.reduce((s, it) => s + (it.quantity || 0), 0);
+    
+    // Compute WEIGHTED average quantity growth across fuel types
+    // Weight each fuel type's growth by its quantity percentage
+    // This reflects actual volume growth, not just averaging different rates
+    const avgQuantityGrowth = totalQuantity > 0
+      ? salesByFuelTypeData.reduce((s, it) => s + ((it.quantityGrowth || 0) * (it.quantity || 0)), 0) / totalQuantity
+      : 0;
 
     // Daily trend
     // Daily trend: sales and quantity from readings; transactions from DailyTransaction (one transaction may reference many readings)
@@ -1350,10 +1397,13 @@ exports.getOwnerAnalytics = async (req, res, next) => {
         overview: {
           totalSales,
           totalQuantity,
+          // Note: totalQuantity is sum of different fuel types - for UI reference only
+          // For detailed analysis, see salesByFuelType array with per-fuel quantities and growth
           totalTransactions,
           averageTransaction,
           salesGrowth,
-          quantityGrowth
+          quantityGrowth: Math.round(avgQuantityGrowth * 100) / 100
+          // Note: quantityGrowth is average growth across fuel types - see salesByFuelType for per-fuel growth
         },
         salesByStation: salesByStationData,
         salesByFuelType: salesByFuelTypeData,
