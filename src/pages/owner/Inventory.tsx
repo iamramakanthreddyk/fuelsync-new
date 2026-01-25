@@ -18,7 +18,8 @@ import {
   useRecordRefill, 
   useCalibrateTank, 
   useUpdateTank,
-  useTankRefills
+  useTankRefills,
+  useFuelPrices
 } from '@/hooks/api';
 import { useToast } from '@/hooks/use-toast';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -49,6 +50,8 @@ import {
   AlertCircle,
   Truck,
   Gauge,
+  TrendingUp,
+  AlertOctagon,
 } from 'lucide-react';
 import { FUEL_TYPE_OPTIONS, type FuelType } from '@/lib/constants';
 import { getFuelColors } from '@/lib/fuelColors';
@@ -129,6 +132,10 @@ export default function Inventory() {
 
   // Tanks query
   const { data: tanksResponse, isLoading: tanksLoading, refetch: refetchTanks } = useTanks(selectedStationId);
+  
+  // Fuel prices for cost validation
+  const { data: pricesResponse } = useFuelPrices(selectedStationId);
+  const fuelPrices = (pricesResponse?.data || {}) as Record<string, string>;
   
   // Transform API Tank data to TankData with computed properties
   // Handle both camelCase and snake_case from API
@@ -306,12 +313,19 @@ export default function Inventory() {
   
   const refills = refillsResponse?.data || [];
   
+  // Get current selling price for selected tank
+  const getCurrentFuelPrice = () => {
+    if (!selectedTank) return null;
+    const fuelType = selectedTank.fuelType;
+    return fuelPrices && fuelPrices[fuelType] ? parseFloat(fuelPrices[fuelType]) : null;
+  };
+  
   // Calculate refill stats
   const refillStats = {
     totalRefills: refills.length,
     totalAmount: refills.reduce((sum, r: any) => sum + (r.litres || r.amount || 0), 0),
     averageAmount: refills.length > 0 ? Math.round(refills.reduce((sum, r: any) => sum + (r.litres || r.amount || 0), 0) / refills.length * 10) / 10 : 0,
-    lastRefillDate: refills.length > 0 ? new Date(refills[0]?.refillDate || refills[0]?.created_at).toLocaleDateString() : 'N/A'
+    lastRefillDate: refills.length > 0 ? new Date(refills[0]?.refillDate || refills[0]?.createdAt).toLocaleDateString() : 'N/A'
   };
   const renderTankCard = (tank: TankData) => {
     const fuelColors = getFuelColors(tank.fuelType);
@@ -649,11 +663,11 @@ export default function Inventory() {
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-3">
                   <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-teal-100 shadow-sm">
                     <p className="text-[9px] sm:text-xs text-slate-600 font-bold uppercase tracking-tight mb-2 line-clamp-2 h-8 sm:h-auto">Total Refills</p>
-                    <p className="text-xl sm:text-3xl font-bold text-teal-600">{refillStats.totalRefills}</p>
+                    <p className="text-lg sm:text-xl font-bold text-teal-600">{refillStats.totalRefills}</p>
                   </div>
                   <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-teal-100 shadow-sm">
                     <p className="text-[9px] sm:text-xs text-slate-600 font-bold uppercase tracking-tight mb-2 line-clamp-2 h-8 sm:h-auto">Total Liters</p>
-                    <p className="text-lg sm:text-3xl font-bold text-cyan-600 break-words">
+                    <p className="text-base sm:text-lg font-bold text-cyan-600 break-words">
                       {refillStats.totalAmount >= 1000 
                         ? (refillStats.totalAmount / 1000).toFixed(1) + 'k'
                         : refillStats.totalAmount.toLocaleString()
@@ -662,7 +676,7 @@ export default function Inventory() {
                   </div>
                   <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-teal-100 shadow-sm">
                     <p className="text-[9px] sm:text-xs text-slate-600 font-bold uppercase tracking-tight mb-2 line-clamp-2 h-8 sm:h-auto">Avg/Refill</p>
-                    <p className="text-lg sm:text-3xl font-bold text-blue-600 break-words">
+                    <p className="text-base sm:text-lg font-bold text-blue-600 break-words">
                       {refillStats.averageAmount >= 1000 
                         ? (refillStats.averageAmount / 1000).toFixed(1) + 'k'
                         : refillStats.averageAmount.toLocaleString()
@@ -970,15 +984,62 @@ export default function Inventory() {
                 value={refillData.costPerLitre}
                 onChange={(e) => setRefillData({ ...refillData, costPerLitre: e.target.value })}
               />
+              {(() => {
+                const currentPrice = getCurrentFuelPrice();
+                return refillData.costPerLitre && currentPrice && (
+                  <div className="space-y-2">
+                    {parseFloat(refillData.costPerLitre) >= currentPrice ? (
+                      <div className="bg-red-50 border border-red-300 rounded-lg p-3 flex gap-2">
+                        <AlertOctagon className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-red-800">
+                          <div className="font-semibold">⚠️ Cost Error</div>
+                          <div className="text-xs mt-1">Buying cost (₹{refillData.costPerLitre}/L) cannot be ≥ selling price (₹{currentPrice}/L)</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="bg-green-50 border border-green-300 rounded-lg p-3 flex gap-2">
+                        <TrendingUp className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+                        <div className="text-sm text-green-800">
+                          <div className="font-semibold">✓ Profit Margin</div>
+                          <div className="text-xs mt-1">
+                            Buying: ₹{refillData.costPerLitre}/L | Selling: ₹{currentPrice}/L | Margin: ₹{(currentPrice - parseFloat(refillData.costPerLitre)).toFixed(2)}/L ({(((currentPrice - parseFloat(refillData.costPerLitre)) / currentPrice) * 100).toFixed(1)}%)
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
           <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <Button variant="outline" onClick={() => setShowRefillDialog(false)} className="w-full sm:w-auto border-slate-300 hover:bg-slate-50">
               Cancel
             </Button>
-            <Button onClick={handleRefill} disabled={recordRefillMutation.isPending} className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all">
-              {recordRefillMutation.isPending ? 'Recording...' : 'Record Refill'}
-            </Button>
+            {(() => {
+              const currentPrice = getCurrentFuelPrice();
+              return (
+                <Button 
+                  onClick={handleRefill} 
+                  disabled={
+                    recordRefillMutation.isPending || 
+                    (refillData.costPerLitre !== '' && 
+                     currentPrice !== null && 
+                     parseFloat(refillData.costPerLitre) >= currentPrice)
+                  } 
+                  className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all"
+                  title={
+                    refillData.costPerLitre !== '' && 
+                    currentPrice !== null && 
+                    parseFloat(refillData.costPerLitre) >= currentPrice 
+                      ? "Fix cost price to proceed" 
+                      : ""
+                  }
+                >
+                  {recordRefillMutation.isPending ? 'Recording...' : 'Record Refill'}
+                </Button>
+              );
+            })()}
           </DialogFooter>
         </DialogContent>
       </Dialog>

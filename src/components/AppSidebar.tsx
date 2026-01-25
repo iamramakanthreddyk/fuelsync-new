@@ -212,11 +212,10 @@ export function AppSidebar() {
         // Inventory and Prices only visible to managers, not employees
         ...(isManager ? [{
           title: "Inventory",
-          url: "/inventory",
+          url: "/manager/inventory",
           icon: Droplets,
           color: "text-cyan-600",
           bgColor: "bg-cyan-50",
-
         }] : []),
       ]
     },

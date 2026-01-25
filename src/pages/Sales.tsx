@@ -15,13 +15,13 @@ import {
   SelectTrigger,
   SelectValue
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
 import {
   Filter,
   Download,
   Fuel,
   DollarSign,
-  BarChart3
+  BarChart3,
+  Info
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -46,8 +46,11 @@ export default function Sales() {
   const [productType, setProductType] = useState<string>("");
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
 
-  const { toast } = useToast();
-  const { data: sales, isLoading } = useSalesData(dateRange.start ? new Date(dateRange.start).toISOString().split('T')[0] : undefined);
+  const { data: sales, isLoading } = useSalesData(
+    undefined,
+    dateRange.start ? new Date(dateRange.start).toISOString().split('T')[0] : undefined,
+    dateRange.end ? new Date(dateRange.end).toISOString().split('T')[0] : undefined
+  );
   const { currentStation, canAccessAllStations, stations, isManager } = useRoleAccess();
 
   
@@ -85,7 +88,7 @@ export default function Sales() {
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Sales Management</h1>
           <p className="text-muted-foreground">
-            Track and manage fuel sales {currentStation ? `for ${currentStation.name}` : 'across all stations'}
+            {isManager ? 'View fuel sales across all stations' : `Track fuel sales for ${currentStation?.name || 'your station'}`}
           </p>
         </div>
       </div>
@@ -98,8 +101,8 @@ export default function Sales() {
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
-              ${sales?.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold break-words">
+              ₹{sales?.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
             </div>
           </CardContent>
         </Card>
@@ -110,7 +113,7 @@ export default function Sales() {
             <Fuel className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold break-words">
               {sales?.reduce((sum, sale) => sum + (sale.deltaVolumeL || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || '0.0'} L
             </div>
           </CardContent>
@@ -122,7 +125,7 @@ export default function Sales() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{sales?.length || 0}</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{sales?.length || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -139,21 +142,52 @@ export default function Sales() {
           </Button>
         </CollapsibleTrigger>
         <CollapsibleContent className="space-y-4 pt-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="md:col-span-2 lg:col-span-1">
               <Label>Date Range</Label>
-              {/* Date range picker would go here */}
-              <div className="text-sm text-muted-foreground">Today</div>
+              <div className="space-y-2 mt-2">
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">From</label>
+                    <input
+                      type="date"
+                      value={dateRange.start ? new Date(dateRange.start).toISOString().split('T')[0] : ''}
+                      onChange={(e) => {
+                        const date = e.target.value ? new Date(e.target.value) : null;
+                        setDateRange(prev => ({ ...prev, start: date }));
+                      }}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1">To</label>
+                    <input
+                      type="date"
+                      value={dateRange.end ? new Date(dateRange.end).toISOString().split('T')[0] : ''}
+                      onChange={(e) => {
+                        const date = e.target.value ? new Date(e.target.value) : null;
+                        setDateRange(prev => ({ ...prev, end: date }));
+                      }}
+                      className="w-full px-3 py-2 border rounded-md text-sm"
+                    />
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground bg-slate-50 p-2 rounded">
+                  {dateRange.start && dateRange.end
+                    ? `${new Date(dateRange.start).toLocaleDateString('en-IN')} - ${new Date(dateRange.end).toLocaleDateString('en-IN')}`
+                    : 'Select date range'}
+                </div>
+              </div>
             </div>
 
             <div>
               <Label>Fuel Type</Label>
-              <Select value={productType} onValueChange={setProductType}>
-                <SelectTrigger>
+              <Select value={productType || 'all'} onValueChange={(value) => setProductType(value === 'all' ? '' : value)}>
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="All fuels" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All fuels</SelectItem>
+                  <SelectItem value="all">All fuels</SelectItem>
                   <SelectItem value="PETROL">Petrol</SelectItem>
                   <SelectItem value="DIESEL">Diesel</SelectItem>
                   <SelectItem value="CNG">CNG</SelectItem>
@@ -163,12 +197,12 @@ export default function Sales() {
 
             <div>
               <Label>Station</Label>
-              <Select value={selectedStationId?.toString() || ""} onValueChange={(value) => setSelectedStationId(value ? parseInt(value) : null)}>
-                <SelectTrigger>
+              <Select value={selectedStationId?.toString() || 'all'} onValueChange={(value) => setSelectedStationId(value === 'all' ? null : parseInt(value))}>
+                <SelectTrigger className="mt-2">
                   <SelectValue placeholder="All stations" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">All stations</SelectItem>
+                  <SelectItem value="all">All stations</SelectItem>
                   {stations?.map(station => (
                     <SelectItem key={station.id} value={station.id.toString()}>
                       {station.name}
@@ -220,14 +254,14 @@ export default function Sales() {
                     <div className="flex items-center gap-4">
                       <div className={`w-3 h-3 rounded-full ${getFuelColors(sale.fuelType).dot}`} />
                       <div>
-                        <div className="font-medium">{FUEL_TYPE_LABELS[sale.fuelType] || sale.fuelType}</div>
+                        <div className="font-medium">{FUEL_TYPE_LABELS[sale.fuelType.toLowerCase() as keyof typeof FUEL_TYPE_LABELS] || sale.fuelType}</div>
                         <div className="text-sm text-muted-foreground">
                           {sale.pumpName || `Pump ${sale.pumpId}`} • Nozzle {sale.nozzleNumber || sale.nozzleId}
                         </div>
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium">${(sale.totalAmount || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="font-medium">₹{(sale.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       <div className="text-sm text-muted-foreground">{(sale.deltaVolumeL || 0).toFixed(1)} L</div>
                     </div>
                   </div>
@@ -240,6 +274,7 @@ export default function Sales() {
           )}
         </CardContent>
       </Card>
+
     </div>
   );
 }

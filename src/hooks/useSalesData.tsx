@@ -25,11 +25,11 @@ export interface Sale {
   createdAt: string;
 }
 
-export function useSalesData(date?: string) {
+export function useSalesData(date?: string, startDate?: string, endDate?: string) {
   const { currentStation, canAccessAllStations, role } = useRoleAccess();
 
   return useQuery({
-    queryKey: ['sales', currentStation?.id, date],
+    queryKey: ['sales', currentStation?.id, date, startDate, endDate],
     queryFn: async (): Promise<Sale[]> => {
       if (!canAccessAllStations && !currentStation?.id && role !== 'manager') {
         return [];
@@ -42,7 +42,10 @@ export function useSalesData(date?: string) {
         params.append('station_id', currentStation.id.toString());
       }
 
-      if (date) {
+      if (startDate && endDate) {
+        params.append('start_date', startDate);
+        params.append('end_date', endDate);
+      } else if (date) {
         params.append('date', date);
       }
 

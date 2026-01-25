@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { getFuelBadgeClasses } from '@/lib/fuelColors';
+import { getFuelBadgeClasses, getFuelColors } from '@/lib/fuelColors';
 import { apiClient } from "@/lib/api-client";
 import { Plus, Fuel, Gauge, ClipboardEdit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
@@ -223,17 +223,18 @@ export default function Pumps() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
         {Array.isArray(pumps) && pumps.length > 0 ? pumps.map((pump) => (
-          <Card key={pump.id} className="relative">
-            <CardHeader>
-              <div className="flex justify-between items-start">
+          <Card key={pump.id} className="relative shadow-lg hover:shadow-2xl transition-shadow duration-200">
+            <CardHeader className="pb-2">
+              <div className="flex justify-between items-center">
                 <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Fuel className="w-5 h-5" />
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Fuel className="w-6 h-6 text-blue-500" />
                     {pump.name}
                   </CardTitle>
-                  <CardDescription>
+                  <CardDescription className="text-base text-gray-500">
                     Pump #{pump.pumpNumber}
                   </CardDescription>
                 </div>
@@ -244,8 +245,8 @@ export default function Pumps() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <div className="flex justify-between items-center mb-2">
-                  <h4 className="font-medium">Nozzles ({pump.nozzles?.length || 0})</h4>
+                <div className="flex justify-between items-center mb-3">
+                  <h4 className="font-semibold text-lg">Nozzles <span className="text-xs text-muted-foreground">({pump.nozzles?.length || 0})</span></h4>
                   {(isOwner || isAdmin) && (
                     <Dialog open={isAddNozzleOpen && selectedPumpId === String(pump.id)} onOpenChange={(open) => {
                       setIsAddNozzleOpen(open);
@@ -281,33 +282,37 @@ export default function Pumps() {
                     </Dialog>
                   )}
                 </div>
-                
-                <div className="space-y-2">
-                  {pump.nozzles?.map((nozzle) => (
-                    <div key={nozzle.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border">
-                      <div className="flex-1">
+                <div className="flex flex-wrap gap-3">
+                  {pump.nozzles?.map((nozzle) => {
+                    // Use API property names: fuelType, nozzleNumber
+                    const fuelColors = getFuelColors(nozzle.fuelType);
+                    return (
+                      <div
+                        key={nozzle.id}
+                        className={`flex flex-col min-w-[170px] max-w-[260px] flex-1 p-3 rounded-xl border shadow-sm ${fuelColors.bg} ${fuelColors.text} ${fuelColors.border} transition-all duration-200`}
+                        style={{ borderWidth: 2 }}
+                      >
                         <div className="flex items-center gap-2 mb-1">
-                          <Gauge className="w-4 h-4" />
-                          <span className="font-medium">Nozzle #{nozzle.nozzle_number}</span>
-                          <Badge className={getFuelBadgeClasses(nozzle.fuel_type)}>
-                            {nozzle.fuel_type}
-                          </Badge>
-                          <Badge variant="outline" className={nozzle.status === EquipmentStatusEnum.ACTIVE ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}>
-                            {nozzle.status === EquipmentStatusEnum.ACTIVE ? 'Active' : 'Inactive'}
-                          </Badge>
+                          <span className={`w-3 h-3 rounded-full ${fuelColors.dot}`} />
+                          <span className="font-semibold">Nozzle #{nozzle.nozzleNumber}</span>
+                          <Badge className={`ml-2 px-1.5 py-0.5 text-xs break-words max-w-[120px] whitespace-normal leading-tight ${fuelColors.bg} ${fuelColors.text} border-none`}>{nozzle.fuelType}</Badge>
+                        </div>
+                        <div className="flex items-center gap-2 mb-1">
+                          <Gauge className="w-4 h-4 opacity-70" />
+                          <span className="text-xs">{nozzle.status === EquipmentStatusEnum.ACTIVE ? 'Active' : 'Inactive'}</span>
                         </div>
                         {nozzle.lastReading ? (
-                          <div className="text-xs text-muted-foreground ml-6">
+                          <div className="text-xs text-gray-700 ml-1">
                             Last: {nozzle.lastReading.toLocaleString()} L
                           </div>
                         ) : (
-                          <div className="text-xs text-muted-foreground ml-6">
+                          <div className="text-xs text-gray-700 ml-1">
                             Initial: {nozzle.initialReading?.toLocaleString() || 0} L
                           </div>
                         )}
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             </CardContent>
