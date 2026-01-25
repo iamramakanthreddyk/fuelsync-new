@@ -3,6 +3,7 @@ interface NozzleReadingRowProps {
   nozzle: any;
   readings: Record<string, ReadingEntry>;
   handleReadingChange: (nozzleId: string, value: string) => void;
+  handleSampleChange: (nozzleId: string, isSample: boolean) => void;
   hasPriceForFuelType: (fuelType: string) => boolean;
   getPrice: (fuelType: string) => number;
   lastReading?: number | null;
@@ -12,6 +13,7 @@ function NozzleReadingRow({
   nozzle,
   readings,
   handleReadingChange,
+  handleSampleChange,
   hasPriceForFuelType,
   getPrice,
   lastReading,
@@ -76,8 +78,8 @@ function NozzleReadingRow({
           )}
         </div>
 
-        {/* Sale calculation - Only show when valid */}
-        {reading?.readingValue && enteredValue !== undefined && enteredValue > compareValue && hasFuelPrice && (
+        {/* Sale calculation - Only show when valid and NOT a sample reading */}
+        {reading?.readingValue && enteredValue !== undefined && enteredValue > compareValue && hasFuelPrice && !reading.is_sample && (
           <div className="mt-3 p-3 bg-emerald-50 rounded-lg border-2 border-emerald-200">
             <ReadingSaleCalculation
               nozzleNumber={nozzle.nozzleNumber}
@@ -89,6 +91,23 @@ function NozzleReadingRow({
             />
           </div>
         )}
+
+        {/* Sample Reading Checkbox */}
+        <div className="mt-3 p-3 bg-blue-50 rounded-lg border-2 border-blue-200">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={reading?.is_sample || false}
+              onChange={(e) => handleSampleChange(nozzle.id, e.target.checked)}
+              className="mt-0.5 w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
+              disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
+            />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-bold text-blue-900">Quality Check / Sample Reading</p>
+              <p className="text-xs text-blue-700 mt-0.5">Mark this if fuel was tested and returned to tank</p>
+            </div>
+          </label>
+        </div>
 
         {/* Error message - Only show when needed */}
         {!hasFuelPrice && (
@@ -186,6 +205,7 @@ interface ReadingEntry {
   readingValue: string;
   date: string;
   paymentType: string;
+  is_sample?: boolean;
 }
 
 interface CreditAllocation {
@@ -311,6 +331,8 @@ export default function QuickDataEntry() {
       Object.entries(readings).forEach(([nozzleId, reading]) => {
         if (!validNozzleIds.has(nozzleId)) return;
         if (!reading || !reading.readingValue) return;
+        // Skip sample readings - they don't contribute to sale value
+        if (reading.is_sample) return;
         // Find the nozzle object
         const nozzle = pumpsArray.flatMap(p => p.nozzles || []).find((nz: any) => nz.id === nozzleId);
         if (!nozzle) return;
@@ -400,21 +422,34 @@ export default function QuickDataEntry() {
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
     mutationFn: async (data: ReadingEntry[]) => {
-      // Validate payment allocation matches sale value
-      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
-      const totalPayment = paymentAllocation.cash + paymentAllocation.online + totalCredit;
-      if (totalPayment > saleSummary.totalSaleValue) {
-        throw new Error(
-          `Total payment (₹${safeToFixed(totalPayment, 2)}) cannot exceed sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
-        );
-      }
-      if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
-        throw new Error(
-          `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
-        );
+      // Separate sample and non-sample readings
+      const nonSampleReadings = data.filter(r => !r.is_sample);
+
+      // Only validate payment if there are non-sample readings
+      if (nonSampleReadings.length > 0) {
+        const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+        const totalPayment = paymentAllocation.cash + paymentAllocation.online + totalCredit;
+        
+        if (totalPayment === 0) {
+          throw new Error(
+            `Payment required: At least one payment method (cash, online, or credit) must be greater than 0 for sale value ₹${safeToFixed(saleSummary.totalSaleValue, 2)}`
+          );
+        }
+        
+        if (totalPayment > saleSummary.totalSaleValue) {
+          throw new Error(
+            `Total payment (₹${safeToFixed(totalPayment, 2)}) cannot exceed sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
+          );
+        }
+        if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
+          throw new Error(
+            `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
+          );
+        }
       }
 
       // Build per-entry sale values so we can distribute payments proportionally
+      // Note: Sample readings don't contribute to payment allocation but are still submitted
       const entriesWithSale = data.map(entry => {
         const nozzle = pumps?.flatMap(p => p.nozzles || []).find((n: any) => n.id === entry.nozzleId);
         const trueLastReading = allLastReadings ? allLastReadings[entry.nozzleId] : undefined;
@@ -422,19 +457,22 @@ export default function QuickDataEntry() {
           ? trueLastReading
           : (nozzle?.initialReading || 0);
         const { saleValue } = calculateNozzleSale(nozzle, entry.readingValue, lastReading, fuelPrices);
-        return { entry, saleValue };
+        // Sample readings don't count toward sale value for payment allocation
+        const finalSaleValue = entry.is_sample ? 0 : saleValue;
+        return { entry, saleValue: finalSaleValue, actualSaleValue: saleValue };
       });
 
-      const totalSale = entriesWithSale.reduce((s, e) => s + e.saleValue, 0);
+      const totalSale = entriesWithSale.reduce((s: number, e: any) => s + e.saleValue, 0);
       const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
+      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
       const cashRatio = totalSale > 0 ? (paymentAllocation.cash / totalSale) : 0;
       const onlineRatio = totalSale > 0 ? (paymentAllocation.online / totalSale) : 0;
       // For credit, distribute proportionally if multiple creditors
       // We'll use the first credit allocation for each reading for now (can be improved for per-reading split)
 
       let allocatedCash = 0, allocatedOnline = 0;
-      const readingsPayload: Array<{ nozzleId: string; readingValue: number; readingDate: string; notes: string }> = [];
+      const readingsPayload: Array<{ nozzleId: string; readingValue: number; readingDate: string; isSample: boolean; notes: string }> = [];
 
       entriesWithSale.forEach((item, idx) => {
         const isLast = idx === entriesWithSale.length - 1;
@@ -472,19 +510,20 @@ export default function QuickDataEntry() {
           nozzleId: item.entry.nozzleId,
           readingValue: parseFloat(item.entry.readingValue),
           readingDate: item.entry.date,
+          isSample: item.entry.is_sample || false,
           notes: ''
         });
       });
       // Build combined quick-entry payload
-      const totalCreditTxn = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+      const totalCreditTxn = nonSampleReadings.length > 0 ? paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0) : 0;
       const stationPrices = Array.isArray(fuelPrices) ? fuelPrices.map(p => ({ fuelType: p.fuel_type, price: p.price_per_litre })) : [];
       const quickEntryPayload: any = {
         stationId: selectedStation,
         transactionDate: readingDate,
         readings: readingsPayload,
         paymentBreakdown: {
-          cash: paymentAllocation.cash,
-          online: paymentAllocation.online,
+          cash: nonSampleReadings.length > 0 ? paymentAllocation.cash : 0,
+          online: nonSampleReadings.length > 0 ? paymentAllocation.online : 0,
           credit: totalCreditTxn
         },
         creditAllocations: totalCreditTxn > 0 ? paymentAllocation.credits.map(c => ({ creditorId: c.creditorId, amount: c.amount })) : [],
@@ -543,10 +582,21 @@ export default function QuickDataEntry() {
     setReadings(prev => ({
       ...prev,
       [nozzleId]: {
+        ...prev[nozzleId],
         nozzleId,
         readingValue: value,
         date: readingDate,
         paymentType: PaymentMethodEnum.CASH
+      }
+    }));
+  };
+
+  const handleSampleChange = (nozzleId: string, isSample: boolean) => {
+    setReadings(prev => ({
+      ...prev,
+      [nozzleId]: {
+        ...prev[nozzleId],
+        is_sample: isSample
       }
     }));
   };
@@ -581,34 +631,50 @@ export default function QuickDataEntry() {
       return;
     }
 
-    // Validate payment allocation
-    const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
-    const allocated = paymentAllocation.cash + paymentAllocation.online + totalCredit;
-    if (Math.abs(allocated - saleSummary.totalSaleValue) > 0.01) {
-      toast({
-        title: 'Payment Not Allocated',
-        description: `Total payment (₹${safeToFixed(allocated, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`,
-        variant: 'destructive'
-      });
-      return;
+    // Separate sample and non-sample readings
+    const nonSampleEntries = entries.filter(e => !e.is_sample);
+
+    // Only validate payment allocation if there are non-sample readings
+    if (nonSampleEntries.length > 0) {
+      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+      const allocated = paymentAllocation.cash + paymentAllocation.online + totalCredit;
+      
+      // Check if payment is completely missing
+      if (allocated === 0 && saleSummary.totalSaleValue > 0) {
+        toast({
+          title: 'Payment Required',
+          description: `At least one payment method (cash, online, or credit) must be greater than 0 for sale value ₹${safeToFixed(saleSummary.totalSaleValue, 2)}`,
+          variant: 'destructive'
+        });
+        return;
+      }
+      
+      if (Math.abs(allocated - saleSummary.totalSaleValue) > 0.01) {
+        toast({
+          title: 'Payment Not Allocated',
+          description: `Total payment (₹${safeToFixed(allocated, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`,
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Validate credit requires creditor
+      if (totalCredit > 0 && paymentAllocation.credits.some(c => !c.creditorId)) {
+        toast({
+          title: 'Creditor Required',
+          description: 'Please select a creditor for each credit allocation',
+          variant: 'destructive'
+        });
+        return;
+      }
     }
 
-    // Validate credit requires creditor
-    if (totalCredit > 0 && paymentAllocation.credits.some(c => !c.creditorId)) {
-      toast({
-        title: 'Creditor Required',
-        description: 'Please select a creditor for each credit allocation',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    // Validate fuel prices
-    const nozzlesWithReadings = pumps
+    // Validate fuel prices (only for non-sample readings)
+    const nozzlesWithNonSampleReadings = pumps
       ?.flatMap(p => p.nozzles || [])
-      .filter(n => entries.some(e => e.nozzleId === n.id)) || [];
+      .filter(n => nonSampleEntries.some(e => e.nozzleId === n.id)) || [];
 
-    const missingPrices = nozzlesWithReadings.filter(n => !hasPriceForFuelType(n.fuelType));
+    const missingPrices = nozzlesWithNonSampleReadings.filter(n => !hasPriceForFuelType(n.fuelType));
     if (missingPrices.length > 0) {
       const missingFuelTypes = [...new Set(missingPrices.map((n: any) => n.fuelType))].join(', ');
       toast({
@@ -744,6 +810,7 @@ export default function QuickDataEntry() {
                             nozzle={nozzle}
                             readings={readings}
                             handleReadingChange={handleReadingChange}
+                            handleSampleChange={handleSampleChange}
                             hasPriceForFuelType={hasPriceForFuelType}
                             getPrice={getPrice}
                             lastReading={allLastReadings ? allLastReadings[nozzle.id] : null}
@@ -844,6 +911,38 @@ export default function QuickDataEntry() {
                     )}
                   </Button>
                 </>
+              )}
+
+              {/* Sample-Only Readings - No Payment Section */}
+              {pendingCount > 0 && saleSummary.totalSaleValue === 0 && Object.values(readings).some(r => r.is_sample) && (
+                <Card className="border-2 border-blue-200 bg-blue-50">
+                  <CardContent className="p-3 sm:p-4 space-y-3">
+                    <div className="flex flex-col gap-2">
+                      <div>
+                        <p className="text-xs text-blue-800 font-semibold uppercase tracking-wide mb-1">Quality Check Readings</p>
+                        <p className="text-base sm:text-lg font-bold text-blue-700">{pendingCount} Sample(s)</p>
+                        <p className="text-xs text-blue-600 mt-2">No financial transaction • Meter updated only</p>
+                      </div>
+                    </div>
+
+                    {/* Submit Button for Samples Only */}
+                    <Button
+                      onClick={handleSubmit}
+                      disabled={submitReadingsMutation.isPending || pendingCount === 0}
+                      size="lg"
+                      className="w-full mt-3 h-10 sm:h-11 text-base sm:text-sm bg-blue-600 hover:bg-blue-700"
+                    >
+                      {submitReadingsMutation.isPending ? (
+                        'Saving...'
+                      ) : (
+                        <>
+                          <Check className="w-4 h-4 mr-2" />
+                          Record Sample(s) ({pendingCount})
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
               )}
 
               {pendingCount > 0 && saleSummary.totalSaleValue === 0 && (

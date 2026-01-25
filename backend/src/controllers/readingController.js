@@ -49,7 +49,8 @@ exports.createReading = async (req, res, next) => {
       pricePerLitre, price_per_litre,
       totalAmount, total_amount,
       litresSold, litres_sold,
-      previousReading, previous_reading
+      previousReading, previous_reading,
+      isSample, is_sample  // NEW: Sample reading flag
     } = req.body;
     const userId = req.userId;
 
@@ -60,7 +61,8 @@ exports.createReading = async (req, res, next) => {
       totalAmount: req.body.totalAmount, total_amount,
       pricePerLitre: req.body.pricePerLitre, price_per_litre,
       previousReading: req.body.previousReading, previous_reading,
-      litresSold: req.body.litresSold, litres_sold
+      litresSold: req.body.litresSold, litres_sold,
+      isSample, is_sample
     });
 
     // Validate required fields
@@ -71,6 +73,7 @@ exports.createReading = async (req, res, next) => {
     const finalTotalAmount = totalAmount !== undefined ? totalAmount : total_amount;
     const finalLitresSold = litresSold !== undefined ? litresSold : litres_sold;
     const finalPreviousReading = previousReading !== undefined ? previousReading : previous_reading;
+    const finalIsSample = isSample !== undefined ? isSample : is_sample || false;  // Normalize boolean
     
     if (!finalNozzleId || !finalReadingDate || finalReadingValue === undefined) {
       console.log('[DEBUG] createReading validation failed: missing required fields', { finalNozzleId, finalReadingDate, finalReadingValue });
@@ -286,6 +289,7 @@ exports.createReading = async (req, res, next) => {
         pricePerLitre: calculatedPricePerLitre,
         totalAmount: effectiveTotalAmount,
         isInitialReading,
+        isSample: finalIsSample,
         notes
       });
       
@@ -302,6 +306,7 @@ exports.createReading = async (req, res, next) => {
         pricePerLitre: calculatedPricePerLitre,
         totalAmount: effectiveTotalAmount,
         isInitialReading,
+        isSample: finalIsSample,  // NEW: Store sample flag
         notes,
         shiftId: activeShift?.id || null,
         // Payment fields kept for backward compatibility but NOT used in new workflow

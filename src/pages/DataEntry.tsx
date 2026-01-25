@@ -37,6 +37,7 @@ interface ManualEntryData {
   cumulative_vol: number;
   reading_date: string;
   reading_time: string;
+  is_sample?: boolean;  // NEW: Mark as sample reading
 }
 
 interface RefillData {
@@ -227,6 +228,7 @@ export default function DataEntry() {
         readingDate: data.reading_date,
         readingValue: data.cumulative_vol,
         readingTime: data.reading_time,
+        isSample: data.is_sample || false,  // NEW: Include sample flag
         // Include calculated values to ensure backend uses same calculations
         pricePerLitre: saleCalculation.pricePerLitre,
         totalAmount: saleCalculation.saleValue,
@@ -511,6 +513,26 @@ export default function DataEntry() {
                     {manualErrors.reading_time && (
                       <p className="text-sm text-red-600">{manualErrors.reading_time.message}</p>
                     )}
+                  </div>
+                </div>
+                
+                {/* Sample Reading Checkbox */}
+                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <Checkbox
+                      id="is-sample"
+                      checked={watchManual('is_sample') || false}
+                      onCheckedChange={(checked) => setManualValue('is_sample', !!checked)}
+                    />
+                    <div className="flex-1">
+                      <Label htmlFor="is-sample" className="text-sm font-medium text-blue-900 cursor-pointer">
+                        ✓ This is a sample/test reading
+                      </Label>
+                      <p className="text-xs text-blue-700 mt-1">
+                        Check this if fuel was tested and returned to the tank (quality check, repair check, etc.).
+                        Sample readings don't affect sales totals or tank levels.
+                      </p>
+                    </div>
                   </div>
                 </div>
                 

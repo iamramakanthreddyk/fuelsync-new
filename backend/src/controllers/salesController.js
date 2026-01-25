@@ -77,6 +77,9 @@ exports.getSales = async (req, res) => {
 
     // Only get readings with actual sales (but include initial readings that represent sales)
     where.litresSold = { [Op.gt]: 0 };
+    
+    // EXCLUDE sample readings from sales (isSample = false only)
+    where.isSample = false;
 
     // Fuel type filter via nozzle (accept both camelCase and snake_case)
     const nozzleWhere = {};

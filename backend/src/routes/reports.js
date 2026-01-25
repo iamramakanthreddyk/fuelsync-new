@@ -24,10 +24,6 @@ const enforceLegacyManager = (req, res, next) => {
 router.get('/sales', enforceLegacyManager, requireMinRole('manager'), reportController.getSalesReports);
 router.get('/daily-sales', enforceLegacyManager, requireMinRole('manager'), reportController.getDailySalesReport);
 
-// Shift reports
-router.get('/shifts', enforceLegacyManager, requireMinRole('manager'), reportController.getShiftReports);
+// Sample readings report - shows quality check readings taken per day
+router.get('/sample-readings', enforceLegacyManager, requireMinRole('manager'), reportController.getSampleReadingsReport);
 
-// Pump performance reports
-router.get('/pumps', enforceLegacyManager, requireMinRole('manager'), reportController.getPumpPerformance);
-
-module.exports = router;

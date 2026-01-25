@@ -561,3 +561,127 @@ exports.getDailySalesReport = async (req, res, next) => {
     next(error);
   }
 };
+/**
+ * Get sample/test readings report
+ * Shows how many sample readings were taken per day for quality checks
+ * GET /api/v1/reports/sample-readings
+ * Query: ?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD&stationId=uuid
+ */
+exports.getSampleReadingsReport = async (req, res, next) => {
+  try {
+    const { startDate, endDate, stationId } = req.query;
+    const user = await User.findByPk(req.userId);
+    
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'Start date and end date are required'
+      });
+    }
+
+    const stationFilter = await getStationFilter(user, stationId);
+    if (stationFilter === null) {
+      return res.status(403).json({
+        success: false,
+        error: 'Not authorized to view reports'
+      });
+    }
+
+    // Get stations
+    const stations = await Station.findAll({
+      where: stationFilter,
+      attributes: ['id', 'name', 'code']
+    });
+
+    if (stations.length === 0) {
+      return res.json({ success: true, data: [] });
+    }
+
+    const stationIds = stations.map(s => s.id);
+
+    // Get sample readings grouped by date and nozzle
+    const sampleReadings = await NozzleReading.findAll({
+      where: {
+        stationId: { [Op.in]: stationIds },
+        readingDate: {
+          [Op.between]: [startDate, endDate]
+        },
+        isSample: true  // Only sample readings
+      },
+      include: [
+        {
+          model: Nozzle,
+          as: 'nozzle',
+          attributes: ['id', 'nozzleNumber', 'fuelType'],
+          include: [{
+            model: Pump,
+            as: 'pump',
+            attributes: ['id', 'pumpNumber', 'name']
+          }]
+        },
+        {
+          model: User,
+          as: 'enteredByUser',
+          attributes: ['id', 'name', 'email']
+        }
+      ],
+      order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
+      raw: false
+    });
+
+    // Group by date
+    const groupedByDate = {};
+    sampleReadings.forEach(reading => {
+      const date = reading.readingDate;
+      if (!groupedByDate[date]) {
+        groupedByDate[date] = {
+          date,
+          totalSamples: 0,
+          byNozzle: {},
+          readings: []
+        };
+      }
+      
+      groupedByDate[date].totalSamples += 1;
+      
+      const nozzleKey = `${reading.nozzle?.pump?.name || 'Unknown'} - Nozzle ${reading.nozzle?.nozzleNumber || 'N/A'} (${reading.nozzle?.fuelType || 'Unknown'})`;
+      if (!groupedByDate[date].byNozzle[nozzleKey]) {
+        groupedByDate[date].byNozzle[nozzleKey] = 0;
+      }
+      groupedByDate[date].byNozzle[nozzleKey] += 1;
+      
+      groupedByDate[date].readings.push({
+        id: reading.id,
+        readingDate: reading.readingDate,
+        readingValue: parseFloat(reading.readingValue),
+        litresSold: parseFloat(reading.litresSold),
+        nozzleNumber: reading.nozzle?.nozzleNumber,
+        fuelType: reading.nozzle?.fuelType,
+        pumpName: reading.nozzle?.pump?.name,
+        enteredBy: reading.enteredByUser?.name || 'Unknown',
+        enteredAt: reading.createdAt,
+        notes: reading.notes
+      });
+    });
+
+    // Convert to array and sort by date desc
+    const result = Object.values(groupedByDate)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+    res.json({
+      success: true,
+      data: {
+        summary: {
+          dateRange: { startDate, endDate },
+          totalSampleReadings: sampleReadings.length,
+          stationsIncluded: stations.map(s => ({ id: s.id, name: s.name, code: s.code }))
+        },
+        details: result
+      }
+    });
+
+  } catch (error) {
+    console.error('Sample readings report error:', error);
+    next(error);
+  }
+};

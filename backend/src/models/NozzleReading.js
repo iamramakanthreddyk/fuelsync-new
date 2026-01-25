@@ -132,6 +132,12 @@ module.exports = (sequelize) => {
       field: 'is_manual_entry',
       comment: 'Whether this reading was entered manually or parsed from receipt'
     },
+    isSample: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      field: 'is_sample',
+      comment: 'If true: meter moved but fuel returned to tank. Excluded from sales and tank deductions.'
+    },
     notes: {
       type: DataTypes.TEXT
     },
@@ -218,11 +224,18 @@ module.exports = (sequelize) => {
       
       /**
        * After a new reading is created, subtract litresSold from tank
+       * UNLESS it's a sample reading (isSample = true)
        * Links nozzle → tank via fuelType + stationId (implicit mapping)
        */
       afterCreate: async (reading, options) => {
         const litresSold = parseFloat(reading.litresSold) || 0;
         if (litresSold <= 0) return; // No sale to record
+        
+        // SKIP tank deduction for sample readings (fuel is returned to tank)
+        if (reading.isSample) {
+          console.log(`[NozzleReading Hook] Skipping tank deduction for sample reading ID: ${reading.id}`);
+          return;
+        }
         
         try {
           const { Tank, Nozzle } = sequelize.models;
@@ -263,9 +276,16 @@ module.exports = (sequelize) => {
       
       /**
        * After reading is updated, adjust tank level for the difference
+       * UNLESS it's a sample reading (isSample = true)
        */
       afterUpdate: async (reading, options) => {
         if (!reading.changed('litresSold')) return;
+        
+        // SKIP tank adjustment for sample readings
+        if (reading.isSample) {
+          console.log(`[NozzleReading Hook] Skipping tank adjustment for sample reading ID: ${reading.id}`);
+          return;
+        }
         
         const previousLitres = parseFloat(reading.previous('litresSold')) || 0;
         const newLitres = parseFloat(reading.litresSold) || 0;

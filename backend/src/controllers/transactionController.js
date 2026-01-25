@@ -12,7 +12,7 @@
 const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize, FuelPrice, Nozzle, Pump } = require('../models');
 const { logAudit } = require('../utils/auditLog');
 // Minimal helper to compute litresSold and totalAmount similar to readingController
-async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap, forceNotInitial = false }) {
+async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap, isSample = false, forceNotInitial = false }) {
   // Find previous (last) reading for nozzle before or on date
   const lastReading = await NozzleReading.findOne({
     where: {
@@ -79,7 +79,8 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
     totalAmount,
     readingDate,
     notes: notes || '',
-    enteredBy: userId
+    enteredBy: userId,
+    isSample: !!isSample
   };
 
   // Preserve isInitialReading flag when creating
@@ -167,6 +168,21 @@ exports.createTransaction = async (req, res, next) => {
     // Sum readings to get totals
     const totalLiters = readings.reduce((sum, r) => sum + parseFloat(r.litresSold || 0), 0);
     const totalSaleValue = readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
+
+    // Check if all readings are sample readings
+    // Note: Sequelize returns camelCase for attributes, but can also have raw values
+    const allSampleReadings = readings.length > 0 && readings.every(r => {
+      const isSampleVal = r.isSample !== undefined ? r.isSample : (r.dataValues?.isSample || r.dataValues?.is_sample || false);
+      return isSampleVal === true;
+    });
+
+    // If all readings are samples, return error (samples should not create transactions)
+    if (allSampleReadings) {
+      return res.status(400).json({
+        success: false,
+        error: 'Sample readings cannot create transactions. Only use sample readings for testing/verification.'
+      });
+    }
 
     // Validate payment breakdown sums correctly
     const paymentTotal = parseFloat(paymentBreakdown.cash || 0) +
@@ -412,6 +428,7 @@ exports.createQuickEntry = async (req, res, next) => {
         const readingValue = r.readingValue !== undefined ? r.readingValue : r.reading_value;
         const readingDateVal = r.readingDate || r.reading_date || transactionDate;
         const notesVal = r.notes || '';
+        const isSampleVal = r.isSample !== undefined ? r.isSample : r.is_sample || false;
 
         const created = await createComputedReading({
           stationId,
@@ -422,6 +439,7 @@ exports.createQuickEntry = async (req, res, next) => {
           userId,
           transaction: t,
           stationPricesMap,
+          isSample: isSampleVal,
           forceNotInitial: true // CRITICAL: In quick entry with payment, readings are never initial
         });
         createdReadings.push(created);
@@ -435,6 +453,13 @@ exports.createQuickEntry = async (req, res, next) => {
       const totalLiters = billableReadings.reduce((s, r) => s + parseFloat(r.litresSold || 0), 0);
       const totalSaleValue = billableReadings.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
 
+      // Check if all readings are sample readings
+      // Note: Sequelize returns camelCase for attributes, but can also have raw values
+      const allSampleReadings = createdReadings.length > 0 && createdReadings.every(r => {
+        const isSampleVal = r.isSample !== undefined ? r.isSample : (r.dataValues?.isSample || r.dataValues?.is_sample || false);
+        return isSampleVal === true;
+      });
+
       // If there are no billable readings (only initial readings were recorded), commit and return
       if (readingIds.length === 0) {
         await t.commit();
@@ -442,17 +467,24 @@ exports.createQuickEntry = async (req, res, next) => {
         return res.status(201).json({ success: true, message: 'Initial readings recorded. No transaction created.', data: result });
       }
 
+      // If all readings are sample readings, commit and return (no transaction created for samples)
+      if (allSampleReadings) {
+        await t.commit();
+        const result = { createdReadings };
+        return res.status(201).json({ success: true, message: 'Sample readings recorded. No transaction created.', data: result });
+      }
+
       // Validate paymentBreakdown presence
       let paymentTotal = parseFloat((paymentBreakdown && paymentBreakdown.cash) || 0) +
              parseFloat((paymentBreakdown && paymentBreakdown.online) || 0) +
              parseFloat((paymentBreakdown && paymentBreakdown.credit) || 0);
 
-      // CRITICAL VALIDATION: At least one payment method must be > 0
+      // CRITICAL VALIDATION: At least one payment method must be > 0 (skip if all readings are samples)
       const cashAmt = parseFloat((paymentBreakdown && paymentBreakdown.cash) || 0);
       const onlineAmt = parseFloat((paymentBreakdown && paymentBreakdown.online) || 0);
       const creditAmt = parseFloat((paymentBreakdown && paymentBreakdown.credit) || 0);
       
-      if (paymentTotal <= 0 || (cashAmt <= 0 && onlineAmt <= 0 && creditAmt <= 0)) {
+      if (!allSampleReadings && (paymentTotal <= 0 || (cashAmt <= 0 && onlineAmt <= 0 && creditAmt <= 0))) {
         await t.rollback();
         return res.status(400).json({
           success: false,
