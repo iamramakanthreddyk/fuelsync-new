@@ -28,6 +28,7 @@ export interface Station {
   id: string;
   name: string;
   code?: string;
+  brand?: string;
   address?: string;
   city?: string;
   state?: string;

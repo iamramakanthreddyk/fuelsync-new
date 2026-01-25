@@ -109,7 +109,7 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
       warning,
       canEnterReadings
     };
-  }, [fuelPrices, isLoading, effectiveStation]);
+  }, [fuelPrices, isLoading, effectiveStation, ctxStationId, globalPrices, stationId]);
 
   return status;
 }

@@ -268,7 +268,7 @@ export default function QuickDataEntry() {
   // Get fuel prices for selected station from global context (preloaded on app init)
   const { missingFuelTypes: missingPricesFuelTypes = [], pricesArray = [] } = useFuelPricesForStation(selectedStation);
   // Convert to array format for compatibility with existing code
-  const fuelPrices = Array.isArray(pricesArray) ? pricesArray : [];
+  const fuelPrices = useMemo(() => Array.isArray(pricesArray) ? pricesArray : [], [pricesArray]);
 
   // Fetch true last readings for all nozzles to use in payment allocation calculation
   const { data: allLastReadings, isLoading: allLastReadingsIsLoading } = useQuery({
@@ -379,7 +379,7 @@ export default function QuickDataEntry() {
     if (totalSaleValue > 0 && currentTotal === 0) {
       setPaymentAllocation({ cash: totalSaleValue, online: 0, credits: [] });
     }
-  }, [saleSummary.totalSaleValue]); // Only depend on sale value, not payment allocation to avoid loops
+  }, [saleSummary.totalSaleValue, paymentAllocation.cash, paymentAllocation.credits, paymentAllocation.online]);
 
   // Fetch backend stats for today's sales (reactive to selectedStation)
   const { data: dashboardData } = useDashboardData(selectedStation);
@@ -417,7 +417,7 @@ export default function QuickDataEntry() {
         credits: newCredits
       });
     }
-  }, [saleSummary.totalSaleValue]); // Only depend on sale value change
+  }, [saleSummary.totalSaleValue, paymentAllocation.cash, paymentAllocation.credits, paymentAllocation.online]);
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({

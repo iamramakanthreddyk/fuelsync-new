@@ -97,7 +97,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('auth-expired', onAuthExpired as EventListener);
       window.removeEventListener('storage', onStorage);
     };
-  }, []);
+  }, [verifyToken]);
 
   // Verify token with backend
   const verifyToken = useCallback(async () => {
@@ -212,7 +212,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     updateUser,
     updateProfile,
     changePassword,
-  }), [user, session, loading, isLoggedIn, login, logout, updateUser, changePassword]);
+  }), [user, session, loading, isLoggedIn, login, logout, updateUser, updateProfile, changePassword]);
 
   return (
     <AuthContext.Provider value={value}>

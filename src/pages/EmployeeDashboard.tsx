@@ -50,7 +50,7 @@ const EmployeeDashboard = () => {
     } else {
       setLoading(false);
     }
-  }, [currentStation]);
+  }, [currentStation, toast]);
 
   const handleStartShift = async () => {
     if (!currentStation) return;

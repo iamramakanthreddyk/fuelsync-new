@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 
-// @ts-ignore - virtual module from vite-plugin-pwa
+// @ts-expect-error - virtual module from vite-plugin-pwa
 import { useRegisterSW } from 'virtual:pwa-register/react';
 
 /**

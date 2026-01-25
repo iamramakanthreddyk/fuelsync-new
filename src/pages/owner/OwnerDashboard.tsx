@@ -143,7 +143,7 @@ export default function OwnerDashboard() {
 
     console.warn('OwnerDashboard: No fuel prices found in cache for station:', primaryStation?.id);
     return null;
-  }, [primaryStation?.id, stations, allFuelPrices]);
+  }, [primaryStation?.id, allFuelPrices]);
 
   const hasFuelPrices = (fuelPricesResponse?.data?.current?.length ?? 0) > 0;
 

@@ -50,7 +50,7 @@ interface IncomeReportData {
 export default function IncomeReport() {
   const { toast } = useToast();
   const { data: stationsResponse } = useStations();
-  const stations = stationsResponse?.data || [];
+  const stations = React.useMemo(() => stationsResponse?.data || [], [stationsResponse?.data]);
 
   // Ensure selectedStation is always valid when stations list changes
   const [selectedStation, setSelectedStation] = useState<string>('');

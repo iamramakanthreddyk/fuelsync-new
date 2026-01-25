@@ -10,7 +10,7 @@
  * - Get alerts for negative levels (missed refills)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { 
   useStations, 
   useTanks, 
@@ -84,7 +84,7 @@ interface TankData {
 export default function Inventory() {
   const { toast } = useToast();
   const { data: stationsResponse, isLoading: stationsLoading } = useStations();
-  const stations = stationsResponse?.data || [];
+  const stations = useMemo(() => stationsResponse?.data || [], [stationsResponse?.data]);
 
   // Selected station
   const [selectedStationId, setSelectedStationId] = useState<string>('');
@@ -202,7 +202,7 @@ export default function Inventory() {
     if (stations.length > 0 && !selectedStationId) {
       setSelectedStationId(stations[0].id);
     }
-  }, [stations]);
+  }, [stations, selectedStationId]);
 
   // Handle add tank
   const handleAddTank = async () => {
@@ -916,7 +916,7 @@ export default function Inventory() {
                 <div className="flex justify-between text-blue-900">
                   <span>Space available:</span>
                   <span className="font-semibold">
-                    {(selectedTank?.capacity! - selectedTank?.currentLevel!).toLocaleString()}L
+                    {(selectedTank.capacity - selectedTank.currentLevel).toLocaleString()}L
                   </span>
                 </div>
               </div>
@@ -1094,17 +1094,17 @@ export default function Inventory() {
 
             {selectedTank && calibrateData.dipReading && (
               <div className={`rounded-lg p-3 text-sm ${
-                parseFloat(calibrateData.dipReading) - selectedTank?.currentLevel! > 0
+                parseFloat(calibrateData.dipReading) - selectedTank.currentLevel > 0
                   ? 'bg-green-50 border border-green-200'
                   : 'bg-red-50 border border-red-200'
               }`}>
                 <div className={`font-semibold ${
-                  parseFloat(calibrateData.dipReading) - selectedTank?.currentLevel! > 0
+                  parseFloat(calibrateData.dipReading) - selectedTank.currentLevel > 0
                     ? 'text-green-900'
                     : 'text-red-900'
                 }`}>
-                  Adjustment: {parseFloat(calibrateData.dipReading) - selectedTank?.currentLevel! > 0 ? '+' : ''}
-                  {(parseFloat(calibrateData.dipReading) - selectedTank?.currentLevel!).toLocaleString()}L
+                  Adjustment: {parseFloat(calibrateData.dipReading) - selectedTank.currentLevel > 0 ? '+' : ''}
+                  {(parseFloat(calibrateData.dipReading) - selectedTank.currentLevel).toLocaleString()}L
                 </div>
               </div>
             )}

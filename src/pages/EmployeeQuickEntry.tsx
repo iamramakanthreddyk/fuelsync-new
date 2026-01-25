@@ -167,7 +167,7 @@ export default function EmployeeQuickEntry() {
         }));
       }
     }
-  }, [saleSummary.totalSaleValue, paymentBreakdown.online, paymentBreakdown.credit, step]);
+  }, [saleSummary.totalSaleValue, paymentBreakdown.online, paymentBreakdown.credit, paymentBreakdown.cash, step]);
 
   // STEP 1: Submit readings mutation
   const submitReadingsMutation = useMutation({

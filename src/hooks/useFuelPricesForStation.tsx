@@ -91,5 +91,5 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
       missingFuelTypes,
       pricesArray
     };
-  }, [stationId, pricesByStation, pumpsResponse?.data, fuelPricesData, fuelPricesLoading]);
+  }, [stationId, pricesByStation, pumpsResponse?.data, fuelPricesData]);
 }

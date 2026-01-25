@@ -25,7 +25,7 @@
  * IMPORTANT: Backend recalculates variance to prevent frontend tampering
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -40,6 +40,7 @@ import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
 import { getBasePath } from '@/lib/roleUtils';
 import { FUEL_TYPE_LABELS } from '@/lib/constants';
+import { FuelType } from '@/core/enums';
 import { useAuth } from '@/hooks/useAuth';
 import {
   TrendingUp,
@@ -68,7 +69,7 @@ interface DailySalesData {
   stationName: string;
   totalSaleValue: number;
   totalLiters: number;
-  byFuelType: Record<string, { liters: number; value: number }>;
+  byFuelType: Record<FuelType, { liters: number; value: number }>;
   expectedCash: number;
   paymentSplit: {
     cash: number;
@@ -307,7 +308,7 @@ export default function DailySettlement() {
   };
 
   // Calculate totals from selected readings
-  const getSelectedTotals = () => {
+  const getSelectedTotals = useCallback(() => {
     if (!readingsForSettlement || selectedReadingIds.length === 0) {
       return { cash: 0, online: 0, credit: 0, litres: 0, value: 0 };
     }
@@ -341,7 +342,7 @@ export default function DailySettlement() {
         value: acc.value + r.saleValue
       };
     }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
-  };
+  }, [readingsForSettlement, selectedReadingIds]);
 
   // Get final settlement for selected date (for manager view)
   const getFinalSettlementForDate = (): SettlementRecord | null => {
@@ -366,7 +367,7 @@ export default function DailySettlement() {
         setActualCredit(totals.credit);
       }
     }
-  }, [selectedReadingIds]);
+  }, [selectedReadingIds, actualCash, actualCredit, actualOnline, getSelectedTotals]);
 
   const handleSubmitSettlement = async () => {
     if (!dailySales) {
@@ -460,7 +461,7 @@ export default function DailySettlement() {
     setIsSubmitting(true);
     
     // Track employee-wise shortfalls for reporting
-    const allReadings = [...(readingsForSettlement.unlinked?.readings || []), ...(readingsForSettlement.linked?.readings || [])];
+    const allReadings = [...(readingsForSettlement?.unlinked?.readings || []), ...(readingsForSettlement?.linked?.readings || [])];
     const selectedReadings = allReadings.filter(r => selectedReadingIds.includes(r.id));
     
     // Calculate employee-wise shortfalls by grouping readings by employee
@@ -1031,7 +1032,7 @@ export default function DailySettlement() {
                           <div key={fuelType} className="flex items-center justify-between text-xs">
                             <div className="flex items-center gap-1">
                               <Badge variant="outline" className="text-xs px-1 py-0 capitalize">
-                                {fuelType}
+                                {fuelType as FuelType}
                               </Badge>
                               <span className="text-muted-foreground">
                                 {safeToFixed(data.liters, 0)}L
@@ -1295,7 +1296,7 @@ export default function DailySettlement() {
                                                   />
                                                   <div className="min-w-0 flex-1">
                                                     <span className="text-xs sm:text-sm font-bold block truncate">
-                                                      Nozzle #{reading.nozzleNumber} - {FUEL_TYPE_LABELS[reading.fuelType] || reading.fuelType}
+                                                      Nozzle #{reading.nozzleNumber} - {FUEL_TYPE_LABELS[reading.fuelType as FuelType] || reading.fuelType}
                                                     </span>
                                                     <span className="text-xs text-muted-foreground">
                                                       Reading: {safeToFixed(reading.openingReading, 1)} → {safeToFixed(reading.closingReading, 1)}L

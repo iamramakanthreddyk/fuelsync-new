@@ -54,55 +54,55 @@ export default function StationsPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    setLoading(true);
-    const [stationsRes, stationsErr] = await handleApiCall(() => apiClient.get<any>("/stations"));
-    const [usersRes, usersErr] = await handleApiCall(() => apiClient.get<any>("/users"));
-    if (stationsErr || usersErr) {
-      toast({
-        title: "Error",
-        description: getUserMessage(stationsErr || usersErr),
-        variant: "destructive",
-      });
+    const fetchData = async () => {
+      setLoading(true);
+      const [stationsRes, stationsErr] = await handleApiCall(() => apiClient.get<any>("/stations"));
+      const [usersRes, usersErr] = await handleApiCall(() => apiClient.get<any>("/users"));
+      if (stationsErr || usersErr) {
+        toast({
+          title: "Error",
+          description: getUserMessage(stationsErr || usersErr),
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+      
+      // Extract stations from wrapped response { success, data, pagination }
+      let stationsData: Station[] = [];
+      try {
+        if (stationsRes && typeof stationsRes === 'object' && 'data' in stationsRes) {
+          const data = (stationsRes as any).data;
+          if (Array.isArray(data)) {
+            stationsData = data;
+          }
+        }
+      } catch (error) {
+        console.warn('Error extracting stations data:', error);
+      }
+      
+      // Extract users from wrapped response
+      let usersData: Owner[] = [];
+      try {
+        if (usersRes && typeof usersRes === 'object' && 'data' in usersRes) {
+          const data = (usersRes as any).data;
+          if (Array.isArray(data)) {
+            usersData = data;
+          }
+        }
+      } catch (error) {
+        console.warn('Error extracting users data:', error);
+      }
+      
+      // Always set to arrays to prevent map errors
+      setStations(stationsData);
+      const filteredOwners = usersData.filter((user: Owner) => user.role === 'owner');
+      setOwners(filteredOwners);
       setLoading(false);
-      return;
-    }
-    
-    // Extract stations from wrapped response { success, data, pagination }
-    let stationsData: Station[] = [];
-    try {
-      if (stationsRes && typeof stationsRes === 'object' && 'data' in stationsRes) {
-        const data = (stationsRes as any).data;
-        if (Array.isArray(data)) {
-          stationsData = data;
-        }
-      }
-    } catch (error) {
-      console.warn('Error extracting stations data:', error);
-    }
-    
-    // Extract users from wrapped response
-    let usersData: Owner[] = [];
-    try {
-      if (usersRes && typeof usersRes === 'object' && 'data' in usersRes) {
-        const data = (usersRes as any).data;
-        if (Array.isArray(data)) {
-          usersData = data;
-        }
-      }
-    } catch (error) {
-      console.warn('Error extracting users data:', error);
-    }
-    
-    // Always set to arrays to prevent map errors
-    setStations(stationsData);
-    const filteredOwners = usersData.filter((user: Owner) => user.role === 'owner');
-    setOwners(filteredOwners);
-    setLoading(false);
-  };
+    };
+
+    fetchData();
+  }, [toast]);
 
   const resetForm = () => {
     setFormData({

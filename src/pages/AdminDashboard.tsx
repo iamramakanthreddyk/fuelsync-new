@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -22,13 +22,7 @@ export default function AdminDashboard() {
   const [recentStations, setRecentStations] = useState<Station[]>([]);
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    if (user?.role === 'super_admin') {
-      loadAdminData();
-    }
-  }, [user, loadAdminData]);
-
-  const loadAdminData = async () => {
+  const loadAdminData = useCallback(async () => {
     try {
       setLoading(true);
 
@@ -64,7 +58,13 @@ export default function AdminDashboard() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [toast]);
+
+  useEffect(() => {
+    if (user?.role === 'super_admin') {
+      loadAdminData();
+    }
+  }, [user, loadAdminData]);
 
   if (user?.role !== 'super_admin') {
     return (
@@ -170,11 +170,11 @@ export default function AdminDashboard() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={user.is_active ? 'default' : 'secondary'}>
-                      {user.is_active ? 'Active' : 'Inactive'}
+                    <Badge variant={user.isActive ? 'default' : 'secondary'}>
+                      {user.isActive ? 'Active' : 'Inactive'}
                     </Badge>
                   </TableCell>
-                  <TableCell>{new Date(user.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>
@@ -212,7 +212,7 @@ export default function AdminDashboard() {
                   <TableCell>
                     <Badge variant="default">Active</Badge>
                   </TableCell>
-                  <TableCell>{new Date(station.created_at).toLocaleDateString()}</TableCell>
+                  <TableCell>{new Date(station.createdAt).toLocaleDateString()}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

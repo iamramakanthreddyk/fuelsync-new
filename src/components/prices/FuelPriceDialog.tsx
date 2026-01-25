@@ -65,7 +65,7 @@ export const FuelPriceDialog: React.FC<FuelPriceDialogProps> = ({
       setCostPrice(initialCostPrice || "");
       setCostPriceError("");
     }
-  }, [open, initialFuelType, initialPrice, initialCostPrice]);
+  }, [open, initialFuelType, initialPrice, initialCostPrice, fuelTypes]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
