@@ -754,8 +754,8 @@ exports.getSampleStatistics = async (req, res, next) => {
       attributes: [
         'nozzleId',
         'stationId',
-        [fn('COUNT', col('id')), 'sampleCount'],
-        [fn('MAX', col('created_at')), 'lastSampleDate']
+        [fn('COUNT', col('NozzleReading.id')), 'sampleCount'],
+        [fn('MAX', col('NozzleReading.created_at')), 'lastSampleDate']
       ],
       include: [{
         model: Nozzle,
@@ -772,8 +772,8 @@ exports.getSampleStatistics = async (req, res, next) => {
         readingDate: { [Op.between]: [startDate, endDate] },
         isSample: true
       },
-      group: ['nozzleId', 'stationId', 'nozzle.id', 'nozzle->pump.id'],
-      order: [[col('COUNT(id)'), 'DESC']],
+      group: ['NozzleReading.nozzle_id', 'NozzleReading.station_id', 'nozzle.id', 'nozzle->pump.id'],
+      order: [[fn('COUNT', col('NozzleReading.id')), 'DESC']],
       raw: false
     });
 
@@ -781,8 +781,8 @@ exports.getSampleStatistics = async (req, res, next) => {
     const userFrequency = await NozzleReading.findAll({
       attributes: [
         'enteredBy',
-        [fn('COUNT', col('id')), 'sampleCount'],
-        [fn('MAX', col('created_at')), 'lastSampleDate']
+        [fn('COUNT', col('NozzleReading.id')), 'sampleCount'],
+        [fn('MAX', col('NozzleReading.created_at')), 'lastSampleDate']
       ],
       include: [{
         model: User,
@@ -795,7 +795,7 @@ exports.getSampleStatistics = async (req, res, next) => {
         isSample: true
       },
       group: ['enteredBy', 'enteredByUser.id'],
-      order: [[col('COUNT(id)'), 'DESC']],
+      order: [[fn('COUNT', col('NozzleReading.id')), 'DESC']],
       raw: false
     });
 

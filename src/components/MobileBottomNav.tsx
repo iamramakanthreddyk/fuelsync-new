@@ -17,7 +17,8 @@ import {
   TrendingUp,
   Fuel,
   Scale3d,
-  Droplets
+  Droplets,
+  PieChart
 } from 'lucide-react';
 
 export function MobileBottomNav() {
@@ -159,6 +160,13 @@ export function MobileBottomNav() {
       bgColor: "bg-teal-50",
     },
     {
+      title: "Profit Reports",
+      url: `${basePath}/profit-reports`,
+      icon: PieChart,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+    },
+    {
       title: "Settings",
       url: "/settings",
       icon: Settings,
@@ -197,6 +205,13 @@ export function MobileBottomNav() {
       bgColor: "bg-green-50",
     },
     {
+      title: "Profit Reports",
+      url: "/profit-reports",
+      icon: PieChart,
+      color: "text-green-600",
+      bgColor: "bg-green-50",
+    },
+    {
       title: "Settings",
       url: "/settings",
       icon: Settings,
@@ -223,7 +238,8 @@ export function MobileBottomNav() {
     <>
       {/* Bottom Navigation Bar - Only visible on mobile */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200/70 shadow-xl">
-        {/* Separator line for better visual clarity */}
+        {/* Separator line for betteprofit reports not routing to page
+        r visual clarity */}
         <div className="h-0.5 bg-gradient-to-r from-transparent via-slate-300/50 to-transparent"></div>
         <div className="flex items-center justify-around h-16 px-1 safe-area-inset-bottom">
           {/* Main Navigation Items */}

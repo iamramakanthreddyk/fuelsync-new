@@ -140,6 +140,13 @@ export function AppSidebar() {
           bgColor: "bg-green-50",
         },
         {
+          title: "Sample Readings",
+          url: `${basePath}/sample-readings`,
+          icon: Zap,
+          color: "text-violet-600",
+          bgColor: "bg-violet-50",
+        },
+        {
           title: "Analytics",
           url: `${basePath}/analytics`,
           icon: BarChart3,

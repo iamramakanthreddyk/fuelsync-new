@@ -25,8 +25,10 @@ router.get('/sales', enforceLegacyManager, requireMinRole('manager'), reportCont
 router.get('/daily-sales', enforceLegacyManager, requireMinRole('manager'), reportController.getDailySalesReport);
 
 // Sample readings report - shows quality check readings taken per day
-router.get('/sample-readings', enforceLegacyManager, requireMinRole('manager'), reportController.getSampleReadingsReport);
+router.get('/sample-readings', enforceLegacyManager, requireMinRole('owner'), reportController.getSampleReadingsReport);
 
 // Sample reading statistics - shows frequency and testing patterns
-router.get('/sample-statistics', enforceLegacyManager, requireMinRole('manager'), reportController.getSampleStatistics);
+router.get('/sample-statistics', enforceLegacyManager, requireMinRole('owner'), reportController.getSampleStatistics);
+
+module.exports = router;
 

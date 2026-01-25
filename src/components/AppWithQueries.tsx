@@ -31,6 +31,7 @@ import Settlements from '@/pages/Settlements';
 import Pumps from '@/pages/Pumps';
 import Prices from '@/pages/Prices';
 import Reports from '@/pages/Reports';
+import SampleReadings from '@/pages/SampleReadings';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
 import type { Station } from '@/types/api';
@@ -392,8 +393,7 @@ function AppContent() {
                     <Route path="/manager/stations/:id/add-creditor" element={<AddCreditor />} />
                     <Route path="/manager/stations/:id/prices" element={<Prices />} />
                     <Route path="/manager/employees" element={<EmployeesManagement />} />
-                    <Route path="/manager/reports" element={<OwnerReports />} />
-                    <Route path="/manager/analytics" element={<OwnerAnalytics />} />
+                    <Route path="/manager/reports" element={<OwnerReports />} />                    <Route path="/manager/sample-readings" element={<SampleReadings />} />                    <Route path="/manager/analytics" element={<OwnerAnalytics />} />
                     <Route path="/manager/income-report" element={<IncomeReport />} />
                     <Route path="/manager/profit-reports" element={<ProfitReports />} />
                     <Route path="/manager/shifts" element={<ShiftManagement />} />
@@ -430,6 +430,7 @@ function AppContent() {
                     <Route path="/owner/stations/:id/prices" element={<Prices />} />
                     <Route path="/owner/employees" element={<EmployeesManagement />} />
                     <Route path="/owner/reports" element={<OwnerReports />} />
+                    <Route path="/owner/sample-readings" element={<SampleReadings />} />
                     <Route path="/owner/analytics" element={<OwnerAnalytics />} />
                     <Route path="/owner/income-report" element={<IncomeReport />} />
                     <Route path="/owner/profit-reports" element={<ProfitReports />} />
@@ -475,6 +476,11 @@ function AppContent() {
                     <Route path="/reports" element={
                       <ManagerOrOwnerRoute>
                         <Reports />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/sample-readings" element={
+                      <ManagerOrOwnerRoute>
+                        <SampleReadings />
                       </ManagerOrOwnerRoute>
                     } />
                     <Route path="/profit-reports" element={
