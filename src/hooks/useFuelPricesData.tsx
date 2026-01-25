@@ -20,6 +20,7 @@ interface BackendFuelPrice {
   stationId: string;
   fuelType: 'petrol' | 'diesel';
   price: number;
+  costPrice?: number | null;
   effectiveFrom: string;
   createdBy?: string;
   createdAt: string;
@@ -37,6 +38,14 @@ export interface FuelPrice {
   price_per_litre: number;
   pricePerLitre?: number; // camelCase alias
   price?: number; // backend original
+  cost_price?: number | null; // Purchase price for COGS calculation
+  costPrice?: number | null; // camelCase alias
+  profit_per_litre?: number; // profit = price - cost
+  profitPerLitre?: number; // camelCase alias
+  profit_margin?: number; // (profit / price) * 100
+  profitMargin?: number; // camelCase alias
+  has_cost_price?: boolean; // Whether cost price is available
+  hasCostPrice?: boolean; // camelCase alias
   valid_from: string;
   validFrom?: string; // camelCase alias
   created_by?: string;
@@ -82,14 +91,34 @@ export function normalizeFuelType(fuelType: string): string {
 
 // Transform backend format to frontend format
 function transformPrice(price: BackendFuelPrice): FuelPrice {
+  const sellingPrice = price.price;
+  const costPrice = price.costPrice;
+  const hasCostPrice = costPrice !== null && costPrice !== undefined && costPrice > 0;
+  
+  let profitPerLitre: number | undefined;
+  let profitMargin: number | undefined;
+  
+  if (hasCostPrice && costPrice! < sellingPrice) {
+    profitPerLitre = parseFloat((sellingPrice - costPrice!).toFixed(2));
+    profitMargin = parseFloat(((profitPerLitre / sellingPrice) * 100).toFixed(2));
+  }
+  
   return {
     id: price.id,
     station_id: price.stationId,
     fuel_type: normalizeFuelType(price.fuelType),
     fuelType: price.fuelType, // Keep original for reference
-    price_per_litre: price.price,
-    pricePerLitre: price.price, // Alias
-    price: price.price, // Original
+    price_per_litre: sellingPrice,
+    pricePerLitre: sellingPrice, // Alias
+    price: sellingPrice, // Original
+    cost_price: costPrice,
+    costPrice: costPrice,
+    profit_per_litre: profitPerLitre,
+    profitPerLitre: profitPerLitre,
+    profit_margin: profitMargin,
+    profitMargin: profitMargin,
+    has_cost_price: hasCostPrice,
+    hasCostPrice: hasCostPrice,
     valid_from: price.effectiveFrom,
     created_by: price.createdBy,
     created_at: price.createdAt
@@ -119,18 +148,39 @@ export function useFuelPricesData(overrideStationId?: string) {
         }
 
         // Transform prices to match the expected format
-        const transformed = currentPrices.map((price: any) => ({
-          id: price.id,
-          station_id: stationId,
-          fuel_type: (price.fuelType || '').toString().toUpperCase(),
-          fuelType: price.fuelType,
-          price_per_litre: price.price,
-          pricePerLitre: price.price,
-          price: price.price,
-          valid_from: price.effectiveFrom,
-          created_by: price.createdBy,
-          created_at: price.createdAt
-        }));
+        const transformed = currentPrices.map((price: any) => {
+          const sellingPrice = price.price;
+          const costPrice = price.costPrice;
+          const hasCostPrice = costPrice !== null && costPrice !== undefined && costPrice > 0;
+          
+          let profitPerLitre: number | undefined;
+          let profitMargin: number | undefined;
+          
+          if (hasCostPrice && costPrice < sellingPrice) {
+            profitPerLitre = parseFloat((sellingPrice - costPrice).toFixed(2));
+            profitMargin = parseFloat(((profitPerLitre / sellingPrice) * 100).toFixed(2));
+          }
+
+          return {
+            id: price.id,
+            station_id: stationId,
+            fuel_type: (price.fuelType || '').toString().toUpperCase(),
+            fuelType: price.fuelType,
+            price_per_litre: sellingPrice,
+            pricePerLitre: sellingPrice,
+            price: sellingPrice,
+            cost_price: costPrice,
+            costPrice: costPrice,
+            profit_per_litre: profitPerLitre,
+            profitPerLitre: profitPerLitre,
+            profit_margin: profitMargin,
+            profitMargin: profitMargin,
+            has_cost_price: hasCostPrice,
+            hasCostPrice: hasCostPrice,
+            valid_from: price.effectiveFrom,
+            created_at: price.createdAt
+          };
+        });
 
         return transformed;
       } catch (error) {
@@ -148,10 +198,11 @@ export function useFuelPricesData(overrideStationId?: string) {
   const globalQuery = queryClient.getQueryState(globalQueryKey);
   const globalData = queryClient.getQueryData<Record<string, FuelPrice[]>>(globalQueryKey);
 
-  // Use global data if available, otherwise use direct data
-  const finalData = (globalData && stationId && globalData[stationId]) ? globalData[stationId] : directData;
-  const finalLoading = globalQuery?.status === 'pending' ? true : directLoading;
-  const finalError = globalQuery?.error || directError;
+  // Always use direct data for this hook since it has proper transformation with cost_price
+  // The direct query includes cost_price transformation which global data might not have
+  const finalData = directData && directData.length > 0 ? directData : (globalData && stationId && globalData[stationId]) ? globalData[stationId] : directData;
+  const finalLoading = directLoading;
+  const finalError = directError;
 
   return {
     data: finalData || [],

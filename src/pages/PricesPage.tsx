@@ -114,20 +114,23 @@ export default function PricesPage() {
   const openEditDialog = (
     fuelType: string,
     price: number,
-    id: number | string
+    id: number | string,
+    costPrice?: number | null
   ) => {
     if (isValidFuelType(fuelType)) {
       setDialogMode("edit");
       setDialogOpen(true);
       setSelectedFuelType(fuelType);
       setSelectedPrice(price.toString());
+      // Store cost price in state for passing to dialog
+      (window as any).__selectedCostPrice = costPrice || null;
     } else {
       return;
     }
   };
 
   const handleDialogSubmit = (
-    input: { fuel_type: "PETROL" | "DIESEL" | "CNG" | "EV"; price_per_litre: string }
+    input: { fuel_type: "PETROL" | "DIESEL" | "CNG" | "EV"; price_per_litre: string; cost_price?: string }
   ) => {
     setAddEditLoading(true);
 
@@ -151,10 +154,35 @@ export default function PricesPage() {
       return;
     }
 
+    // Validate cost price if provided
+    let costPrice: number | undefined = undefined;
+    if (input.cost_price) {
+      costPrice = parseFloat(input.cost_price);
+      if (isNaN(costPrice) || costPrice <= 0) {
+        toast({
+          title: "Invalid Cost Price",
+          description: "Please enter a valid cost price greater than 0",
+          variant: "destructive",
+        });
+        setAddEditLoading(false);
+        return;
+      }
+      if (costPrice >= price) {
+        toast({
+          title: "Invalid Cost Price",
+          description: "Cost price must be less than selling price",
+          variant: "destructive",
+        });
+        setAddEditLoading(false);
+        return;
+      }
+    }
+
     // Use the correct endpoint: /stations/:stationId/prices
     apiClient.post<{ success: boolean; data: unknown }>(`/stations/${defaultStationId}/prices`, {
       fuelType: input.fuel_type.toLowerCase(), // Backend expects lowercase
       price: price,
+      costPrice: costPrice,
       effectiveFrom: new Date().toISOString(),
     })
       .then(() => {
@@ -280,8 +308,13 @@ export default function PricesPage() {
         mode={dialogMode}
         initialFuelType={selectedFuelType}
         initialPrice={selectedPrice}
+        initialCostPrice={(window as any).__selectedCostPrice ? ((window as any).__selectedCostPrice).toString() : ""}
         loading={addEditLoading}
-        onSubmit={(input) => handleDialogSubmit(input as { fuel_type: "PETROL" | "DIESEL" | "CNG" | "EV"; price_per_litre: string })}
+        onSubmit={(input) => {
+          // Clean up temp storage
+          delete (window as any).__selectedCostPrice;
+          handleDialogSubmit(input as { fuel_type: "PETROL" | "DIESEL" | "CNG" | "EV"; price_per_litre: string; cost_price?: string });
+        }}
       />
 
       <FuelPricesGrid

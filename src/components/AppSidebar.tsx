@@ -153,6 +153,13 @@ export function AppSidebar() {
           color: "text-teal-600",
           bgColor: "bg-teal-50",
         },
+        {
+          title: "Profit Reports",
+          url: `${basePath}/profit-reports`,
+          icon: BarChart3,
+          color: "text-emerald-600",
+          bgColor: "bg-emerald-50",
+        },
       ]
     },
     {
@@ -202,13 +209,15 @@ export function AppSidebar() {
           color: "text-blue-600",
           bgColor: "bg-blue-50",
         },
-        {
+        // Inventory and Prices only visible to managers, not employees
+        ...(isManager ? [{
           title: "Inventory",
           url: "/inventory",
           icon: Droplets,
           color: "text-cyan-600",
           bgColor: "bg-cyan-50",
-        },
+
+        }] : []),
       ]
     },
     ...(isManager ? [{

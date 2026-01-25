@@ -27,16 +27,27 @@ exports.getSales = async (req, res) => {
       where.stationId = effectiveStationId;
     } else if (userRole !== 'super_admin') {
       // For non-super_admin, get their accessible stations
-      // Simple query: just check if user is the owner (avoid complex User association issues)
-      const userStations = await Station.findAll({
-        where: {
-          ownerId: userId
-        },
-        attributes: ['id'],
-        raw: true
-      });
+      // Owners can see all their owned stations
+      // Employees/Managers can see their assigned station
+      let stationIds = [];
       
-      const stationIds = userStations.map(s => s.id);
+      if (userRole === 'owner') {
+        const userStations = await Station.findAll({
+          where: {
+            ownerId: userId
+          },
+          attributes: ['id'],
+          raw: true
+        });
+        stationIds = userStations.map(s => s.id);
+      } else if (userRole === 'employee' || userRole === 'manager') {
+        // Employees/Managers have a stationId in their user record
+        const user = await User.findByPk(userId, { attributes: ['stationId'], raw: true });
+        if (user && user.stationId) {
+          stationIds = [user.stationId];
+        }
+      }
+      
       if (stationIds.length === 0) {
         return res.json({ success: true, data: [] });
       }
@@ -177,23 +188,24 @@ exports.getSalesSummary = async (req, res) => {
     if (station_id) {
       where.stationId = station_id;
     } else if (userRole !== 'super_admin') {
-      const userStations = await Station.findAll({
-        where: {
-          [Op.or]: [
-            { ownerId: userId },
-            { '$Users.id$': userId }
-          ]
-        },
-        include: [{
-          model: User,
-          as: 'Users',
-          through: { attributes: [] },
-          required: false
-        }],
-        attributes: ['id']
-      });
+      let stationIds = [];
       
-      const stationIds = userStations.map(s => s.id);
+      if (userRole === 'owner') {
+        const userStations = await Station.findAll({
+          where: {
+            ownerId: userId
+          },
+          attributes: ['id'],
+          raw: true
+        });
+        stationIds = userStations.map(s => s.id);
+      } else if (userRole === 'employee' || userRole === 'manager') {
+        const user = await User.findByPk(userId, { attributes: ['stationId'], raw: true });
+        if (user && user.stationId) {
+          stationIds = [user.stationId];
+        }
+      }
+      
       if (stationIds.length === 0) {
         return res.json({ 
           success: true, 

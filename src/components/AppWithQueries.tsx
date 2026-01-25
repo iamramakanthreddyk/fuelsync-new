@@ -50,6 +50,7 @@ import SettlementStationSelector from '@/pages/owner/SettlementStationSelector';
 import DailySettlement from '@/pages/owner/DailySettlement';
 import DailySalesReport from '@/pages/owner/DailySalesReport';
 import Inventory from '@/pages/owner/Inventory';
+import ProfitReports from '@/pages/ProfitReports';
 
 // Cash Management pages
 import ShiftManagement from '@/pages/shifts/ShiftManagement';
@@ -394,6 +395,7 @@ function AppContent() {
                     <Route path="/manager/reports" element={<OwnerReports />} />
                     <Route path="/manager/analytics" element={<OwnerAnalytics />} />
                     <Route path="/manager/income-report" element={<IncomeReport />} />
+                    <Route path="/manager/profit-reports" element={<ProfitReports />} />
                     <Route path="/manager/shifts" element={<ShiftManagement />} />
                     <Route path="/manager/cash-report" element={<CashReconciliationReport />} />
                     <Route path="/manager/inventory" element={
@@ -430,6 +432,7 @@ function AppContent() {
                     <Route path="/owner/reports" element={<OwnerReports />} />
                     <Route path="/owner/analytics" element={<OwnerAnalytics />} />
                     <Route path="/owner/income-report" element={<IncomeReport />} />
+                    <Route path="/owner/profit-reports" element={<ProfitReports />} />
                     <Route path="/owner/shifts" element={<ShiftManagement />} />
                     <Route path="/owner/cash-report" element={<CashReconciliationReport />} />
                     <Route path="/owner/inventory" element={
@@ -472,6 +475,11 @@ function AppContent() {
                     <Route path="/reports" element={
                       <ManagerOrOwnerRoute>
                         <Reports />
+                      </ManagerOrOwnerRoute>
+                    } />
+                    <Route path="/profit-reports" element={
+                      <ManagerOrOwnerRoute>
+                        <ProfitReports />
                       </ManagerOrOwnerRoute>
                     } />
                     <Route path="/admin/users" element={<AdminUsers />} />

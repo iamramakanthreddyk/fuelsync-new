@@ -93,6 +93,7 @@ export default function StationDetail() {
   
   const [selectedPump, setSelectedPump] = useState<Pump | null>(null);
   const [selectedNozzle, setSelectedNozzle] = useState<Nozzle | null>(null);
+  const [activeTab, setActiveTab] = useState<string>('pumps');
 
   // Get default fuel type: default to petrol (allow multiple nozzles of same type)
   const getDefaultFuelType = (): FuelType => {
@@ -133,6 +134,7 @@ export default function StationDetail() {
   const [priceForm, setPriceForm] = useState({
     fuelType: FuelTypeEnum.PETROL as FuelType,
     price: '',
+    costPrice: '',
     effectiveFrom: formatDateISO(new Date())
   });
 
@@ -299,15 +301,17 @@ export default function StationDetail() {
 
   // Set price mutation
   const setPriceMutation = useMutation({
-    mutationFn: async (data: { fuelType: string; price: string; effectiveFrom: string }) => {
+    mutationFn: async (data: { fuelType: string; price: string; costPrice?: string; effectiveFrom: string }) => {
       const response = await apiClient.post(`/stations/${id}/prices`, data);
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['station-prices', id] });
+      // Invalidate both direct and global fuel price queries
+      queryClient.invalidateQueries({ queryKey: ['fuel-prices', id] });
+      queryClient.invalidateQueries({ queryKey: ['all-fuel-prices'] });
       toast({ title: 'Success', description: 'Price updated successfully', variant: 'success' });
       setIsPriceDialogOpen(false);
-      setPriceForm({ fuelType: FuelTypeEnum.PETROL, price: '', effectiveFrom: formatDateISO(new Date()) });
+      setPriceForm({ fuelType: FuelTypeEnum.PETROL, price: '', costPrice: '', effectiveFrom: formatDateISO(new Date()) });
     },
     onError: (error: unknown) => {
       let message = 'Failed to update price';
@@ -473,9 +477,24 @@ export default function StationDetail() {
   };
 
   const handleSetPrice = () => {
+    // Validate cost price if provided
+    if (priceForm.costPrice) {
+      const costPrice = parseFloat(priceForm.costPrice);
+      const price = parseFloat(priceForm.price);
+      if (costPrice >= price) {
+        toast({
+          title: 'Invalid Cost Price',
+          description: 'Cost price must be less than selling price',
+          variant: 'destructive'
+        });
+        return;
+      }
+    }
+    
     setPriceMutation.mutate({
       fuelType: priceForm.fuelType,
       price: priceForm.price,
+      costPrice: priceForm.costPrice || undefined,
       effectiveFrom: priceForm.effectiveFrom
     });
   };
@@ -575,8 +594,23 @@ export default function StationDetail() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="pumps" className="space-y-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
         <div className="flex flex-col gap-4">
+          {/* Quick Actions Bar */}
+          <div className="flex items-center justify-between flex-wrap gap-3 bg-amber-50 dark:bg-amber-950/30 p-3 rounded-lg border border-amber-200 dark:border-amber-800">
+            <div className="flex items-center gap-2">
+              <IndianRupee className="w-5 h-5 text-amber-600" />
+              <span className="font-medium text-amber-900 dark:text-amber-100">Fuel Pricing</span>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setActiveTab('prices')}
+              className="text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50"
+            >
+              Manage Prices →
+            </Button>
+          </div>
           <TabsList className="flex h-14 items-center justify-center rounded-xl bg-gradient-to-r from-slate-50 to-slate-100 dark:from-slate-800 dark:to-slate-900 p-1 text-muted-foreground shadow-lg border border-slate-200 dark:border-slate-700 w-full overflow-x-auto overflow-y-hidden flex-nowrap min-w-max backdrop-blur-sm">
             <TabsTrigger value="pumps" className="flex-1 inline-flex items-center justify-center whitespace-nowrap rounded-lg px-2 sm:px-4 py-3 text-sm font-semibold ring-offset-background transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 data-[state=active]:bg-white dark:data-[state=active]:bg-slate-700 data-[state=active]:text-blue-600 dark:data-[state=active]:text-blue-400 data-[state=active]:shadow-md data-[state=active]:border data-[state=active]:border-blue-200 dark:data-[state=active]:border-blue-800 hover:bg-white/80 dark:hover:bg-slate-700/50 hover:text-blue-600 dark:hover:text-blue-400 hover:shadow-md flex-shrink-0 group">
               <Fuel className="w-5 h-5 sm:w-6 sm:h-6 sm:mr-2 text-blue-500 group-data-[state=active]:text-blue-600 group-hover:text-blue-600 transition-colors flex-shrink-0" />
@@ -943,7 +977,8 @@ export default function StationDetail() {
               <Button
                 variant="outline"
                 onClick={() => {
-                  queryClient.invalidateQueries({ queryKey: ['station-prices', id] });
+                  queryClient.invalidateQueries({ queryKey: ['fuel-prices', id] });
+                  queryClient.invalidateQueries({ queryKey: ['all-fuel-prices'] });
                 }}
                 size="sm"
               >
@@ -970,7 +1005,7 @@ export default function StationDetail() {
                       />
                     </div>
                     <div>
-                      <Label htmlFor="price">Price (₹/L) *</Label>
+                      <Label htmlFor="price">Selling Price (₹/L) *</Label>
                       <Input
                         id="price"
                         type="number"
@@ -979,6 +1014,27 @@ export default function StationDetail() {
                         onChange={(e) => setPriceForm({ ...priceForm, price: e.target.value })}
                         placeholder="105.50"
                       />
+                    </div>
+                    <div>
+                      <Label htmlFor="costPrice">Purchase Price (₹/L)</Label>
+                      <Input
+                        id="costPrice"
+                        type="number"
+                        step="0.01"
+                        value={priceForm.costPrice}
+                        onChange={(e) => setPriceForm({ ...priceForm, costPrice: e.target.value })}
+                        placeholder="95.50 (optional)"
+                      />
+                      {priceForm.price && priceForm.costPrice && (
+                        <div className="mt-2 p-2 bg-green-50 rounded border border-green-200">
+                          <p className="text-xs text-green-700 font-semibold">
+                            ✓ Profit: ₹{(parseFloat(priceForm.price) - parseFloat(priceForm.costPrice)).toFixed(2)}/L
+                          </p>
+                          <p className="text-xs text-green-600">
+                            Margin: {(((parseFloat(priceForm.price) - parseFloat(priceForm.costPrice)) / parseFloat(priceForm.price)) * 100).toFixed(2)}%
+                          </p>
+                        </div>
+                      )}
                     </div>
                     <div>
                       <Label htmlFor="effectiveFrom">Effective From *</Label>
@@ -1056,8 +1112,29 @@ export default function StationDetail() {
                         <div className={`text-4xl font-bold ${fuelColors.text} mb-1`}>
                           ₹{Number(price.price_per_litre).toFixed(2)}
                         </div>
-                        <p className="text-sm text-muted-foreground">per litre</p>
+                        <p className="text-sm text-muted-foreground">selling price</p>
                       </div>
+
+                      {/* Cost Price & Profit */}
+                      {price.cost_price !== null && price.cost_price !== undefined && (
+                        <div className="bg-green-50 dark:bg-green-950 p-3 rounded border border-green-200 dark:border-green-800">
+                          <div className="text-sm">
+                            <div className="flex justify-between mb-2">
+                              <span className="text-muted-foreground">Cost Price:</span>
+                              <span className="font-medium">₹{Number(price.cost_price).toFixed(2)}</span>
+                            </div>
+                            <div className="flex justify-between border-t border-green-200 pt-2">
+                              <span className="text-green-700 dark:text-green-300 font-semibold">Profit/L:</span>
+                              <span className="text-green-700 dark:text-green-300 font-bold">
+                                ₹{(Number(price.price_per_litre) - Number(price.cost_price)).toFixed(2)}
+                              </span>
+                            </div>
+                            <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                              Margin: {(((Number(price.price_per_litre) - Number(price.cost_price)) / Number(price.price_per_litre)) * 100).toFixed(2)}%
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Effective Date */}
                       <div className="flex items-center justify-center gap-2 text-sm">

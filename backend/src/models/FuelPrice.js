@@ -37,6 +37,15 @@ module.exports = (sequelize) => {
         min: 0.01
       }
     },
+    costPrice: {
+      type: DataTypes.DECIMAL(8, 2),
+      allowNull: true,
+      field: 'cost_price',
+      validate: {
+        min: 0.01
+      },
+      comment: 'Purchase/cost price per litre for profit calculation'
+    },
     effectiveFrom: {
       type: DataTypes.DATEONLY,
       allowNull: false,
@@ -83,6 +92,34 @@ module.exports = (sequelize) => {
       order: [['effectiveFrom', 'DESC']]
     });
     return price ? parseFloat(price.price) : null;
+  };
+
+  /**
+   * Calculate profit per litre for a fuel type on a specific date
+   */
+  FuelPrice.getProfitForDate = async function(stationId, fuelType, date) {
+    const price = await this.findOne({
+      where: {
+        stationId,
+        fuelType,
+        effectiveFrom: {
+          [sequelize.Sequelize.Op.lte]: date
+        }
+      },
+      order: [['effectiveFrom', 'DESC']]
+    });
+    
+    if (!price) return null;
+    
+    const sellingPrice = parseFloat(price.price);
+    const costPrice = price.costPrice ? parseFloat(price.costPrice) : null;
+    
+    return {
+      sellingPrice,
+      costPrice,
+      profitPerLitre: costPrice ? sellingPrice - costPrice : null,
+      profitMarginPercent: costPrice ? (((sellingPrice - costPrice) / sellingPrice) * 100).toFixed(2) : null
+    };
   };
 
   return FuelPrice;

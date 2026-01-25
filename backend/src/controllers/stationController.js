@@ -1095,7 +1095,9 @@ exports.getFuelPrices = async (req, res, next) => {
     // Get latest price for each fuel type
     const prices = await FuelPrice.findAll({
       where: { stationId },
-      order: [['fuelType', 'ASC'], ['effectiveFrom', 'DESC']]
+      order: [['fuelType', 'ASC'], ['effectiveFrom', 'DESC']],
+      raw: true,
+      attributes: ['id', 'stationId', 'fuelType', 'price', 'costPrice', 'effectiveFrom', 'createdAt', 'updatedAt']
     });
 
     // Group by fuel type, take latest
@@ -1106,14 +1108,26 @@ exports.getFuelPrices = async (req, res, next) => {
       }
     });
 
+    // Transform response to include costPrice in the expected format
+    const transformedPrices = Object.values(currentPrices).map(p => ({
+      id: p.id,
+      stationId: p.stationId,
+      fuelType: p.fuelType,
+      price: p.price,
+      costPrice: p.costPrice,  // Already in camelCase from attributes mapping
+      effectiveFrom: p.effectiveFrom,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt
+    }));
+
     res.json({
       success: true,
       data: {
-        current: Object.values(currentPrices),
+        current: transformedPrices,
         history: prices
       },
       fuelPrices: {
-        current: Object.values(currentPrices),
+        current: transformedPrices,
         history: prices
       }
     });
@@ -1126,7 +1140,7 @@ exports.getFuelPrices = async (req, res, next) => {
 exports.setFuelPrice = async (req, res, next) => {
   try {
     const { stationId } = req.params;
-    const { fuelType, price, effectiveFrom } = req.body;
+    const { fuelType, price, costPrice, effectiveFrom } = req.body;
     const user = req.user;
 
     // Check station access
@@ -1144,27 +1158,83 @@ exports.setFuelPrice = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'price must be a positive number' });
     }
 
-    const fuelPrice = await FuelPrice.create({
-      stationId,
-      fuelType,
-      price: numericPrice,
-      effectiveFrom: effectiveFrom || new Date().toISOString().split('T')[0],
-      updatedBy: req.userId
+    // Validate cost price if provided
+    let numericCostPrice = null;
+    if (costPrice) {
+      numericCostPrice = parseFloat(costPrice);
+      if (isNaN(numericCostPrice) || numericCostPrice <= 0) {
+        return res.status(400).json({ success: false, error: 'costPrice must be a positive number' });
+      }
+      if (numericCostPrice >= numericPrice) {
+        return res.status(400).json({ 
+          success: false, 
+          error: 'Cost price must be less than selling price' 
+        });
+      }
+    }
+
+    const effectiveDate = effectiveFrom || new Date().toISOString().split('T')[0];
+
+    // Try to find and update existing price for this fuel type on this date
+    const existingPrice = await FuelPrice.findOne({
+      where: {
+        stationId,
+        fuelType,
+        effectiveFrom: effectiveDate
+      }
     });
 
-    res.status(201).json({
+    let fuelPrice;
+    let isUpdate = false;
+
+    if (existingPrice) {
+      // Update existing price
+      await existingPrice.update({
+        price: numericPrice,
+        costPrice: numericCostPrice,
+        updatedBy: req.userId
+      });
+      fuelPrice = existingPrice;
+      isUpdate = true;
+    } else {
+      // Create new price
+      fuelPrice = await FuelPrice.create({
+        stationId,
+        fuelType,
+        price: numericPrice,
+        costPrice: numericCostPrice,
+        effectiveFrom: effectiveDate,
+        updatedBy: req.userId
+      });
+    }
+
+    // Log price update
+    await logAudit({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      stationId,
+      action: isUpdate ? 'UPDATE' : 'CREATE',
+      entityType: 'FuelPrice',
+      entityId: fuelPrice.id,
+      newValues: {
+        fuelType,
+        price: numericPrice,
+        costPrice: numericCostPrice || 'Not set',
+        profitPerLitre: numericCostPrice ? (numericPrice - numericCostPrice).toFixed(2) : 'N/A'
+      },
+      category: 'pricing',
+      severity: 'info',
+      description: `${isUpdate ? 'Updated' : 'Set'} fuel price: ${fuelType} @ ₹${numericPrice}${numericCostPrice ? ` (cost: ₹${numericCostPrice})` : ''}`
+    });
+
+    res.status(isUpdate ? 200 : 201).json({
       success: true,
       data: fuelPrice,
-      message: `${fuelType} price set to ₹${price}`
+      message: `${fuelType} price ${isUpdate ? 'updated' : 'set'} to ₹${price}${costPrice ? ` with cost ₹${costPrice}` : ''}`
     });
 
   } catch (error) {
-    if (error.name === 'SequelizeUniqueConstraintError') {
-      return res.status(409).json({ 
-        success: false, 
-        error: 'Price already set for this fuel type on this date' 
-      });
-    }
     next(error);
   }
 };
