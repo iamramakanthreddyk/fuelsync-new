@@ -96,22 +96,24 @@ export const StatCard: React.FC<StatCardProps> = ({
   return (
     <Card
       className={cn(
-        'relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 text-white',
+        'relative overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 w-full',
         styles.bg,
         className
       )}
     >
-      <CardContent className="p-4 md:p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex-1">
-            <p className={cn('text-xs md:text-sm font-medium', styles.text)}>
+      <CardContent className="p-3 sm:p-4 md:p-5">
+        <div className="flex items-start sm:items-center justify-between gap-2 sm:gap-3">
+          <div className="flex-1 min-w-0">
+            <p className={cn('text-xs sm:text-sm font-medium opacity-90', styles.text)}>
               {title}
             </p>
-            <p className="text-2xl md:text-3xl font-bold">{value}</p>
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white truncate">
+              {value}
+            </p>
             {trend && (
-              <div className="flex items-center mt-2">
+              <div className="flex items-center mt-1">
                 <TrendIcon direction={trend.direction} />
-                <span className={cn('text-xs md:text-sm', styles.trendText)}>
+                <span className={cn('text-xs sm:text-sm', styles.trendText)}>
                   {trend.value >= 0 ? '+' : ''}
                   {trend.value}%
                 </span>
@@ -119,8 +121,8 @@ export const StatCard: React.FC<StatCardProps> = ({
             )}
           </div>
           {Icon && (
-            <div className={cn('p-2 md:p-3 rounded-full ml-3', styles.iconBg)}>
-              <Icon className="w-6 h-6 md:w-8 md:h-8" />
+            <div className={cn('p-2 md:p-2.5 rounded-full flex-shrink-0', styles.iconBg)}>
+              <Icon className="w-5 h-5 md:w-6 md:h-6 lg:w-7 lg:h-7 text-white" />
             </div>
           )}
         </div>

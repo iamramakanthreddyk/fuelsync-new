@@ -3,16 +3,13 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { fuelPriceService, FuelPrice } from '@/services/fuelPriceService';
-import { apiClient } from '@/lib/api-client';
-import type { DailySummary } from '@/services/settlementsService';
 import { shiftService, dashboardAlertsService, Shift } from '@/services/shiftService';
 import { Badge } from '@/components/ui/badge';
 import { FuelPriceCard } from '@/components/dashboard/FuelPriceCard';
 import { normalizeFuelType } from '@/hooks/useFuelPricesData';
 import { Button } from '@/components/ui/button';
- import { Fuel, IndianRupee, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
+ import { Fuel, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
-import { EquipmentStatusEnum } from '@/core/enums';
 import { TodayReadings } from '@/components/dashboard/TodayReadings';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,7 +17,6 @@ const EmployeeDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [fuelPrices, setFuelPrices] = useState<FuelPrice[]>([]);
-  const [dailySummary, setDailySummary] = useState<DailySummary | null>(null);
   const [activeShift, setActiveShift] = useState<Shift | null>(null);
   const [loading, setLoading] = useState(true);
   const [shiftLoading, setShiftLoading] = useState(false);
@@ -35,22 +31,12 @@ const EmployeeDashboard = () => {
         return;
       }
       try {
-        const today = new Date().toISOString().split('T')[0];
-        const [pricesData, summaryData, shiftStatus] = await Promise.all([
+        const [pricesData, shiftStatus] = await Promise.all([
           fuelPriceService.getFuelPrices(currentStation.id),
-          apiClient.get<DailySummary>(`/api/v1/settlements/daily?stationId=${currentStation.id}&date=${today}`),
           dashboardAlertsService.getShiftStatus(),
         ]);
 
         setFuelPrices(pricesData || []);
-
-        if (summaryData) {
-          setDailySummary(summaryData);
-        } else {
-          console.warn('getDailySummary returned no summary; fallback to null');
-          setDailySummary(null);
-        }
-
         setActiveShift((shiftStatus && (shiftStatus as any).myActiveShift) || null);
       } catch (error) {
         console.error('Error fetching dashboard data:', error);
@@ -109,16 +95,6 @@ const EmployeeDashboard = () => {
 
       toast({ title: "Success", description: "Shift ended successfully.", variant: "success" });
       setActiveShift(null);
-
-      // Refresh summary (use stationId & today's date if available)
-      const today = new Date().toISOString().split('T')[0];
-      if (currentStation && currentStation.id) {
-        const summaryData = await apiClient.get<DailySummary>(`/api/v1/settlements/daily?stationId=${currentStation.id}&date=${today}`);
-        setDailySummary(summaryData);
-      } else {
-        const summaryData = await apiClient.get<DailySummary>('/api/v1/settlements/daily');
-        setDailySummary(summaryData);
-      }
     } catch (error: unknown) {
       console.error('Failed to end shift:', error);
       toast({ title: "Error", description: error instanceof Error ? error.message : 'Failed to end shift', variant: "destructive" });
@@ -225,57 +201,6 @@ const EmployeeDashboard = () => {
         {/* Stats Grid - Redesigned */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           
-          {/* Today's Collections - Featured */}
-          <Card className="col-span-1 lg:col-span-2 bg-gradient-to-br from-blue-600 to-blue-700 dark:from-blue-800 dark:to-blue-900 text-white shadow-lg border-0">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                  <IndianRupee className="h-5 w-5" />
-                  Today's Collections
-                </CardTitle>
-                <div className="text-3xl">💰</div>
-              </div>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {dailySummary?.today ? (
-                <>
-                  <div>
-                    <div className="text-4xl md:text-5xl font-bold">
-                      ₹{(dailySummary.today.amount ?? 0).toLocaleString()}
-                    </div>
-                    <p className="text-blue-100 text-sm mt-1">Total revenue today</p>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4 pt-4 border-t border-blue-400/30">
-                    <div className="space-y-1">
-                      <p className="text-blue-100 text-xs font-medium">CASH</p>
-                      <p className="text-xl font-bold">₹{(dailySummary.today.cash ?? 0).toLocaleString()}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-blue-100 text-xs font-medium">ONLINE</p>
-                      <p className="text-xl font-bold">₹{(dailySummary.today.online ?? 0).toLocaleString()}</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-blue-100 text-xs font-medium">CREDIT</p>
-                      <p className="text-xl font-bold">₹{(dailySummary.today.credit ?? 0).toLocaleString()}</p>
-                    </div>
-                  </div>
-
-                  <div className="pt-4 border-t border-blue-400/30">
-                    <p className="text-base font-semibold flex items-center gap-2">
-                      📊 {dailySummary.today.readings ?? 0} readings recorded
-                    </p>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-4">
-                  <p className="text-4xl font-bold">₹0</p>
-                  <p className="text-blue-100 text-sm mt-2">No data available yet</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
           {/* Station Info */}
           <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 shadow-md border-0">
             <CardHeader className="pb-3">
@@ -334,56 +259,6 @@ const EmployeeDashboard = () => {
         {/* Today's Readings */}
         {/* <TodayReadings /> */}
 
-        {/* Pump Performance Section */}
-        {dailySummary && dailySummary.pumps.length > 0 && (
-          <div>
-            <div className="mb-4 flex items-center gap-2">
-              <div className="text-2xl">⚙️</div>
-              <h2 className="text-2xl font-bold text-foreground">Pump Performance Today</h2>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {dailySummary.pumps.map((pump) => (
-                <Card key={pump.id} className="shadow-md border-0 hover:shadow-lg transition-shadow overflow-hidden">
-                  <div className="h-1 bg-gradient-to-r from-blue-500 to-blue-600"></div>
-                  <CardContent className="pt-6">
-                    <div className="space-y-4">
-                      {/* Pump Header */}
-                      <div className="flex items-start justify-between">
-                        <div>
-                          <p className="font-bold text-lg text-foreground">{pump.name || `Pump ${pump.number}`}</p>
-                          <Badge 
-                            variant={pump.status === EquipmentStatusEnum.ACTIVE ? 'default' : 'secondary'}
-                            className="text-xs mt-1"
-                          >
-                            {pump.status}
-                          </Badge>
-                        </div>
-                        <span className="text-2xl">🔧</span>
-                      </div>
-
-                      {/* Nozzle Info */}
-                      <div className="text-sm text-muted-foreground">
-                        <span className="font-medium">{pump.activeNozzles}</span>/{pump.nozzleCount} nozzles active
-                      </div>
-
-                      {/* Sales Info */}
-                      <div className="pt-3 border-t space-y-2">
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Sales Today</p>
-                          <p className="text-2xl font-bold text-green-600">₹{(pump.today?.amount ?? 0).toLocaleString()}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Fuel Pumped</p>
-                          <p className="text-lg font-semibold text-foreground">{safeToFixed(pump.today?.litres ?? 0)} litres</p>
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

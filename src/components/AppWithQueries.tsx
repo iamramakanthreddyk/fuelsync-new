@@ -23,7 +23,7 @@ import AdminStations from '@/pages/AdminStations';
 import MyStations from '@/pages/MyStations';
 import Staff from '@/pages/Staff';
 import DataEntry from '@/pages/DataEntry';
-import EmployeeQuickEntry from '@/pages/EmployeeQuickEntry';
+import QuickDataEntryEnhanced from '@/pages/owner/QuickDataEntryEnhanced';
 import EmployeeSalesView from '@/pages/EmployeeSalesView';
 import EmployeePumpsView from '@/pages/EmployeePumpsView';
 import Sales from '@/pages/Sales';
@@ -373,7 +373,7 @@ function AppContent() {
                     
                     {/* Manager Routes - Standardized manager paths */}
                     <Route path="/manager/dashboard" element={<OwnerDashboard />} />
-                    <Route path="/manager/quick-entry" element={<QuickDataEntry />} />
+                    <Route path="/manager/quick-entry" element={<QuickDataEntryEnhanced />} />
                     <Route path="/manager/daily-settlement" element={
                       <ManagerOrOwnerRoute>
                         <SettlementStationSelector />
@@ -409,7 +409,7 @@ function AppContent() {
                     
                     {/* Owner Routes - New comprehensive UI */}
                     <Route path="/owner/dashboard" element={<OwnerDashboard />} />
-                    <Route path="/owner/quick-entry" element={<QuickDataEntry />} />
+                    <Route path="/owner/quick-entry" element={<QuickDataEntryEnhanced />} />
                     <Route path="/owner/daily-settlement" element={
                       <ManagerOrOwnerRoute>
                         <SettlementStationSelector />
@@ -454,7 +454,7 @@ function AppContent() {
                     <Route path="/credit-ledger" element={<CreditLedger />} />
                     
                     {/* Employee Quick Entry - replaces old DataEntry */}
-                    <Route path="/quick-entry" element={<EmployeeQuickEntry />} />
+                    <Route path="/quick-entry" element={<QuickDataEntryEnhanced />} />
                     {/* Role-based data entry - employees get Quick Entry, managers/owners get full DataEntry */}
                     <Route path="/data-entry" element={<RoleBasedDataEntry />} />
                     <Route path="/sales" element={<RoleBasedSales />} />

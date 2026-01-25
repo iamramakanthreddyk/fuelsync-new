@@ -164,27 +164,24 @@ export default function Reports() {
         />
 
         {/* Key Metrics */}
-        <div className="grid gap-4 md:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-2 sm:gap-3 md:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full">
           <StatCard
             title="Total Revenue"
             value={`₹${totals.sales.toLocaleString('en-IN')}`}
             trend={{ value: 12.5, direction: 'up' }}
             icon={IndianRupee}
-            className="bg-white border-slate-200 text-slate-900"
           />
           <StatCard
             title="Fuel Dispensed"
             value={`${safeToFixed(totals.quantity, 1)}L`}
             trend={{ value: 8.2, direction: 'up' }}
             icon={Droplet}
-            className="bg-white border-slate-200 text-slate-900"
           />
           <StatCard
             title="Transactions"
             value={totals.transactions.toString()}
             trend={{ value: 15.3, direction: 'up' }}
             icon={Activity}
-            className="bg-white border-slate-200 text-slate-900"
           />
         </div>
 

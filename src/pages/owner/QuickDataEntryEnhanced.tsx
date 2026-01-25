@@ -789,7 +789,7 @@ export default function QuickDataEntry() {
                           <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">Sale Summary</p>
                           <p className="text-lg sm:text-2xl font-extrabold text-green-700 break-words">
                             ₹{saleSummary.totalSaleValue >= 100000 
-                              ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 1)}L`
+                              ? `${safeToFixed(saleSummary.totalSaleValue / 100000, 2)}L`
                               : safeToFixed(saleSummary.totalSaleValue, 2)}
                           </p>
                         </div>

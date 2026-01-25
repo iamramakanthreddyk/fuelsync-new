@@ -47,15 +47,15 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
     return (
       <Card className={className}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm md:text-lg">
+          <CardTitle className="flex items-center gap-2 text-xs sm:text-sm md:text-lg">
             <LineChartIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
             Revenue Trend
           </CardTitle>
           <CardDescription className="text-xs md:text-sm">Daily revenue over the selected period</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-32 md:h-64 flex items-center justify-center">
-            <div className="text-muted-foreground">Loading revenue data...</div>
+          <div className="h-48 sm:h-56 md:h-72 lg:h-80 flex items-center justify-center">
+            <div className="text-xs sm:text-sm text-muted-foreground">Loading revenue data...</div>
           </div>
         </CardContent>
       </Card>
@@ -66,20 +66,20 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
     return (
       <Card className={className}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-sm md:text-lg">
+          <CardTitle className="flex items-center gap-2 text-xs sm:text-sm md:text-lg">
             <LineChartIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
             Revenue Trend
           </CardTitle>
           <CardDescription className="text-xs md:text-sm">Daily revenue over the selected period</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="h-32 md:h-64 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-dashed border-blue-200">
-            <div className="text-center p-4">
-              <LineChartIcon className="w-10 h-10 md:w-12 md:h-12 mx-auto text-blue-400 mb-3" />
-              <p className="text-blue-600 font-medium text-sm md:text-base">
+          <div className="h-48 sm:h-56 md:h-72 lg:h-80 flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-50 rounded-lg border-2 border-dashed border-blue-200">
+            <div className="text-center p-3 sm:p-4">
+              <LineChartIcon className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 mx-auto text-blue-400 mb-2 sm:mb-3" />
+              <p className="text-blue-600 font-medium text-xs sm:text-sm md:text-base">
                 No Revenue Data
               </p>
-              <p className="text-xs md:text-sm text-blue-500">
+              <p className="text-xs sm:text-sm text-blue-500 mt-1">
                 No sales data available for the selected period
               </p>
             </div>
@@ -92,34 +92,42 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
   return (
     <Card className={className}>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-sm md:text-lg">
+        <CardTitle className="flex items-center gap-2 text-xs sm:text-sm md:text-lg">
           <LineChartIcon className="w-4 h-4 md:w-5 md:h-5 text-blue-600" />
           Revenue Trend
         </CardTitle>
         <CardDescription className="text-xs md:text-sm">Daily revenue over the selected period</CardDescription>
       </CardHeader>
-      <CardContent>
-        <div className="h-32 md:h-64">
+      <CardContent className="p-0 sm:p-2">
+        <div className="w-full h-48 sm:h-56 md:h-72 lg:h-80">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={chartData}>
+            <LineChart 
+              data={chartData}
+              margin={{ top: 5, right: 10, left: 20, bottom: chartData.length > 10 ? 60 : 15 }}
+            >
               <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
               <XAxis
                 dataKey="date"
                 axisLine={false}
                 tickLine={false}
-                className="text-xs"
+                tick={{ fontSize: 10, fill: '#666' }}
+                interval={chartData.length > 15 ? 1 : 0}
+                angle={chartData.length > 10 ? -45 : 0}
+                textAnchor={chartData.length > 10 ? "end" : "middle"}
+                height={chartData.length > 10 ? 60 : 30}
               />
               <YAxis
                 axisLine={false}
                 tickLine={false}
-                className="text-xs"
+                tick={{ fontSize: 10, fill: '#666' }}
+                width={38}
                 tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`}
               />
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     return (
-                      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                      <div className="bg-white p-2 sm:p-3 border border-gray-200 rounded-lg shadow-lg text-xs sm:text-sm">
                         <p className="font-medium text-gray-900">{label}</p>
                         <p className="text-blue-600">
                           Revenue: ₹{safeToFixed(payload[0].value as number, 2)}
@@ -135,8 +143,8 @@ export const RevenueTrendChart: React.FC<RevenueTrendChartProps> = ({
                 dataKey="revenue"
                 stroke="#2563eb"
                 strokeWidth={2}
-                dot={{ fill: '#2563eb', strokeWidth: 2, r: 4 }}
-                activeDot={{ r: 6, stroke: '#2563eb', strokeWidth: 2, fill: '#ffffff' }}
+                dot={{ fill: '#2563eb', strokeWidth: 2, r: 3 }}
+                activeDot={{ r: 5, stroke: '#2563eb', strokeWidth: 2, fill: '#ffffff' }}
               />
             </LineChart>
           </ResponsiveContainer>
