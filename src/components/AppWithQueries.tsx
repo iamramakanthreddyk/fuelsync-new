@@ -32,6 +32,7 @@ import Pumps from '@/pages/Pumps';
 import Prices from '@/pages/Prices';
 import Reports from '@/pages/Reports';
 import SampleReadings from '@/pages/SampleReadings';
+import EmployeeQuickEntry from '@/pages/EmployeeQuickEntry';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
 import type { Station } from '@/types/api';
@@ -306,9 +307,6 @@ function AppContent() {
     enabled: !!user && stations.length > 0, // Only run when user is authenticated and stations are loaded
     staleTime: 5 * 60 * 1000, // 5 minutes - fuel prices typically don't change that often but keep fresh
     gcTime: 30 * 60 * 1000, // Keep in cache for 30 minutes after becoming unused
-    refetchOnMount: 'stale', // Refetch if data is stale when component mounts
-    refetchOnWindowFocus: 'stale', // Refetch if user switches window and data is stale
-    refetchOnReconnect: 'stale', // Refetch if reconnecting to internet and data is stale
   });
 
   return (
