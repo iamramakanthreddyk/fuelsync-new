@@ -107,12 +107,10 @@ const Landing = () => {
       <section className="container mx-auto px-4 py-20 text-center">
         <div className="max-w-4xl mx-auto">
           <h1 className="text-5xl md:text-6xl font-bold text-white mb-6 leading-tight">
-            Monitor.<br />
-            Optimize.<br />
-            <span className="text-orange-400">Grow.</span>
+            FuelSync: Smart Fuel Station Management Made Simple
           </h1>
           <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            FuelSync: Your fuel station, smarter than ever. Manage pumps, track sales, and grow your business with intelligent automation.
+            Streamline your fuel station operations with FuelSync – the hassle-free solution for accurate meter reading calculations, powered by real-time data from employee entries. Easily manage your credit ledger, track nozzle-wise performance, and gain insights through intuitive employee and owner dashboards. Say goodbye to manual errors and hello to efficient, profitable fuel management! 🚀⛽
           </p>
           <Button 
             size="lg" 
