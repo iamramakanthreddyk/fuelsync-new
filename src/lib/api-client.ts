@@ -6,6 +6,7 @@
 
 import { getStorageItem, setStorageItem, removeStorageItem } from './storage-utils';
 import { convertKeysToCamel, convertKeysToSnake } from './caseUtils';
+import { getErrorMessage } from './errorUtils';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api/v1';
 
@@ -250,7 +251,6 @@ async function request<T>(
     return await handleResponse<T>(response);
   } catch (error) {
     // Avoid unsafe access on unknown
-    const { getErrorMessage } = await import('./errorUtils');
     if (error instanceof ApiError) {
       throw error;
     }

@@ -55,6 +55,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const session = token ? { access_token: token } : null;
   const isLoggedIn = !!user && !!token;
 
+  // Verify token with backend
+  const verifyToken = useCallback(async () => {
+    try {
+      const response = await apiClient.get<User>('/auth/me');
+      // response is ApiResponse<User> so data is nested
+      const userData = (response as any).data || response;
+      const userWithStations = {
+        ...userData,
+        stations: userData.stations || [],
+      };
+      setUser(userWithStations);
+      setStoredUser(userWithStations);
+    } catch (error: unknown) {
+      // If API returned an ApiError with 401, clear auth
+      if (error instanceof ApiError && error.statusCode === 401) {
+        removeToken();
+        setUser(null);
+      } else {
+        console.error('[AUTH] verifyToken error:', getErrorMessage(error));
+      }
+    }
+  }, []);
+
   // Initialize auth state from localStorage
   useEffect(() => {
     const initAuth = async () => {
@@ -98,29 +121,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       window.removeEventListener('storage', onStorage);
     };
   }, [verifyToken]);
-
-  // Verify token with backend
-  const verifyToken = useCallback(async () => {
-    try {
-      const response = await apiClient.get<User>('/auth/me');
-      // response is ApiResponse<User> so data is nested
-      const userData = (response as any).data || response;
-      const userWithStations = {
-        ...userData,
-        stations: userData.stations || [],
-      };
-      setUser(userWithStations);
-      setStoredUser(userWithStations);
-    } catch (error: unknown) {
-      // If API returned an ApiError with 401, clear auth
-      if (error instanceof ApiError && error.statusCode === 401) {
-        removeToken();
-        setUser(null);
-      } else {
-        console.error('[AUTH] verifyToken error:', getErrorMessage(error));
-      }
-    }
-  }, []);
 
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true);
