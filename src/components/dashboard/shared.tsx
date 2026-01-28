@@ -12,6 +12,7 @@ export interface MetricCardProps {
   className?: string;
   trend?: 'up' | 'down' | 'neutral';
   trendValue?: string;
+  variant?: 'success' | 'warning' | 'danger' | 'info';
 }
 
 export function MetricCard({
@@ -22,8 +23,16 @@ export function MetricCard({
   color,
   className,
   trend,
-  trendValue
+  trendValue,
+  variant
 }: MetricCardProps) {
+  // Override color based on variant if provided
+  const effectiveColor = variant ? 
+    (variant === 'success' ? 'green' : 
+     variant === 'warning' ? 'amber' : 
+     variant === 'danger' ? 'red' : 
+     variant === 'info' ? 'blue' : color) : color;
+
   const colorClasses = {
     green: 'border-l-green-500 text-green-600',
     blue: 'border-l-blue-500 text-blue-600',
@@ -36,21 +45,21 @@ export function MetricCard({
   return (
     <Card className={cn(
       "card-mobile border-l-4 hover:scale-[1.01] transition-all duration-200 brand-border",
-      colorClasses[color],
+      colorClasses[effectiveColor],
       className
     )}>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
         <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground brand-text">
           {title}
         </CardTitle>
-        <div className={cn("h-4 w-4 sm:h-5 sm:w-5", color === 'green' ? 'text-green-600' : color === 'blue' ? 'text-blue-600' : color === 'amber' ? 'text-amber-600' : color === 'red' ? 'text-red-600' : color === 'purple' ? 'text-purple-600' : 'text-orange-600')}>
+        <div className={cn("h-4 w-4 sm:h-5 sm:w-5", effectiveColor === 'green' ? 'text-green-600' : effectiveColor === 'blue' ? 'text-blue-600' : effectiveColor === 'amber' ? 'text-amber-600' : effectiveColor === 'red' ? 'text-red-600' : effectiveColor === 'purple' ? 'text-purple-600' : 'text-orange-600')}>
           {icon}
         </div>
       </CardHeader>
       <CardContent className="px-4 pb-4">
         <div className={cn(
           "text-xl sm:text-2xl font-bold",
-          color === 'green' ? 'text-green-600' : color === 'blue' ? 'text-blue-600' : color === 'amber' ? 'text-amber-600' : color === 'red' ? 'text-red-600' : color === 'purple' ? 'text-purple-600' : 'text-orange-600'
+          effectiveColor === 'green' ? 'text-green-600' : effectiveColor === 'blue' ? 'text-blue-600' : effectiveColor === 'amber' ? 'text-amber-600' : effectiveColor === 'red' ? 'text-red-600' : effectiveColor === 'purple' ? 'text-purple-600' : 'text-orange-600'
         )}>
           {typeof value === 'number' && value >= 1000 ? `${(value / 1000).toFixed(1)}K` : value}
         </div>
@@ -106,10 +115,20 @@ export function DashboardHeader({
 }
 
 export function DashboardGrid({
-  children,
+  metrics,
   cols = { default: 1, sm: 2, lg: 3, xl: 4 }
 }: {
-  children: React.ReactNode;
+  metrics?: Array<{
+    title: string;
+    value: string | number;
+    description: string;
+    icon: React.ReactNode;
+    color: 'green' | 'blue' | 'amber' | 'red' | 'purple' | 'orange';
+    className?: string;
+    trend?: 'up' | 'down' | 'neutral';
+    trendValue?: string;
+    variant?: 'success' | 'warning' | 'danger' | 'info';
+  }>;
   cols?: { default?: number; sm?: number; md?: number; lg?: number; xl?: number };
 }) {
   const gridClasses = [
@@ -122,7 +141,19 @@ export function DashboardGrid({
 
   return (
     <div className={cn("grid gap-3 sm:gap-4", gridClasses)}>
-      {children}
+      {metrics?.map((metric, index) => (
+        <MetricCard
+          key={index}
+          title={metric.title}
+          value={metric.value}
+          description={metric.description}
+          icon={metric.icon}
+          color={metric.color}
+          className={metric.className}
+          trend={metric.trend}
+          trendValue={metric.trendValue}
+        />
+      ))}
     </div>
   );
 }
