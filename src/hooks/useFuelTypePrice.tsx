@@ -37,7 +37,7 @@ export function useFuelTypePrice(stationId?: string, fuelType?: string): FuelTyp
     
     // Find price for this specific fuel type
     const priceForType = pricesArray.find(
-      p => p.fuel_type.toUpperCase() === fuelType.toUpperCase()
+      p => fuelType && p.fuel_type.toUpperCase() === fuelType.toUpperCase()
     );
 
     return {

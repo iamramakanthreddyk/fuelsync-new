@@ -19,6 +19,7 @@ import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ReadingSummary } from "@/components/dashboard/ReadingSummary";
 import { safeToFixed } from '@/lib/format-utils';
 import { DashboardHeader, MetricCard, DashboardGrid, COMMON_METRICS } from "@/components/dashboard/shared";
+import { RoleBadge } from "@/components/ui/RoleBadge";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -287,7 +288,10 @@ export default function Dashboard() {
       <div className="space-y-2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
           <div className="flex-1 min-w-0">
-            <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight text-foreground">Dashboard</h1>
+            <div className="flex items-center gap-3 mb-2">
+              <h1 className="text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-bold tracking-tight text-foreground">Dashboard</h1>
+              <RoleBadge role={user?.role as 'owner' | 'manager' | 'employee'} size="md" />
+            </div>
             <p className="text-responsive-sm text-muted-foreground">
               Welcome back, <span className="font-medium text-foreground">{user?.name}</span>
             </p>

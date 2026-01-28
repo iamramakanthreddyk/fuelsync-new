@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { RoleBadge } from "@/components/ui/RoleBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -351,10 +352,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
             <p className="text-sm text-muted-foreground mb-2">{user.email}</p>
             
             <div className="flex flex-wrap gap-2 mb-2">
-              <Badge variant="outline" className={getRoleBadgeClasses(user.role)}>
-                {getRoleIcon(user.role)}
-                <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
-              </Badge>
+              <RoleBadge role={user.role} size="sm" />
               
               {user.role === 'owner' && user.plan && (
                 <Badge variant="secondary">
@@ -722,10 +720,7 @@ const UsersPage = ({ stations: propStations = [] }: Props) => {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <Badge variant="outline" className={getRoleBadgeClasses(user.role)}>
-                            {getRoleIcon(user.role)}
-                            <span className="ml-1 capitalize">{user.role.replace('_', ' ')}</span>
-                          </Badge>
+                          <RoleBadge role={user.role} size="sm" />
                         </TableCell>
                         <TableCell>
                           {user.role === 'owner' && (

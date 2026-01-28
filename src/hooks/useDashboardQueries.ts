@@ -78,7 +78,7 @@ export function useEmployeeDashboard(stationId?: string) {
       ]);
 
       return {
-        activeShift: shiftRes?.shift || null,
+        activeShift: (shiftRes as any)?.shift || null,
         todayReadings: readingsRes || [],
         stationId
       };

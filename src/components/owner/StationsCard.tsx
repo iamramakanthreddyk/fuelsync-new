@@ -28,51 +28,35 @@ interface StationsCardProps {
 
 export function StationsCard({ stations, isLoading, navigate }: StationsCardProps) {
   return (
-    <Card className="hover:shadow-xl transition-all duration-300 border-t-4 border-t-primary shadow-md">
-      <CardHeader className="pb-3 sm:pb-4 bg-gradient-to-r from-primary/5 via-primary/3 to-transparent">
-        <div className="flex flex-col gap-4">
-          {/* Title and Badge Section */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 flex-1 min-w-0">
-              <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                <Building2 className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <CardTitle className="text-sm">Your Stations</CardTitle>
-                  {Array.isArray(stations) && stations.length > 0 && (
-                    <Badge variant="secondary" className="text-xs">
-                      {stations.length} station{stations.length !== 1 ? 's' : ''}
-                    </Badge>
-                  )}
-                </div>
-              </div>
-            </div>
+    <Card className="border-l-4 border-l-primary bg-gradient-to-r from-primary/5 to-transparent">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Building2 className="w-4 h-4 text-primary" />
+            <CardTitle className="text-sm">Your Stations</CardTitle>
+            {Array.isArray(stations) && stations.length > 0 && (
+              <Badge variant="secondary" className="text-xs">
+                {stations.length}
+              </Badge>
+            )}
           </div>
-
-          {/* Description */}
-          <CardDescription className="text-xs sm:text-sm ml-11 sm:ml-11">
-            Performance overview and management
-          </CardDescription>
-
-          {/* Action Buttons - Compact Outline Style */}
           {stations.length > 0 && (
-            <div className="flex flex-row gap-2 pt-2">
+            <div className="flex gap-1">
               <Button
                 onClick={() => navigate(`/owner/daily-settlement/${stations[0].id}`)}
                 variant="outline"
                 size="sm"
-                className="px-3 py-1.5 text-xs font-medium border-green-200 text-green-700 hover:bg-green-50 hover:border-green-300 transition-all duration-200 touch-manipulation"
+                className="px-2 py-1 text-xs border-green-200 text-green-700 hover:bg-green-50"
               >
-                Daily Settlement
+                Settlement
               </Button>
               <Button
                 onClick={() => navigate(`/owner/stations/${stations[0].id}`)}
                 variant="outline"
                 size="sm"
-                className="px-3 py-1.5 text-xs font-medium border-blue-200 text-blue-700 hover:bg-blue-50 hover:border-blue-300 transition-all duration-200 touch-manipulation"
+                className="px-2 py-1 text-xs border-blue-200 text-blue-700 hover:bg-blue-50"
               >
-                Manage Station
+                Manage
               </Button>
             </div>
           )}

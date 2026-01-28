@@ -67,7 +67,7 @@ export default function PricesPage() {
   // Use fuel types from the single source of truth
   const ALL_FUEL_TYPES = Object.values(FuelTypeEnum);
   // Ensure fuelPrices is an array before calling map
-  const presentFuelTypes = Array.isArray(fuelPrices) ? fuelPrices.map(p => p.fuel_type) : [];
+  const presentFuelTypes = Array.isArray(fuelPrices) ? fuelPrices.map(p => p.fuelType) : [];
   const missingFuelTypes = ALL_FUEL_TYPES.filter(
     ft => !presentFuelTypes.includes(ft)
   );

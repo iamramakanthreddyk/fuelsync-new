@@ -3,8 +3,6 @@ import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useAuth } from '@/hooks/useAuth';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
-import { normalizeFuelType } from '@/hooks/useFuelPricesData';
-import FuelSyncLogo from './FuelSyncLogo';
 import { FuelPriceCard } from '@/components/dashboard/FuelPriceCard';
 
 /**
@@ -32,13 +30,13 @@ export function AppHeader() {
     ? { top: '3rem', left: 0, width: '100%' } // Brand bar is 3rem
     : { top: '3rem', left: sidebarWidth, width: `calc(100% - ${sidebarWidth})` };
 
-  // Build fuel price object for FuelPriceCard - normalize keys to uppercase using enum
+  // Build fuel price object for FuelPriceCard - fuel types are already normalized to uppercase
   const fuelPricesObj: Record<string, number> = {};
   if (globalFuelPrices && Object.keys(globalFuelPrices).length > 0) {
     Object.entries(globalFuelPrices).forEach(([fuelType, priceValue]) => {
       const numValue = parseFloat(String(priceValue));
       if (!isNaN(numValue)) {
-        fuelPricesObj[normalizeFuelType(fuelType)] = numValue;
+        fuelPricesObj[fuelType] = numValue; // fuelType is already uppercase from context
       }
     });
   }

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
-import { useQueryClient, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
 
@@ -17,6 +17,7 @@ export const FuelPricesContext = createContext({
   setPricesByStation: (_prices: PricesByStation) => {},
   stationId: '',
   setStationId: (_id: string) => {},
+  pricesArray: [] as any[],
 });
 
 // ============================================================================
@@ -32,6 +33,7 @@ export const FuelPricesContext = createContext({
 
 export function FuelPricesProvider({ children }: { children: React.ReactNode }) {
   const [prices, setPrices] = useState<PriceRecord>({});
+  const [pricesArray, setPricesArray] = useState<any[]>([]);
   const [pricesByStation, setPricesByStation] = useState<PricesByStation>({});
   const [stationId, setStationId] = useState<string>('');
 
@@ -98,6 +100,9 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
       const stationPrices = (allFuelPrices as any)[stationId];
 
       if (Array.isArray(stationPrices)) {
+        // Set the array format for compatibility
+        setPricesArray(stationPrices);
+
         // Normalize the prices format from array
         const normalized: PriceRecord = {};
         stationPrices.forEach((priceData: any) => {
@@ -119,6 +124,7 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
         }));
       } else {
         setPrices({});
+        setPricesArray([]);
       }
     } catch (error) {
       setPrices({});
@@ -132,7 +138,8 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
     setPricesByStation,
     stationId,
     setStationId,
-  }), [prices, pricesByStation, stationId]);
+    pricesArray,
+  }), [prices, pricesByStation, stationId, pricesArray]);
 
   return (
     <FuelPricesContext.Provider value={contextValue}>

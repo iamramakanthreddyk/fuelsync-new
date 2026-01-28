@@ -32,7 +32,6 @@ import Pumps from '@/pages/Pumps';
 import Prices from '@/pages/Prices';
 import Reports from '@/pages/Reports';
 import SampleReadings from '@/pages/SampleReadings';
-import EmployeeQuickEntry from '@/pages/EmployeeQuickEntry';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
 import type { Station } from '@/types/api';
@@ -201,12 +200,8 @@ function ManagerOrOwnerRoute({ children }: { children: React.ReactNode }) {
 function RoleBasedDataEntry() {
   const { user } = useAuth();
 
-  // All users get the Quick Entry system (employees get simplified, managers/owners get enhanced)
-  if (user?.role === 'employee') {
-    return <EmployeeQuickEntry />;
-  }
-
-  // Managers and owners get the enhanced Quick Entry
+  // All users get the enhanced Quick Entry system (single-step)
+  // Station selection is controlled by role within the component
   return <QuickDataEntry />;
 }
 

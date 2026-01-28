@@ -9,6 +9,7 @@ import { User, Station, Plan } from '@/types/database';
 import { Users, Building2, Package, TrendingUp } from 'lucide-react';
 import { useAdminDashboard } from '@/hooks/useDashboardQueries';
 import { DashboardHeader, MetricCard, DashboardGrid, COMMON_METRICS } from '@/components/dashboard/shared';
+import { RoleBadge } from '@/components/ui/RoleBadge';
 
 export default function AdminDashboard() {
   const { user } = useAuth();
@@ -44,22 +45,26 @@ export default function AdminDashboard() {
 
   const metrics = [
     {
-      ...COMMON_METRICS.totalUsers,
+      ...COMMON_METRICS.users,
       value: stats.totalUsers.toString(),
       description: "Across all roles"
     },
     {
-      ...COMMON_METRICS.totalStations,
+      ...COMMON_METRICS.stations,
       value: stats.totalStations.toString(),
       description: "Active fuel stations"
     },
     {
-      ...COMMON_METRICS.totalOwners,
+      title: "Total Owners",
+      icon: <Users className="h-4 w-4 sm:h-5 sm:w-5" />,
+      color: 'purple' as const,
       value: stats.totalOwners.toString(),
       description: "Station owners"
     },
     {
-      ...COMMON_METRICS.totalEmployees,
+      title: "Total Employees",
+      icon: <Users className="h-4 w-4 sm:h-5 sm:w-5" />,
+      color: 'orange' as const,
       value: stats.totalEmployees.toString(),
       description: "Active employees"
     }
@@ -70,6 +75,7 @@ export default function AdminDashboard() {
       <DashboardHeader
         title="Admin Dashboard"
         subtitle="System overview and management"
+        rightContent={<RoleBadge role="super_admin" size="md" />}
       />
 
       {/* Overview Cards */}

@@ -105,12 +105,12 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
   }
 
   return (
-    <div className="space-y-6">
-      {/* Month Selector */}
-      <div className="flex gap-4 items-center">
+    <div className="space-y-4 sm:space-y-6">
+      {/* Month Selector - Compact */}
+      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
         <label className="text-sm font-medium">Select Month:</label>
         <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-48">
+          <SelectTrigger className="w-full sm:w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -131,135 +131,121 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
         </Card>
       ) : profitData ? (
         <>
-          {/* Data Completeness Alert */}
+          {/* Data Completeness Alert - Simplified */}
           {profitData.dataCompleteness.completenessPercentage < 100 && (
-            <Alert className="bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-800">
-              <AlertCircle className="h-4 w-4 text-blue-600" />
-              <AlertDescription className="text-blue-800 dark:text-blue-200">
-                <strong>Profit calculated from {profitData.dataCompleteness.readingsUsedForCalculation}/{profitData.dataCompleteness.totalReadings} readings only.</strong> {profitData.dataCompleteness.readingsExcluded} readings excluded (missing cost price). Only sales with BOTH cost and sale price data are included.
+            <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="text-amber-800 dark:text-amber-200">
+                <strong>Incomplete data:</strong> Profit calculated from {profitData.dataCompleteness.completenessPercentage}% of readings. Set fuel purchase prices for accurate calculations.
               </AlertDescription>
             </Alert>
           )}
 
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {/* Key Metrics - Owner Focused */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+            {/* Net Profit - Most Important */}
+            <Card className={`border-2 ${profitData.summary.netProfit >= 0 ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'}`}>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Net Profit</p>
+                    <p className={`text-2xl font-bold ${profitData.summary.netProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                      ₹{safeToFixed(Math.abs(profitData.summary.netProfit), 0)}
+                    </p>
+                  </div>
+                  {profitData.summary.netProfit >= 0 ? (
+                    <TrendingUp className="w-6 h-6 text-green-600" />
+                  ) : (
+                    <TrendingDown className="w-6 h-6 text-red-600" />
+                  )}
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  {safeToFixed(profitData.summary.profitMargin, 1)}% margin
+                </p>
+              </CardContent>
+            </Card>
+
             {/* Revenue */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <IndianRupee className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-2xl font-bold">
-                    {safeToFixed(profitData.summary.totalRevenue, 2)}
-                  </span>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Revenue</p>
+                    <p className="text-2xl font-bold">₹{safeToFixed(profitData.summary.totalRevenue, 0)}</p>
+                  </div>
+                  <IndianRupee className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  {safeToFixed(profitData.summary.totalLitres, 1)}L @ ₹{safeToFixed(profitData.summary.totalRevenue / profitData.summary.totalLitres, 2)}/L avg
+                  {safeToFixed(profitData.summary.totalLitres, 0)}L sold
                 </p>
               </CardContent>
             </Card>
 
-            {/* Cost of Goods */}
+            {/* Total Costs */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Cost of Goods</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <IndianRupee className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-2xl font-bold">
-                    {safeToFixed(profitData.summary.totalCostOfGoods, 2)}
-                  </span>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Total Costs</p>
+                    <p className="text-xl font-bold">₹{safeToFixed(profitData.summary.totalCostOfGoods + profitData.summary.totalExpenses, 0)}</p>
+                  </div>
+                  <AlertCircle className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  {profitData.dataCompleteness.completenessPercentage}% data complete
+                  Fuel + Expenses
                 </p>
               </CardContent>
             </Card>
 
-            {/* Total Expenses */}
+            {/* Fuel Profit per Litre */}
             <Card>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Total Expenses</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  <IndianRupee className="w-4 h-4 text-muted-foreground" />
-                  <span className="text-2xl font-bold">
-                    {safeToFixed(profitData.summary.totalExpenses, 2)}
-                  </span>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-muted-foreground">Avg Profit/L</p>
+                    <p className="text-2xl font-bold text-blue-700">₹{safeToFixed(profitData.summary.profitPerLitre, 1)}</p>
+                  </div>
+                  <TrendingUp className="w-5 h-5 text-blue-600" />
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  {profitData.dataCompleteness.totalReadings} readings
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Net Profit */}
-            <Card className={profitData.summary.netProfit >= 0 ? 'border-green-200 dark:border-green-800' : 'border-red-200 dark:border-red-800'}>
-              <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-medium">Net Profit</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="flex items-center gap-2">
-                  {profitData.summary.netProfit >= 0 ? (
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                  ) : (
-                    <TrendingDown className="w-4 h-4 text-red-600" />
-                  )}
-                  <span className={`text-2xl font-bold ${profitData.summary.netProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    {safeToFixed(profitData.summary.netProfit, 2)}
-                  </span>
-                </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  {safeToFixed(profitData.summary.profitMargin, 2)}% margin
+                  Per litre sold
                 </p>
               </CardContent>
             </Card>
           </div>
 
-          {/* Breakdown by Fuel Type */}
+          {/* Fuel Type Performance - Simplified */}
           <Card>
-            <CardHeader>
-              <CardTitle>Breakdown by Fuel Type</CardTitle>
-              <CardDescription>Revenue, cost, and profit per fuel type</CardDescription>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Fuel Performance</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {Object.entries(profitData.breakdown.byFuelType).map(([fuelType, data]) => (
-                  <div key={fuelType} className={`border rounded-lg p-3 ${!data.profitMargin && data.profitMargin !== 0 ? 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800' : ''}`}>
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-semibold">{fuelType}</h4>
-                      <span className="text-xs bg-gray-100 dark:bg-gray-900 px-2 py-1 rounded">
-                        {safeToFixed(data.litres, 1)}L
-                      </span>
+                  <div key={fuelType} className="flex items-center justify-between p-3 border rounded-lg">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{fuelType}</span>
+                        <span className="text-xs bg-gray-100 px-2 py-1 rounded">
+                          {safeToFixed(data.litres, 0)}L
+                        </span>
+                      </div>
+                      <div className="text-sm text-muted-foreground mt-1">
+                        Revenue: ₹{safeToFixed(data.revenue, 0)}
+                      </div>
                     </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                      <div>
-                        <span className="text-muted-foreground">Revenue:</span>
-                        <p className="font-medium">₹{safeToFixed(data.revenue, 2)}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Cost:</span>
-                        <p className="font-medium">₹{safeToFixed(data.costOfGoods, 2)}</p>
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Profit:</span>
-                        {data.profitMargin !== null ? (
-                          <p className="font-medium text-green-600">₹{safeToFixed(data.profitPerLitre ? data.profitPerLitre * data.litres : 0, 2)}</p>
-                        ) : (
-                          <p className="font-medium text-amber-600">—</p>
-                        )}
-                      </div>
-                      <div>
-                        <span className="text-muted-foreground">Margin:</span>
-                        {data.profitMargin !== null ? (
-                          <p className="font-medium">{safeToFixed(data.profitMargin, 2)}%</p>
-                        ) : (
-                          <p className="font-medium text-amber-600 text-xs">No cost data</p>
-                        )}
+                    <div className="text-right">
+                      {data.profitMargin !== null ? (
+                        <div className="text-green-700 font-bold">
+                          ₹{safeToFixed(data.profitPerLitre || 0, 1)}/L
+                        </div>
+                      ) : (
+                        <div className="text-amber-600 text-sm">
+                          Set cost price
+                        </div>
+                      )}
+                      <div className="text-xs text-muted-foreground">
+                        {data.profitMargin !== null ? `${safeToFixed(data.profitMargin, 1)}% margin` : 'No data'}
                       </div>
                     </div>
                   </div>
@@ -268,87 +254,26 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
             </CardContent>
           </Card>
 
-          {/* Expenses by Category */}
+          {/* Expenses Summary - Only if there are expenses */}
           {profitData.breakdown.byExpenseCategory.length > 0 && (
             <Card>
-              <CardHeader>
-                <CardTitle>Expenses by Category</CardTitle>
-                <CardDescription>Breakdown of operational expenses</CardDescription>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-lg">Monthly Expenses</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="space-y-2">
-                  {profitData.breakdown.byExpenseCategory.map((expense) => (
-                    <div key={expense.category} className="flex justify-between items-center">
-                      <span className="capitalize">{expense.category}</span>
-                      <span className="font-medium">₹{safeToFixed(expense.amount, 2)}</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {profitData.breakdown.byExpenseCategory.slice(0, 6).map((expense) => (
+                    <div key={expense.category} className="flex justify-between items-center p-2 border rounded">
+                      <span className="capitalize text-sm">{expense.category}</span>
+                      <span className="font-medium">₹{safeToFixed(expense.amount, 0)}</span>
                     </div>
                   ))}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Detailed Reading Breakdown - Only WITH Cost Price */}
-          {profitData.breakdown.readingDetails && Object.keys(profitData.breakdown.readingDetails).length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Reading Details - Profit Calculation Basis</CardTitle>
-                <CardDescription>
-                  Only readings with BOTH sales price AND cost price are included in profit calculations.
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {Object.entries(profitData.breakdown.readingDetails).map(([fuelType, details]) => (
-                  <div key={fuelType} className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <h4 className="font-semibold capitalize text-base">{fuelType}</h4>
-                      <div className="text-xs text-muted-foreground">
-                        {details.withCostPrice.length > 0 && (
-                          <span className="text-green-600 font-medium">
-                            ✓ {details.withCostPrice.length} readings used
-                          </span>
-                        )}
-                        {details.withoutCostPrice.length > 0 && (
-                          <span className="ml-2 text-amber-600">
-                            ✗ {details.withoutCostPrice.length} excluded (no cost price)
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    
-                    {/* Readings WITH Cost Price - Show Table */}
-                    {details.withCostPrice.length > 0 && (
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="border-b bg-gray-50 dark:bg-gray-900">
-                              <th className="text-left px-2 py-1">Date</th>
-                              <th className="text-right px-2 py-1">Litres</th>
-                              <th className="text-right px-2 py-1">Sale ₹/L</th>
-                              <th className="text-right px-2 py-1">Cost ₹/L</th>
-                              <th className="text-right px-2 py-1">Revenue</th>
-                              <th className="text-right px-2 py-1">COGS</th>
-                              <th className="text-right px-2 py-1">Profit</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {details.withCostPrice.map((reading, idx) => (
-                              <tr key={idx} className="border-b hover:bg-gray-50 dark:hover:bg-gray-900">
-                                <td className="px-2 py-1">{reading.date}</td>
-                                <td className="text-right px-2 py-1">{safeToFixed(reading.litres, 1)}</td>
-                                <td className="text-right px-2 py-1">{safeToFixed(reading.salePrice, 2)}</td>
-                                <td className="text-right px-2 py-1 font-medium">{safeToFixed(reading.costPrice, 2)}</td>
-                                <td className="text-right px-2 py-1">₹{safeToFixed(reading.revenue, 2)}</td>
-                                <td className="text-right px-2 py-1">₹{safeToFixed(reading.cogs, 2)}</td>
-                                <td className="text-right px-2 py-1 text-green-600 font-medium">₹{safeToFixed(reading.profit, 2)}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
-                ))}
+                {profitData.breakdown.byExpenseCategory.length > 6 && (
+                  <p className="text-xs text-muted-foreground mt-3 text-center">
+                    +{profitData.breakdown.byExpenseCategory.length - 6} more categories
+                  </p>
+                )}
               </CardContent>
             </Card>
           )}

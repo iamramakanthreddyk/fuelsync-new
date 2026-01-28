@@ -10,6 +10,7 @@ import { apiClient, ApiResponse } from '@/lib/api-client';
 import { Plus, Building2, UserPlus } from 'lucide-react';
 import { useOwnerDashboard } from '@/hooks/useDashboardQueries';
 import { DashboardHeader, MetricCard, DashboardGrid, COMMON_METRICS } from '@/components/dashboard/shared';
+import { RoleBadge } from '@/components/ui/RoleBadge';
 
 const OwnerDashboard = () => {
   const [newEmployee, setNewEmployee] = useState({
@@ -140,15 +141,18 @@ const OwnerDashboard = () => {
         title="Owner Dashboard"
         subtitle="Manage your fuel station operations"
         actions={
-          <div className="flex gap-2">
-            <Button onClick={() => setEmployeeDialogOpen(true)}>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Add Employee
-            </Button>
-            <Button onClick={() => setPumpDialogOpen(true)}>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Pump
-            </Button>
+          <div className="flex items-center gap-3">
+            <RoleBadge role="owner" size="md" />
+            <div className="flex gap-2">
+              <Button onClick={() => setEmployeeDialogOpen(true)}>
+                <UserPlus className="w-4 h-4 mr-2" />
+                Add Employee
+              </Button>
+              <Button onClick={() => setPumpDialogOpen(true)}>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Pump
+              </Button>
+            </div>
           </div>
         }
       />
