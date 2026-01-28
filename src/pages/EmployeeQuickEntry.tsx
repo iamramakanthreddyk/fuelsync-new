@@ -37,18 +37,8 @@ interface ReadingEntry {
   date: string;
 }
 
-interface Creditor {
-  id: string;
-  name: string;
-  businessName?: string;
-  currentBalance: number;
-  creditLimit: number;
-}
-
-interface CreditAllocation {
-  creditorId: string;
-  amount: number;
-}
+import type { Creditor, CreditAllocation } from '@/types/finance';
+import { toNumber } from '@/utils/number';
 
 export default function EmployeeQuickEntry() {
   const { user } = useAuth();
@@ -120,9 +110,9 @@ export default function EmployeeQuickEntry() {
           pump.nozzles.forEach(nozzle => {
             const reading = readings[nozzle.id];
             if (reading && reading.readingValue) {
-              const enteredValue = parseFloat(reading.readingValue);
-              const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-              const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+              const enteredValue = toNumber(reading.readingValue);
+              const lastReading = nozzle.lastReading ? toNumber(String(nozzle.lastReading)) : null;
+              const initialReading = nozzle.initialReading ? toNumber(String(nozzle.initialReading)) : null;
               const compareValue = lastReading !== null && !isNaN(lastReading) 
                 ? lastReading 
                 : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
@@ -130,7 +120,7 @@ export default function EmployeeQuickEntry() {
               if (enteredValue > compareValue) {
                 const liters = enteredValue - compareValue;
                 const priceData = fuelPrices.find(p => p.fuel_type.toUpperCase() === nozzle.fuelType.toUpperCase());
-                const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
+                const price = priceData ? toNumber(String(priceData.price_per_litre)) : 0;
                 const saleValue = liters * price;
 
                 totalLiters += liters;
@@ -177,9 +167,9 @@ export default function EmployeeQuickEntry() {
       data.forEach(entry => {
         // Get nozzle for price calculation
         const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
-        const enteredValue = parseFloat(entry.readingValue || '0');
-        const lastReading = nozzle?.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-        const initialReading = nozzle?.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+        const enteredValue = toNumber(entry.readingValue || '0');
+        const lastReading = nozzle?.lastReading ? toNumber(String(nozzle.lastReading)) : null;
+        const initialReading = nozzle?.initialReading ? toNumber(String(nozzle.initialReading)) : null;
         const compareValue = lastReading !== null && !isNaN(lastReading)
           ? lastReading
           : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
@@ -188,13 +178,13 @@ export default function EmployeeQuickEntry() {
         const priceData = Array.isArray(fuelPrices) 
           ? fuelPrices.find(p => p.fuel_type.toUpperCase() === (nozzle?.fuelType || '').toUpperCase())
           : undefined;
-        const price = priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
+        const price = priceData ? toNumber(String(priceData.price_per_litre)) : 0;
         const totalAmount = litres * price;
 
         const readingData = {
           stationId: selectedStation,
           nozzleId: entry.nozzleId,
-          readingValue: parseFloat(entry.readingValue),
+          readingValue: toNumber(entry.readingValue),
           readingDate: entry.date,
           pricePerLitre: price,
           totalAmount: totalAmount,
@@ -258,7 +248,7 @@ export default function EmployeeQuickEntry() {
         transactionDate: readingDate,
         readingIds: submittedReadingIds,
         paymentBreakdown: paymentBreakdown,
-        creditAllocations: creditAllocations.filter(c => c.amount > 0),
+        creditAllocations: creditAllocations.filter(c => toNumber(c.amount) > 0),
         notes: `Transaction created by ${user?.name || 'Employee'}`
       };
 
@@ -320,7 +310,7 @@ export default function EmployeeQuickEntry() {
   const getPrice = (fuelType: string): number => {
     if (!Array.isArray(fuelPrices)) return 0;
     const priceData = fuelPrices.find(p => p.fuel_type.toUpperCase() === fuelType.toUpperCase());
-    return priceData ? parseFloat(String(priceData.price_per_litre)) : 0;
+    return priceData ? toNumber(String(priceData.price_per_litre)) : 0;
   };
 
   const getMissingFuelTypes = (): string[] => {
@@ -344,7 +334,7 @@ export default function EmployeeQuickEntry() {
   };
 
   const handleSubmitReadings = () => {
-    const entries = Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0);
+    const entries = Object.values(readings).filter(r => r.readingValue && toNumber(r.readingValue) > 0);
     if (entries.length === 0) {
       toast({
         title: 'No readings entered',
@@ -491,14 +481,14 @@ export default function EmployeeQuickEntry() {
                         {pump.nozzles && pump.nozzles.length > 0 ? (
                           <div className="space-y-2 sm:space-y-3">
                             {pump.nozzles.map((nozzle) => {
-                              const lastReading = nozzle.lastReading ? parseFloat(String(nozzle.lastReading)) : null;
-                              const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
+                              const lastReading = nozzle.lastReading ? toNumber(String(nozzle.lastReading)) : null;
+                              const initialReading = nozzle.initialReading ? toNumber(String(nozzle.initialReading)) : null;
                               const compareValue = lastReading !== null && !isNaN(lastReading)
                                 ? lastReading
                                 : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
 
                               const reading = readings[nozzle.id];
-                              const enteredValue = reading?.readingValue ? parseFloat(reading.readingValue) : 0;
+                              const enteredValue = reading?.readingValue ? toNumber(reading.readingValue) : 0;
                               const price = getPrice(nozzle.fuelType);
                               const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
 

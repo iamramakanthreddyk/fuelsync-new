@@ -26,7 +26,6 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -54,6 +53,7 @@ import {
   AlertOctagon,
 } from 'lucide-react';
 import { FUEL_TYPE_OPTIONS, type FuelType } from '@/lib/constants';
+import { toNumber } from '@/utils/number';
 import { getFuelColors } from '@/lib/fuelColors';
 
 interface TankData {
@@ -104,12 +104,12 @@ export default function Inventory() {
     fuelType: '',
     displayFuelName: '',
     name: '',
-    capacity: '',
-    currentLevel: '',
+    capacity: '', // always string
+    currentLevel: '', // always string
   });
 
   const [refillData, setRefillData] = useState({
-    litres: '',
+    litres: '', // always string
     refillDate: new Date().toISOString().split('T')[0],
     refillTime: '',
     supplierName: '',
@@ -119,7 +119,7 @@ export default function Inventory() {
   });
 
   const [calibrateData, setCalibrateData] = useState({
-    dipReading: '',
+    dipReading: '', // always string
     date: new Date().toISOString().split('T')[0],
     notes: '',
   });
@@ -218,8 +218,8 @@ export default function Inventory() {
           fuelType: newTank.fuelType as FuelType,
           displayFuelName: newTank.displayFuelName || undefined,
           name: newTank.name || undefined,
-          capacity: parseFloat(newTank.capacity),
-          currentLevel: parseFloat(newTank.currentLevel) || 0,
+          capacity: toNumber(newTank.capacity),
+          currentLevel: toNumber(newTank.currentLevel) || 0,
         },
       });
       toast({ title: 'Success', description: 'Tank added successfully' });
@@ -242,12 +242,12 @@ export default function Inventory() {
       await recordRefillMutation.mutateAsync({
         tankId: selectedTank.id,
         data: {
-          litres: parseFloat(refillData.litres),
+          litres: toNumber(refillData.litres),
           refillDate: refillData.refillDate,
           refillTime: refillData.refillTime || undefined,
           supplierName: refillData.supplierName || undefined,
           vehicleNumber: refillData.vehicleNumber || undefined,
-          costPerLitre: refillData.costPerLitre ? parseFloat(refillData.costPerLitre) : undefined,
+          costPerLitre: refillData.costPerLitre ? toNumber(refillData.costPerLitre) : undefined,
           notes: refillData.notes || undefined,
         },
       });
@@ -270,7 +270,7 @@ export default function Inventory() {
     try {
       await calibrateMutation.mutateAsync({
         tankId: selectedTank.id,
-        dipReading: parseFloat(calibrateData.dipReading),
+        dipReading: toNumber(calibrateData.dipReading),
         date: calibrateData.date,
         notes: calibrateData.notes || undefined,
       });
@@ -317,7 +317,7 @@ export default function Inventory() {
   const getCurrentFuelPrice = () => {
     if (!selectedTank) return null;
     const fuelType = selectedTank.fuelType;
-    return fuelPrices && fuelPrices[fuelType] ? parseFloat(fuelPrices[fuelType]) : null;
+    return fuelPrices && fuelPrices[fuelType] ? toNumber(fuelPrices[fuelType]) : null;
   };
   
   // Calculate refill stats
@@ -726,13 +726,13 @@ export default function Inventory() {
                               </td>
                               <td className="text-right p-3 text-slate-600">
                                 {refill.levelBefore !== null && refill.levelBefore !== undefined 
-                                  ? `${Number(refill.levelBefore || refill.level_before).toLocaleString()}L`
+                                  ? `${toNumber(refill.levelBefore || refill.level_before).toLocaleString()}L`
                                   : '--'
                                 }
                               </td>
                               <td className="text-right p-3 font-semibold text-teal-600">
                                 {refill.levelAfter !== null && refill.levelAfter !== undefined
-                                  ? `${Number(refill.levelAfter || refill.level_after).toLocaleString()}L`
+                                  ? `${toNumber(refill.levelAfter || refill.level_after).toLocaleString()}L`
                                   : '--'
                                 }
                               </td>
@@ -749,7 +749,7 @@ export default function Inventory() {
                         // Format numbers for better mobile display
                         const formatNum = (val: any) => {
                           if (!val && val !== 0) return '--';
-                          const num = Number(val);
+                          const num = toNumber(val);
                           if (num >= 1000) {
                             return (num / 1000).toFixed(1) + 'k';
                           }
@@ -867,7 +867,12 @@ export default function Inventory() {
                   type="number"
                   placeholder="e.g., 20000"
                   value={newTank.capacity}
-                  onChange={(e) => setNewTank({ ...newTank, capacity: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (/^\d*$/.test(val) || val === '') {
+                      setNewTank({ ...newTank, capacity: val });
+                    }
+                  }}
                 />
               </div>
               <div className="space-y-2">
@@ -877,7 +882,12 @@ export default function Inventory() {
                   type="number"
                   placeholder="e.g., 15000"
                   value={newTank.currentLevel}
-                  onChange={(e) => setNewTank({ ...newTank, currentLevel: e.target.value })}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (/^\d*$/.test(val) || val === '') {
+                      setNewTank({ ...newTank, currentLevel: val });
+                    }
+                  }}
                 />
               </div>
             </div>
@@ -929,7 +939,12 @@ export default function Inventory() {
                 type="number"
                 placeholder="e.g., 5000"
                 value={refillData.litres}
-                onChange={(e) => setRefillData({ ...refillData, litres: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^\d*$/.test(val) || val === '') {
+                    setRefillData({ ...refillData, litres: val });
+                  }
+                }}
               />
             </div>
 
@@ -988,7 +1003,7 @@ export default function Inventory() {
                 const currentPrice = getCurrentFuelPrice();
                 return refillData.costPerLitre && currentPrice && (
                   <div className="space-y-2">
-                    {parseFloat(refillData.costPerLitre) >= currentPrice ? (
+                    {toNumber(refillData.costPerLitre) >= currentPrice ? (
                       <div className="bg-red-50 border border-red-300 rounded-lg p-3 flex gap-2">
                         <AlertOctagon className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
                         <div className="text-sm text-red-800">
@@ -1002,7 +1017,7 @@ export default function Inventory() {
                         <div className="text-sm text-green-800">
                           <div className="font-semibold">✓ Profit Margin</div>
                           <div className="text-xs mt-1">
-                            Buying: ₹{refillData.costPerLitre}/L | Selling: ₹{currentPrice}/L | Margin: ₹{(currentPrice - parseFloat(refillData.costPerLitre)).toFixed(2)}/L ({(((currentPrice - parseFloat(refillData.costPerLitre)) / currentPrice) * 100).toFixed(1)}%)
+                            Buying: ₹{refillData.costPerLitre}/L | Selling: ₹{currentPrice}/L | Margin: ₹{(currentPrice - toNumber(refillData.costPerLitre)).toFixed(2)}/L ({(((currentPrice - toNumber(refillData.costPerLitre)) / currentPrice) * 100).toFixed(1)}%)
                           </div>
                         </div>
                       </div>
@@ -1025,13 +1040,13 @@ export default function Inventory() {
                     recordRefillMutation.isPending || 
                     (refillData.costPerLitre !== '' && 
                      currentPrice !== null && 
-                     parseFloat(refillData.costPerLitre) >= currentPrice)
+                     toNumber(refillData.costPerLitre) >= currentPrice)
                   } 
                   className="w-full sm:w-auto bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-md hover:shadow-lg transition-all"
                   title={
                     refillData.costPerLitre !== '' && 
                     currentPrice !== null && 
-                    parseFloat(refillData.costPerLitre) >= currentPrice 
+                    toNumber(refillData.costPerLitre) >= currentPrice 
                       ? "Fix cost price to proceed" 
                       : ""
                   }
@@ -1068,7 +1083,12 @@ export default function Inventory() {
                 type="number"
                 placeholder="e.g., 14500"
                 value={calibrateData.dipReading}
-                onChange={(e) => setCalibrateData({ ...calibrateData, dipReading: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (/^\d*$/.test(val) || val === '') {
+                    setCalibrateData({ ...calibrateData, dipReading: val });
+                  }
+                }}
               />
             </div>
 
@@ -1094,17 +1114,17 @@ export default function Inventory() {
 
             {selectedTank && calibrateData.dipReading && (
               <div className={`rounded-lg p-3 text-sm ${
-                parseFloat(calibrateData.dipReading) - selectedTank.currentLevel > 0
+                toNumber(calibrateData.dipReading) - selectedTank.currentLevel > 0
                   ? 'bg-green-50 border border-green-200'
                   : 'bg-red-50 border border-red-200'
               }`}>
                 <div className={`font-semibold ${
-                  parseFloat(calibrateData.dipReading) - selectedTank.currentLevel > 0
+                  toNumber(calibrateData.dipReading) - selectedTank.currentLevel > 0
                     ? 'text-green-900'
                     : 'text-red-900'
                 }`}>
-                  Adjustment: {parseFloat(calibrateData.dipReading) - selectedTank.currentLevel > 0 ? '+' : ''}
-                  {(parseFloat(calibrateData.dipReading) - selectedTank.currentLevel).toLocaleString()}L
+                  Adjustment: {toNumber(calibrateData.dipReading) - selectedTank.currentLevel > 0 ? '+' : ''}
+                  {(toNumber(calibrateData.dipReading) - selectedTank.currentLevel).toLocaleString()}L
                 </div>
               </div>
             )}
@@ -1182,7 +1202,7 @@ export default function Inventory() {
                     data: {
                       displayFuelName: displayName || undefined,
                       name: name || undefined,
-                      capacity: capacity ? parseFloat(capacity) : undefined,
+                      capacity: capacity ? toNumber(capacity) : undefined,
                     },
                   });
                   toast({ title: 'Success', description: 'Tank updated successfully' });

@@ -1,126 +1,6 @@
-// Child component for a single nozzle row, to allow hook usage per nozzle
-interface NozzleReadingRowProps {
-  nozzle: any;
-  readings: Record<string, ReadingEntry>;
-  handleReadingChange: (nozzleId: string, value: string) => void;
-  handleSampleChange: (nozzleId: string, isSample: boolean) => void;
-  hasPriceForFuelType: (fuelType: string) => boolean;
-  getPrice: (fuelType: string) => number;
-  lastReading?: number | null;
-  lastReadingLoading?: boolean;
-}
-function NozzleReadingRow({
-  nozzle,
-  readings,
-  handleReadingChange,
-  handleSampleChange,
-  hasPriceForFuelType,
-  getPrice,
-  lastReading,
-  lastReadingLoading
-}: NozzleReadingRowProps) {
-  const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-  // Always parse lastReading as float if present
-  const parsedLastReading = (lastReading !== null && lastReading !== undefined) ? parseFloat(String(lastReading)) : null;
-  const compareValue = (parsedLastReading !== null && !isNaN(parsedLastReading))
-    ? parsedLastReading
-    : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
+import { toNumber } from '@/utils/number';
+import { NozzleReadingRow } from '@/components/owner/NozzleReadingRow';
 
-  const reading = readings[nozzle.id];
-  const enteredValue = reading?.readingValue !== undefined && reading?.readingValue !== '' ? parseFloat(reading.readingValue) : undefined;
-  const price = getPrice(nozzle.fuelType);
-  const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
-
-  return (
-    <div className="border rounded-lg p-2 sm:p-4 bg-white hover:bg-slate-50 transition-colors border-slate-200">
-      {/* Header - Clean and organized - Improved mobile layout */}
-      <div className="flex flex-col gap-2 mb-3">
-        {/* Row 1: Badges */}
-        <div className="flex items-center gap-1 flex-wrap">
-          <Badge variant="outline" className="text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 border-slate-300 whitespace-nowrap">
-            #{nozzle.nozzleNumber}
-          </Badge>
-          <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 whitespace-nowrap`}>
-            {nozzle.fuelType}
-          </Badge>
-          {!hasFuelPrice && (
-            <span className="text-red-600 text-xs font-bold bg-red-50 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded whitespace-nowrap">⚠ No price</span>
-          )}
-        </div>
-        {/* Row 2: Previous reading */}
-        <div className="text-left">
-          <div className="text-xs text-slate-500 font-medium">Previous</div>
-          <div className="text-base sm:text-lg font-bold text-slate-900 break-words">{safeToFixed(compareValue, 1)} L</div>
-        </div>
-      </div>
-
-      {/* Input Section - Clean and focused */}
-      <div className="space-y-2">
-        <div className="relative">
-          <Input
-            type="number"
-            step="any"
-            placeholder="Current reading"
-            value={reading?.readingValue !== undefined && reading?.readingValue !== null ? reading.readingValue : ''}
-            onChange={(e) => handleReadingChange(nozzle.id, e.target.value)}
-            disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
-            className={`text-base sm:text-sm h-10 sm:h-9 font-semibold w-full break-words overflow-hidden ${!hasFuelPrice ? 'border-red-300 bg-red-50 text-red-900' : 'border-slate-300 text-slate-900'}`}
-          />
-          {/* Status indicators */}
-          {reading?.readingValue && !lastReadingLoading && enteredValue !== undefined && (
-            <div className="absolute right-3 top-1/2 -translate-y-1/2">
-              {enteredValue > compareValue ? (
-                <Check className="w-5 h-5 text-emerald-600 font-bold" />
-              ) : (
-                <span className="text-xs text-red-700 font-bold">Invalid</span>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Sale calculation - Only show when valid and NOT a sample reading */}
-        {reading?.readingValue && enteredValue !== undefined && enteredValue > compareValue && hasFuelPrice && !reading.is_sample && (
-          <div className="mt-3 p-3 bg-emerald-50 rounded-lg border-2 border-emerald-200">
-            <ReadingSaleCalculation
-              nozzleNumber={nozzle.nozzleNumber}
-              fuelType={nozzle.fuelType}
-              lastReading={compareValue}
-              enteredReading={enteredValue}
-              fuelPrice={price}
-              status={nozzle.status as EquipmentStatusEnum}
-            />
-          </div>
-        )}
-
-        {/* Sample Reading Checkbox */}
-        <div className="mt-3 p-3 bg-blue-50 rounded-lg border-2 border-blue-200">
-          <label className="flex items-start gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={reading?.is_sample || false}
-              onChange={(e) => handleSampleChange(nozzle.id, e.target.checked)}
-              className="mt-0.5 w-4 h-4 accent-blue-600 cursor-pointer flex-shrink-0"
-              disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasFuelPrice}
-            />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-bold text-blue-900">Quality Check / Sample Reading</p>
-              <p className="text-xs text-blue-700 mt-0.5">Mark this if fuel was tested and returned to tank</p>
-            </div>
-          </label>
-        </div>
-
-        {/* Error message - Only show when needed */}
-        {!hasFuelPrice && (
-          <div className="mt-2 p-2.5 bg-red-50 rounded-lg border-2 border-red-200">
-            <p className="text-xs text-red-700 font-bold">
-              ⚠️ Set fuel price in Prices page
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 /**
  * Quick Data Entry with Sale Calculations
  * Enhanced version with per-nozzle sale value calculations
@@ -141,7 +21,7 @@ function NozzleReadingRow({
  * - saleValue = totalAmount (calculated sale revenue)
  */
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 // Batched last readings are fetched in-component; per-nozzle hook removed to avoid N requests
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -163,11 +43,11 @@ import { useDashboardData } from '@/hooks/useDashboardData';
 import { useFuelPricesForStation } from '@/hooks/useFuelPricesForStation';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { safeToFixed } from '@/lib/format-utils';
-import { getFuelBadgeClasses } from '@/lib/fuelColors';
+// import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
-import { ReadingSaleCalculation } from '@/components/owner/ReadingSaleCalculation';
+
 import { SaleValueSummary } from '@/components/owner/SaleValueSummary';
-import { EquipmentStatusEnum, PaymentMethodEnum } from '@/core/enums';
+import { PaymentMethodEnum } from '@/core/enums';
 import {
   Zap,
   Building2,
@@ -175,11 +55,18 @@ import {
   Check
 } from 'lucide-react';
 
+import type {
+  ReadingEntry,
+  CreditAllocation,
+  PaymentAllocation,
+  Creditor
+} from '@/types/finance';
+
 // Utility function to calculate litres and sale value for a nozzle
 const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: number | null, fuelPrices: any[]) => {
-  const enteredValue = parseFloat(readingValue || '0');
-  const nozzleLast = nozzle?.lastReading !== undefined && nozzle?.lastReading !== null ? parseFloat(String(nozzle.lastReading)) : undefined;
-  const initial = nozzle?.initialReading !== undefined && nozzle?.initialReading !== null ? parseFloat(String(nozzle.initialReading)) : 0;
+  const enteredValue = toNumber(readingValue || '0');
+  const nozzleLast = nozzle?.lastReading !== undefined && nozzle?.lastReading !== null ? toNumber(String(nozzle.lastReading)) : undefined;
+  const initial = nozzle?.initialReading !== undefined && nozzle?.initialReading !== null ? toNumber(String(nozzle.initialReading)) : 0;
   let last: number | undefined = undefined;
   if (lastReading !== null && lastReading !== undefined) {
     last = Number(lastReading);
@@ -195,49 +82,24 @@ const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: num
   // Safety check: ensure fuelPrices is an array before calling .find()
   const pricesArray = Array.isArray(fuelPrices) ? fuelPrices : [];
   const priceData = pricesArray.find(p => (p.fuel_type || '').toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
-  const price = parseFloat(String(priceData?.price_per_litre || 0));
+  const price = toNumber(String(priceData?.price_per_litre || 0));
   const saleValue = litres * price;
   return { litres, saleValue };
-};
-
-interface ReadingEntry {
-  nozzleId: string;
-  readingValue: string;
-  date: string;
-  paymentType: string;
-  is_sample?: boolean;
 }
+// Types moved to @/types/finance
 
-interface CreditAllocation {
-  creditorId: string;
-  amount: number;
-}
-
-interface PaymentAllocation {
-  cash: number;
-  online: number;
-  credits: CreditAllocation[];
-}
-
-interface Creditor {
-  id: string;
-  name: string;
-  businessName?: string;
-  currentBalance: number;
-  creditLimit: number;
-}
 
 export default function QuickDataEntry() {
   const [selectedStation, setSelectedStation] = useState<string>('');
   const [readings, setReadings] = useState<Record<string, ReadingEntry>>({});
   const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentAllocation, setPaymentAllocation] = useState<PaymentAllocation>({
-    cash: 0,
-    online: 0,
+    cash: '0',
+    online: '0',
     credits: []
   });
 
-  // ...existing code...
+
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -374,10 +236,13 @@ export default function QuickDataEntry() {
   // Default payment allocation to total sale value (all cash) when no allocation exists
   useEffect(() => {
     const totalSaleValue = saleSummary.totalSaleValue;
-    const currentTotal = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credits.reduce((s, c) => s + c.amount, 0);
-    // Only set default if we have a sale value and no allocations yet
+    const currentTotal =
+      toNumber(paymentAllocation.cash) +
+      toNumber(paymentAllocation.online) +
+      paymentAllocation.credits.reduce((s, c) => s + toNumber(c.amount), 0);
+    // Set default payment allocation: put full amount in cash initially
     if (totalSaleValue > 0 && currentTotal === 0) {
-      setPaymentAllocation({ cash: totalSaleValue, online: 0, credits: [] });
+      setPaymentAllocation({ cash: totalSaleValue.toString(), online: '0', credits: [] });
     }
   }, [saleSummary.totalSaleValue, paymentAllocation.cash, paymentAllocation.credits, paymentAllocation.online]);
 
@@ -388,36 +253,48 @@ export default function QuickDataEntry() {
 
   // Smart proportional adjustment: when sale value changes, adjust all payment methods proportionally
   // This prevents the mismatch issue where only cash gets adjusted
+  const prevSaleValueRef = useRef<number>(0);
   useEffect(() => {
     const newTotalSaleValue = saleSummary.totalSaleValue;
-    const currentTotalAllocation = paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
+    const prevSaleValue = prevSaleValueRef.current;
 
-    // Only adjust if there's a meaningful change and we have allocations
-    if (newTotalSaleValue > 0 && currentTotalAllocation > 0 && Math.abs(newTotalSaleValue - currentTotalAllocation) > 0.01) {
-      const ratio = newTotalSaleValue / currentTotalAllocation;
+    // Only adjust when sale value actually changes (not when user types in payment fields)
+    if (newTotalSaleValue !== prevSaleValue && newTotalSaleValue > 0) {
+      const currentTotalAllocation =
+        toNumber(paymentAllocation.cash) +
+        toNumber(paymentAllocation.online) +
+        paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
 
-      // Adjust all payment methods proportionally
-      const newCash = Math.round((paymentAllocation.cash * ratio) * 100) / 100;
-      const newOnline = Math.round((paymentAllocation.online * ratio) * 100) / 100;
-      const newCredits = paymentAllocation.credits.map(credit => ({
-        ...credit,
-        amount: Math.round((credit.amount * ratio) * 100) / 100
-      }));
+      // Only adjust if we have existing allocations and there's a meaningful difference
+      if (currentTotalAllocation > 0 && Math.abs(newTotalSaleValue - currentTotalAllocation) > 0.01) {
+        const ratio = newTotalSaleValue / currentTotalAllocation;
 
-      // Verify the new total matches (should be very close due to rounding)
-      const newTotal = newCash + newOnline + newCredits.reduce((sum, c) => sum + c.amount, 0);
-      const difference = newTotalSaleValue - newTotal;
+        // Adjust all payment methods proportionally
+        const newCash = Math.round((toNumber(paymentAllocation.cash) * ratio) * 100) / 100;
+        const newOnline = Math.round((toNumber(paymentAllocation.online) * ratio) * 100) / 100;
+        const newCredits = paymentAllocation.credits.map(credit => ({
+          ...credit,
+          amount: (Math.round((toNumber(credit.amount) * ratio) * 100) / 100).toString()
+        }));
 
-      // Adjust cash to absorb any rounding difference
-      const finalCash = Math.max(0, newCash + difference);
+        // Verify the new total matches (should be very close due to rounding)
+        const newTotal = newCash + newOnline + newCredits.reduce((sum, c) => sum + parseFloat(c.amount || '0'), 0);
+        const difference = newTotalSaleValue - newTotal;
 
-      setPaymentAllocation({
-        cash: finalCash,
-        online: newOnline,
-        credits: newCredits
-      });
+        // Adjust cash to absorb any rounding difference
+        const finalCash = Math.max(0, newCash + difference);
+
+        setPaymentAllocation({
+          cash: finalCash.toString(),
+          online: newOnline.toString(),
+          credits: newCredits
+        });
+      }
+
+      // Update the ref with the new sale value
+      prevSaleValueRef.current = newTotalSaleValue;
     }
-  }, [saleSummary.totalSaleValue, paymentAllocation.cash, paymentAllocation.credits, paymentAllocation.online]);
+  }, [saleSummary.totalSaleValue]); // Only depend on sale value changes
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
@@ -427,8 +304,8 @@ export default function QuickDataEntry() {
 
       // Only validate payment if there are non-sample readings
       if (nonSampleReadings.length > 0) {
-        const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
-        const totalPayment = paymentAllocation.cash + paymentAllocation.online + totalCredit;
+        const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
+        const totalPayment = toNumber(paymentAllocation.cash) + toNumber(paymentAllocation.online) + totalCredit;
         
         if (totalPayment === 0) {
           throw new Error(
@@ -465,9 +342,9 @@ export default function QuickDataEntry() {
       const totalSale = entriesWithSale.reduce((s: number, e: any) => s + e.saleValue, 0);
       const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
-      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
-      const cashRatio = totalSale > 0 ? (paymentAllocation.cash / totalSale) : 0;
-      const onlineRatio = totalSale > 0 ? (paymentAllocation.online / totalSale) : 0;
+      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
+      const cashRatio = totalSale > 0 ? (toNumber(paymentAllocation.cash) / totalSale) : 0;
+      const onlineRatio = totalSale > 0 ? (toNumber(paymentAllocation.online) / totalSale) : 0;
       // For credit, distribute proportionally if multiple creditors
       // We'll use the first credit allocation for each reading for now (can be improved for per-reading split)
 
@@ -481,8 +358,8 @@ export default function QuickDataEntry() {
         const creditAmts: CreditAllocation[] = [];
 
         if (isLast) {
-          cashAmt = round2(paymentAllocation.cash - allocatedCash);
-          onlineAmt = round2(paymentAllocation.online - allocatedOnline);
+          cashAmt = round2(toNumber(paymentAllocation.cash) - allocatedCash);
+          onlineAmt = round2(toNumber(paymentAllocation.online) - allocatedOnline);
         }
 
         allocatedCash = round2(allocatedCash + cashAmt);
@@ -492,13 +369,14 @@ export default function QuickDataEntry() {
         let creditTotal = 0;
         if (totalCredit > 0) {
           paymentAllocation.credits.forEach((creditAlloc, cidx) => {
-            let amt = round2(item.saleValue * (creditAlloc.amount / totalCredit));
+            let allocAmount = toNumber(creditAlloc.amount);
+            let amt = round2(item.saleValue * (allocAmount / totalCredit));
             if (isLast && cidx === paymentAllocation.credits.length - 1) {
-              amt = round2(creditAlloc.amount - creditTotal);
+              amt = round2(allocAmount - creditTotal);
             }
             creditTotal += amt;
             if (amt > 0) {
-              creditAmts.push({ creditorId: creditAlloc.creditorId, amount: amt });
+              creditAmts.push({ creditorId: creditAlloc.creditorId, amount: amt.toString() });
             }
           });
         }
@@ -515,18 +393,18 @@ export default function QuickDataEntry() {
         });
       });
       // Build combined quick-entry payload
-      const totalCreditTxn = nonSampleReadings.length > 0 ? paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0) : 0;
+      const totalCreditTxn = nonSampleReadings.length > 0 ? paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0) : 0;
       const stationPrices = Array.isArray(fuelPrices) ? fuelPrices.map(p => ({ fuelType: p.fuel_type, price: p.price_per_litre })) : [];
       const quickEntryPayload: any = {
         stationId: selectedStation,
         transactionDate: readingDate,
         readings: readingsPayload,
         paymentBreakdown: {
-          cash: nonSampleReadings.length > 0 ? paymentAllocation.cash : 0,
-          online: nonSampleReadings.length > 0 ? paymentAllocation.online : 0,
+          cash: nonSampleReadings.length > 0 ? toNumber(paymentAllocation.cash) : 0,
+          online: nonSampleReadings.length > 0 ? toNumber(paymentAllocation.online) : 0,
           credit: totalCreditTxn
         },
-        creditAllocations: totalCreditTxn > 0 ? paymentAllocation.credits.map(c => ({ creditorId: c.creditorId, amount: c.amount })) : [],
+        creditAllocations: totalCreditTxn > 0 ? paymentAllocation.credits.map(c => ({ creditorId: c.creditorId, amount: toNumber(c.amount) })) : [],
         stationPrices
       };
 
@@ -541,7 +419,7 @@ export default function QuickDataEntry() {
       });
       // Clear the form
       setReadings({});
-      setPaymentAllocation({ cash: 0, online: 0, credits: [] });
+      setPaymentAllocation({ cash: '', online: '', credits: [] });
       // Invalidate and refetch pumps data
       queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
       queryClient.invalidateQueries({ queryKey: ['pumps-data', selectedStation] });
@@ -608,11 +486,7 @@ export default function QuickDataEntry() {
     return fuelPrices.some(p => (p.fuel_type || '').toUpperCase() === fuelType.toUpperCase());
   };
 
-  const getPrice = (fuelType: string): number => {
-    if (!Array.isArray(fuelPrices)) return 0;
-    const priceData = fuelPrices.find(p => (p.fuel_type || '').toUpperCase() === fuelType.toUpperCase());
-    return priceData ? parseFloat(String(priceData.price_per_litre || 0)) : 0;
-  };
+
 
   // Get all fuel types that are in use but missing prices
   // (Already calculated in the hook, but kept for backward compatibility with getMissingFuelTypes calls)
@@ -636,8 +510,8 @@ export default function QuickDataEntry() {
 
     // Only validate payment allocation if there are non-sample readings
     if (nonSampleEntries.length > 0) {
-      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0);
-      const allocated = paymentAllocation.cash + paymentAllocation.online + totalCredit;
+      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
+      const allocated = toNumber(paymentAllocation.cash) + toNumber(paymentAllocation.online) + totalCredit;
       
       // Check if payment is completely missing
       if (allocated === 0 && saleSummary.totalSaleValue > 0) {
@@ -812,7 +686,6 @@ export default function QuickDataEntry() {
                             handleReadingChange={handleReadingChange}
                             handleSampleChange={handleSampleChange}
                             hasPriceForFuelType={hasPriceForFuelType}
-                            getPrice={getPrice}
                             lastReading={allLastReadings ? allLastReadings[nozzle.id] : null}
                             lastReadingLoading={allLastReadingsIsLoading}
                           />
@@ -880,8 +753,20 @@ export default function QuickDataEntry() {
                   {/* Payment Summary */}
                   <SaleValueSummary
                     summary={saleSummary}
-                    paymentAllocation={paymentAllocation}
-                    onPaymentChange={setPaymentAllocation}
+                    paymentAllocation={{
+                      ...paymentAllocation,
+                      cash: toNumber(paymentAllocation.cash),
+                      online: toNumber(paymentAllocation.online),
+                      credits: paymentAllocation.credits.map(c => ({ ...c, amount: toNumber(c.amount) })) as any // allow number for amount
+                    }}
+                    onPaymentChange={alloc => {
+                      setPaymentAllocation({
+                        ...alloc,
+                        cash: alloc.cash.toString(),
+                        online: alloc.online.toString(),
+                        credits: (alloc.credits as any[]).map(c => ({ ...c, amount: c.amount.toString() }))
+                      });
+                    }}
                     creditors={creditors}
                     isLoading={submitReadingsMutation.isPending}
                     multiCredit
@@ -894,7 +779,7 @@ export default function QuickDataEntry() {
                       submitReadingsMutation.isPending ||
                       pendingCount === 0 ||
                       Math.abs(
-                        (paymentAllocation.cash + paymentAllocation.online + paymentAllocation.credits.reduce((sum, c) => sum + c.amount, 0)) -
+                        (toNumber(paymentAllocation.cash) + toNumber(paymentAllocation.online) + paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0)) -
                         saleSummary.totalSaleValue
                       ) > 0.01
                     }
@@ -981,6 +866,7 @@ export default function QuickDataEntry() {
           </CardContent>
         </Card>
       )}
+
     </div>
   );
 }

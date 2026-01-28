@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { toNumber } from '@/utils/number';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -40,9 +41,8 @@ export const FuelPriceDialog: React.FC<FuelPriceDialogProps> = ({
 
   // Calculate profit when prices change
   React.useEffect(() => {
-    const sellingPrice = parseFloat(price) || 0;
-    const cost = parseFloat(costPrice) || 0;
-    
+    const sellingPrice = toNumber(price);
+    const cost = toNumber(costPrice);
     if (sellingPrice > 0 && cost > 0 && cost < sellingPrice) {
       const profit = sellingPrice - cost;
       const margin = ((profit / sellingPrice) * 100).toFixed(2);
@@ -72,8 +72,8 @@ export const FuelPriceDialog: React.FC<FuelPriceDialogProps> = ({
     
     // Validate cost price if provided
     if (costPrice) {
-      const costPriceNum = parseFloat(costPrice);
-      const sellingPriceNum = parseFloat(price);
+      const costPriceNum = toNumber(costPrice);
+      const sellingPriceNum = toNumber(price);
       if (costPriceNum >= sellingPriceNum) {
         setCostPriceError("Cost price must be less than selling price");
         return;

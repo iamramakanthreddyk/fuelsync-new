@@ -16,7 +16,7 @@ import {
   CartesianGrid,
   Tooltip
 } from 'recharts';
-import { useReports, ReportType, ReportRow } from '@/hooks/useReports';
+import { useReports, ReportType } from '@/hooks/useReports';
 import { toCsv, downloadCsv } from '@/lib/csv';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -27,7 +27,7 @@ import { useStations } from '@/hooks/api';
 export default function Reports() {
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [reportType, setReportType] = useState('daily');
+  const [reportType, setReportType] = useState<ReportType>('sales');
   const [selectedStation, setSelectedStation] = useState<string>('');
   const { user } = useAuth();
   const { toast } = useToast();
@@ -126,15 +126,15 @@ export default function Reports() {
             </div>
             <div>
               <Label htmlFor="reportType">Report Type</Label>
-              <Select value={reportType} onValueChange={setReportType}>
+              <Select value={reportType} onValueChange={(value) => setReportType(value as ReportType)}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="daily">Daily Sales</SelectItem>
-                  <SelectItem value="monthly">Monthly Summary</SelectItem>
-                  <SelectItem value="pump">Pump Performance</SelectItem>
-                  <SelectItem value="fuel">Fuel Analysis</SelectItem>
+                  <SelectItem value="sales">Sales Report</SelectItem>
+                  <SelectItem value="daily-sales">Daily Sales Summary</SelectItem>
+                  <SelectItem value="sample-readings">Sample Readings</SelectItem>
+                  <SelectItem value="sample-statistics">Sample Statistics</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -166,8 +166,45 @@ export default function Reports() {
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  const csv = toCsv(reportData.data || []);
-                  downloadCsv(`report_${reportType}_${startDate}_${endDate}.csv`, csv);
+                  let csvData = reportData.data || [];
+                  let filename = `report_${reportType}_${startDate}_${endDate}.csv`;
+
+                  // Transform data based on report type for better CSV export
+                  if (reportType === 'sales') {
+                    csvData = (csvData as any[]).map(row => ({
+                      Date: row.date || '',
+                      'Total Sales': `₹${(row.totalSales ?? 0).toLocaleString('en-IN')}`,
+                      'Total Quantity': `${(row.totalQuantity ?? 0).toLocaleString('en-IN')} L`,
+                      Transactions: row.totalTransactions ?? 0
+                    }));
+                  } else if (reportType === 'daily-sales') {
+                    csvData = (csvData as any[]).map(row => ({
+                      Date: row.date || '',
+                      'Total Sale Value': `₹${(row.totalSaleValue ?? 0).toLocaleString('en-IN')}`,
+                      'Total Liters': `${(row.totalLiters ?? 0).toLocaleString('en-IN')} L`,
+                      'Fuel Type': row.fuelType || ''
+                    }));
+                  } else if (reportType === 'sample-readings') {
+                    csvData = (csvData as any[]).map(row => ({
+                      Date: row.readingDate || '',
+                      Pump: row.pumpName || row.pump || '',
+                      Nozzle: row.nozzleNumber || row.nozzle || '',
+                      'Opening Reading': `${(row.openingReading ?? 0).toLocaleString('en-IN')} L`,
+                      'Closing Reading': `${(row.closingReading ?? 0).toLocaleString('en-IN')} L`,
+                      'Fuel Type': row.fuelType || ''
+                    }));
+                  } else if (reportType === 'sample-statistics') {
+                    csvData = (csvData as any[]).map(row => ({
+                      'Fuel Type': row.fuelType || '',
+                      'Total Sales': `₹${(row.totalSales ?? 0).toLocaleString('en-IN')}`,
+                      'Total Quantity': `${(row.totalQuantity ?? 0).toLocaleString('en-IN')} L`,
+                      'Average Price': `₹${(row.averagePrice ?? 0).toLocaleString('en-IN')}`,
+                      Transactions: row.totalTransactions ?? 0
+                    }));
+                  }
+
+                  const csv = toCsv(csvData);
+                  downloadCsv(filename, csv);
                 }}
               >
                 Export CSV
@@ -175,13 +212,15 @@ export default function Reports() {
             </div>
           </div>
 
-          {/* If daily report, show a small trend chart */}
-          {reportType === 'daily' && reportData && Array.isArray(reportData.data) && reportData.data.length > 0 && (
+          {/* Chart for sales reports */}
+          {reportType === 'sales' && reportData && Array.isArray(reportData.data) && reportData.data.length > 0 && (
             (() => {
-              const mapped = (reportData.data as ReportRow[])
+              const mapped = (reportData.data as any[])
                 .map(r => ({
-                  date: r.date || r.readingDate || r.day || r.label || '',
-                  sales: r.sales ?? r.totalSales ?? r.amount ?? r.total_amount ?? r.revenue ?? 0
+                  date: r.date || '',
+                  sales: r.totalSales ?? 0,
+                  quantity: r.totalQuantity ?? 0,
+                  transactions: r.totalTransactions ?? 0
                 }))
                 .filter(d => d.date)
                 .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
@@ -208,6 +247,42 @@ export default function Reports() {
             })()
           )}
 
+          {/* Chart for daily sales reports */}
+          {reportType === 'daily-sales' && reportData && Array.isArray(reportData.data) && reportData.data.length > 0 && (
+            (() => {
+              const mapped = (reportData.data as any[])
+                .map(r => ({
+                  date: r.date || '',
+                  sales: r.totalSaleValue ?? 0,
+                  liters: r.totalLiters ?? 0
+                }))
+                .filter(d => d.date)
+                .sort((a, b) => (a.date > b.date ? 1 : a.date < b.date ? -1 : 0));
+
+              return (
+                <div style={{ width: '100%', height: 260 }} className="mb-4">
+                  <ResponsiveContainer>
+                    <LineChart data={mapped} margin={{ top: 10, right: 20, left: 0, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+                      <YAxis yAxisId="sales" orientation="left" tickFormatter={(v) => `₹${safeToFixed(v / 1000, 0)}K`} />
+                      <YAxis yAxisId="liters" orientation="right" tickFormatter={(v) => `${safeToFixed(v, 0)}L`} />
+                      <Tooltip
+                        formatter={(v: unknown, name: string) => {
+                          if (name === 'Sales') return [`₹${Number(v).toLocaleString('en-IN')}`, name];
+                          if (name === 'Liters') return [`${Number(v).toLocaleString('en-IN')}L`, name];
+                          return [String(v), name];
+                        }}
+                      />
+                      <Line yAxisId="sales" type="monotone" dataKey="sales" stroke="#3b82f6" name="Sales" />
+                      <Line yAxisId="liters" type="monotone" dataKey="liters" stroke="#10b981" name="Liters" />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })()
+          )}
+
           {isLoading ? (
             <div className="text-center text-muted-foreground">Loading report...</div>
           ) : !reportData || !Array.isArray(reportData.data) || reportData.data.length === 0 ? (
@@ -215,28 +290,117 @@ export default function Reports() {
               {!Array.isArray(reportData?.data) ? 'Error loading report data' : 'No data for selected range'}
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm border-collapse">
-                <thead className="bg-muted">
-                  <tr className="text-left border-b">
-                    {Object.keys(reportData.data[0] || {}).map((h) => (
-                      <th key={h} className="p-3 font-semibold text-foreground whitespace-nowrap">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {reportData.data.map((row: ReportRow, idx: number) => (
-                    <tr key={idx} className="border-b hover:bg-muted/50 transition-colors">
-                      {Object.entries(row).map(([key, val]) => (
-                        <td key={key} className="p-3 text-foreground">
-                          {typeof val === 'string' && val.includes('₹') ? val : typeof val === 'number' ? val.toLocaleString('en-IN') : String(val)}
-                        </td>
+            <>
+              {/* Table for sales reports */}
+              {reportType === 'sales' && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sales</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Quantity</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transactions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(reportData.data as any[]).map((row, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.date || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{(row.totalSales ?? 0).toLocaleString('en-IN')}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{(row.totalQuantity ?? 0).toLocaleString('en-IN')} L</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.totalTransactions ?? 0}</td>
+                        </tr>
                       ))}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Table for daily sales reports */}
+              {reportType === 'daily-sales' && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sale Value</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Liters</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fuel Type</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(reportData.data as any[]).map((row, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.date || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{(row.totalSaleValue ?? 0).toLocaleString('en-IN')}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{(row.totalLiters ?? 0).toLocaleString('en-IN')} L</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.fuelType || 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Table for sample readings reports */}
+              {reportType === 'sample-readings' && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pump</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nozzle</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Opening Reading</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Closing Reading</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fuel Type</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(reportData.data as any[]).map((row, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.readingDate || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.pumpName || row.pump || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.nozzleNumber || row.nozzle || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{(row.openingReading ?? 0).toLocaleString('en-IN')} L</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{(row.closingReading ?? 0).toLocaleString('en-IN')} L</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.fuelType || 'N/A'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Table for sample statistics reports */}
+              {reportType === 'sample-statistics' && (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fuel Type</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Sales</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Total Quantity</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Average Price</th>
+                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Transactions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {(reportData.data as any[]).map((row, index) => (
+                        <tr key={index} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.fuelType || 'N/A'}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{(row.totalSales ?? 0).toLocaleString('en-IN')}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{(row.totalQuantity ?? 0).toLocaleString('en-IN')} L</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">₹{(row.averagePrice ?? 0).toLocaleString('en-IN')}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{row.totalTransactions ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

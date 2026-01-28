@@ -13,13 +13,12 @@ import { useFuelPricesData, normalizeFuelType } from "@/hooks/useFuelPricesData"
 import { useFuelPricesGlobal } from "../context/FuelPricesContext";
 import { Button } from "@/components/ui/button";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
-
 import { useSetupChecklist } from "@/hooks/useSetupChecklist";
-
 import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
 import { QuickActions } from "@/components/dashboard/QuickActions";
 import { ReadingSummary } from "@/components/dashboard/ReadingSummary";
 import { safeToFixed } from '@/lib/format-utils';
+import { DashboardHeader, MetricCard, DashboardGrid, COMMON_METRICS } from "@/components/dashboard/shared";
 
 export default function Dashboard() {
   const { user } = useAuth();
@@ -125,54 +124,27 @@ export default function Dashboard() {
     const todaySales = dashboardData.todaySales ?? 0;
     const todayPayments = dashboardData.todayPayments ?? 0;
     const pendingClosures = dashboardData.pendingClosures ?? 0;
-    
-    return (
-      <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-        {/* Total Sales Today */}
-        <Card className="card-mobile border-l-4 border-l-green-500 hover:scale-[1.01] transition-transform">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Sales Today</CardTitle>
-            <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(todaySales)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              From fuel dispensing
-            </p>
-          </CardContent>
-        </Card>
-        
-        {/* Total Payments */}
-        <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Payments</CardTitle>
-            <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(todayPayments)}</div>
-            <p className="text-xs text-muted-foreground mt-1">
-              Cash, card, UPI & credit
-            </p>
-          </CardContent>
-        </Card>
-        
-        {/* Pending Closures */}
-        <Card className="card-mobile border-l-4 border-l-amber-500 hover:scale-[1.01] transition-transform sm:col-span-2 lg:col-span-1">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-            <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Pending Closures</CardTitle>
-            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <div className={`text-xl sm:text-2xl font-bold ${pendingClosures > 0 ? 'text-red-600' : 'text-green-600'}`}>
-              {pendingClosures}
-            </div>
-            <p className="text-xs text-muted-foreground mt-1">
-              {pendingClosures > 0 ? 'Need attention' : 'All closed'}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
+
+    const metrics = [
+      {
+        ...COMMON_METRICS.sales,
+        value: `₹${safeToFixed(todaySales)}`,
+        description: "From fuel dispensing"
+      },
+      {
+        ...COMMON_METRICS.payments,
+        value: `₹${safeToFixed(todayPayments)}`,
+        description: "Cash, card, UPI & credit"
+      },
+      {
+        ...COMMON_METRICS.closures,
+        value: pendingClosures.toString(),
+        description: pendingClosures > 0 ? "Need attention" : "All closed",
+        variant: pendingClosures > 0 ? "warning" : "success"
+      }
+    ];
+
+    return <DashboardGrid metrics={metrics} />;
   }
 
   function KeyMetricPremiumPromo() {
@@ -202,39 +174,29 @@ export default function Dashboard() {
   // Simplified dashboard for employees: only essential, accessible cards
   function EmployeeDashboard() {
     const d: any = dashboardData as any;
+    const metrics = [
+      {
+        ...COMMON_METRICS.sales,
+        value: `₹${safeToFixed(d.today?.amount ?? d.todaySales ?? 0)}`,
+        description: "From fuel dispensing"
+      },
+      {
+        ...COMMON_METRICS.fuel,
+        value: safeToFixed(d.today?.litres ?? d.todayLitres ?? 0),
+        description: "Total litres today"
+      },
+      {
+        title: "Today's Readings",
+        icon: <Clock className="h-4 w-4 sm:h-5 sm:w-5" />,
+        color: 'blue' as const,
+        value: (d.today?.readings ?? 0).toString(),
+        description: "Nozzle readings recorded"
+      }
+    ];
+
     return (
       <div className="space-y-3">
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-3">
-          <Card className="card-mobile border-l-4 border-l-green-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Sales Today</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(d.today?.amount ?? d.todaySales ?? 0)}</div>
-              <p className="text-xs text-muted-foreground mt-1">From fuel dispensing</p>
-            </CardContent>
-          </Card>
-
-          <Card className="card-mobile border-l-4 border-l-blue-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Litres Dispensed</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-xl sm:text-2xl font-bold text-blue-600">{safeToFixed(d.today?.litres ?? d.todayLitres ?? 0)}</div>
-              <p className="text-xs text-muted-foreground mt-1">Total litres today</p>
-            </CardContent>
-          </Card>
-
-          <Card className="card-mobile border-l-4 border-l-amber-500">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-              <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Readings Today</CardTitle>
-            </CardHeader>
-            <CardContent className="px-4 pb-4">
-              <div className="text-xl sm:text-2xl font-bold text-amber-600">{d.today?.readings ?? 0}</div>
-              <p className="text-xs text-muted-foreground mt-1">Nozzle readings recorded</p>
-            </CardContent>
-          </Card>
-        </div>
+        <DashboardGrid metrics={metrics} />
 
         {/* Pumps summary */}
         <div className="space-y-2">
@@ -344,67 +306,32 @@ export default function Dashboard() {
             <KeyMetricPremiumPromo />
           </div>
         ) : (
-          <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Total Sales Today */}
-            <Card className="card-mobile border-l-4 border-l-green-500 hover:scale-[1.01] transition-transform">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Sales Today</CardTitle>
-                <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-green-600" />
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="text-xl sm:text-2xl font-bold text-green-600">₹{safeToFixed(dashboardData.todaySales ?? 0)}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  From fuel dispensing
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Total Payments */}
-            <Card className="card-mobile border-l-4 border-l-blue-500 hover:scale-[1.01] transition-transform">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Total Payments</CardTitle>
-                <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600" />
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className="text-xl sm:text-2xl font-bold text-blue-600">₹{safeToFixed(dashboardData.todayPayments ?? 0)}</div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Cash, card, UPI & credit
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Pending Closures */}
-            <Card className="card-mobile border-l-4 border-l-amber-500 hover:scale-[1.01] transition-transform">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Pending Closures</CardTitle>
-                <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className={`text-xl sm:text-2xl font-bold ${(dashboardData.pendingClosures ?? 0) > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                  {dashboardData.pendingClosures ?? 0}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {(dashboardData.pendingClosures ?? 0) > 0 ? 'Need attention' : 'All closed'}
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Daily Variance */}
-            <Card className="card-mobile border-l-4 border-l-purple-500 hover:scale-[1.01] transition-transform">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 px-4 pt-4">
-                <CardTitle className="text-xs sm:text-sm font-medium text-muted-foreground">Daily Variance</CardTitle>
-                <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-purple-600" />
-              </CardHeader>
-              <CardContent className="px-4 pb-4">
-                <div className={`text-xl sm:text-2xl font-bold ${Math.abs(variance) < 1 ? 'text-green-600' : variance > 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                  {Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${safeToFixed(Math.abs(variance))}`}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {Math.abs(variance) < 1 ? 'Sales match collections' : variance > 0 ? 'Collection excess' : 'Collection shortage'}
-                </p>
-              </CardContent>
-            </Card>
-          </div>
+          <DashboardGrid
+            metrics={[
+              {
+                ...COMMON_METRICS.sales,
+                value: `₹${safeToFixed(dashboardData.todaySales ?? 0)}`,
+                description: "From fuel dispensing"
+              },
+              {
+                ...COMMON_METRICS.payments,
+                value: `₹${safeToFixed(dashboardData.todayPayments ?? 0)}`,
+                description: "Cash, card, UPI & credit"
+              },
+              {
+                ...COMMON_METRICS.closures,
+                value: (dashboardData.pendingClosures ?? 0).toString(),
+                description: (dashboardData.pendingClosures ?? 0) > 0 ? "Need attention" : "All closed",
+                variant: (dashboardData.pendingClosures ?? 0) > 0 ? "warning" : "success"
+              },
+              {
+                ...COMMON_METRICS.variance,
+                value: Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${safeToFixed(Math.abs(variance))}`,
+                description: Math.abs(variance) < 1 ? 'Sales match collections' : variance > 0 ? 'Collection excess' : 'Collection shortage',
+                variant: Math.abs(variance) < 1 ? "success" : variance > 0 ? "info" : "danger"
+              }
+            ]}
+          />
         ))
       )}
 
@@ -428,10 +355,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Reading Summary - Full width (hide for employees to avoid duplicate cards) */}
-      {!isEmployee && (
-        <ReadingSummary totalReadings={dashboardData.totalReadings ?? 0} lastReading={dashboardData.lastReading ?? null} />
-      )}
+
       
       {/* Upgrade Modal */}
       <UpgradeModal open={showUpgrade} onClose={() => setShowUpgrade(false)} />

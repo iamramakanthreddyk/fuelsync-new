@@ -1,3 +1,4 @@
+import { toNumber } from '@/utils/number';
 
 
 
@@ -13,7 +14,7 @@ import { FuelPriceDialog } from "@/components/prices/FuelPriceDialog";
 import { FuelPricesGrid } from '@/components/prices/FuelPricesGrid';
 import { FuelPriceAddButton } from '@/components/prices/FuelPriceAddButton';
 import { apiClient } from '@/lib/api-client';
-import { FuelTypeEnum, FUEL_TYPE_LABELS } from '@/core/enums';
+import { FuelTypeEnum } from '@/core/enums';
 import {
   Select,
   SelectContent,
@@ -56,7 +57,7 @@ export default function PricesPage() {
   }, [routeStationId, selectedStationId, stations]);
   
   // Fetch prices for the SELECTED station (not relying on currentStation)
-  const { data: fuelPrices, isLoading: pricesLoading, error: pricesError } = useFuelPricesData(defaultStationId);
+  const { data: fuelPrices, error: pricesError } = useFuelPricesData(defaultStationId);
   
   // Get the currently selected station details
   const currentStation = useMemo(() => {
@@ -114,13 +115,17 @@ export default function PricesPage() {
   const openEditDialog = (
     fuelType: string,
     price: number,
-    id: number | string,
+    _id: number | string, // id is not used
     costPrice?: number | null
   ) => {
     if (isValidFuelType(fuelType)) {
       setDialogMode("edit");
       setDialogOpen(true);
-      setSelectedFuelType(fuelType);
+      if (Object.values(FuelTypeEnum).includes(fuelType as FuelTypeEnum)) {
+        setSelectedFuelType(fuelType as "PETROL" | "DIESEL" | "CNG" | "EV");
+      } else {
+        setSelectedFuelType(undefined);
+      }
       setSelectedPrice(price.toString());
       // Store cost price in state for passing to dialog
       (window as any).__selectedCostPrice = costPrice || null;
@@ -143,7 +148,7 @@ export default function PricesPage() {
       setAddEditLoading(false);
       return;
     }
-    const price = parseFloat(input.price_per_litre);
+    const price = toNumber(input.price_per_litre);
     if (isNaN(price) || price <= 0) {
       toast({
         title: "Invalid Price",
@@ -157,7 +162,7 @@ export default function PricesPage() {
     // Validate cost price if provided
     let costPrice: number | undefined = undefined;
     if (input.cost_price) {
-      costPrice = parseFloat(input.cost_price);
+      costPrice = toNumber(input.cost_price);
       if (isNaN(costPrice) || costPrice <= 0) {
         toast({
           title: "Invalid Cost Price",

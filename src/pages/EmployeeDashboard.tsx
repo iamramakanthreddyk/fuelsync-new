@@ -12,56 +12,45 @@ import { Button } from '@/components/ui/button';
 import { safeToFixed } from '@/lib/format-utils';
 import { TodayReadings } from '@/components/dashboard/TodayReadings';
 import { useToast } from '@/hooks/use-toast';
+import { useEmployeeDashboard } from '@/hooks/useDashboardQueries';
+import { DashboardHeader, MetricCard, DashboardGrid, COMMON_METRICS } from '@/components/dashboard/shared';
 
 const EmployeeDashboard = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [fuelPrices, setFuelPrices] = useState<FuelPrice[]>([]);
-  const [activeShift, setActiveShift] = useState<Shift | null>(null);
-  const [loading, setLoading] = useState(true);
   const [shiftLoading, setShiftLoading] = useState(false);
 
   // Get the first station for this employee
   const currentStation = user?.stations?.[0];
+  const { data: dashboardData, isLoading } = useEmployeeDashboard(currentStation?.id);
+  const activeShift = dashboardData?.activeShift || null;
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!currentStation) {
-        setLoading(false);
-        return;
-      }
+    const fetchFuelPrices = async () => {
+      if (!currentStation) return;
       try {
-        const [pricesData, shiftStatus] = await Promise.all([
-          fuelPriceService.getFuelPrices(currentStation.id),
-          dashboardAlertsService.getShiftStatus(),
-        ]);
-
+        const pricesData = await fuelPriceService.getFuelPrices(currentStation.id);
         setFuelPrices(pricesData || []);
-        setActiveShift((shiftStatus && (shiftStatus as any).myActiveShift) || null);
       } catch (error) {
-        console.error('Error fetching dashboard data:', error);
-        toast({ title: "Error", description: 'Error fetching dashboard data: ' + (error instanceof Error ? error.message : String(error)), variant: "destructive" });
-      } finally {
-        setLoading(false);
+        console.error('Error fetching fuel prices:', error);
       }
     };
-    if (currentStation && currentStation.id) {
-      fetchData();
-    } else {
-      setLoading(false);
+    if (currentStation?.id) {
+      fetchFuelPrices();
     }
-  }, [currentStation, toast]);
+  }, [currentStation]);
 
   const handleStartShift = async () => {
     if (!currentStation) return;
-    
+
     setShiftLoading(true);
     try {
       const shift = await shiftService.startShift({
         stationId: currentStation.id
       });
-      setActiveShift(shift);
       toast({ title: "Success", description: "Shift started successfully", variant: "success" });
+      // Refetch data will happen automatically due to React Query
     } catch (error: unknown) {
       console.error('Failed to start shift:', error);
       toast({ title: "Error", description: error instanceof Error ? error.message : 'Failed to start shift', variant: "destructive" });
@@ -94,7 +83,7 @@ const EmployeeDashboard = () => {
       });
 
       toast({ title: "Success", description: "Shift ended successfully.", variant: "success" });
-      setActiveShift(null);
+      // Refetch data will happen automatically due to React Query
     } catch (error: unknown) {
       console.error('Failed to end shift:', error);
       toast({ title: "Error", description: error instanceof Error ? error.message : 'Failed to end shift', variant: "destructive" });
@@ -103,7 +92,7 @@ const EmployeeDashboard = () => {
     }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -125,21 +114,32 @@ const EmployeeDashboard = () => {
     );
   }
 
+  const metrics = [
+    {
+      ...COMMON_METRICS.todaySales,
+      value: `₹${safeToFixed(dashboardData?.todayReadings?.reduce((sum, reading) => sum + (reading.amount || 0), 0) || 0)}`,
+      description: "From fuel dispensing"
+    },
+    {
+      ...COMMON_METRICS.todayLitres,
+      value: safeToFixed(dashboardData?.todayReadings?.reduce((sum, reading) => sum + (reading.litres || 0), 0) || 0),
+      description: "Total litres today"
+    },
+    {
+      ...COMMON_METRICS.todayReadings,
+      value: (dashboardData?.todayReadings?.length || 0).toString(),
+      description: "Nozzle readings recorded"
+    }
+  ];
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 dark:from-slate-950 dark:to-slate-900">
       <div className="container mx-auto p-4 md:p-8 space-y-8">
-        
-        {/* Header Section */}
-        <div className="space-y-2">
-          <h1 className="text-4xl md:text-5xl font-bold text-foreground">Good to see you, {user?.name}! 👋</h1>
-          <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-4">
-            <p className="text-lg text-muted-foreground">📍 {currentStation.name}</p>
-            <Badge variant="secondary" className="w-fit flex items-center gap-2 px-3 py-1.5">
-              <Users className="h-3.5 w-3.5" />
-              {user?.role.charAt(0).toUpperCase() + user?.role.slice(1)}
-            </Badge>
-          </div>
-        </div>
+
+        <DashboardHeader
+          title={`Good to see you, ${user?.name}! 👋`}
+          subtitle={`📍 ${currentStation.name}`}
+        />
 
         {/* Shift Management - Prominent Card */}
         <div className="relative">
@@ -164,8 +164,8 @@ const EmployeeDashboard = () => {
                       </p>
                     )}
                   </div>
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     onClick={handleEndShift}
                     disabled={shiftLoading}
                     className="gap-2 h-12 px-6 text-base md:w-auto w-full"
@@ -184,8 +184,8 @@ const EmployeeDashboard = () => {
                     <AlertCircle className="h-5 w-5 text-orange-600" />
                     <span className="font-medium text-orange-600">No active shift yet</span>
                   </div>
-                  <Button 
-                    onClick={handleStartShift} 
+                  <Button
+                    onClick={handleStartShift}
                     disabled={shiftLoading}
                     className="gap-2 h-12 px-6 text-base bg-blue-600 hover:bg-blue-700 md:w-auto w-full"
                   >
@@ -198,29 +198,28 @@ const EmployeeDashboard = () => {
           )}
         </div>
 
-        {/* Stats Grid - Redesigned */}
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          
-          {/* Station Info */}
-          <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 shadow-md border-0">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-lg font-semibold flex items-center gap-2">
-                <span className="text-2xl">🏢</span>
-                Station Info
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Oil Company</p>
-                <p className="text-base font-medium text-foreground mt-1">{currentStation.oilCompany || 'Not specified'}</p>
-              </div>
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Address</p>
-                <p className="text-base font-medium text-foreground mt-1">{currentStation.address || 'Not specified'}</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        {/* Stats Grid */}
+        <DashboardGrid metrics={metrics} />
+
+        {/* Station Info */}
+        <Card className="bg-gradient-to-br from-purple-50 to-pink-50 dark:from-purple-950/20 dark:to-pink-950/20 shadow-md border-0">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <span className="text-2xl">🏢</span>
+              Station Info
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Oil Company</p>
+              <p className="text-base font-medium text-foreground mt-1">{currentStation.oilCompany || 'Not specified'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Address</p>
+              <p className="text-base font-medium text-foreground mt-1">{currentStation.address || 'Not specified'}</p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Fuel Prices Section */}
         <div>

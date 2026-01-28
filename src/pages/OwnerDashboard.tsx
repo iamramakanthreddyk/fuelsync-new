@@ -8,6 +8,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient, ApiResponse } from '@/lib/api-client';
 import { Plus, Building2, UserPlus } from 'lucide-react';
+import { useOwnerDashboard } from '@/hooks/useDashboardQueries';
+import { DashboardHeader, MetricCard, DashboardGrid, COMMON_METRICS } from '@/components/dashboard/shared';
 
 const OwnerDashboard = () => {
   const [newEmployee, setNewEmployee] = useState({
@@ -21,12 +23,13 @@ const OwnerDashboard = () => {
     name: ''
   });
   const [loading, setLoading] = useState(false);
-  const { toast } = useToast();
   const [employeeDialogOpen, setEmployeeDialogOpen] = useState(false);
   const [pumpDialogOpen, setPumpDialogOpen] = useState(false);
-  
+
+  const { toast } = useToast();
   const { user } = useAuth();
   const currentStation = user?.stations?.[0];
+  const { data: dashboardData, isLoading: dashboardLoading } = useOwnerDashboard(currentStation?.id);
 
   useEffect(() => {
     if (!user || user.role !== 'owner') {
@@ -36,10 +39,10 @@ const OwnerDashboard = () => {
 
   const handleCreateEmployee = async () => {
     if (!currentStation) return;
-    
+
     try {
       setLoading(true);
-      
+
       const response = await apiClient.post<{ success: boolean; data: unknown }>('/users', {
         name: newEmployee.name,
         email: newEmployee.email,
@@ -70,10 +73,10 @@ const OwnerDashboard = () => {
 
   const handleCreatePump = async () => {
     if (!currentStation) return;
-    
+
     try {
       setLoading(true);
-      
+
       const response = await apiClient.post<{ success: boolean; data: unknown }>(`/stations/${currentStation.id}/pumps`, {
         number: newPump.pumpSno,
         name: newPump.name,
@@ -113,24 +116,44 @@ const OwnerDashboard = () => {
     );
   }
 
+  const metrics = [
+    {
+      ...COMMON_METRICS.totalEmployees,
+      value: (dashboardData?.employees?.length || 0).toString(),
+      description: "Active employees"
+    },
+    {
+      ...COMMON_METRICS.totalPumps,
+      value: (dashboardData?.pumps?.length || 0).toString(),
+      description: "Active pumps"
+    },
+    {
+      ...COMMON_METRICS.todaySales,
+      value: '₹0', // TODO: Calculate from actual data
+      description: "Today's sales"
+    }
+  ];
+
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Owner Dashboard</h1>
-          <p className="text-muted-foreground">Manage your fuel station operations</p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={() => setEmployeeDialogOpen(true)}>
-            <UserPlus className="w-4 h-4 mr-2" />
-            Add Employee
-          </Button>
-          <Button onClick={() => setPumpDialogOpen(true)}>
-            <Plus className="w-4 h-4 mr-2" />
-            Add Pump
-          </Button>
-        </div>
-      </div>
+      <DashboardHeader
+        title="Owner Dashboard"
+        subtitle="Manage your fuel station operations"
+        actions={
+          <div className="flex gap-2">
+            <Button onClick={() => setEmployeeDialogOpen(true)}>
+              <UserPlus className="w-4 h-4 mr-2" />
+              Add Employee
+            </Button>
+            <Button onClick={() => setPumpDialogOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Pump
+            </Button>
+          </div>
+        }
+      />
+
+      <DashboardGrid metrics={metrics} />
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
@@ -145,19 +168,6 @@ const OwnerDashboard = () => {
               <p><strong>Name:</strong> {currentStation.name}</p>
               <p><strong>Brand:</strong> {currentStation.brand}</p>
               <p><strong>Address:</strong> {currentStation.address || 'Not specified'}</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Quick Stats</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <p>Employees: 0</p>
-              <p>Active Pumps: 0</p>
-              <p>Today's Sales: ₹0</p>
             </div>
           </CardContent>
         </Card>

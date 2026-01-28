@@ -16,19 +16,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { safeToFixed } from '@/lib/format-utils';
 import { IndianRupee, CreditCard, Trash2 } from 'lucide-react';
-
-interface Creditor {
-  id: string;
-  name: string;
-  businessName?: string;
-  currentBalance: number;
-  creditLimit: number;
-}
-
-interface CreditAllocation {
-  creditorId: string;
-  amount: number;
-}
+import type { Creditor, CreditAllocation } from '@/types/finance';
+import { toNumber } from '@/utils/number';
+import { ReadingInput } from '@/components/ui/ReadingInput';
 
 interface TransactionPaymentSummaryProps {
   totalSaleValue: number;
@@ -49,16 +39,17 @@ export function TransactionPaymentSummary({
   creditors = [],
   isLoading = false
 }: TransactionPaymentSummaryProps) {
-  const handleCashChange = (value: number) => {
-    onPaymentChange({ ...paymentBreakdown, cash: value });
+
+  const handleCashChange = (value: string | number) => {
+    onPaymentChange({ ...paymentBreakdown, cash: toNumber(value) });
   };
 
-  const handleOnlineChange = (value: number) => {
-    onPaymentChange({ ...paymentBreakdown, online: value });
+  const handleOnlineChange = (value: string | number) => {
+    onPaymentChange({ ...paymentBreakdown, online: toNumber(value) });
   };
 
-  const handleCreditChange = (value: number) => {
-    onPaymentChange({ ...paymentBreakdown, credit: value });
+  const handleCreditChange = (value: string | number) => {
+    onPaymentChange({ ...paymentBreakdown, credit: toNumber(value) });
   };
 
   const handleAddCreditor = () => {
@@ -70,8 +61,8 @@ export function TransactionPaymentSummary({
     onCreditAllocationsChange(updated);
   };
 
-  const handleCreditorAmountChange = (idx: number, amount: number) => {
-    const updated = creditAllocations.map((c, i) => i === idx ? { ...c, amount } : c);
+  const handleCreditorAmountChange = (idx: number, amount: string | number) => {
+    const updated = creditAllocations.map((c, i) => i === idx ? { ...c, amount: toNumber(amount) } : c);
     onCreditAllocationsChange(updated);
   };
 
@@ -80,8 +71,8 @@ export function TransactionPaymentSummary({
     onCreditAllocationsChange(updated);
   };
 
-  const totalCreditAllocated = creditAllocations.reduce((sum, c) => sum + c.amount, 0);
-  const allocated = paymentBreakdown.cash + paymentBreakdown.online + paymentBreakdown.credit;
+  const totalCreditAllocated = creditAllocations.reduce((sum, c) => sum + toNumber(c.amount), 0);
+  const allocated = toNumber(paymentBreakdown.cash) + toNumber(paymentBreakdown.online) + toNumber(paymentBreakdown.credit);
   const remaining = Math.max(0, totalSaleValue - allocated);
   const isBalanced = Math.abs(allocated - totalSaleValue) < 0.01;
 
@@ -107,7 +98,7 @@ export function TransactionPaymentSummary({
               min="0"
               max={totalSaleValue}
               value={paymentBreakdown.cash}
-              onChange={(e) => handleCashChange(parseFloat(e.target.value) || 0)}
+              onChange={(e) => handleCashChange(e.target.value)}
               className="mt-0.5 text-xs h-8 border-green-200 focus:border-green-500"
               disabled={isLoading}
               placeholder="0.00"
@@ -126,7 +117,7 @@ export function TransactionPaymentSummary({
               min="0"
               max={totalSaleValue}
               value={paymentBreakdown.online}
-              onChange={(e) => handleOnlineChange(parseFloat(e.target.value) || 0)}
+              onChange={(e) => handleOnlineChange(e.target.value)}
               className="mt-0.5 text-xs h-8 border-blue-200 focus:border-blue-500"
               disabled={isLoading}
               placeholder="0.00"
@@ -145,7 +136,7 @@ export function TransactionPaymentSummary({
               min="0"
               max={totalSaleValue}
               value={paymentBreakdown.credit}
-              onChange={(e) => handleCreditChange(parseFloat(e.target.value) || 0)}
+              onChange={(e) => handleCreditChange(e.target.value)}
               className="mt-0.5 text-xs h-8 border-orange-200 focus:border-orange-500"
               disabled={isLoading}
               placeholder="0.00"
@@ -197,13 +188,9 @@ export function TransactionPaymentSummary({
                     </SelectContent>
                   </Select>
 
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    max={paymentBreakdown.credit}
-                    value={credit.amount}
-                    onChange={(e) => handleCreditorAmountChange(idx, parseFloat(e.target.value) || 0)}
+                  <ReadingInput
+                    value={credit.amount === 0 ? '' : String(credit.amount)}
+                    onChange={(v: string) => handleCreditorAmountChange(idx, v)}
                     className="text-xs h-8 border-orange-300 focus:border-orange-500"
                     disabled={isLoading}
                     placeholder="Amount"
