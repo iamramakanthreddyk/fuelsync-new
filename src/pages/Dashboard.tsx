@@ -67,16 +67,22 @@ export default function Dashboard() {
   if (dashboardData.fuelPrices) {
     Object.entries(dashboardData.fuelPrices).forEach(([key, value]) => {
       if (value !== undefined) {
-        fuelPricesObj[normalizeFuelType(key)] = value;
+        const normalizedKey = normalizeFuelType(key);
+        if (normalizedKey) {
+          fuelPricesObj[normalizedKey] = value;
+        }
       }
     });
   } else if (Array.isArray(fuelPricesList)) {
     fuelPricesList.forEach((cur) => {
       // Get fuel type from any available field and normalize using enum helper
-      const fuelType = cur.fuel_type ?? cur.fuelType;
-      const pricePerLitre = cur.price_per_litre ?? cur.pricePerLitre ?? cur.price;
+      const fuelType = cur.fuelType;
+      const pricePerLitre = cur.price;
       if (fuelType && pricePerLitre !== undefined) {
-        fuelPricesObj[normalizeFuelType(fuelType)] = pricePerLitre;
+        const normalizedKey = normalizeFuelType(fuelType);
+        if (normalizedKey) {
+          fuelPricesObj[normalizedKey] = pricePerLitre;
+        }
       }
     });
   }
@@ -140,7 +146,7 @@ export default function Dashboard() {
         ...COMMON_METRICS.closures,
         value: pendingClosures.toString(),
         description: pendingClosures > 0 ? "Need attention" : "All closed",
-        variant: pendingClosures > 0 ? "warning" : "success"
+        variant: pendingClosures > 0 ? ("warning" as const) : ("success" as const)
       }
     ];
 
@@ -322,13 +328,13 @@ export default function Dashboard() {
                 ...COMMON_METRICS.closures,
                 value: (dashboardData.pendingClosures ?? 0).toString(),
                 description: (dashboardData.pendingClosures ?? 0) > 0 ? "Need attention" : "All closed",
-                variant: (dashboardData.pendingClosures ?? 0) > 0 ? "warning" : "success"
+                variant: (dashboardData.pendingClosures ?? 0) > 0 ? ("warning" as const) : ("success" as const)
               },
               {
                 ...COMMON_METRICS.variance,
                 value: Math.abs(variance) < 1 ? 'Balanced' : `${variance > 0 ? '+' : '-'}₹${safeToFixed(Math.abs(variance))}`,
                 description: Math.abs(variance) < 1 ? 'Sales match collections' : variance > 0 ? 'Collection excess' : 'Collection shortage',
-                variant: Math.abs(variance) < 1 ? "success" : variance > 0 ? "info" : "danger"
+                variant: Math.abs(variance) < 1 ? ("success" as const) : variance > 0 ? ("info" as const) : ("danger" as const)
               }
             ]}
           />

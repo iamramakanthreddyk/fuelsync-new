@@ -22,7 +22,7 @@ import { apiClient } from '@/lib/api-client';
 import { extractApiData } from '@/lib/api-response';
 import { useStations } from '@/hooks/api';
 import { useVarianceSummary } from '@/hooks/useVarianceSummary';
-import { getFuelColors } from '@/lib/fuelColors';
+import { getFuelChartColor } from '@/core/fuel/fuelConfig';
 import { safeToFixed, formatPercentage } from '@/lib/format-utils';
 import { Station } from '@/types/api';
 import {
@@ -97,19 +97,6 @@ interface AnalyticsData {
 }
 
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#ef4444'];
-
-// Get chart colors from fuel color system
-const getFuelChartColor = (fuelType: string): string => {
-  if (!fuelType) return '#6b7280';
-  const colors = getFuelColors(fuelType);
-  const colorMap: Record<string, string> = {
-    'petrol': '#22c55e',  // green-500
-    'diesel': '#3b82f6',  // blue-500
-    'cng': '#a855f7',     // purple-500
-    'ev_charging': '#eab308'       // yellow-500
-  };
-  return colorMap[fuelType.toLowerCase()] || '#6b7280';
-};
 
 export default function Analytics() {
   const today = new Date().toISOString().split('T')[0];

@@ -257,41 +257,14 @@ export const THRESHOLDS = {
 } as const;
 
 // ============================================
-// FUEL CONFIGURATION
+// FUEL CONFIGURATION - DEPRECATED
 // ============================================
 
-export const FUEL_CONFIG = {
-  PETROL: {
-    label: 'Petrol',
-    shortLabel: 'P',
-    color: '#ef4444',
-  },
-  DIESEL: {
-    label: 'Diesel',
-    shortLabel: 'D',
-    color: '#10b981',
-  },
-  PREMIUM_PETROL: {
-    label: 'Premium Petrol',
-    shortLabel: 'PP',
-    color: '#f59e0b',
-  },
-  PREMIUM_DIESEL: {
-    label: 'Premium Diesel',
-    shortLabel: 'PD',
-    color: '#14b8a6',
-  },
-  CNG: {
-    label: 'CNG',
-    shortLabel: 'CNG',
-    color: '#3b82f6',
-  },
-  LPG: {
-    label: 'LPG',
-    shortLabel: 'LPG',
-    color: '#8b5cf6',
-  },
-} as const;
+/**
+ * @deprecated Use FUEL_TYPE_CONFIG from @/core/fuel/fuelConfig instead
+ * This export is maintained for backward compatibility only.
+ */
+export { FUEL_CONFIG } from '@/core/fuel/fuelConfig';
 
 // ============================================
 // ERROR MESSAGES

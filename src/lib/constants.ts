@@ -1,18 +1,19 @@
 /**
  * FuelSync UI Constants
- * 
+ *
  * Re-exports core enums from @/core/enums (SINGLE SOURCE OF TRUTH)
  * and adds UI-specific helpers (colors, options for selects, etc.)
- * 
+ *
  * IMPORTANT: Do NOT duplicate fuel types here!
  * Use FuelTypeEnum from @/core/enums for all fuel type values.
+ * Use @/core/fuel/fuelConfig for all fuel type configuration.
  */
 
 // ============================================
 // RE-EXPORT FROM CORE ENUMS (Single Source of Truth)
 // ============================================
-export { 
-  FuelTypeEnum, 
+export {
+  FuelTypeEnum,
   type FuelType,
   FUEL_TYPE_LABELS,
   TankStatusEnum,
@@ -27,52 +28,42 @@ export {
 } from '@/core/enums';
 
 import { FuelTypeEnum, FUEL_TYPE_LABELS } from '@/core/enums';
+import { getFuelTypeOptions } from '@/core/fuel/fuelConfig';
+
+// ============================================
+// RE-EXPORT FROM FUEL CONFIG (Single Source of Truth)
+// ============================================
+export {
+  FUEL_TYPE_CONFIG,
+  getFuelTypeConfig,
+  getFuelTypeLabel,
+  getFuelTypeShortLabel,
+  getFuelTypeDisplayNames,
+  normalizeFuelType,
+  isValidFuelType,
+  getAllFuelTypes,
+  // Legacy compatibility
+  FUEL_CONFIG
+} from '@/core/fuel/fuelConfig';
 
 // ============================================
 // UI-SPECIFIC: Select Options (derived from core enums)
 // ============================================
 
 /**
- * Common display names used at fuel stations (for reference when setting up tanks)
- */
-export const FUEL_TYPE_DISPLAY_NAMES: Record<string, string[]> = {
-  [FuelTypeEnum.PETROL]: ['XP 95', 'Speed', 'Regular', 'MS'],
-  [FuelTypeEnum.DIESEL]: ['MSD', 'HSD', 'Regular Diesel'],
-  [FuelTypeEnum.PREMIUM_PETROL]: ['XP 100', 'Power', 'Extra Premium', 'Speed 97'],
-  [FuelTypeEnum.PREMIUM_DIESEL]: ['HSM', 'Turbojet', 'Premium HSD', 'XtraGreen'],
-  [FuelTypeEnum.CNG]: ['CNG'],
-  [FuelTypeEnum.LPG]: ['Auto LPG'],
-  [FuelTypeEnum.EV_CHARGING]: ['EV Charging', 'Electric'],
-};
-
-/**
  * Ready-to-use options for UI select components
  * Derived from FuelTypeEnum - no duplication!
+ * @deprecated Use getFuelTypeOptions() from @/core/fuel/fuelConfig instead
  */
-export const FUEL_TYPE_OPTIONS = Object.values(FuelTypeEnum).map(value => ({
-  value,
-  label: FUEL_TYPE_LABELS[value] || value,
-  displayNames: FUEL_TYPE_DISPLAY_NAMES[value] || [],
-}));
+export function getFuelTypeOptionsLegacy() {
+  return getFuelTypeOptions();
+}
 
 /**
  * Get all fuel type values as an array
+ * @deprecated Use getAllFuelTypes() from @/core/fuel/fuelConfig instead
  */
 export const FUEL_TYPE_VALUES = Object.values(FuelTypeEnum);
-
-/**
- * Helper: Get label for a fuel type value
- */
-export function getFuelTypeLabel(fuelType: string): string {
-  return FUEL_TYPE_LABELS[fuelType as keyof typeof FUEL_TYPE_LABELS] || fuelType;
-}
-
-/**
- * Helper: Check if a value is a valid fuel type
- */
-export function isValidFuelType(value: string): boolean {
-  return FUEL_TYPE_VALUES.includes(value as any);
-}
 
 // ============================================
 // TANK STATUS UI (extends core TankStatusEnum with UI colors)

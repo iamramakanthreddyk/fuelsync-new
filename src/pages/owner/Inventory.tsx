@@ -52,7 +52,7 @@ import {
   TrendingUp,
   AlertOctagon,
 } from 'lucide-react';
-import { FUEL_TYPE_OPTIONS, type FuelType } from '@/lib/constants';
+import { getFuelTypeOptionsLegacy, type FuelType } from '@/lib/constants';
 import { toNumber } from '@/utils/number';
 import { getFuelColors } from '@/lib/fuelColors';
 
@@ -827,7 +827,7 @@ export default function Inventory() {
                   <SelectValue placeholder="Select fuel type" />
                 </SelectTrigger>
                 <SelectContent>
-                  {FUEL_TYPE_OPTIONS.map((fuel) => (
+                  {getFuelTypeOptionsLegacy().map((fuel: { value: string; label: string; displayNames: string[] }) => (
                     <SelectItem key={fuel.value} value={fuel.value}>
                       {fuel.label}
                     </SelectItem>

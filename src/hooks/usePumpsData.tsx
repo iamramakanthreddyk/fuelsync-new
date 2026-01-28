@@ -1,107 +1,16 @@
 /**
- * usePumpsData Hook
- * 
- * Fetches pumps and nozzles from the actual backend endpoints:
- * - GET /api/v1/stations/:stationId/pumps
- * - GET /api/v1/stations/pumps/:pumpId/nozzles
+ * usePumpsData Hook - DEPRECATED
+ *
+ * This hook has been replaced by the centralized usePumps hook from @/hooks/api
+ * Please use: import { usePumps } from '@/hooks/api'
+ *
+ * @deprecated Use usePumps from @/hooks/api instead
  */
 
-import { useQuery } from "@tanstack/react-query";
-import { apiClient } from "@/lib/api-client";
-import { extractApiArray } from "@/lib/api-response";
-import { useRoleAccess } from "./useRoleAccess";
-import { EquipmentStatusEnum, FuelTypeEnum } from "@/core/enums";
-import type { Pump as PumpType, Nozzle as NozzleType } from '@/types/api';
+import { usePumps } from './api';
 
-// Backend pump format
-interface BackendPump {
-  id: string;
-  stationId: string;
-  pumpNumber: number | string; // API returns string, but we need number
-  name: string;
-  status: EquipmentStatusEnum;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  nozzles?: BackendNozzle[];
-}
+// Re-export the centralized hook for backward compatibility
+export const usePumpsData = usePumps;
 
-interface BackendNozzle {
-  id: string;
-  pumpId: string;
-  stationId: string;
-  nozzleNumber: number;
-  fuelType: FuelTypeEnum;
-  status: EquipmentStatusEnum;
-  initialReading: number;
-  lastReading?: number;
-  lastReadingDate?: string;
-}
-
-// Transform backend format to frontend format
-function transformPump(pump: BackendPump): PumpType {
-  const transformed = {
-    id: pump.id,
-    stationId: pump.stationId,
-    pumpNumber: typeof pump.pumpNumber === 'string' ? parseInt(pump.pumpNumber, 10) : pump.pumpNumber,
-    name: pump.name,
-    status: pump.status,
-    notes: pump.notes,
-    createdAt: pump.createdAt,
-    updatedAt: pump.updatedAt,
-    nozzles: (pump.nozzles || []).map(nozzle => ({
-      id: nozzle.id,
-      pumpId: nozzle.pumpId,
-      stationId: nozzle.stationId,
-      nozzleNumber: nozzle.nozzleNumber,
-      fuelType: nozzle.fuelType as FuelTypeEnum,
-      status: nozzle.status,
-      initialReading: nozzle.initialReading,
-      lastReading: nozzle.lastReading,
-      lastReadingDate: nozzle.lastReadingDate,
-      createdAt: '',
-      updatedAt: ''
-    } as NozzleType))
-  };
-  return transformed;
-}
-
-export function usePumpsData() {
-  const { currentStation, isAdmin } = useRoleAccess();
-  const stationId = currentStation?.id;
-
-  return useQuery<Pump[]>({
-    queryKey: ['pumps-data', stationId],
-    queryFn: async () => {
-      if (!stationId && !isAdmin) {
-        return [];
-      }
-
-      try {
-        // Use the correct endpoint: /stations/:stationId/pumps
-        const url = `/stations/${stationId}/pumps`;
-
-        // apiClient.get returns the full response: {success, data}
-        const response = await apiClient.get<{ success: boolean; data: BackendPump[] }>(url);
-
-        // Extract array data from wrapped response - handles both wrapped and unwrapped
-        const pumpsData = extractApiArray(response, []);
-
-        if (Array.isArray(pumpsData) && pumpsData.length > 0) {
-          // Transform each pump to frontend format
-          const transformed = pumpsData.map(transformPump);
-          return transformed;
-        }
-
-        return [];
-      } catch (error) {
-        return [];
-      }
-    },
-    enabled: !!stationId || isAdmin,
-    staleTime: Infinity, // Pumps don't change often, fetch once and reuse
-    gcTime: 24 * 60 * 60 * 1000, // Keep in cache for 24 hours
-    refetchOnMount: false, // Don't refetch on mount if cached
-    refetchOnWindowFocus: false, // Don't refetch on window focus
-  });
-}
+// Keep the old interface for backward compatibility
+export type { Pump as PumpType, Nozzle as NozzleType } from '@/types/api';

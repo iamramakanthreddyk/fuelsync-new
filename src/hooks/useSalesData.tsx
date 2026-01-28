@@ -1,74 +1,35 @@
 
-import { useQuery } from "@tanstack/react-query";
-import { apiClient, ApiResponse } from "@/lib/api-client";
-import { extractApiArray } from "@/lib/api-response";
-import { useRoleAccess } from "./useRoleAccess";
+/**
+ * useSalesData Hook - DEPRECATED
+ *
+ * This hook has been replaced by the centralized useSales hook from @/hooks/api
+ * Please use: import { useSales } from '@/hooks/api'
+ *
+ * @deprecated Use useSales from @/hooks/api instead
+ */
 
-export interface Sale {
-  id: string;
-  stationId: string;
-  stationName: string;
-  nozzleId: string;
-  nozzleNumber: number;
-  fuelType: string;
-  pumpId: string;
-  pumpName: string;
-  readingId: string;
-  readingDate: string;
-  deltaVolumeL: number;
-  pricePerLitre: number;
-  totalAmount: number;
-  paymentBreakdown: Record<string, unknown>;
-  cashAmount: number;
-  onlineAmount: number;
-  enteredBy: string;
-  createdAt: string;
-}
+import { useSales } from './api';
+import { useRoleAccess } from './useRoleAccess';
 
-export function useSalesData(date?: string, startDate?: string, endDate?: string) {
+// Re-export the centralized hook for backward compatibility
+export const useSalesData = (date?: string, startDate?: string, endDate?: string) => {
   const { currentStation, canAccessAllStations, role } = useRoleAccess();
+  const stationId = currentStation?.id;
 
-  return useQuery({
-    queryKey: ['sales', currentStation?.id, date, startDate, endDate],
-    queryFn: async (): Promise<Sale[]> => {
-      if (!canAccessAllStations && !currentStation?.id && role !== 'manager') {
-        return [];
-      }
+  const result = useSales(
+    canAccessAllStations || role === 'manager' ? undefined : stationId,
+    date,
+    startDate,
+    endDate
+  );
 
-      let url = '/sales';
-      const params = new URLSearchParams();
+  return {
+    data: result.data?.data || [],
+    isLoading: result.isLoading,
+    error: result.error,
+    refetch: result.refetch
+  };
+};
 
-      if (!canAccessAllStations && currentStation?.id) {
-        params.append('station_id', currentStation.id.toString());
-      }
-
-      if (startDate && endDate) {
-        params.append('start_date', startDate);
-        params.append('end_date', endDate);
-      } else if (date) {
-        params.append('date', date);
-      }
-
-      if (params.toString()) {
-        url += `?${params.toString()}`;
-      }
-
-      try {
-        // apiClient.get returns the full envelope {success, data}
-        const response = await apiClient.get(url);
-
-        // Extract array data from wrapped response
-        const salesData = extractApiArray(response, []);
-
-        if (Array.isArray(salesData)) {
-          return salesData;
-        }
-        return [];
-      } catch (error) {
-        console.error('Failed to fetch sales:', error);
-        return [];
-      }
-    },
-    enabled: canAccessAllStations || !!currentStation?.id || role === 'manager',
-  });
-}
+// Keep existing exports for backward compatibility
+export type { Sale } from './api';

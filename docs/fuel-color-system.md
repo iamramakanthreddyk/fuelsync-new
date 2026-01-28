@@ -1,39 +1,33 @@
-# Fuel Type Color System
+# Fuel Type Configuration - SINGLE SOURCE OF TRUTH
 
 ## Overview
-This document defines the consistent color scheme used throughout the FuelSync application for displaying fuel types.
 
-## Color Scheme
-
-| Fuel Type | Primary Color | Background | Text | Border | Ring | Dot |
-|-----------|--------------|------------|------|--------|------|-----|
-| **Petrol** | Green | `bg-green-100` | `text-green-800` | `border-green-300` | `ring-green-200` | `bg-green-500` |
-| **Diesel** | Blue | `bg-blue-100` | `text-blue-800` | `border-blue-300` | `ring-blue-200` | `bg-blue-500` |
-| **CNG** | Purple | `bg-purple-100` | `text-purple-800` | `border-purple-300` | `ring-purple-200` | `bg-purple-500` |
-| **EV** | Yellow | `bg-yellow-100` | `text-yellow-800` | `border-yellow-300` | `ring-yellow-200` | `bg-yellow-500` |
-| **Default** | Gray | `bg-gray-100` | `text-gray-800` | `border-gray-300` | `ring-gray-200` | `bg-gray-500` |
+All fuel type related configuration has been consolidated into a single source of truth at `@/core/fuel/fuelConfig.ts`. This eliminates duplication and ensures consistency across the application.
 
 ## Implementation
 
-### Core Utilities
+### Core Configuration (`src/core/fuel/fuelConfig.ts`)
 
-**Location:** `src/lib/fuelColors.ts`
+This file contains ALL fuel type configuration:
 
 ```typescript
-// Get full color scheme object
-import { getFuelColors } from '@/lib/fuelColors';
-const colors = getFuelColors('petrol');
-// Returns: { bg, text, border, ring, dot, hover }
+// Complete fuel type configuration
+export const FUEL_TYPE_CONFIG: Record<FuelType, FuelTypeConfig>
 
-// Get badge classes (bg + text + border + hover)
-import { getFuelBadgeClasses } from '@/lib/fuelColors';
-const classes = getFuelBadgeClasses('diesel');
-// Returns: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-200"
+// Helper functions
+export function getFuelTypeConfig(fuelType?: string)
+export function getFuelColorScheme(fuelType?: string)
+export function getFuelBadgeClasses(fuelType?: string)
+export function getFuelHexColor(fuelType?: string)
+export function getFuelChartColor(fuelType?: string)
+export function getFuelTypeLabel(fuelType?: string)
+export function normalizeFuelType(fuelType: string)
+export function isValidFuelType(value: string)
 ```
 
-### FuelBadge Component
+### FuelBadge Component (`src/components/FuelBadge.tsx`)
 
-**Location:** `src/components/FuelBadge.tsx`
+Updated to use centralized configuration:
 
 ```tsx
 import { FuelBadge } from '@/components/FuelBadge';
@@ -44,55 +38,58 @@ import { FuelBadge } from '@/components/FuelBadge';
 // With colored dot indicator
 <FuelBadge fuelType="diesel" showDot />
 
-// With additional classes
-<FuelBadge fuelType="cng" className="text-sm" />
+// With short label
+<FuelBadge fuelType="cng" short />
 ```
 
-## Updated Components
+### Central Export (`src/core/fuel/index.ts`)
 
-### 1. Dashboard - Fuel Price Badges
-**File:** `src/components/dashboard/FuelPriceCard.tsx`
-- Displays compact fuel price badges in header
-- Shows colored dot indicator for each fuel type
-- Only renders fuels with set prices
+Import everything fuel-related from one place:
 
-### 2. Sales Table
-**File:** `src/components/SalesTable.tsx`
-- Fuel type column uses colored badges
-- Consistent with overall color scheme
+```typescript
+import {
+  FUEL_TYPE_CONFIG,
+  getFuelTypeConfig,
+  getFuelBadgeClasses,
+  FuelBadge
+} from '@/core/fuel';
+```
 
-### 3. Pumps Page
-**File:** `src/pages/Pumps.tsx`
-- Nozzle fuel type badges on pump cards
-- Removed old `getFuelTypeColor` function
-- Uses `getFuelBadgeClasses` utility
+## Migration Guide
 
-### 4. Station Detail (Owner)
-**File:** `src/pages/owner/StationDetail.tsx`
-- Nozzle fuel type badges in pump listings
-- Consistent badge styling
+### Before (Multiple Sources)
+```typescript
+// ❌ OLD - Multiple sources
+import { FUEL_TYPE_LABELS } from '@/core/enums';
+import { FUEL_TYPE_DISPLAY_NAMES } from '@/lib/constants';
+import { getFuelColors } from '@/lib/fuelColors';
+import { FUEL_CONFIG } from '@/core/constants/app.constants';
+```
 
-### 5. Data Entry
-**File:** `src/pages/DataEntry.tsx`
-- Nozzle selection dropdown shows colored dots
-- Visual fuel type indicators in form
+### After (Single Source)
+```typescript
+// ✅ NEW - Single source
+import {
+  FUEL_TYPE_CONFIG,
+  getFuelTypeLabel,
+  getFuelBadgeClasses,
+  FuelBadge
+} from '@/core/fuel';
+```
 
-### 6. Sales Page
-**File:** `src/pages/Sales.tsx`
-- Nozzle selection with colored fuel dots
-- Consistent with DataEntry pattern
+## Color Scheme
+
+| Fuel Type | Primary Color | Background | Text | Border | Ring | Dot |
+|-----------|--------------|------------|------|--------|------|-----|
+| **Petrol** | Green | `bg-green-100` | `text-green-800` | `border-green-300` | `ring-green-200` | `bg-green-500` |
+| **Diesel** | Blue | `bg-blue-100` | `text-blue-800` | `border-blue-300` | `ring-blue-200` | `bg-blue-500` |
+| **Premium Petrol** | Orange | `bg-orange-100` | `text-orange-800` | `border-orange-300` | `ring-orange-200` | `bg-orange-500` |
+| **Premium Diesel** | Teal | `bg-teal-100` | `text-teal-800` | `border-teal-300` | `ring-teal-200` | `bg-teal-500` |
+| **CNG** | Purple | `bg-purple-100` | `text-purple-800` | `border-purple-300` | `ring-purple-200` | `bg-purple-500` |
+| **LPG** | Pink | `bg-pink-100` | `text-pink-800` | `border-pink-300` | `ring-pink-200` | `bg-pink-500` |
+| **EV Charging** | Yellow | `bg-yellow-100` | `text-yellow-800` | `border-yellow-300` | `ring-yellow-200` | `bg-yellow-500` |
 
 ## Usage Guidelines
-
-### When to use getFuelColors()
-Use when you need individual color properties for custom components:
-```tsx
-const colors = getFuelColors(fuelType);
-<div className={`${colors.bg} ${colors.text}`}>
-  <span className={colors.dot} />
-  {fuelType}
-</div>
-```
 
 ### When to use getFuelBadgeClasses()
 Use when applying colors to Badge components:
@@ -108,13 +105,19 @@ Use for quick, consistent fuel type display:
 <FuelBadge fuelType={nozzle.fuel_type} showDot />
 ```
 
+### When to use getFuelChartColor()
+Use for chart colors:
+```tsx
+const color = getFuelChartColor(fuelType);
+```
+
 ## Design Principles
 
-1. **Consistency**: Same fuel type always uses same color
-2. **Accessibility**: Sufficient contrast ratios for readability
-3. **Visual Hierarchy**: Dot indicators for compact spaces, full badges for emphasis
-4. **Mobile-Friendly**: Colors work well on all screen sizes
-5. **Maintainability**: Centralized in `fuelColors.ts` for easy updates
+1. **Single Source of Truth**: All fuel configuration in one place
+2. **Consistency**: Same fuel type always uses same color and label
+3. **Maintainability**: Easy to update colors, add fuel types, or modify behavior
+4. **Backward Compatibility**: Old imports still work but point to new system
+5. **Type Safety**: Full TypeScript support with proper enums and types
 
 ## Future Enhancements
 

@@ -25,6 +25,7 @@ import type {
   SubmitReadingRequest,
   StartShiftRequest,
   EndShiftRequest,
+  Sale,
 } from '@/types/api';
 
 // ============================================
@@ -71,6 +72,10 @@ export const queryKeys = {
   
   // Expenses
   expenses: (stationId: string) => ['expenses', stationId] as const,
+  
+  // Sales
+  sales: (stationId?: string, date?: string, startDate?: string, endDate?: string) => 
+    ['sales', stationId, date, startDate, endDate] as const,
   
   // Tanks
   tanks: (stationId: string) => ['tanks', stationId] as const,
@@ -486,6 +491,31 @@ export function useCreateExpense() {
 }
 
 // ============================================
+// SALES HOOKS
+// ============================================
+
+export function useSales(stationId?: string, date?: string, startDate?: string, endDate?: string) {
+  const searchParams = new URLSearchParams();
+  
+  if (stationId) searchParams.set('station_id', stationId);
+  if (startDate && endDate) {
+    searchParams.set('start_date', startDate);
+    searchParams.set('end_date', endDate);
+  } else if (date) {
+    searchParams.set('date', date);
+  }
+
+  const queryString = searchParams.toString();
+  const url = queryString ? `/sales?${queryString}` : '/sales';
+
+  return useQuery({
+    queryKey: queryKeys.sales(stationId, date, startDate, endDate),
+    queryFn: () => apiClient.get<ApiResponse<Sale[]>>(url),
+    enabled: !!stationId || !!date || (!!startDate && !!endDate),
+  });
+}
+
+// ============================================
 // TANK HOOKS
 // Enhanced with "since last refill" tracking
 // ============================================
@@ -661,3 +691,9 @@ export function useCreateUser() {
     },
   });
 }
+
+// ============================================
+// TYPE EXPORTS
+// ============================================
+
+export type { Sale };
