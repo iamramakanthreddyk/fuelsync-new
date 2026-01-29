@@ -35,7 +35,6 @@ function PlanManagement() {
         const arr = (res as unknown as { data?: Plan[] })?.data ?? (res as unknown as Plan[]);
         setPlans(arr as Plan[]);
       } catch (err) {
-        console.error('Failed to load plans', err);
       }
     })();
   }, []);
@@ -74,7 +73,6 @@ function PlanManagement() {
       setEditing(null);
       setEditData({});
     } catch (err) {
-      console.error('Plan update failed', err);
       toast({ title: 'Update failed', variant: 'destructive' });
     }
   };

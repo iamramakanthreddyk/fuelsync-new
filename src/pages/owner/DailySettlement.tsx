@@ -345,8 +345,7 @@ export default function DailySettlement() {
           `/stations/${stationId}/readings-for-settlement?date=${selectedDate}`
         );
         return response?.data || null;
-      } catch (error) {
-        console.warn('Failed to fetch readings for settlement:', error);
+        } catch (error) {
         return null;
       }
     },
@@ -366,7 +365,6 @@ export default function DailySettlement() {
         return response?.data || [];
       } catch (error) {
         // Settlements endpoint may not exist yet, return empty
-        console.warn('Failed to fetch settlements:', error);
         return [];
       }
     },
@@ -396,7 +394,6 @@ export default function DailySettlement() {
       } catch (error: unknown) {
         // If endpoint doesn't exist, just record the intent
         if ((error as { status?: number })?.status === 404) {
-          console.warn('Settlements endpoint not yet available, data prepared for submission');
           return { success: true, data };
         }
         throw error;

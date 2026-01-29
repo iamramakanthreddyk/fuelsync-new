@@ -119,13 +119,7 @@ export default function OwnerDashboard() {
 
   const hasFuelPrices = (fuelPricesData?.current?.length ?? 0) > 0;
 
-  // Debug logging
-  console.log('OwnerDashboard Debug:', {
-    primaryStation: primaryStation?.id,
-    fuelPricesResponse,
-    fuelPricesData,
-    hasFuelPrices
-  });
+  // Debug logging removed for production UI
 
   // 3. Fetch pumps for primary station to check if pumps exist AND nozzles are configured
   // This is more accurate than checking the stations response which may not include nozzle details
@@ -140,9 +134,7 @@ export default function OwnerDashboard() {
   ) ?? false);
 
   // Ensure fuel prices are being detected correctly
-  if (!hasFuelPrices) {
-    console.warn('No fuel prices detected for OwnerDashboard.');
-  }
+  // Runtime warnings removed from UI
 
   // Guard: Don't render if not owner
   if (!user || user.role !== 'owner') {

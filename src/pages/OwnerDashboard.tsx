@@ -61,7 +61,6 @@ const OwnerDashboard = () => {
       setEmployeeDialogOpen(false);
       setNewEmployee({ name: '', email: '', phone: '', password: '' });
     } catch (error) {
-      console.error('Error creating employee:', error);
       toast({
         title: 'Error',
         description: 'Failed to create employee',
@@ -91,7 +90,6 @@ const OwnerDashboard = () => {
       setPumpDialogOpen(false);
       setNewPump({ pumpSno: '', name: '' });
     } catch (error) {
-      console.error('Error creating pump:', error);
       toast({
         title: 'Error',
         description: 'Failed to create pump',

@@ -75,7 +75,6 @@ export default function AdminStations() {
         const owners = usersList.filter((user: User) => user.role === 'owner');
         return owners;
       } catch (error) {
-        console.error('Error fetching owners:', error);
         throw error;
       }
     },
@@ -103,7 +102,6 @@ export default function AdminStations() {
           plan: owner?.plan
         };
       } catch (error) {
-        console.error('Error fetching owner data:', error);
         throw error;
       }
     },

@@ -34,7 +34,6 @@ const EmployeeDashboard = () => {
         const pricesData = await fuelPriceService.getFuelPrices(currentStation.id);
         setFuelPrices(pricesData || []);
       } catch (error) {
-        console.error('Error fetching fuel prices:', error);
       }
     };
     if (currentStation?.id) {
@@ -53,7 +52,6 @@ const EmployeeDashboard = () => {
       toast({ title: "Success", description: "Shift started successfully", variant: "success" });
       // Refetch data will happen automatically due to React Query
     } catch (error: unknown) {
-      console.error('Failed to start shift:', error);
       toast({ title: "Error", description: error instanceof Error ? error.message : 'Failed to start shift', variant: "destructive" });
     } finally {
       setShiftLoading(false);
@@ -86,7 +84,6 @@ const EmployeeDashboard = () => {
       toast({ title: "Success", description: "Shift ended successfully.", variant: "success" });
       // Refetch data will happen automatically due to React Query
     } catch (error: unknown) {
-      console.error('Failed to end shift:', error);
       toast({ title: "Error", description: error instanceof Error ? error.message : 'Failed to end shift', variant: "destructive" });
     } finally {
       setShiftLoading(false);

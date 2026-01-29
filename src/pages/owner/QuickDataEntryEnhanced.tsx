@@ -1031,10 +1031,6 @@ export default function QuickDataEntryEnhanced() {
                   </div>
                   <Button
                     onClick={() => {
-                      console.log('DEBUG: Button clicked');
-                      console.log('DEBUG: Object.keys(readings):', Object.keys(readings));
-                      console.log('DEBUG: Object.keys(readings).length:', Object.keys(readings).length);
-                      console.log('DEBUG: readings:', readings);
                       handleSubmit();
                     }}
                     disabled={Object.keys(readings).length === 0}
