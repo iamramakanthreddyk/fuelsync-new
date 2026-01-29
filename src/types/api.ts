@@ -51,6 +51,20 @@ export interface Plan {
   analyticsDays: number;
   canExport: boolean;
   canTrackExpenses: boolean;
+  canTrackCredits: boolean;
+  canViewProfitLoss: boolean;
+  // New usage quotas
+  maxExportsMonthly: number;
+  maxReportsMonthly: number;
+  maxManualEntriesMonthly: number;
+  exportMaxRows: number;
+  reportDataDays: number;
+  // New date range limits
+  salesReportsDays: number;
+  profitReportsDays: number;
+  analyticsDataDays: number;
+  auditLogsDays: number;
+  transactionHistoryDays: number;
   priceMonthly: number;
   priceYearly: number;
   isActive: boolean;
@@ -131,6 +145,8 @@ export interface FuelPrice {
   stationId: string;
   fuelType: FuelType;
   price: number;
+  // Optional purchase/cost price (backend stores as `cost_price`)
+  cost_price?: number | null;
   effectiveFrom: string;
   updatedBy: string;
   createdAt: string;

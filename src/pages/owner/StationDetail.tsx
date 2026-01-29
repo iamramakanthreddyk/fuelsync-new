@@ -924,7 +924,7 @@ export default function StationDetail() {
                                       <div className="flex items-center gap-1.5 mb-0.5">
                                         <span className="font-medium">N{nozzle.nozzleNumber}</span>
                                         <Badge className={`${fuelColors.bg} ${fuelColors.text} ${fuelColors.border} text-xs px-1 py-0`}>
-                                          {FUEL_TYPE_LABELS[nozzle.fuelType] || nozzle.fuelType}
+                                          {FUEL_TYPE_LABELS[nozzle.fuelType as keyof typeof FUEL_TYPE_LABELS] || nozzle.fuelType}
                                         </Badge>
                                       </div>
                                       <div className="text-xs text-muted-foreground">
@@ -1072,8 +1072,8 @@ export default function StationDetail() {
           ) : fuelPrices && fuelPrices.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {fuelPrices.map((price) => {
-                const fuelColors = getFuelColors(String(price.fuel_type || '').toLowerCase());
-                const isEffectiveToday = new Date(price.valid_from) <= new Date();
+                const fuelColors = getFuelColors(String(price.fuelType || '').toLowerCase());
+                const isEffectiveToday = new Date(price.effectiveFrom) <= new Date();
 
                 return (
                   <Card
@@ -1091,7 +1091,7 @@ export default function StationDetail() {
                           </div>
                           <div>
                             <CardTitle className={`text-xl font-bold capitalize ${fuelColors.text}`}>
-                              {price.fuel_type}
+                              {price.fuelType}
                             </CardTitle>
                             <CardDescription className="text-sm">
                               {isEffectiveToday ? 'Currently Active' : 'Scheduled'}
@@ -1110,7 +1110,7 @@ export default function StationDetail() {
                       {/* Price Display */}
                       <div className="text-center">
                         <div className={`text-4xl font-bold ${fuelColors.text} mb-1`}>
-                          ₹{Number(price.price_per_litre).toFixed(2)}
+                          ₹{Number(price.price).toFixed(2)}
                         </div>
                         <p className="text-sm text-muted-foreground">selling price</p>
                       </div>
@@ -1126,11 +1126,11 @@ export default function StationDetail() {
                             <div className="flex justify-between border-t border-green-200 pt-2">
                               <span className="text-green-700 dark:text-green-300 font-semibold">Profit/L:</span>
                               <span className="text-green-700 dark:text-green-300 font-bold">
-                                ₹{(Number(price.price_per_litre) - Number(price.cost_price)).toFixed(2)}
+                                ₹{(Number(price.price) - Number(price.cost_price)).toFixed(2)}
                               </span>
                             </div>
                             <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                              Margin: {(((Number(price.price_per_litre) - Number(price.cost_price)) / Number(price.price_per_litre)) * 100).toFixed(2)}%
+                              Margin: {(((Number(price.price) - Number(price.cost_price)) / Number(price.price)) * 100).toFixed(2)}%
                             </div>
                           </div>
                         </div>
@@ -1140,7 +1140,7 @@ export default function StationDetail() {
                       <div className="flex items-center justify-center gap-2 text-sm">
                         <Calendar className="w-4 h-4 text-muted-foreground" />
                         <span className="text-muted-foreground">
-                          Effective: {new Date(price.valid_from).toLocaleDateString('en-IN', {
+                          Effective: {new Date(price.effectiveFrom).toLocaleDateString('en-IN', {
                             day: 'numeric',
                             month: 'short',
                             year: 'numeric'
@@ -1199,19 +1199,19 @@ export default function StationDetail() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                     <div className="text-center">
                       <div className="font-semibold text-green-600">
-                        ₹{Math.min(...fuelPrices.map(p => Number(p.price_per_litre))).toFixed(2)}
+                        ₹{Math.min(...fuelPrices.map(p => Number(p.price))).toFixed(2)}
                       </div>
                       <div className="text-muted-foreground">Lowest Price</div>
                     </div>
                     <div className="text-center">
                       <div className="font-semibold text-blue-600">
-                        ₹{(fuelPrices.reduce((sum, p) => sum + Number(p.price_per_litre), 0) / fuelPrices.length).toFixed(2)}
+                        ₹{(fuelPrices.reduce((sum, p) => sum + Number(p.price), 0) / fuelPrices.length).toFixed(2)}
                       </div>
                       <div className="text-muted-foreground">Average Price</div>
                     </div>
                     <div className="text-center">
                       <div className="font-semibold text-purple-600">
-                        ₹{Math.max(...fuelPrices.map(p => Number(p.price_per_litre))).toFixed(2)}
+                        ₹{Math.max(...fuelPrices.map(p => Number(p.price))).toFixed(2)}
                       </div>
                       <div className="text-muted-foreground">Highest Price</div>
                     </div>
