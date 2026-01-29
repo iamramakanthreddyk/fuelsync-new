@@ -64,6 +64,7 @@ if (dialect === 'sqlite') {
     sequelize = new Sequelize(process.env.DATABASE_URL, {
       dialect: 'postgres',
       logging: false,
+      timezone: '+05:30', // IST timezone for Indian users
       dialectOptions: {
         ssl: {
           require: true,
@@ -113,6 +114,7 @@ if (dialect === 'sqlite') {
         port: config.port,
         dialect: 'postgres',
         logging: false,
+        timezone: '+05:30', // IST timezone for Indian users
         dialectOptions,
         pool: {
           max: 5,

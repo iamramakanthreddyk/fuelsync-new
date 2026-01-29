@@ -22,7 +22,7 @@ export function formatDisplayDate(date: Date | string, format: 'short' | 'medium
     long: { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' }
   };
   
-  return dateObj.toLocaleDateString('en-US', options[format]);
+  return dateObj.toLocaleDateString('en-IN', { ...options[format], timeZone: 'Asia/Kolkata' });
 }
 
 /**
@@ -30,12 +30,13 @@ export function formatDisplayDate(date: Date | string, format: 'short' | 'medium
  */
 export function formatDateTime(date: Date | string): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleString('en-US', {
+  return dateObj.toLocaleString('en-IN', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'Asia/Kolkata'
   });
 }
 

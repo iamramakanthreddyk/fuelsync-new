@@ -14,7 +14,7 @@ export function formatDateISO(date: string | Date): string {
  */
 export function formatDateLocal(date: string | Date, locale: string = 'en-IN') {
   const d = date instanceof Date ? date : new Date(date);
-  return d.toLocaleDateString(locale);
+  return d.toLocaleDateString(locale, { timeZone: 'Asia/Kolkata' });
 }
 
 /**
@@ -22,5 +22,5 @@ export function formatDateLocal(date: string | Date, locale: string = 'en-IN') {
  */
 export function formatDateTimeLocal(date: string | Date, locale: string = 'en-IN') {
   const d = date instanceof Date ? date : new Date(date);
-  return d.toLocaleString(locale);
+  return d.toLocaleString(locale, { timeZone: 'Asia/Kolkata' });
 }
