@@ -1548,11 +1548,14 @@ exports.getReadingsForSettlement = async (req, res, next) => {
           name: reading.enteredByUser.name
         } : null,
         recordedAt: reading.createdAt,
+        status: reading.status || (reading.settlementId ? 'settled' : 'unsettled'),
         settlementId: reading.settlementId,
+        carriedForwardFrom: reading.carriedForwardFrom,
         linkedSettlement: reading.settlement ? {
           id: reading.settlement.id,
           date: reading.settlement.date,
-          isFinal: reading.settlement.isFinal
+          isFinal: reading.settlement.isFinal,
+          status: reading.settlement.status
         } : null,
         transaction: reading.transaction ? {
           id: reading.transaction.id,
@@ -1660,7 +1663,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
 exports.recordSettlement = async (req, res, next) => {
   try {
     const { stationId } = req.params;
-    const { date, actualCash, expectedCash, notes, online, credit, isFinal, readingIds, employeeShortfalls } = req.body;
+    const { date, actualCash, expectedCash, notes, online, credit, status, readingIds, employeeShortfalls } = req.body;
     const user = req.user;
 
     // Check station access
@@ -1675,6 +1678,10 @@ exports.recordSettlement = async (req, res, next) => {
     const parsedActualCash = parseFloat(actualCash || 0);
     const parsedOnline = parseFloat(online || 0);
     const parsedCredit = parseFloat(credit || 0);
+
+    // Determine settlement status (support both legacy isFinal and new status)
+    const settlementStatus = status || (req.body.isFinal ? 'final' : 'draft');
+    const isFinal = settlementStatus === 'final' || req.body.isFinal === true;
 
     // VALIDATE all settlement amounts
     const validationErrors = [];
@@ -1777,36 +1784,38 @@ exports.recordSettlement = async (req, res, next) => {
         varianceCredit: parseFloat(varianceCredit.toFixed(2)),
         notes: notes || '',
         employeeShortfalls: employeeShortfalls || null,
+        readingIds: readingIds || null,
         recordedBy: user.id,
         recordedAt: new Date(),
+        status: settlementStatus,
         isFinal: !!isFinal,
         finalizedAt
       }, { transaction: t });
 
-      // Link selected readings to this settlement
+      // Link selected readings to this settlement and update their status
       let linkedReadingsCount = 0;
       if (readingIds && Array.isArray(readingIds) && readingIds.length > 0) {
-        // Link specific readings
+        // Link specific readings and update status to 'settled'
         const [affectedRows] = await NozzleReading.update(
-          { settlementId: record.id },
+          { settlementId: record.id, status: 'settled' },
           { where: { id: { [Op.in]: readingIds } }, transaction: t }
         );
         linkedReadingsCount = affectedRows;
       } else {
-        // Link all unlinked readings for this station/date
+        // Link all unlinked readings for this station/date and update status
         const [affectedRows] = await NozzleReading.update(
-          { settlementId: record.id },
-          { 
-            where: { 
-              stationId, 
-              readingDate: settlementDate, 
+          { settlementId: record.id, status: 'settled' },
+          {
+            where: {
+              stationId,
+              readingDate: settlementDate,
               settlementId: null,
               [Op.or]: [
                 { isInitialReading: false },
                 { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
               ]
-            }, 
-            transaction: t 
+            },
+            transaction: t
           }
         );
         linkedReadingsCount = affectedRows;
@@ -1864,7 +1873,7 @@ exports.recordSettlement = async (req, res, next) => {
 exports.getSettlements = async (req, res, next) => {
   try {
     const { stationId } = req.params;
-    const { limit = 5 } = req.query;
+    const { limit = 5, startDate, endDate } = req.query;
     const user = req.user;
 
     // Check station access
@@ -1874,10 +1883,21 @@ exports.getSettlements = async (req, res, next) => {
 
     // Query persisted settlements with variance analysis
     const { Settlement, User, DailyTransaction } = require('../models');
+    // Build date filter if provided
+    const whereClause = { stationId };
+    if (startDate && endDate) {
+      whereClause.date = { [Op.between]: [startDate, endDate] };
+    } else if (startDate) {
+      whereClause.date = { [Op.gte]: startDate };
+    } else if (endDate) {
+      whereClause.date = { [Op.lte]: endDate };
+    }
+
     const rows = await Settlement.findAll({
-      where: { stationId },
+      where: whereClause,
       include: [{ model: User, as: 'recordedByUser', attributes: ['name', 'email'] }],
-      order: [['date', 'DESC'], ['createdAt', 'DESC']]
+      order: [['date', 'DESC'], ['createdAt', 'DESC']],
+      limit: limit ? parseInt(limit) : undefined
     });
     // Group by date, flag duplicates and pick a main settlement (latest final if present)
     const settlementsByDate = {};

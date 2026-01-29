@@ -80,6 +80,12 @@ module.exports = (sequelize) => {
       field: 'employee_shortfalls',
       comment: 'JSON object tracking employee-wise shortfalls: {empId: {employeeName, shortfall, count}}'
     },
+    readingIds: {
+      type: DataTypes.JSON,
+      defaultValue: null,
+      field: 'reading_ids',
+      comment: 'Array of reading IDs included in this settlement'
+    },
     recordedBy: {
       type: DataTypes.UUID,
       field: 'recorded_by',
@@ -100,8 +106,9 @@ module.exports = (sequelize) => {
         allowNull: true
       },
       status: {
-        type: DataTypes.ENUM('recorded','approved','disputed'),
-        defaultValue: 'recorded'
+        type: DataTypes.ENUM('draft', 'final', 'locked'),
+        defaultValue: 'draft',
+        field: 'status'
       }
   }, {
     tableName: 'settlements',

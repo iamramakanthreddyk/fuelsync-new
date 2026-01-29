@@ -204,7 +204,7 @@ const SummaryCards: React.FC<{ data: any[], reportType: ReportType }> = ({ data,
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-purple-600">₹{summary.avgPrice.toFixed(2)}</div>
+              <div className="text-2xl font-bold text-purple-600">₹{(((summary as any)?.avgPrice) ?? 0).toFixed(2)}</div>
               <p className="text-sm text-muted-foreground">Avg Price</p>
             </CardContent>
           </Card>
@@ -241,7 +241,7 @@ export default function Reports() {
 
   // Use central hook for reports
   const { data: reportResponse, isLoading } = useReports(currentStation?.id, startDate, endDate, reportType as ReportType, !!currentStation);
-  const reportData = reportResponse ?? { data: [] };
+  const reportData: { data: any[] } = (reportResponse as any) ?? { data: [] };
 
   // Filter data based on fuel type if applicable
   const filteredData = useMemo(() => {

@@ -189,33 +189,33 @@ export const EmployeesTab: React.FC<EmployeesTabProps> = ({
             <div className="space-y-6">
               {/* Summary Stats */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-                <StatCard
-                  icon={TrendingDown}
-                  title="Total Cash Loss"
-                  value={`₹${safeToFixed(summaryStats.totalShortfall, 2)}`}
-                  trend={summaryStats.totalShortfall > 0 ? { value: 0, direction: 'down' as const } : { value: 0, direction: 'neutral' as const }}
-                  className="border-slate-200 bg-white"
-                />
-                <StatCard
-                  icon={Users}
-                  title="Employees Involved"
-                  value={`${summaryStats.employeesAffected}`}
-                  className="border-slate-200 bg-white"
-                />
-                <StatCard
-                  icon={AlertCircle}
-                  title="Avg Days with Loss"
-                  value={`${safeToFixed(employeeShortfalls.reduce((sum, emp) => sum + emp.daysWithShortfall, 0) / employeeShortfalls.length || 0, 1)}`}
-                  className="border-slate-200 bg-white"
-                />
-                {summaryStats.highestShortfallEmployee && (
                   <StatCard
-                    icon={AlertTriangle}
-                    title="Worst Performer"
-                    value={summaryStats.highestShortfallEmployee.employeeName}
-                    className="border-slate-200 bg-white"
+                    icon={TrendingDown}
+                    title="Total Cash Loss"
+                    value={`₹${safeToFixed(summaryStats.totalShortfall, 2)}`}
+                    trend={summaryStats.totalShortfall > 0 ? { value: 0, direction: 'down' as const } : { value: 0, direction: 'neutral' as const }}
+                    variant="red"
                   />
-                )}
+                  <StatCard
+                    icon={Users}
+                    title="Employees Involved"
+                    value={`${summaryStats.employeesAffected}`}
+                    variant="teal"
+                  />
+                  <StatCard
+                    icon={AlertCircle}
+                    title="Avg Days with Loss"
+                    value={`${safeToFixed(employeeShortfalls.reduce((sum, emp) => sum + emp.daysWithShortfall, 0) / employeeShortfalls.length || 0, 1)}`}
+                    variant="orange"
+                  />
+                  {summaryStats.highestShortfallEmployee && (
+                    <StatCard
+                      icon={AlertTriangle}
+                      title="Worst Performer"
+                      value={summaryStats.highestShortfallEmployee.employeeName}
+                      variant="purple"
+                    />
+                  )}
               </div>
 
               {/* Employee Shortfall Table - Responsive */}
@@ -243,6 +243,7 @@ export const EmployeesTab: React.FC<EmployeesTabProps> = ({
                             {employeeShortfalls[0]?.lastShortfallDate && (
                               <th className="text-right py-2 px-3 font-semibold text-slate-700">Last Shortfall Date</th>
                             )}
+                            <th className="text-right py-2 px-3 font-semibold text-slate-700">Severity</th>
                             <th className="text-right py-2 px-3 font-semibold text-slate-700">Settlements</th>
                           </tr>
                         </thead>
@@ -282,6 +283,19 @@ export const EmployeesTab: React.FC<EmployeesTabProps> = ({
                                     </div>
                                   </td>
                                 )}
+                                {/* Severity column */}
+                                <td className="text-right py-3 px-3">
+                                  {(() => {
+                                    const amount = Number(emp.totalShortfall ?? 0);
+                                    const severity = amount > 1000 ? 'High' : amount > 250 ? 'Medium' : 'Low';
+                                    const sevClass = severity === 'High' ? 'bg-red-600 text-white' : severity === 'Medium' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white';
+                                    return (
+                                      <div className={`inline-flex items-center px-2 py-1 rounded text-xs font-semibold ${sevClass}`}>
+                                        {severity}
+                                      </div>
+                                    );
+                                  })()}
+                                </td>
                                 <td className="text-right py-3 px-3">
                                   <div className="text-slate-600">{emp.settlementsCount}</div>
                                 </td>
@@ -292,38 +306,54 @@ export const EmployeesTab: React.FC<EmployeesTabProps> = ({
                     </div>
                     {/* Mobile Summary Card with List - Only one card rendered */}
                     <div className="sm:hidden">
-                      <div className="rounded-lg border border-slate-200 bg-white shadow-sm p-2">
-                        <div className="font-semibold text-slate-800 text-base mb-2">Employee Shortfall Breakdown</div>
-                        <div>
-                          {employeeShortfalls
-                            .sort((a, b) => b.totalShortfall - a.totalShortfall)
-                            .map((emp, idx, arr) => (
-                              <div key={idx}>
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="font-medium text-slate-900 text-sm">{emp.employeeName}</span>
-                                  <span className="font-bold text-slate-700 text-sm">₹{safeToFixed(emp.totalShortfall, 2)}</span>
-                                </div>
-                                <div className="flex flex-wrap text-xs text-slate-600 gap-x-4 gap-y-1 mb-2">
-                                  <div><span className="font-semibold">Days:</span> {emp.daysWithShortfall}</div>
-                                  <div><span className="font-semibold">Avg/Day:</span> ₹{safeToFixed(emp.averagePerDay, 2)}</div>
-                                  {emp.lastShortfallDate && (
-                                    <div>
-                                      <span className="font-semibold">Last Date:</span>{' '}
-                                      <span 
-                                        title={emp.shortfallDates?.map(d => new Date(d).toLocaleDateString('en-IN')).join(', ')}
-                                        className="cursor-help border-b border-dotted border-slate-400"
-                                      >
-                                        {new Date(emp.lastShortfallDate).toLocaleDateString('en-IN')}
-                                      </span>
+                      <div className="space-y-3">
+                        {employeeShortfalls
+                          .sort((a, b) => b.totalShortfall - a.totalShortfall)
+                            .map((emp, idx, arr) => {
+                            const positive = (emp.totalShortfall ?? 0) > 0;
+                            const accent = positive ? 'bg-red-500' : 'bg-slate-300';
+                            return (
+                              <div
+                                key={idx}
+                                role="button"
+                                tabIndex={0}
+                                aria-label={`${emp.employeeName} shortfall ${safeToFixed(emp.totalShortfall, 2)}`}
+                                className="flex items-stretch rounded-lg border border-slate-100 bg-white shadow-sm overflow-hidden"
+                              >
+                                <div className={`${accent} w-1`} />
+                                <div className="flex-1 p-3">
+                                  <div className="flex items-center justify-between">
+                                    <div className="text-sm font-medium text-slate-900">{emp.employeeName}</div>
+                                    <div className="flex items-center gap-3">
+                                      <div className="text-sm font-bold text-slate-800">₹{safeToFixed(emp.totalShortfall, 2)}</div>
+                                      {/* Severity badge */}
+                                      {(() => {
+                                        const amt = Number(emp.totalShortfall ?? 0);
+                                        const sev = amt > 1000 ? 'High' : amt > 250 ? 'Medium' : 'Low';
+                                        const sevBadge = sev === 'High' ? 'bg-red-600 text-white' : sev === 'Medium' ? 'bg-amber-500 text-white' : 'bg-emerald-500 text-white';
+                                        return <div className={`text-xs px-2 py-0.5 rounded ${sevBadge}`}>{sev}</div>;
+                                      })()}
                                     </div>
-                                  )}
+                                  </div>
+                                  <div className="flex flex-wrap text-xs text-slate-600 gap-x-3 gap-y-1 mt-2">
+                                    <div><span className="font-semibold">Days:</span> {emp.daysWithShortfall}</div>
+                                    <div><span className="font-semibold">Avg/Day:</span> ₹{safeToFixed(emp.averagePerDay, 2)}</div>
+                                    {emp.lastShortfallDate && (
+                                      <div>
+                                        <span className="font-semibold">Last:</span>{' '}
+                                        <span
+                                          title={emp.shortfallDates?.map(d => new Date(d).toLocaleDateString('en-IN')).join(', ')}
+                                          className="cursor-help border-b border-dotted border-slate-300"
+                                        >
+                                          {new Date(emp.lastShortfallDate).toLocaleDateString('en-IN')}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                                {idx < arr.length - 1 && (
-                                  <div className="border-t border-slate-100 my-2" />
-                                )}
                               </div>
-                            ))}
-                        </div>
+                            );
+                          })}
                       </div>
                     </div>
                   </CardContent>

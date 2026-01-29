@@ -203,6 +203,20 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       field: 'rejection_reason',
       allowNull: true
+    },
+
+    // Settlement workflow status
+    status: {
+      type: DataTypes.ENUM('unsettled', 'pending_settlement', 'settled', 'carried_forward'),
+      defaultValue: 'unsettled',
+      field: 'status',
+      comment: 'Settlement workflow status for readings'
+    },
+    carriedForwardFrom: {
+      type: DataTypes.DATEONLY,
+      field: 'carried_forward_from',
+      allowNull: true,
+      comment: 'Date when reading was carried forward from'
     }
   }, {
     tableName: 'nozzle_readings',

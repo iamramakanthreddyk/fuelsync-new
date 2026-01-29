@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
@@ -27,6 +27,9 @@ import { safeToFixed } from '@/lib/format-utils';
 import { FUEL_TYPE_LABELS, FuelType } from '@/lib/constants';
 
 // Types
+type ReadingStatus = 'unsettled' | 'pending_settlement' | 'settled' | 'carried_forward';
+type SettlementStatus = 'draft' | 'final' | 'locked';
+
 interface DailySalesData {
   stationName: string;
   totalLiters: number;
@@ -51,6 +54,9 @@ interface Reading {
     id: string;
     paymentBreakdown: { cash: number; online: number; credit: number };
   };
+  status?: ReadingStatus;
+  settlementId?: string;
+  carriedForwardFrom?: string; // Date when carried forward
 }
 
 interface ReadingsForSettlementResponse {
@@ -63,6 +69,11 @@ interface ReadingsForSettlementResponse {
     count: number;
     readings: ReadingForSettlement[];
   };
+  pending?: {
+    count: number;
+    readings: ReadingForSettlement[];
+    carryForwardDate?: string;
+  };
 }
 
 interface ReadingForSettlement extends Reading {
@@ -70,6 +81,28 @@ interface ReadingForSettlement extends Reading {
     id: string;
     paymentBreakdown: { cash: number; online: number; credit: number };
   };
+  status?: ReadingStatus;
+  settlementId?: string;
+}
+
+interface EmployeeSettlementStats {
+  employeeId: string;
+  employeeName: string;
+  totalReadings: number;
+  settledReadings: number;
+  unsettledReadings: number;
+  totalValue: number;
+  averageVariance: number;
+  totalShortfall: number;
+  settlementAccuracy: number; // percentage
+  lastSettlementDate?: string;
+}
+
+interface SettlementValidation {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  suggestions: string[];
 }
 
 interface SettlementRecord {
@@ -82,20 +115,190 @@ interface SettlementRecord {
   online: number;
   credit: number;
   notes: string;
-  isFinal?: boolean;
+  status: SettlementStatus;
   settledAt?: string;
+  finalizedAt?: string;
   employeeCash?: number;
   employeeOnline?: number;
   employeeCredit?: number;
   varianceOnline?: number;
   varianceCredit?: number;
   recordedByUser?: { name: string; email?: string };
+  readingIds: string[]; // Track which readings were included
+  employeeShortfalls?: Record<string, { employeeName: string; shortfall: number; count: number }>;
   duplicateCount?: number;
   allSettlements?: any[];
   mainSettlement?: { id?: string } | null;
   attempts?: number;
-  status?: string;
+  isFinal?: boolean; // Keep for backward compatibility
 }
+
+// Utility Functions
+const validateSettlement = (
+  selectedReadingIds: string[],
+  actualCash: number,
+  actualOnline: number,
+  actualCredit: number,
+  readingsForSettlement: ReadingsForSettlementResponse | undefined,
+  selectedTotals: { cash: number; online: number; credit: number }
+): SettlementValidation => {
+  const validation: SettlementValidation = {
+    isValid: true,
+    errors: [],
+    warnings: [],
+    suggestions: []
+  };
+
+  // Critical validation errors
+  if (selectedReadingIds.length === 0) {
+    validation.errors.push('Please select at least one employee reading to include in this settlement');
+    validation.isValid = false;
+  }
+
+  const totalAmount = actualCash + actualOnline + actualCredit;
+  if (totalAmount <= 0) {
+    validation.errors.push('Please enter at least one payment amount (Cash, Online, or Credit)');
+    validation.isValid = false;
+  }
+
+  if (actualCash < 0 || actualOnline < 0 || actualCredit < 0) {
+    validation.errors.push('Payment amounts cannot be negative');
+    validation.isValid = false;
+  }
+
+  // Business rule validation
+  const totalUnlinkedReadings = readingsForSettlement?.unlinked?.count ?? 0;
+  const totalLinkedReadings = readingsForSettlement?.linked?.count ?? 0;
+  const totalReadings = totalUnlinkedReadings + totalLinkedReadings;
+
+  if (totalReadings > 0 && selectedReadingIds.length < totalReadings) {
+    validation.warnings.push(`Only ${selectedReadingIds.length} of ${totalReadings} readings selected for settlement`);
+    validation.suggestions.push('Consider settling all readings for complete reconciliation');
+  }
+
+  // Variance warnings
+  const TOLERANCE_PERCENT = 5;
+
+  const cashVariancePercent = selectedTotals.cash > 0 ? Math.abs(selectedTotals.cash - actualCash) / selectedTotals.cash * 100 : 0;
+  const onlineVariancePercent = selectedTotals.online > 0 ? Math.abs(selectedTotals.online - actualOnline) / selectedTotals.online * 100 : 0;
+  const creditVariancePercent = selectedTotals.credit > 0 ? Math.abs(selectedTotals.credit - actualCredit) / selectedTotals.credit * 100 : 0;
+
+  if (cashVariancePercent > TOLERANCE_PERCENT) {
+    validation.warnings.push(`Cash variance: Employee reported ₹${selectedTotals.cash.toFixed(2)}, entered ₹${actualCash.toFixed(2)} (${cashVariancePercent.toFixed(1)}% difference)`);
+  }
+
+  if (onlineVariancePercent > TOLERANCE_PERCENT) {
+    validation.warnings.push(`Online variance: Employee reported ₹${selectedTotals.online.toFixed(2)}, entered ₹${actualOnline.toFixed(2)} (${onlineVariancePercent.toFixed(1)}% difference)`);
+  }
+
+  if (creditVariancePercent > TOLERANCE_PERCENT) {
+    validation.warnings.push(`Credit variance: Employee reported ₹${selectedTotals.credit.toFixed(2)}, entered ₹${actualCredit.toFixed(2)} (${creditVariancePercent.toFixed(1)}% difference)`);
+  }
+
+  return validation;
+};
+
+const calculateEmployeeStats = (
+  readings: ReadingForSettlement[],
+  settlements: SettlementRecord[]
+): EmployeeSettlementStats[] => {
+  const employeeMap = new Map<string, EmployeeSettlementStats>();
+
+  // Process all readings
+  readings.forEach(reading => {
+    const employeeId = reading.recordedBy?.id || 'unknown';
+    const employeeName = reading.recordedBy?.name || 'Unknown Employee';
+
+    if (!employeeMap.has(employeeId)) {
+      employeeMap.set(employeeId, {
+        employeeId,
+        employeeName,
+        totalReadings: 0,
+        settledReadings: 0,
+        unsettledReadings: 0,
+        totalValue: 0,
+        averageVariance: 0,
+        totalShortfall: 0,
+        settlementAccuracy: 0
+      });
+    }
+
+    const stats = employeeMap.get(employeeId)!;
+    stats.totalReadings++;
+    stats.totalValue += reading.saleValue;
+
+    if (reading.status === 'settled' || reading.settlementId) {
+      stats.settledReadings++;
+    } else {
+      stats.unsettledReadings++;
+    }
+  });
+
+  // Calculate settlement accuracy and shortfalls from settlements
+  settlements.forEach(settlement => {
+    if (settlement.employeeShortfalls) {
+      Object.entries(settlement.employeeShortfalls).forEach(([empId, shortfall]) => {
+        if (employeeMap.has(empId)) {
+          const stats = employeeMap.get(empId)!;
+          stats.totalShortfall += shortfall.shortfall;
+        }
+      });
+    }
+  });
+
+  // Calculate accuracy percentages
+  employeeMap.forEach(stats => {
+    if (stats.totalReadings > 0) {
+      stats.settlementAccuracy = (stats.settledReadings / stats.totalReadings) * 100;
+    }
+  });
+
+  return Array.from(employeeMap.values());
+};
+
+const getSettlementStatusDisplay = (status: SettlementStatus): { label: string; color: string; description: string } => {
+  switch (status) {
+    case 'draft':
+      return {
+        label: 'Draft',
+        color: 'bg-gray-100 text-gray-800 border-gray-300',
+        description: 'Preliminary settlement that can be modified'
+      };
+    case 'final':
+      return {
+        label: 'Final',
+        color: 'bg-green-100 text-green-800 border-green-300',
+        description: 'Locked settlement for financial records'
+      };
+    case 'locked':
+      return {
+        label: 'Locked',
+        color: 'bg-red-100 text-red-800 border-red-300',
+        description: 'Permanently locked settlement'
+      };
+    default:
+      return {
+        label: 'Unknown',
+        color: 'bg-gray-100 text-gray-800 border-gray-300',
+        description: 'Unknown settlement status'
+      };
+  }
+};
+
+const getReadingStatusDisplay = (status: ReadingStatus): { label: string; color: string; icon: string } => {
+  switch (status) {
+    case 'unsettled':
+      return { label: 'Unsettled', color: 'text-orange-600', icon: 'Clock' };
+    case 'pending_settlement':
+      return { label: 'Pending', color: 'text-blue-600', icon: 'AlertCircle' };
+    case 'settled':
+      return { label: 'Settled', color: 'text-green-600', icon: 'CheckCircle2' };
+    case 'carried_forward':
+      return { label: 'Carried Forward', color: 'text-purple-600', icon: 'ArrowRight' };
+    default:
+      return { label: 'Unknown', color: 'text-gray-600', icon: 'HelpCircle' };
+  }
+};
 
 export default function DailySettlement() {
   const navigate = useNavigate();
@@ -170,6 +373,16 @@ export default function DailySettlement() {
     enabled: !!stationId,
     retry: false
   });
+
+  // Calculate employee statistics
+  const employeeStats = useMemo(() => {
+    if (!readingsForSettlement || !previousSettlements) return [];
+    const allReadings = [
+      ...(readingsForSettlement.unlinked?.readings || []),
+      ...(readingsForSettlement.linked?.readings || [])
+    ];
+    return calculateEmployeeStats(allReadings, previousSettlements);
+  }, [readingsForSettlement, previousSettlements]);
 
   // Submit settlement mutation with reading IDs
   const submitSettlementMutation = useMutation({
@@ -322,7 +535,7 @@ export default function DailySettlement() {
     }
   }, [selectedReadingIds, actualCash, actualCredit, actualOnline, getSelectedTotals]);
 
-  const handleSubmitSettlement = async () => {
+  const handleSubmitSettlement = async (markAsFinal: boolean = false) => {
     if (!dailySales) {
       toast({
         title: 'Error',
@@ -332,97 +545,48 @@ export default function DailySettlement() {
       return;
     }
 
-    // REQUIRE reading selection - owner must pick which entries to settle
-    if (selectedReadingIds.length === 0) {
-      toast({
-        title: 'Select Readings First',
-        description: 'Please select at least one employee reading entry to include in this settlement',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    // VALIDATION: Check that all amounts are non-negative
-    const validationErrors: string[] = [];
-
-    if (actualCash < 0) {
-      validationErrors.push('Actual cash cannot be negative');
-    }
-    if (actualOnline < 0) {
-      validationErrors.push('Online amount cannot be negative');
-    }
-    if (actualCredit < 0) {
-      validationErrors.push('Credit amount cannot be negative');
-    }
-
-    // VALIDATION: Check that at least one amount is provided (cash, online, or credit)
-    const totalAmount = actualCash + actualOnline + actualCredit;
-    if (totalAmount <= 0) {
-      validationErrors.push('Please enter at least one payment amount (Cash, Online, or Credit)');
-    }
-
-    // VALIDATION: Warn if amounts differ significantly from employee reports
+    // Use comprehensive validation
     const selectedTotals = getSelectedTotals();
-    const TOLERANCE_PERCENT = 5;
-
-    // Check cash variance
-    const cashVariance = Math.abs(selectedTotals.cash - actualCash);
-    const cashVariancePercent = selectedTotals.cash > 0 ? (cashVariance / selectedTotals.cash) * 100 : 0;
-
-    // Check online variance
-    const onlineVariance = Math.abs(selectedTotals.online - actualOnline);
-    const onlineVariancePercent = selectedTotals.online > 0 ? (onlineVariance / selectedTotals.online) * 100 : 0;
-
-    // Check credit variance
-    const creditVariance = Math.abs(selectedTotals.credit - actualCredit);
-    const creditVariancePercent = selectedTotals.credit > 0 ? (creditVariance / selectedTotals.credit) * 100 : 0;
-
-    const warnings: string[] = [];
-
-    if (cashVariancePercent > TOLERANCE_PERCENT) {
-      warnings.push(`Cash variance: Employee reported ₹${selectedTotals.cash.toFixed(2)}, but you entered ₹${actualCash.toFixed(2)} (${cashVariancePercent.toFixed(1)}% difference)`);
-    }
-
-    if (onlineVariancePercent > TOLERANCE_PERCENT) {
-      warnings.push(`Online variance: Employee reported ₹${selectedTotals.online.toFixed(2)}, but you entered ₹${actualOnline.toFixed(2)} (${onlineVariancePercent.toFixed(1)}% difference)`);
-    }
-
-    if (creditVariancePercent > TOLERANCE_PERCENT) {
-      warnings.push(`Credit variance: Employee reported ₹${selectedTotals.credit.toFixed(2)}, but you entered ₹${actualCredit.toFixed(2)} (${creditVariancePercent.toFixed(1)}% difference)`);
-    }
+    const validation = validateSettlement(
+      selectedReadingIds,
+      actualCash,
+      actualOnline,
+      actualCredit,
+      readingsForSettlement || undefined,
+      selectedTotals
+    );
 
     // Show validation errors (blocking)
-    if (validationErrors.length > 0) {
+    if (!validation.isValid) {
       toast({
         title: 'Validation Error',
-        description: validationErrors.join('\n'),
+        description: validation.errors.join('\n'),
         variant: 'destructive'
       });
       return;
     }
 
-    // Show warnings (non-blocking, but ask for confirmation)
-    if (warnings.length > 0) {
-      const confirmMessage = `WARNING: Large variance detected:\n\n${warnings.join('\n')}\n\nDo you want to continue?`;
+    // Show warnings and suggestions (non-blocking, but ask for confirmation)
+    const allMessages = [...validation.warnings, ...validation.suggestions];
+    if (allMessages.length > 0) {
+      const confirmMessage = `Please review the following:\n\n${allMessages.map(msg => `• ${msg}`).join('\n')}\n\nDo you want to continue?`;
       if (!window.confirm(confirmMessage)) {
         return;
       }
     }
 
-    // NOTE: Variance is calculated on backend, don't send it
-    // Frontend shows it for user info, but backend recalculates to prevent manipulation
     setIsSubmitting(true);
 
     // Track employee-wise shortfalls for reporting
     const allReadings = [...(readingsForSettlement?.unlinked?.readings || []), ...(readingsForSettlement?.linked?.readings || [])];
     const selectedReadings = allReadings.filter(r => selectedReadingIds.includes(r.id));
 
-    // Calculate employee-wise shortfalls by grouping readings by employee
+    // Calculate employee-wise shortfalls using DRY utility
     const employeeShortfalls: Record<string, { employeeName: string; shortfall: number; count: number }> = {};
 
     // Only track if there's a cash shortfall (actual < expected)
-    if (getSelectedTotals().cash > actualCash) {
-      const shortfall = getSelectedTotals().cash - actualCash;
+    if (selectedTotals.cash > actualCash) {
+      const shortfall = selectedTotals.cash - actualCash;
       selectedReadings.forEach(reading => {
         const employeeName = reading.recordedBy?.name || 'Unknown Employee';
         const employeeId = reading.recordedBy?.id || 'unknown';
@@ -445,19 +609,19 @@ export default function DailySettlement() {
       });
     }
 
+    // Determine settlement status
+    const settlementStatus: SettlementStatus = markAsFinal ? 'final' : 'draft';
+
     submitSettlementMutation.mutate({
       date: selectedDate,
       stationId,
-      expectedCash: getSelectedTotals().cash, // Use selected readings totals
+      expectedCash: selectedTotals.cash,
       actualCash,
       online: actualOnline,
       credit: actualCredit,
-      // variance: NOT SENT - backend will calculate: expectedCash - actualCash
       notes,
-      // REQUIRED: Include selected reading IDs
       readingIds: selectedReadingIds,
-      isFinal: markAsFinal,
-      // NEW: Track employee-wise shortfalls
+      status: settlementStatus,
       employeeShortfalls: Object.keys(employeeShortfalls).length > 0 ? employeeShortfalls : undefined
     });
     setIsSubmitting(false);
@@ -552,6 +716,93 @@ export default function DailySettlement() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Settlement Status Dashboard */}
+      {dailySales && (
+        <Card className="border-gray-200 bg-gray-50 p-3 sm:p-4 md:p-6">
+          <CardHeader className="p-0 pb-3">
+            <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-gray-600" />
+              Settlement Status Overview
+            </CardTitle>
+            <CardDescription className="text-xs sm:text-sm">
+              Current settlement status for {new Date(selectedDate).toLocaleDateString('en-IN')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+              {/* Total Sales */}
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="text-xs text-muted-foreground mb-1">Total Sales</div>
+                <div className="text-lg font-bold text-green-600">
+                  ₹{safeToFixed(dailySales.totalSaleValue, 0)}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {safeToFixed(dailySales.totalLiters, 0)}L fuel
+                </div>
+              </div>
+
+              {/* Unsettled Readings */}
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="text-xs text-muted-foreground mb-1">Unsettled Readings</div>
+                <div className="text-lg font-bold text-orange-600">
+                  {readingsForSettlement?.unlinked?.count || 0}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Need settlement
+                </div>
+              </div>
+
+              {/* Settled Readings */}
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="text-xs text-muted-foreground mb-1">Settled Readings</div>
+                <div className="text-lg font-bold text-green-600">
+                  {readingsForSettlement?.linked?.count || 0}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Already processed
+                </div>
+              </div>
+
+              {/* Settlement Status */}
+              <div className="bg-white p-3 rounded-lg border">
+                <div className="text-xs text-muted-foreground mb-1">Settlement Status</div>
+                {(() => {
+                  const finalSettlement = getFinalSettlementForDate();
+                  if (finalSettlement) {
+                    return (
+                      <>
+                        <div className="text-lg font-bold text-green-600">Complete</div>
+                        <div className="text-xs text-muted-foreground">
+                          {getSettlementStatusDisplay(finalSettlement.status || 'draft').label}
+                        </div>
+                      </>
+                    );
+                  } else if ((readingsForSettlement?.unlinked?.count || 0) > 0) {
+                    return (
+                      <>
+                        <div className="text-lg font-bold text-orange-600">Pending</div>
+                        <div className="text-xs text-muted-foreground">
+                          Needs settlement
+                        </div>
+                      </>
+                    );
+                  } else {
+                    return (
+                      <>
+                        <div className="text-lg font-bold text-gray-600">No Data</div>
+                        <div className="text-xs text-muted-foreground">
+                          No readings found
+                        </div>
+                      </>
+                    );
+                  }
+                })()}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Quick Actions Banner - Only show if settlement needed */}
       {(() => {
@@ -1021,6 +1272,64 @@ export default function DailySettlement() {
             </CardContent>
           </Card>
 
+          {/* Unsettled Readings Status */}
+          {readingsForSettlement && (readingsForSettlement.unlinked?.count ?? 0) > 0 && (
+            <Card className="border-orange-200 bg-orange-50 p-3 sm:p-4 md:p-6">
+              <CardHeader className="p-0 pb-3">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-orange-900">
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-orange-600" />
+                  Unsettled Readings Status
+                  <Badge variant="outline" className="bg-orange-100 text-orange-800 border-orange-300">
+                    {readingsForSettlement.unlinked?.count || 0} unsettled
+                  </Badge>
+                </CardTitle>
+                <CardDescription className="text-xs sm:text-sm text-orange-700">
+                  These readings from employees have not been settled yet. Select which ones to include in today's settlement.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="p-0">
+                <div className="space-y-3">
+                  {/* Unsettled Summary */}
+                  <div className="bg-white p-3 rounded-lg border border-orange-200">
+                    <div className="text-sm font-semibold text-orange-900 mb-2">Unsettled Summary</div>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="text-center">
+                        <div className="font-bold text-orange-700">{readingsForSettlement.unlinked?.count || 0}</div>
+                        <div className="text-orange-600">Total Readings</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-green-700">₹{safeToFixed(readingsForSettlement.unlinked?.totals?.cash || 0, 0)}</div>
+                        <div className="text-green-600">Cash Expected</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-blue-700">₹{safeToFixed(readingsForSettlement.unlinked?.totals?.online || 0, 0)}</div>
+                        <div className="text-blue-600">Online Expected</div>
+                      </div>
+                      <div className="text-center">
+                        <div className="font-bold text-purple-700">₹{safeToFixed(readingsForSettlement.unlinked?.totals?.credit || 0, 0)}</div>
+                        <div className="text-purple-600">Credit Expected</div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Guidance */}
+                  <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                    <div className="text-sm font-semibold text-blue-900 mb-2 flex items-center gap-2">
+                      <CheckCircle2 className="w-4 h-4" />
+                      Settlement Guidance
+                    </div>
+                    <ul className="text-xs text-blue-800 space-y-1">
+                      <li>• Select all readings that should be settled today</li>
+                      <li>• Unselected readings will remain unsettled for future settlement</li>
+                      <li>• Consider settling all readings for complete financial reconciliation</li>
+                      <li>• Final settlements lock the record and are used for reports</li>
+                    </ul>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Reading Selection Section */}
           <Card className="border-purple-200 p-3 sm:p-4 md:p-6">
             <CardHeader className="p-0 pb-3">
@@ -1248,17 +1557,34 @@ export default function DailySettlement() {
                                                     onCheckedChange={() => handleToggleReading(reading.id)}
                                                   />
                                                   <div className="min-w-0 flex-1">
-                                                    <span className="text-xs sm:text-sm font-bold block truncate">
-                                                      Nozzle #{reading.nozzleNumber} - {FUEL_TYPE_LABELS[reading.fuelType as FuelType] || reading.fuelType}
-                                                    </span>
+                                                    <div className="flex items-center gap-2 mb-1">
+                                                      <span className="text-xs sm:text-sm font-bold block truncate">
+                                                        Nozzle #{reading.nozzleNumber} - {FUEL_TYPE_LABELS[reading.fuelType as FuelType] || reading.fuelType}
+                                                      </span>
+                                                      {reading.recordedBy && (
+                                                        <Badge variant="outline" className="text-xs px-1 py-0">
+                                                          {reading.recordedBy.name}
+                                                        </Badge>
+                                                      )}
+                                                    </div>
                                                     <span className="text-xs text-muted-foreground">
                                                       Reading: {safeToFixed(reading.openingReading, 1)} → {safeToFixed(reading.closingReading, 1)}L
                                                     </span>
                                                   </div>
                                                 </div>
-                                                <span className="text-xs sm:text-sm font-bold text-green-600 ml-2 flex-shrink-0">
-                                                  ₹{safeToFixed(reading.saleValue, 2)}
-                                                </span>
+                                                <div className="text-right ml-2 flex-shrink-0">
+                                                  <span className="text-xs sm:text-sm font-bold text-green-600 block">
+                                                    ₹{safeToFixed(reading.saleValue, 2)}
+                                                  </span>
+                                                  {reading.status && (
+                                                    <Badge
+                                                      variant="outline"
+                                                      className={`text-xs px-1 py-0 mt-1 ${getReadingStatusDisplay(reading.status).color}`}
+                                                    >
+                                                      {getReadingStatusDisplay(reading.status).label}
+                                                    </Badge>
+                                                  )}
+                                                </div>
                                               </div>
                                               <div className="grid grid-cols-2 gap-1 sm:gap-2 text-xs text-muted-foreground ml-6">
                                                 <div className="truncate">💧 {safeToFixed(reading.litresSold, 2)} L sold</div>
@@ -1333,36 +1659,70 @@ export default function DailySettlement() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="p-0 space-y-4 sm:space-y-6">
-                {/* Employee Summary for selected readings */}
+                {/* Enhanced Employee Analytics */}
                 {selectedReadingIds.length > 0 && (
                   <div className="bg-amber-50 p-3 sm:p-4 rounded-lg border border-amber-200">
-                    <h4 className="font-semibold text-amber-900 mb-2 flex items-center gap-2">
+                    <h4 className="font-semibold text-amber-900 mb-3 flex items-center gap-2">
                       <User className="w-4 h-4" />
-                      Employees Involved
+                      Employee Analytics
                     </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {(() => {
-                        const allReadings = [...(readingsForSettlement?.unlinked?.readings || []), ...(readingsForSettlement?.linked?.readings || [])];
-                        const selectedReadings = allReadings.filter(r => selectedReadingIds.includes(r.id));
-                        const employeeMap = new Map<string, { name: string; count: number }>();
 
-                        selectedReadings.forEach(r => {
-                          const empName = r.recordedBy?.name || 'Unknown';
-                          const empId = r.recordedBy?.id || 'unknown';
-                          const key = empId || empName;
-                          if (!employeeMap.has(key)) {
-                            employeeMap.set(key, { name: empName, count: 0 });
-                          }
-                          employeeMap.get(key)!.count += 1;
-                        });
+                    {/* Selected Employees Summary */}
+                    <div className="mb-3">
+                      <div className="text-sm text-amber-800 mb-2">Selected Readings by Employee:</div>
+                      <div className="flex flex-wrap gap-2">
+                        {(() => {
+                          const allReadings = [...(readingsForSettlement?.unlinked?.readings || []), ...(readingsForSettlement?.linked?.readings || [])];
+                          const selectedReadings = allReadings.filter(r => selectedReadingIds.includes(r.id));
+                          const employeeMap = new Map<string, { name: string; count: number; value: number }>();
 
-                        return Array.from(employeeMap.values()).map((emp, idx) => (
-                          <Badge key={idx} variant="outline" className="bg-white border-amber-300 text-amber-900">
-                            {emp.name} ({emp.count})
-                          </Badge>
-                        ));
-                      })()}
+                          selectedReadings.forEach(r => {
+                            const empName = r.recordedBy?.name || 'Unknown';
+                            const empId = r.recordedBy?.id || 'unknown';
+                            const key = empId || empName;
+                            if (!employeeMap.has(key)) {
+                              employeeMap.set(key, { name: empName, count: 0, value: 0 });
+                            }
+                            const emp = employeeMap.get(key)!;
+                            emp.count += 1;
+                            emp.value += r.saleValue;
+                          });
+
+                          return Array.from(employeeMap.values()).map((emp, idx) => (
+                            <Badge key={idx} variant="outline" className="bg-white border-amber-300 text-amber-900">
+                              {emp.name} ({emp.count} readings, ₹{safeToFixed(emp.value, 0)})
+                            </Badge>
+                          ));
+                        })()}
+                      </div>
                     </div>
+
+                    {/* Employee Performance Overview */}
+                    {employeeStats.length > 0 && (
+                      <div className="border-t border-amber-200 pt-3">
+                        <div className="text-sm text-amber-800 mb-2">Performance Overview:</div>
+                        <div className="space-y-2 max-h-32 overflow-y-auto">
+                          {employeeStats
+                            .filter((stat: EmployeeSettlementStats) => stat.totalReadings > 0)
+                            .sort((a: EmployeeSettlementStats, b: EmployeeSettlementStats) => b.settlementAccuracy - a.settlementAccuracy)
+                            .map((stat: EmployeeSettlementStats) => (
+                            <div key={stat.employeeId} className="flex items-center justify-between text-xs bg-white p-2 rounded border">
+                              <div className="flex-1 min-w-0">
+                                <div className="font-medium truncate">{stat.employeeName}</div>
+                                <div className="text-gray-500">
+                                  {stat.settledReadings}/{stat.totalReadings} settled ({stat.settlementAccuracy.toFixed(0)}%)
+                                </div>
+                              </div>
+                              <div className="text-right ml-2">
+                                <div className={`font-semibold ${stat.totalShortfall > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                                  ₹{safeToFixed(stat.totalShortfall, 0)} shortfall
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -1699,6 +2059,43 @@ export default function DailySettlement() {
                   />
                 </div>
 
+                {/* Validation Summary */}
+                {selectedReadingIds.length > 0 && (() => {
+                  const validation = validateSettlement(
+                    selectedReadingIds,
+                    actualCash,
+                    actualOnline,
+                    actualCredit,
+                    readingsForSettlement || undefined,
+                    getSelectedTotals()
+                  );
+                  return (validation.errors.length > 0 || validation.warnings.length > 0 || validation.suggestions.length > 0) && (
+                    <div className="space-y-2">
+                      <Label className="text-sm font-semibold">Settlement Validation</Label>
+                      <div className="space-y-2">
+                        {validation.errors.map((error, idx) => (
+                          <div key={idx} className="p-2 bg-red-50 border border-red-200 rounded text-xs text-red-700 flex items-start gap-2">
+                            <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                            <span>{error}</span>
+                          </div>
+                        ))}
+                        {validation.warnings.map((warning, idx) => (
+                          <div key={idx} className="p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700 flex items-start gap-2">
+                            <AlertCircle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                            <span>{warning}</span>
+                          </div>
+                        ))}
+                        {validation.suggestions.map((suggestion, idx) => (
+                          <div key={idx} className="p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 flex items-start gap-2">
+                            <CheckCircle2 className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                            <span>{suggestion}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+
                 {/* Mark as Final Checkbox */}
                 <div className="flex items-center space-x-2 p-2 sm:p-3 bg-blue-50 rounded-lg border border-blue-200">
                   <Checkbox
@@ -1736,17 +2133,27 @@ export default function DailySettlement() {
                   </div>
                 )}
 
-                {/* Submit Button */}
-                <Button
-                  onClick={handleSubmitSettlement}
-                  disabled={isSubmitting || selectedReadingIds.length === 0}
-                  className={`w-full py-3 sm:py-6 text-sm sm:text-lg ${selectedReadingIds.length === 0 ? 'opacity-50' : ''}`}
-                  size="lg"
-                >
-                  {isSubmitting ? 'Saving...' : selectedReadingIds.length === 0
-                    ? 'Select Readings First'
-                    : `Complete Settlement (${selectedReadingIds.length} entries)`}
-                </Button>
+                {/* Submit Buttons */}
+                <div className="space-y-3">
+                  <Button
+                    onClick={() => handleSubmitSettlement(false)}
+                    disabled={isSubmitting || selectedReadingIds.length === 0}
+                    variant="outline"
+                    className="w-full py-3 sm:py-4 text-sm sm:text-base"
+                  >
+                    {isSubmitting ? 'Saving...' : 'Save as Draft'}
+                  </Button>
+                  <Button
+                    onClick={() => handleSubmitSettlement(true)}
+                    disabled={isSubmitting || selectedReadingIds.length === 0}
+                    className={`w-full py-3 sm:py-6 text-sm sm:text-lg ${selectedReadingIds.length === 0 ? 'opacity-50' : ''}`}
+                    size="lg"
+                  >
+                    {isSubmitting ? 'Saving...' : selectedReadingIds.length === 0
+                      ? 'Select Readings First'
+                      : `Complete Final Settlement (${selectedReadingIds.length} entries)`}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -1779,8 +2186,8 @@ export default function DailySettlement() {
                                   Total: ₹{safeToFixed((settlement.actualCash || 0) + (settlement.online || 0) + (settlement.credit || 0), 2)}
                                 </p>
                               </div>
-                              <Badge variant={settlement.isFinal ? "default" : "secondary"} className="text-xs shrink-0">
-                                {settlement.isFinal ? 'Final' : 'Draft'}
+                              <Badge variant={settlement.status === 'final' ? "default" : settlement.status === 'locked' ? "destructive" : "secondary"} className="text-xs shrink-0">
+                                {getSettlementStatusDisplay(settlement.status || 'draft').label}
                               </Badge>
                             </div>
                             <ChevronDown className={`w-4 h-4 transition-transform shrink-0 ${settlement.id && expandedSettlements.has(settlement.id) ? 'rotate-180' : ''}`} />
@@ -1801,8 +2208,17 @@ export default function DailySettlement() {
                               </p>
                             </div>
                             <div className="flex flex-col sm:items-end gap-1">
-                              <p className="text-xs sm:text-sm">Status: {settlement.isFinal ? 'Final' : 'Draft'}</p>
-                              {settlement.isFinal && <Badge variant="outline" className="text-green-700 border-green-600 text-xs">Final</Badge>}
+                              <div className={`text-xs sm:text-sm font-semibold ${getSettlementStatusDisplay(settlement.status || 'draft').color}`}>
+                                Status: {getSettlementStatusDisplay(settlement.status || 'draft').label}
+                              </div>
+                              <div className="text-xs text-muted-foreground">
+                                {getSettlementStatusDisplay(settlement.status || 'draft').description}
+                              </div>
+                              {(settlement.status === 'final' || settlement.status === 'locked') && (
+                                <Badge variant="outline" className="text-green-700 border-green-600 text-xs">
+                                  {settlement.status === 'final' ? 'Final' : 'Locked'}
+                                </Badge>
+                              )}
                             </div>
                           </div>
                           {/* Employee-reported vs Owner-confirmed comparison */}

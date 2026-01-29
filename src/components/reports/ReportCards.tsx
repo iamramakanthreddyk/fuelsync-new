@@ -110,39 +110,38 @@ export const SalesReportCard: React.FC<SalesReportCardProps> = ({
   }),
   className,
 }) => {
+  // compact fuel item for listings
+  const FuelItem: React.FC<{ fuel: FuelTypeSale }> = ({ fuel }) => (
+    <div className="flex items-center justify-between py-1">
+      <div className="flex items-center gap-2 min-w-0">
+        <Badge className={`${getFuelBadgeClasses(fuel.fuelType)} text-xs px-1.5 py-0.5 shrink-0`}>{(fuel.fuelType || 'UNK').toUpperCase()}</Badge>
+        <div className="min-w-0">
+          <div className="text-sm font-medium truncate">₹{fuel.sales.toLocaleString('en-IN')}</div>
+          <div className="text-xs text-muted-foreground truncate">{safeToFixed(fuel.quantity)} L • {fuel.transactions} txns</div>
+        </div>
+      </div>
+      <div className="text-right text-xs text-muted-foreground ml-3">{(fuel as any).percentage ?? ''}</div>
+    </div>
+  );
+
   return (
     <Card className={cn('w-full', className)}>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <CardTitle className="text-sm md:text-lg truncate">{report.stationName}</CardTitle>
-            <CardDescription className="text-xs md:text-sm">{dateFormatter(report.date)}</CardDescription>
+            <CardTitle className="text-sm truncate">{report.stationName}</CardTitle>
+            <CardDescription className="text-xs text-muted-foreground">{dateFormatter(report.date)}</CardDescription>
           </div>
-          <div className="text-right ml-2">
-            <div className="text-lg md:text-2xl font-bold text-green-600">
-              ₹{report.totalSales.toLocaleString('en-IN')}
-            </div>
-            <p className="text-xs md:text-sm text-muted-foreground">{safeToFixed(report.totalQuantity)} L</p>
+          <div className="flex-shrink-0 text-right">
+            <div className="text-base font-bold text-green-600">₹{report.totalSales.toLocaleString('en-IN')}</div>
+            <div className="text-xs text-muted-foreground">{safeToFixed(report.totalQuantity)} L • {report.totalTransactions} txns</div>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-0">
-        <div className="space-y-2">
+      <CardContent className="pt-2 pb-3">
+        <div className="grid gap-2">
           {(Array.isArray(report.fuelTypeSales) ? report.fuelTypeSales : []).map((fuel) => (
-            <div
-              key={`${fuel.fuelType}-${report.stationId}-${report.date}`}
-              className="flex items-center justify-between p-2 md:p-3 bg-muted/30 rounded-md border"
-            >
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Badge className={`${getFuelBadgeClasses(fuel.fuelType)} text-xs px-1.5 py-0.5 shrink-0`}>
-                  {(fuel.fuelType || 'UNKNOWN').toUpperCase()}
-                </Badge>
-                <div className="min-w-0 flex-1">
-                  <div className="font-medium text-sm md:text-base truncate">₹{fuel.sales.toLocaleString('en-IN')}</div>
-                  <div className="text-xs text-muted-foreground">{safeToFixed(fuel.quantity)} L • {fuel.transactions} txns</div>
-                </div>
-              </div>
-            </div>
+            <FuelItem key={`${fuel.fuelType}-${report.stationId}-${report.date}`} fuel={fuel} />
           ))}
         </div>
       </CardContent>

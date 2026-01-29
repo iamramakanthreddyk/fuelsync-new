@@ -5,7 +5,7 @@
  * Features: Real-time data, comparative analysis, export capabilities, and predictive insights
  */
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Tabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,9 +14,9 @@ import {
   useSalesReports,
   usePumpPerformance,
   useNozzleBreakdown,
+  useSettlements,
   calculateSalesTotals,
   aggregateRawReadingsToSalesReports,
-  SalesReport,
 } from '@/hooks/useReportData';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -128,7 +128,7 @@ const calculateDateRange = (preset: string): DateRange => {
   }
 };
 
-const calculatePerformanceMetrics = (current: any, previous?: any) => {
+const calculatePerformanceMetrics = (current: any, previous?: any): { trend: number; direction: 'up' | 'down' | 'neutral' } => {
   if (!previous) return { trend: 0, direction: 'neutral' as const };
 
   const currentValue = current.sales || 0;
@@ -137,7 +137,7 @@ const calculatePerformanceMetrics = (current: any, previous?: any) => {
   if (previousValue === 0) return { trend: 0, direction: 'neutral' as const };
 
   const trend = ((currentValue - previousValue) / previousValue) * 100;
-  const direction = trend > 0 ? 'up' : trend < 0 ? 'down' : 'neutral';
+  const direction: 'up' | 'down' | 'neutral' = trend > 0 ? 'up' : trend < 0 ? 'down' : 'neutral';
 
   return { trend: Math.abs(trend), direction };
 };
@@ -192,12 +192,16 @@ export default function Reports() {
     dateRange,
     selectedStation,
   });
+  const { data: settlements, isLoading: settlementsLoading, refetch: refetchSettlements } = useSettlements({
+    dateRange,
+    selectedStation,
+  });
 
   // Refresh all data
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     try {
-      await Promise.all([refetchSales(), refetchPumps(), refetchNozzles()]);
+      await Promise.all([refetchSales(), refetchPumps(), refetchNozzles(), refetchSettlements()]);
       setLastUpdated(new Date());
       toast({
         title: 'Data Refreshed',
@@ -212,7 +216,7 @@ export default function Reports() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [refetchSales, refetchPumps, refetchNozzles, toast]);
+  }, [refetchSales, refetchPumps, refetchNozzles, refetchSettlements, toast]);
 
   // Aggregate raw readings into sales reports if needed
   const aggregatedSalesReports = useMemo(() => {
@@ -255,14 +259,15 @@ export default function Reports() {
 
   // Calculate additional insights
   const insights = useMemo(() => {
-    if (!aggregatedSalesReports || aggregatedSalesReports.length === 0) {
-      return {
-        avgTransactionValue: 0,
-        peakDay: null,
-        fuelTypeBreakdown: [],
-        efficiency: 0,
-      };
-    }
+      if (!aggregatedSalesReports || aggregatedSalesReports.length === 0) {
+        return {
+          avgTransactionValue: 0,
+          peakDay: null,
+          fuelTypeBreakdown: [],
+          efficiency: 0,
+          litersPerTxn: 0,
+        };
+      }
 
     const avgTransactionValue = totals.transactions > 0 ? totals.sales / totals.transactions : 0;
 
@@ -274,11 +279,13 @@ export default function Reports() {
     // Fuel type breakdown
     const fuelTypeMap = new Map<string, { sales: number; quantity: number }>();
     aggregatedSalesReports.forEach(report => {
-      if (report.fuelType && report.totalSales && report.totalQuantity) {
-        const existing = fuelTypeMap.get(report.fuelType) || { sales: 0, quantity: 0 };
-        fuelTypeMap.set(report.fuelType, {
-          sales: existing.sales + report.totalSales,
-          quantity: existing.quantity + report.totalQuantity,
+      if (report.fuelTypeSales && report.fuelTypeSales.length > 0) {
+        report.fuelTypeSales.forEach(fuelTypeData => {
+          const existing = fuelTypeMap.get(fuelTypeData.fuelType) || { sales: 0, quantity: 0 };
+          fuelTypeMap.set(fuelTypeData.fuelType, {
+            sales: existing.sales + fuelTypeData.sales,
+            quantity: existing.quantity + fuelTypeData.quantity,
+          });
         });
       }
     });
@@ -290,14 +297,18 @@ export default function Reports() {
       percentage: (data.sales / totals.sales) * 100,
     }));
 
-    // Efficiency metric (transactions per liter)
-    const efficiency = totals.quantity > 0 ? totals.transactions / totals.quantity : 0;
+    // Efficiency metric (transactions per liter) and its inverse (liters per transaction)
+    const safeQuantity = Number.isFinite(Number(totals.quantity)) ? Number(totals.quantity) : 0;
+    const safeTransactions = Number.isFinite(Number(totals.transactions)) ? Number(totals.transactions) : 0;
+    const efficiency = safeQuantity > 0 ? safeTransactions / safeQuantity : 0; // txn per L
+    const litersPerTxn = safeTransactions > 0 ? safeQuantity / safeTransactions : 0; // L per txn
 
     return {
       avgTransactionValue,
       peakDay,
       fuelTypeBreakdown,
       efficiency,
+      litersPerTxn,
     };
   }, [aggregatedSalesReports, totals]);
 
@@ -349,30 +360,29 @@ export default function Reports() {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
       <div className="container mx-auto p-2 sm:p-4 lg:p-6 page-container space-y-4 lg:space-y-6">
         {/* Header with Enhanced Features */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="flex flex-col gap-4">
           <ReportHeader
             title="Reports & Analytics"
             subtitle="Comprehensive insights into your fuel station performance"
             icon={BarChart3}
-          />
-
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Badge variant="outline" className="text-xs">
-              <Clock className="w-3 h-3 mr-1" />
-              Updated {lastUpdated.toLocaleTimeString()}
-            </Badge>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="shrink-0"
-            >
-              <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
-              Refresh
-            </Button>
-          </div>
+          >
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                <Clock className="w-3 h-3 mr-1" />
+                Updated {lastUpdated.toLocaleTimeString()}
+              </Badge>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="shrink-0"
+              >
+                <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          </ReportHeader>
         </div>
 
         {/* Enhanced Filters */}
@@ -384,7 +394,6 @@ export default function Reports() {
             onStationChange={setSelectedStation}
             stations={Array.isArray(stations) ? stations : []}
             onRefresh={handleRefresh}
-            onExportAll={handleExportAll}
             showRefresh={false} // We have our own refresh button
           />
 
@@ -410,7 +419,7 @@ export default function Reports() {
           <StatCard
             title="Total Revenue"
             value={`₹${totals.sales.toLocaleString('en-IN')}`}
-            trend={performanceMetrics}
+            trend={{ value: performanceMetrics.trend, direction: performanceMetrics.direction }}
             icon={IndianRupee}
             variant="green"
           />
@@ -468,10 +477,10 @@ export default function Reports() {
               </div>
             </div>
             <div className="text-2xl font-bold text-blue-600">
-              {insights.efficiency.toFixed(3)}
+              {typeof insights.efficiency === 'number' ? insights.efficiency.toFixed(3) : '0.000'} <span className="text-sm font-normal">txn/L</span>
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              Higher is better
+              ≈ {(typeof insights.litersPerTxn === 'number' && insights.litersPerTxn > 0) ? insights.litersPerTxn.toFixed(1) : '—'} L/txn • Higher txn/L is better
             </p>
           </div>
 
@@ -503,6 +512,8 @@ export default function Reports() {
             <OverviewTab
               aggregatedSalesReports={aggregatedSalesReports}
               salesLoading={salesLoading}
+              settlements={settlements}
+              settlementsLoading={settlementsLoading}
               insights={insights}
             />
             <SalesTab

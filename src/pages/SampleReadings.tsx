@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useStations } from '@/hooks/api';
@@ -51,11 +52,31 @@ interface SampleStatistics {
 }
 
 export default function SampleReadings() {
+  const formatDate = (s?: string) => {
+    try {
+      return s ? new Date(s).toLocaleDateString() : '—';
+    } catch (e) {
+      return String(s ?? '—');
+    }
+  };
+
+  const formatDateTime = (s?: string) => {
+    try {
+      return s ? new Date(s).toLocaleString() : '—';
+    } catch (e) {
+      return String(s ?? '—');
+    }
+  };
+
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [selectedStation, setSelectedStation] = useState<string>('');
   const [data, setData] = useState<SampleReadingGroup[] | SampleStatistics>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [viewMode, setViewMode] = useState<'readings' | 'statistics'>('readings');
+  const [page, setPage] = useState(1);
+  const [selectedReading, setSelectedReading] = useState<SampleReading | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   const { user } = useAuth();
   const { toast } = useToast();
@@ -84,9 +105,12 @@ export default function SampleReadings() {
       });
 
       const result = await apiClient.get(`/reports/sample-readings?${params}`);
-      // Extract the details array from the response
-      const details = (result as any)?.details || [];
+      // Unwrap possible axios response shapes: { data: { success, data: { details } } } or { data: { details } }
+      const payload = (result as any)?.data ?? result;
+      const details = payload?.data?.details ?? payload?.details ?? [];
       setData(details);
+      setViewMode('readings');
+      setPage(1);
 
       if (!details || details.length === 0) {
         toast({ title: 'Info', description: 'No sample readings found for this period' });
@@ -116,7 +140,8 @@ export default function SampleReadings() {
       });
 
       const result = await apiClient.get(`/reports/sample-statistics?${params}`);
-      const statsData = result || {};
+      const payload = (result as any)?.data ?? result;
+      const statsData = payload?.data ?? payload ?? {};
       const emptyStats: SampleStatistics = {
         dailyTrend: [],
         byNozzle: [],
@@ -155,6 +180,8 @@ export default function SampleReadings() {
           coverage: coverageNum
         };
         setData(mappedStats);
+        setViewMode('statistics');
+        setPage(1);
       } else {
         setData(emptyStats);
       }
@@ -224,13 +251,27 @@ export default function SampleReadings() {
                 </Select>
               </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              <Button onClick={fetchSampleReadings} className="w-full">
-                View Readings
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={fetchSampleReadings}
+                className="w-full"
+                variant={viewMode === 'readings' ? 'default' : 'outline'}
+                disabled={isLoading}
+              >
+                Readings
               </Button>
-              <Button onClick={fetchSampleStatistics} variant="outline" className="w-full">
-                View Statistics
+              <Button
+                onClick={fetchSampleStatistics}
+                className="w-full"
+                variant={viewMode === 'statistics' ? 'default' : 'outline'}
+                disabled={isLoading}
+              >
+                Statistics
               </Button>
+              {/* Print current view (PDF via browser print) */}
+              {((viewMode === 'readings' && Array.isArray(data) && (data as SampleReadingGroup[]).some(g => g.readings && g.readings.length > 0)) || (viewMode === 'statistics' && !(Array.isArray(data)) && (data as SampleStatistics).dailyTrend && (data as SampleStatistics).dailyTrend.length > 0)) && (
+                <Button className="ml-auto" onClick={() => window.print()}>Print</Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -264,10 +305,10 @@ export default function SampleReadings() {
                   <div className="flex items-center gap-2 mb-4">
                     <TrendingUp className="w-5 h-5 text-primary" />
                     <h3 className="font-semibold text-lg">
-                      {group.date} — <span className="text-primary">{group.totalSamples} samples</span>
+                      {formatDate(group.date)} — <span className="text-primary">{group.totalSamples} samples</span>
                     </h3>
                   </div>
-                  <div className="overflow-x-auto">
+                  <div className="hidden md:block overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead className="bg-muted/50">
                         <tr>
@@ -276,12 +317,17 @@ export default function SampleReadings() {
                           <th className="p-3 text-right font-semibold">Reading</th>
                           <th className="p-3 text-right font-semibold">Litres</th>
                           <th className="p-3 text-left font-semibold">Pump</th>
+                          <th className="p-3 text-left font-semibold">Entered At</th>
                           <th className="p-3 text-left font-semibold">Entered By</th>
                         </tr>
                       </thead>
                       <tbody>
                         {group.readings.map((reading, ridx) => (
-                          <tr key={ridx} className="border-t hover:bg-muted/30 transition-colors">
+                          <tr
+                            key={ridx}
+                            className="border-t hover:bg-muted/30 transition-colors cursor-pointer"
+                            onClick={() => { setSelectedReading(reading); setDialogOpen(true); }}
+                          >
                             <td className="p-3 font-medium">{reading.nozzleNumber}</td>
                             <td className="p-3">
                               <span className={`px-2 py-1 rounded text-xs font-medium border ${getFuelBadgeClasses(reading.fuelType)}`}>
@@ -291,21 +337,49 @@ export default function SampleReadings() {
                             <td className="p-3 text-right font-mono text-sm">{reading.readingValue.toLocaleString()}</td>
                             <td className="p-3 text-right font-medium">{reading.litresSold}L</td>
                             <td className="p-3 text-sm">{reading.pumpName}</td>
+                            <td className="p-3 text-sm text-muted-foreground">{formatDateTime(reading.enteredAt)}</td>
                             <td className="p-3 text-sm text-muted-foreground">{reading.enteredBy}</td>
                           </tr>
                         ))}
                       </tbody>
                     </table>
                   </div>
+
+                  {/* Mobile: compact card list */}
+                  <div className="md:hidden space-y-2">
+                    {group.readings.map((reading, ridx) => (
+                      <div
+                        key={ridx}
+                        className="border rounded-lg p-3 bg-background hover:shadow-sm transition-shadow cursor-pointer"
+                        onClick={() => { setSelectedReading(reading); setDialogOpen(true); }}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div>
+                            <div className="text-sm font-semibold">Nozzle {reading.nozzleNumber}</div>
+                            <div className="text-xs text-muted-foreground mt-1">{reading.pumpName}</div>
+                          </div>
+                          <div className="text-right">
+                            <div className="text-sm font-mono">{reading.readingValue.toLocaleString()}</div>
+                            <div className="text-xs text-muted-foreground">{reading.litresSold}L</div>
+                          </div>
+                        </div>
+                        <div className="mt-2 flex items-center justify-between">
+                          <div className={`px-2 py-1 rounded text-xs font-medium border ${getFuelBadgeClasses(reading.fuelType)}`}>{reading.fuelType}</div>
+                          <div className="text-xs text-muted-foreground">{formatDateTime(reading.enteredAt)}</div>
+                        </div>
+                        <div className="mt-2 text-xs text-muted-foreground">By {reading.enteredBy}</div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
 
               {/* Statistics View */}
               {!Array.isArray(data) && (
-                <div className="space-y-4">
+                <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
                   {/* Daily Trend */}
                   {(data as SampleStatistics).dailyTrend && (
-                    <div className="border rounded-lg p-4 bg-gradient-to-br from-blue-50/50 to-transparent hover:shadow-sm transition-shadow">
+                    <div className="border rounded-lg p-4 bg-gradient-to-br from-blue-50/50 to-transparent hover:shadow-sm transition-shadow md:col-span-2">
                       <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
                         <TrendingUp className="w-5 h-5 text-blue-600" />
                         Daily Trend
@@ -323,7 +397,7 @@ export default function SampleReadings() {
                           <tbody>
                             {(data as SampleStatistics).dailyTrend.map((day: any, idx: number) => (
                               <tr key={idx} className="border-t hover:bg-muted/50">
-                                <td className="p-2">{day.date}</td>
+                                <td className="p-2">{formatDate(day.date)}</td>
                                 <td className="p-2">{day.sampleCount}</td>
                                 <td className="p-2">{day.totalLitres} L</td>
                                 <td className="p-2">₹{day.totalValue}</td>
@@ -353,7 +427,7 @@ export default function SampleReadings() {
                               <tr key={idx} className="border-t hover:bg-muted/50">
                                 <td className="p-2 font-medium">{nozzle.nozzleNumber}</td>
                                 <td className="p-2">{nozzle.sampleCount}</td>
-                                <td className="p-2">{nozzle.lastSampleDate}</td>
+                                <td className="p-2">{formatDate(nozzle.lastSampleDate)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -380,7 +454,7 @@ export default function SampleReadings() {
                               <tr key={idx} className="border-t hover:bg-muted/50">
                                 <td className="p-2 font-medium">{emp.employeeName}</td>
                                 <td className="p-2">{emp.sampleCount}</td>
-                                <td className="p-2">{emp.lastSampleDate}</td>
+                                <td className="p-2">{formatDate(emp.lastSampleDate)}</td>
                               </tr>
                             ))}
                           </tbody>
@@ -390,10 +464,20 @@ export default function SampleReadings() {
                   )}
 
                   {/* Coverage */}
-                  {(data as SampleStatistics).coverage && (
+                  {(data as SampleStatistics).coverage !== undefined && (
                     <div className="border rounded-lg p-4 bg-green-50">
                       <p className="text-sm text-muted-foreground">Testing Coverage</p>
-                      <p className="text-2xl font-bold text-green-600">{(data as SampleStatistics).coverage}%</p>
+                      <div className="flex items-center gap-4">
+                        <div className="w-full bg-green-100 rounded overflow-hidden">
+                          <div
+                            className="bg-green-600 text-white text-xs font-medium px-2 py-1"
+                            style={{ width: `${Math.min(100, Math.max(0, (data as SampleStatistics).coverage))}%` }}
+                          >
+                            {(data as SampleStatistics).coverage}%
+                          </div>
+                        </div>
+                        <div className="text-2xl font-bold text-green-600">{(data as SampleStatistics).coverage}%</div>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -402,6 +486,33 @@ export default function SampleReadings() {
           )}
         </CardContent>
       </Card>
+      {/* Detail dialog for a single sample reading */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Sample Reading Details</DialogTitle>
+          </DialogHeader>
+          {selectedReading ? (
+            <div className="space-y-3">
+              <div className="text-sm"><strong>Nozzle:</strong> {selectedReading.nozzleNumber}</div>
+              <div className="text-sm"><strong>Fuel:</strong> {selectedReading.fuelType}</div>
+              <div className="text-sm"><strong>Reading:</strong> {selectedReading.readingValue}</div>
+              <div className="text-sm"><strong>Litres:</strong> {selectedReading.litresSold}L</div>
+              <div className="text-sm"><strong>Pump:</strong> {selectedReading.pumpName}</div>
+              <div className="text-sm"><strong>Entered At:</strong> {formatDateTime(selectedReading.enteredAt)}</div>
+              <div className="text-sm"><strong>Entered by:</strong> {selectedReading.enteredBy}</div>
+              <div className="text-sm"><strong>Notes:</strong> {selectedReading.notes || '—'}</div>
+            </div>
+          ) : (
+            <div>No details</div>
+          )}
+          <div className="mt-4 text-right">
+            <DialogClose asChild>
+              <Button>Close</Button>
+            </DialogClose>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

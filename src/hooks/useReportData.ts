@@ -70,6 +70,31 @@ export interface NozzleBreakdown {
   avgTransactionValue: number;
 }
 
+export interface Settlement {
+  id: string;
+  date: string;
+  stationId: string;
+  stationName?: string; // Added for multi-station support
+  expectedCash: number;
+  actualCash: number;
+  variance: number;
+  online: number;
+  credit: number;
+  varianceOnline?: number;
+  varianceCredit?: number;
+  employeeCash?: number;
+  employeeOnline?: number;
+  employeeCredit?: number;
+  notes?: string;
+  status: 'draft' | 'final' | 'locked';
+  recordedBy: string;
+  recordedAt: string;
+  isFinal?: boolean;
+  finalizedAt?: string;
+  readingIds?: string[];
+  employeeShortfalls?: Record<string, { employeeName: string; shortfall: number; count: number }>;
+}
+
 interface ReportQueryParams {
   dateRange: DateRange;
   selectedStation: string;
@@ -345,3 +370,53 @@ export function calculateSalesTotals(reports: any[] | undefined) {
     { sales: 0, quantity: 0, transactions: 0 }
   );
 }
+
+export const useSettlements = ({ dateRange, selectedStation }: ReportQueryParams) => {
+  return useQuery({
+    queryKey: ['settlements', dateRange, selectedStation],
+    queryFn: async () => {
+      if (selectedStation === 'all') {
+        // Fetch settlements from all accessible stations
+        const stationsResponse = await apiClient.get('/stations');
+        const stations = extractApiArray(stationsResponse);
+
+        if (!stations || stations.length === 0) {
+          return [];
+        }
+
+        // Fetch settlements for each station and combine
+        const allSettlements = await Promise.all(
+          stations.map(async (station: any) => {
+            try {
+              const params = buildReportParams({ dateRange, selectedStation: station.id });
+              const response = await apiClient.get<{ success: boolean; data: Settlement[] }>(
+                `/stations/${station.id}/settlements?${params}`
+              );
+              const stationSettlements = extractApiArray(response);
+              // Add station info to each settlement
+              return stationSettlements.map((settlement: Settlement) => ({
+                ...settlement,
+                stationName: station.name,
+                stationId: station.id,
+              }));
+            } catch (error) {
+              // If a station doesn't have settlements endpoint or fails, skip it
+              console.warn(`Failed to fetch settlements for station ${station.id}:`, error);
+              return [];
+            }
+          })
+        );
+
+        return allSettlements.flat();
+      } else {
+        // Fetch settlements for specific station
+        const params = buildReportParams({ dateRange, selectedStation });
+        const response = await apiClient.get<{ success: boolean; data: Settlement[] }>(
+          `/stations/${selectedStation}/settlements?${params}`
+        );
+        return extractApiArray(response);
+      }
+    },
+    enabled: !!selectedStation,
+  });
+};
