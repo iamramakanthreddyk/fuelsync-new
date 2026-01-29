@@ -36,18 +36,20 @@ export const FuelPriceCard: React.FC<FuelPriceCardProps> = ({
     );
   }
 
-  const fuelTypes = [
-    { key: 'PETROL', label: 'Petrol' },
-    { key: 'DIESEL', label: 'Diesel' },
-    { key: 'CNG', label: 'CNG' },
-    { key: 'EV_CHARGING', label: 'EV Charging' },
-  ];
+  // Derive displayed fuel types from the `prices` object keys so the UI
+  // reflects whatever the API returns (e.g. PETROL, PREMIUM_PETROL, CNG).
+  const setPrices = Object.keys(prices || {}).map((key) => {
+    // Convert e.g. 'PREMIUM_PETROL' or 'EV_CHARGING' to human-friendly label
+    const label = key
+      .toString()
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(s => s.charAt(0).toUpperCase() + s.slice(1))
+      .join(' ');
 
-  const setPrices = fuelTypes.filter(
-    ({ key }) =>
-      prices[key as keyof typeof prices] !== undefined &&
-      prices[key as keyof typeof prices] !== null
-  );
+    return { key, label };
+  }).filter(({ key }) => prices[key as keyof typeof prices] !== undefined && prices[key as keyof typeof prices] !== null);
 
   if (setPrices.length === 0) {
     // If user can set prices and showWarning is true, show actionable warning

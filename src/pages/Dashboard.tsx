@@ -47,9 +47,13 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const { data: fuelPricesList, isLoading: isPricesLoading } = useFuelPricesData();
   const roleAccess = useRoleAccess();
   const { currentStation, isEmployee } = roleAccess;
+
+  const { data: fuelPricesList, isLoading: isPricesLoading } = useFuelPricesData(currentStation?.id);
+
+  // Debug logging
+  console.log('Dashboard fuelPricesList:', fuelPricesList, 'currentStation:', currentStation);
   const { setStationId } = useFuelPricesGlobal();
 
   useEffect(() => {
@@ -63,9 +67,11 @@ export default function Dashboard() {
   const premiumRequired = false; // Premium features not implemented yet
   const variance = dashboardData.todayPayments - dashboardData.todaySales;
 
-  // Build fuel price object for FuelPriceCard - normalize keys using enum
+  // Build fuel price object for FuelPriceCard - prefer dashboard-provided prices,
+  // but fall back to the global fuel prices list when dashboard data is empty.
   const fuelPricesObj: Record<string, number> = {};
-  if (dashboardData.fuelPrices) {
+  const hasDashboardFuelPrices = dashboardData.fuelPrices && Object.keys(dashboardData.fuelPrices).length > 0;
+  if (hasDashboardFuelPrices) {
     Object.entries(dashboardData.fuelPrices).forEach(([key, value]) => {
       if (value !== undefined) {
         const normalizedKey = normalizeFuelType(key);
@@ -284,7 +290,7 @@ export default function Dashboard() {
         <SetupChecklist checklist={checklist} />
       </div>
       
-      {/* Header Section with Fuel Prices - Compact unified header */}
+      {/* Header Section - Compact unified header */}
       <div className="space-y-2">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
           <div className="flex-1 min-w-0">
@@ -295,10 +301,6 @@ export default function Dashboard() {
             <p className="text-responsive-sm text-muted-foreground">
               Welcome back, <span className="font-medium text-foreground">{user?.name}</span>
             </p>
-          </div>
-          {/* Fuel Prices - Mobile optimized positioning */}
-          <div className="w-full sm:w-auto sm:ml-auto sm:flex-shrink-0">
-            <FuelPriceCard prices={fuelPricesObj || {}} isLoading={isPricesLoading} canSetPrices={canSetPrices} />
           </div>
         </div>
       </div>

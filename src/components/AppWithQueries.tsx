@@ -34,6 +34,7 @@ import Reports from '@/pages/Reports';
 import SampleReadings from '@/pages/SampleReadings';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
+import { safeLower } from '@/lib/stringUtils';
 import type { Station } from '@/types/api';
 import { CreditLedger } from '@/pages/credit';
 
@@ -89,7 +90,7 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
   if (user) {
     // Role-based redirect after login (check for both new and legacy role formats)
-    const normalizedRole = typeof user.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
+    const normalizedRole = safeLower(user?.role).replace(/\s+/g, '');
     if (normalizedRole === 'superadmin' || normalizedRole === 'super_admin') {
       return <Navigate to="/superadmin/users" replace />;
     }
@@ -118,7 +119,7 @@ function RoleBasedRedirect() {
   if (!user) return <Navigate to="/login" replace />;
 
   // Check for both new and legacy role naming conventions
-  const normalizedRole = typeof user.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
+  const normalizedRole = safeLower(user?.role).replace(/\s+/g, '');
   if (normalizedRole === 'superadmin' || normalizedRole === 'super_admin') {
     return <Navigate to="/superadmin/users" replace />;
   }
@@ -140,7 +141,7 @@ function useStationsForSuperAdmin() {
   const { user } = useAuth();
 
   // Normalize role to handle legacy formats
-  const normalizedRole = typeof user?.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
+  const normalizedRole = safeLower(user?.role).replace(/\s+/g, '');
   const isSuperAdmin = normalizedRole === 'superadmin' || normalizedRole === 'super_admin';
 
   return useQuery<Station[]>({
@@ -165,7 +166,7 @@ function SuperAdminGuard({ children }: { children: React.ReactNode }) {
   }
 
   // Normalize role to handle legacy formats
-  const normalizedRole = typeof user?.role === 'string' && user.role.replace(/\s+/g, '').toLowerCase();
+  const normalizedRole = safeLower(user?.role).replace(/\s+/g, '');
   const isSuperAdmin = normalizedRole === 'superadmin' || normalizedRole === 'super_admin';
 
   if (!user || !isSuperAdmin) {
@@ -507,3 +508,25 @@ export function AppWithQueries() {
     </AuthProvider>
   );
 }
+
+// Listen for auth-expired event and redirect to login to ensure clean auth state
+window.addEventListener('auth-expired', () => {
+  try {
+    // Clear the app-specific storage keys used by storage-utils (fuelsync_ prefix)
+    localStorage.removeItem('fuelsync_token');
+    localStorage.removeItem('fuelsync_user');
+  } catch (e) {
+    // ignore
+  }
+
+  // Only navigate if not already on the login page to avoid reload loops
+  try {
+    const current = window.location.pathname;
+    if (current !== '/login') {
+      window.location.href = '/login';
+    }
+  } catch (e) {
+    // fallback to setting location
+    window.location.href = '/login';
+  }
+});

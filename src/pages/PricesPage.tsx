@@ -185,7 +185,7 @@ export default function PricesPage() {
 
     // Use the correct endpoint: /stations/:stationId/prices
     apiClient.post<{ success: boolean; data: unknown }>(`/stations/${defaultStationId}/prices`, {
-      fuelType: input.fuel_type.toLowerCase(), // Backend expects lowercase
+      fuelType: String(input.fuel_type || '').toLowerCase(), // Backend expects lowercase
       price: price,
       costPrice: costPrice,
       effectiveFrom: new Date().toISOString(),

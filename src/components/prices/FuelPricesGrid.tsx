@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { IndianRupee } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getFuelBadgeClasses } from "@/lib/fuelColors";
+import { safeLower } from '@/lib/stringUtils';
 import { safeToFixed } from '@/lib/format-utils';
 
 export interface FuelPricesGridProps {
@@ -50,7 +51,7 @@ export const FuelPricesGrid: React.FC<FuelPricesGridProps> = ({
                   Current Price
                 </CardDescription>
               </div>
-              <Badge className={`${getFuelBadgeClasses(price.fuel_type.toLowerCase())} text-xs sm:text-sm flex-shrink-0`}>
+              <Badge className={`${getFuelBadgeClasses(safeLower(price.fuel_type))} text-xs sm:text-sm flex-shrink-0`}>
                 {price.fuel_type}
               </Badge>
             </div>

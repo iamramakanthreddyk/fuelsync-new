@@ -1,6 +1,9 @@
 
 import { useNavigate } from "react-router-dom";
 import { useFuelPricesData } from "@/hooks/useFuelPricesData";
+import { useFuelPrices } from '@/hooks/api';
+import { useRoleAccess } from '@/hooks/useRoleAccess';
+import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { useDashboardData } from "@/hooks/useDashboardData";
 import { useAuth } from "@/hooks/useAuth";
 import { getBasePath } from "@/lib/roleUtils";
@@ -8,7 +11,12 @@ import { getBasePath } from "@/lib/roleUtils";
 export function useSetupChecklist() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { data: fuelPrices } = useFuelPricesData();
+  const { currentStation } = useRoleAccess();
+  const { pricesArray, pricesByStation } = useFuelPricesGlobal();
+  const stationId = currentStation?.id || user?.stations?.[0]?.id;
+  const { data: fuelPrices } = useFuelPricesData(stationId);
+  // Also check the direct API hook to read the `current` wrapper (ApiResponse.data.current)
+  const fuelPricesQuery = useFuelPrices(stationId || '');
   const { data } = useDashboardData();
 
   // Check if user has any stations
@@ -30,10 +38,14 @@ export function useSetupChecklist() {
   // Only show these items if user has a station
   if (hasStations) {
     // Fuel prices are always needed
+    const hasPricesFromApi = !!(fuelPrices && fuelPrices.length > 0) || !!(fuelPricesQuery.data && fuelPricesQuery.data.data && Array.isArray(fuelPricesQuery.data.data.current) && fuelPricesQuery.data.data.current.length > 0);
+    const hasPricesFromGlobal = !!(stationId && pricesByStation && pricesByStation[stationId] && Object.keys(pricesByStation[stationId]).length > 0);
+    const hasPricesArray = !!(Array.isArray(pricesArray) && pricesArray.length > 0);
+
     checklist.push({
       key: "fuel_price_set",
       label: "Set fuel prices",
-      completed: !!(fuelPrices && fuelPrices.length > 0),
+      completed: hasPricesFromApi || hasPricesFromGlobal || hasPricesArray,
       action: () => navigate("/prices"),
     });
 

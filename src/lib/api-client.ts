@@ -93,8 +93,14 @@ async function handleResponse<T>(response: Response): Promise<T> {
     if (isJson) {
       const errorData = await response.json();
       
-      // Handle auth expiry
+      // Handle auth expiry: clear stored tokens and notify app
       if (response.status === 401) {
+        try {
+          removeStorageItem(TOKEN_KEY);
+          removeStorageItem(USER_KEY);
+        } catch (e) {
+          // ignore
+        }
         window.dispatchEvent(new CustomEvent('auth-expired'));
       }
 

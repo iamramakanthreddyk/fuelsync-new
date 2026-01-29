@@ -32,8 +32,11 @@ export default function Pumps() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const { data: pumps, isLoading, error } = usePumpsData();
   const { currentStation, isOwner, isAdmin } = useRoleAccess();
+  const { data: pumps, isLoading, error } = usePumpsData(currentStation?.id || '');
+  // Normalize response: `usePumps` returns an ApiResponse object ({ success, data })
+  // while legacy consumers expect a raw array. Use `pumpsArray` throughout.
+  const pumpsArray = Array.isArray(pumps) ? pumps : (pumps && (pumps as any).data) ? (pumps as any).data : [];
 
   // Add pump mutation - uses /stations/:stationId/pumps
   const addPumpMutation = useMutation({
@@ -225,7 +228,7 @@ export default function Pumps() {
 
 
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-6">
-        {Array.isArray(pumps) && pumps.length > 0 ? pumps.map((pump) => (
+        {Array.isArray(pumpsArray) && pumpsArray.length > 0 ? pumpsArray.map((pump) => (
           <Card key={pump.id} className="relative shadow-lg hover:shadow-2xl transition-shadow duration-200">
             <CardHeader className="pb-2">
               <div className="flex justify-between items-center">
@@ -330,7 +333,7 @@ export default function Pumps() {
         )}
       </div>
 
-      {(!Array.isArray(pumps) || pumps.length === 0) && (
+      {(!Array.isArray(pumpsArray) || pumpsArray.length === 0) && (
         <Card>
           <CardContent className="pt-6 text-center">
             <Fuel className="w-12 h-12 mx-auto text-muted-foreground mb-4" />

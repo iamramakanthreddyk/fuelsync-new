@@ -32,6 +32,7 @@ import {
 import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import { useSalesData } from "@/hooks/useSalesData";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
+import { safeLower } from '@/lib/stringUtils';
 import { Skeleton } from "@/components/ui/skeleton";
 import { getFuelColors } from '@/lib/fuelColors';
 
@@ -52,6 +53,15 @@ export default function Sales() {
     dateRange.end ? new Date(dateRange.end).toISOString().split('T')[0] : undefined
   );
   const { currentStation, canAccessAllStations, stations, isManager } = useRoleAccess();
+
+  const normalizeFuel = (sale: any) => {
+    return safeLower(sale?.fuelType ?? sale?.fuel_type ?? '');
+  };
+
+  const getUnitPrice = (sale: any) => {
+    // prefer common server fields; accept both camelCase and snake_case
+    return sale?.unitPrice ?? sale?.pricePerL ?? sale?.price ?? sale?.unit_price ?? sale?.cost_price ?? null;
+  };
 
   
 
@@ -243,18 +253,22 @@ export default function Sales() {
             </div>
           ) : sales && sales.length > 0 ? (
             <div className="space-y-4">
-              {sales
+                  {sales
                 .filter(sale => {
-                  if (productType && sale.fuelType?.toUpperCase() !== productType.toUpperCase()) return false;
-                  if (selectedStationId && sale.stationId !== selectedStationId.toString()) return false;
+                  const saleFuel = normalizeFuel(sale);
+                  if (productType && saleFuel.toUpperCase() !== (productType || '').toUpperCase()) return false;
+                  if (selectedStationId && Number(sale.stationId) !== selectedStationId) return false;
                   return true;
                 })
-                .map((sale) => (
+                .map((sale) => {
+                  const fuelKey = normalizeFuel(sale);
+                  const unitPrice = getUnitPrice(sale);
+                  return (
                   <div key={sale.id} className="flex items-center justify-between p-4 border rounded-lg">
                     <div className="flex items-center gap-4">
-                      <div className={`w-3 h-3 rounded-full ${getFuelColors(sale.fuelType).dot}`} />
+                      <div className={`w-3 h-3 rounded-full ${getFuelColors(fuelKey).dot}`} />
                       <div>
-                        <div className="font-medium">{FUEL_TYPE_LABELS[sale.fuelType.toLowerCase() as keyof typeof FUEL_TYPE_LABELS] || sale.fuelType}</div>
+                        <div className="font-medium">{FUEL_TYPE_LABELS[fuelKey as keyof typeof FUEL_TYPE_LABELS] || (sale.fuelType ?? sale.fuel_type) || '—'}</div>
                         <div className="text-sm text-muted-foreground">
                           {sale.pumpName || `Pump ${sale.pumpId}`} • Nozzle {sale.nozzleNumber || sale.nozzleId}
                         </div>
@@ -263,9 +277,12 @@ export default function Sales() {
                     <div className="text-right">
                       <div className="font-medium">₹{(sale.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                       <div className="text-sm text-muted-foreground">{(sale.deltaVolumeL || 0).toFixed(1)} L</div>
+                      {unitPrice != null && (
+                        <div className="text-sm text-muted-foreground">₹{Number(unitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / L</div>
+                      )}
                     </div>
                   </div>
-                ))}
+                )})}
             </div>
           ) : (
             <div className="text-center py-8 text-muted-foreground">
