@@ -39,7 +39,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
-import { Plus, UserPlus } from 'lucide-react';
+import { Plus, Users, User, UserCheck, Mail, Phone, MapPin, Edit, Key, Trash } from 'lucide-react';
 
 interface Employee {
   id: string;
@@ -422,14 +422,12 @@ export default function EmployeesManagement() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Employees Management</h1>
-          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
-            Manage employees and managers across all stations
-          </p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-primary">Employees</h1>
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">Manage employees and managers across all stations</p>
         </div>
         <Dialog open={isAddDialogOpen} onOpenChange={handleAddDialogOpenChange}>
           <DialogTrigger asChild>
-            <Button size="sm" className="w-full sm:w-auto h-9 sm:h-10">
+            <Button size="sm" className="w-full sm:w-auto h-9 sm:h-10 bg-primary text-primary-foreground hover:brightness-95">
               <Plus className="w-4 h-4 mr-2" />
               Add Employee
             </Button>
@@ -495,33 +493,64 @@ export default function EmployeesManagement() {
           </CardContent>
         </Card>
       ) : filteredEmployees && filteredEmployees.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-4">
           {filteredEmployees.map((employee: Employee) => (
-            // Redesigned employee cards for better visibility on all devices
-            <Card key={employee.id} className="flex-1 overflow-hidden">
-              <CardContent className="p-3 sm:p-6">
-                <div className="text-base sm:text-lg md:text-xl font-bold text-primary truncate">{employee.name}</div>
-                <div className="text-xs sm:text-sm text-muted-foreground truncate mt-1">{employee.email}</div>
-                <div className="text-xs sm:text-sm text-muted-foreground truncate">{employee.phone || 'N/A'}</div>
-                <div className="text-xs sm:text-sm text-muted-foreground truncate">Role: {employee.role}</div>
-                <div className="text-xs sm:text-sm text-muted-foreground truncate">Station: {employee.station?.name || 'Unassigned'}</div>
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
-                  <Button
-                    variant="default"
-                    size="sm"
-                    className="w-full sm:w-auto text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2"
-                    onClick={() => handleEdit(employee)}
-                  >
-                    Edit Details
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full sm:w-auto text-xs sm:text-sm px-3 sm:px-4 py-1 sm:py-2"
-                    onClick={() => handleResetPasswordDialogOpen(employee)}
-                  >
-                    Reset Password
-                  </Button>
+            <Card key={employee.id} className="flex-1 overflow-hidden border border-slate-200 shadow-sm hover:shadow-md transition-all">
+              <CardHeader className="flex items-center justify-between p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                    <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-base sm:text-lg md:text-xl font-semibold text-foreground truncate">{employee.name}</div>
+                    <div className="text-xs text-muted-foreground truncate">{employee.station?.name || 'Unassigned'}</div>
+                  </div>
+                </div>
+                <Badge variant={employee.isActive ? 'default' : 'secondary'} className="text-xs">{employee.isActive ? 'Active' : 'Inactive'}</Badge>
+              </CardHeader>
+              <CardContent className="p-4 pt-0">
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Mail className="w-4 h-4 text-muted-foreground" />
+                    <span className="truncate">{employee.email}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Phone className="w-4 h-4 text-muted-foreground" />
+                    <span className="truncate">{employee.phone || 'N/A'}</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <MapPin className="w-4 h-4 text-muted-foreground" />
+                    <span className="truncate">{employee.station?.code || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-3">
+                    <div className="flex items-center gap-2">
+                      {employee.role === 'manager' ? (
+                        <UserCheck className="w-4 h-4 text-primary" />
+                      ) : (
+                        <User className="w-4 h-4 text-muted-foreground" />
+                      )}
+                      <div className="text-sm text-muted-foreground">Role: <span className="text-foreground font-medium">{employee.role}</span></div>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button onClick={() => handleEdit(employee)} className="inline-flex items-center gap-2 bg-primary text-primary-foreground hover:brightness-95 text-xs px-3 py-1">
+                        <Edit className="w-4 h-4" />
+                        Edit
+                      </Button>
+                      <Button onClick={() => handleResetPasswordDialogOpen(employee)} className="inline-flex items-center gap-2 border border-slate-200 text-xs px-3 py-1">
+                        <Key className="w-4 h-4" />
+                        Reset
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => setDeleteEmployeeId(employee.id)}
+                        aria-label="Delete employee"
+                        className="text-destructive hover:bg-destructive/10 focus:outline-none focus-visible:ring-0"
+                      >
+                        <Trash className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -531,7 +560,7 @@ export default function EmployeesManagement() {
         <Card>
           <CardContent className="py-8 sm:py-12">
             <div className="text-center space-y-3 sm:space-y-4">
-              <UserPlus className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground" />
+                <Users className="w-12 h-12 sm:w-16 sm:h-16 mx-auto text-muted-foreground" />
               <div>
                 <h3 className="text-base sm:text-lg font-semibold mb-1 sm:mb-2">No Employees Yet</h3>
                 <p className="text-xs sm:text-sm text-muted-foreground mb-3 sm:mb-4">

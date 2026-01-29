@@ -395,6 +395,7 @@ export default function Reports() {
             stations={Array.isArray(stations) ? stations : []}
             onRefresh={handleRefresh}
             showRefresh={false} // We have our own refresh button
+            dataType="analytics"
           />
 
           {/* Date Presets */}

@@ -65,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...userData,
         stations: userData.stations || [],
       };
+      console.log('[DEBUG] User data from /auth/me:', userWithStations);
+      console.log('[DEBUG] Plan data:', userWithStations.plan);
       setUser(userWithStations);
       setStoredUser(userWithStations);
     } catch (error: unknown) {

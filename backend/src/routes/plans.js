@@ -6,7 +6,8 @@
 const express = require('express');
 const router = express.Router();
 const { Plan } = require('../models');
-const { authenticate, requireRole } = require('../middleware/auth');
+const { authenticate } = require('../middleware/auth');
+const { requireRole } = require('../middleware/permissions');
 
 // All routes require authentication
 router.use(authenticate);

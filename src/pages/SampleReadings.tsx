@@ -11,6 +11,7 @@ import { useStations } from '@/hooks/api';
 import { apiClient } from '@/lib/api-client';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { BarChart3, TrendingUp, AlertCircle, Loader2 } from 'lucide-react';
+import { usePermissions } from '@/hooks/usePermissions';
 
 interface SampleReading {
   id: string;
@@ -81,6 +82,7 @@ export default function SampleReadings() {
   const { user } = useAuth();
   const { toast } = useToast();
   const { data: stationsResponse } = useStations();
+  const { canAccessFeature } = usePermissions();
   const stations = stationsResponse?.data;
 
   // Set default station
@@ -269,7 +271,7 @@ export default function SampleReadings() {
                 Statistics
               </Button>
               {/* Print current view (PDF via browser print) */}
-              {((viewMode === 'readings' && Array.isArray(data) && (data as SampleReadingGroup[]).some(g => g.readings && g.readings.length > 0)) || (viewMode === 'statistics' && !(Array.isArray(data)) && (data as SampleStatistics).dailyTrend && (data as SampleStatistics).dailyTrend.length > 0)) && (
+              {canAccessFeature('pdf_export') && ((viewMode === 'readings' && Array.isArray(data) && (data as SampleReadingGroup[]).some(g => g.readings && g.readings.length > 0)) || (viewMode === 'statistics' && !(Array.isArray(data)) && (data as SampleStatistics).dailyTrend && (data as SampleStatistics).dailyTrend.length > 0)) && (
                 <Button className="ml-auto" onClick={() => window.print()}>Print</Button>
               )}
             </div>

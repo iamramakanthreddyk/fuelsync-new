@@ -8,7 +8,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toFixedNumber } from '@/lib/numberFormat';
-import { formatDateISO, formatDateLocal, formatDateTimeLocal } from '@/lib/dateFormat';
+import { formatDateISO, formatDateLocal } from '@/lib/dateFormat';
 import { Button } from '@/components/ui/button';
 import InlineSettleForm from '../credit/InlineSettleForm';
 import { Input } from '@/components/ui/input';
@@ -52,6 +52,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useFuelPricesData } from '@/hooks/useFuelPricesData';
+import { PermissionGuard } from '@/hooks/usePermissions';
 
 // Import enums and types
 import type {
@@ -662,12 +663,14 @@ export default function StationDetail() {
                   });
                 }
               }}>
-                  <DialogTrigger asChild>
-                    <Button size="sm" className="w-full">
-                      <Plus className="w-4 h-4 mr-2" />
-                      Add Pump
-                    </Button>
-                  </DialogTrigger>
+                  <PermissionGuard permission="manage_stations" roles={["owner","super_admin"]} fallback={<Button size="sm" className="w-full" disabled><Plus className="w-4 h-4 mr-2"/>Add Pump</Button>}>
+                    <DialogTrigger asChild>
+                      <Button size="sm" className="w-full">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Add Pump
+                      </Button>
+                    </DialogTrigger>
+                  </PermissionGuard>
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Add New Pump</DialogTitle>
@@ -777,10 +780,12 @@ export default function StationDetail() {
                 <p className="text-sm sm:text-base text-muted-foreground mb-4 sm:mb-6 max-w-sm mx-auto">
                   Set up fuel pumps to start managing your station's fuel dispensing equipment.
                 </p>
-                <Button onClick={() => setIsPumpDialogOpen(true)} className="touch-manipulation">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add First Pump
-                </Button>
+                <PermissionGuard permission="manage_stations" roles={["owner","super_admin"]} fallback={<Button className="touch-manipulation" disabled><Plus className="w-4 h-4 mr-2"/>Add First Pump</Button>}>
+                  <Button onClick={() => setIsPumpDialogOpen(true)} className="touch-manipulation">
+                    <Plus className="w-4 h-4 mr-2" />
+                    Add First Pump
+                  </Button>
+                </PermissionGuard>
               </CardContent>
             </Card>
           ) : (
@@ -861,19 +866,21 @@ export default function StationDetail() {
                             >
                               <Edit className="w-3.5 h-3.5" />
                             </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedPump(pump);
-                                setIsNozzleDialogOpen(true);
-                              }}
-                              className="h-7 px-2 text-xs"
-                              title="Add Nozzle"
-                            >
-                              <Plus className="w-3 h-3 mr-1" />
-                              Add
-                            </Button>
+                            <PermissionGuard permission="manage_stations" roles={["owner","super_admin"]} fallback={<Button size="sm" variant="outline" className="h-7 px-2 text-xs" disabled title="Add Nozzle"><Plus className="w-3 h-3 mr-1"/>Add</Button>}>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                  setSelectedPump(pump);
+                                  setIsNozzleDialogOpen(true);
+                                }}
+                                className="h-7 px-2 text-xs"
+                                title="Add Nozzle"
+                              >
+                                <Plus className="w-3 h-3 mr-1" />
+                                Add
+                              </Button>
+                            </PermissionGuard>
                           </div>
                         </div>
 
@@ -984,18 +991,19 @@ export default function StationDetail() {
               >
                 Refresh
               </Button>
-              <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
-                <DialogTrigger asChild>
-                  <Button>
-                    <IndianRupee className="w-4 h-4 mr-2" />
-                    Set Price
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Set Fuel Price</DialogTitle>
-                    <DialogDescription>Update price for a fuel type</DialogDescription>
-                  </DialogHeader>
+              <PermissionGuard roles={["manager","owner","super_admin"]} permission="set_prices" fallback={<Button disabled><IndianRupee className="w-4 h-4 mr-2"/>Set Price</Button>}>
+                <Dialog open={isPriceDialogOpen} onOpenChange={setIsPriceDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button>
+                      <IndianRupee className="w-4 h-4 mr-2" />
+                      Set Price
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Set Fuel Price</DialogTitle>
+                      <DialogDescription>Update price for a fuel type</DialogDescription>
+                    </DialogHeader>
                   <div className="space-y-4">
                     <div>
                       <Label htmlFor="fuelType">Fuel Type *</Label>
@@ -1059,6 +1067,7 @@ export default function StationDetail() {
                   </div>
                 </DialogContent>
               </Dialog>
+              </PermissionGuard>
             </div>
           </div>
 
@@ -1074,6 +1083,9 @@ export default function StationDetail() {
               {fuelPrices.map((price) => {
                 const fuelColors = getFuelColors(String(price.fuelType || '').toLowerCase());
                 const isEffectiveToday = new Date(price.effectiveFrom) <= new Date();
+                // API may return snake_case (`cost_price`) or camelCase (`costPrice`).
+                // Use a local cast to avoid TypeScript complaint when only snake_case is defined in the type.
+                const costValue = (price as any).costPrice ?? price.cost_price ?? null;
 
                 return (
                   <Card
@@ -1116,21 +1128,21 @@ export default function StationDetail() {
                       </div>
 
                       {/* Cost Price & Profit */}
-                      {price.cost_price !== null && price.cost_price !== undefined && (
+                      {costValue !== null && costValue !== undefined && (
                         <div className="bg-green-50 dark:bg-green-950 p-3 rounded border border-green-200 dark:border-green-800">
                           <div className="text-sm">
                             <div className="flex justify-between mb-2">
                               <span className="text-muted-foreground">Cost Price:</span>
-                              <span className="font-medium">₹{Number(price.cost_price).toFixed(2)}</span>
+                              <span className="font-medium">₹{Number(costValue).toFixed(2)}</span>
                             </div>
                             <div className="flex justify-between border-t border-green-200 pt-2">
                               <span className="text-green-700 dark:text-green-300 font-semibold">Profit/L:</span>
                               <span className="text-green-700 dark:text-green-300 font-bold">
-                                ₹{(Number(price.price) - Number(price.cost_price)).toFixed(2)}
+                                ₹{(Number(price.price) - Number(costValue)).toFixed(2)}
                               </span>
                             </div>
                             <div className="text-xs text-green-600 dark:text-green-400 mt-1">
-                              Margin: {(((Number(price.price) - Number(price.cost_price)) / Number(price.price)) * 100).toFixed(2)}%
+                              Margin: {(((Number(price.price) - Number(costValue)) / Number(price.price)) * 100).toFixed(2)}%
                             </div>
                           </div>
                         </div>
@@ -1306,12 +1318,14 @@ export default function StationDetail() {
               <CardContent className="py-8 text-center">
                 <CreditCard className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
                 <p className="text-muted-foreground mb-4">No creditors added yet</p>
-                <Link to={`/owner/stations/${id}/add-creditor`}>
-                  <Button>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add First Creditor
-                  </Button>
-                </Link>
+                <PermissionGuard roles={["manager","owner","super_admin"]} permission="manage_creditors" fallback={<Button disabled><Plus className="w-4 h-4 mr-2"/>Add First Creditor</Button>}>
+                  <Link to={`/owner/stations/${id}/add-creditor`}>
+                    <Button>
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add First Creditor
+                    </Button>
+                  </Link>
+                </PermissionGuard>
               </CardContent>
             </Card>
           ) : (
@@ -1319,12 +1333,14 @@ export default function StationDetail() {
               <CardContent className="py-8 text-center">
                 <CheckCircle2 className="w-12 h-12 mx-auto text-green-500 mb-4" />
                 <p className="text-muted-foreground mb-4">All credits are settled - no outstanding balances</p>
-                <Link to={`/owner/stations/${id}/add-creditor`}>
-                  <Button variant="outline">
-                    <Plus className="w-4 h-4 mr-2" />
-                    Add New Creditor
-                  </Button>
-                </Link>
+                <PermissionGuard roles={["manager","owner","super_admin"]} permission="manage_creditors" fallback={<Button variant="outline" disabled><Plus className="w-4 h-4 mr-2"/>Add New Creditor</Button>}>
+                  <Link to={`/owner/stations/${id}/add-creditor`}>
+                    <Button variant="outline">
+                      <Plus className="w-4 h-4 mr-2" />
+                      Add New Creditor
+                    </Button>
+                  </Link>
+                </PermissionGuard>
               </CardContent>
             </Card>
           )}

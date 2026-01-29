@@ -15,7 +15,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Filter, RefreshCw, Download } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Filter, RefreshCw, Download, Crown, AlertTriangle } from 'lucide-react';
+import { useDateRangeLimits } from '@/hooks/usePermissions';
 
 export interface DateRange {
   startDate: string;
@@ -25,6 +27,16 @@ export interface DateRange {
 export interface StationOption {
   id: string;
   name: string;
+}
+
+export interface PlanStatus {
+  level: 'unlimited' | 'warning' | 'limited' | 'restricted' | 'blocked';
+  limits?: {
+    exports?: {
+      allowed: boolean;
+      quota: { usage: number; limit: number; remaining: number };
+    };
+  };
 }
 
 export interface FilterBarProps {
@@ -46,6 +58,12 @@ export interface FilterBarProps {
   showRefresh?: boolean;
   /** Show export button */
   showExport?: boolean;
+  /** Plan status for feature limitations */
+  planStatus?: PlanStatus;
+  /** Upgrade handler */
+  onUpgrade?: () => void;
+  /** Data type for date range limits (sales, profit, analytics, etc.) */
+  dataType?: 'sales' | 'profit' | 'analytics' | 'audit' | 'transactions';
   /** Additional CSS classes */
   className?: string;
 }
@@ -60,9 +78,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   onExportAll,
   showRefresh = true,
   showExport = true,
+  planStatus,
+  onUpgrade,
+  dataType = 'analytics',
   className,
 }) => {
   const [open, setOpen] = useState<boolean>(true);
+  const { getMaxDateForType } = useDateRangeLimits();
+
+  const maxAllowedDate = getMaxDateForType(dataType);
+  const maxDateString = maxAllowedDate.toISOString().split('T')[0];
 
   useEffect(() => {
     // On small screens, collapse filters by default for space
@@ -111,7 +136,9 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     onChange={(e) =>
                       onDateRangeChange({ ...dateRange, startDate: e.target.value })
                     }
+                    max={maxDateString}
                     className="w-full py-3"
+                    title={`Maximum date allowed: ${maxDateString}`}
                   />
                   <Input
                     type="date"
@@ -119,6 +146,8 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     onChange={(e) =>
                       onDateRangeChange({ ...dateRange, endDate: e.target.value })
                     }
+                    max={new Date().toISOString().split('T')[0]}
+                    min={dateRange.startDate}
                     className="w-full py-3"
                   />
                 </div>
@@ -154,14 +183,47 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   </Button>
                 )}
                 {showExport && onExportAll && (
-                  <Button
-                    size="sm"
-                    className="w-full sm:w-auto"
-                    onClick={onExportAll}
-                  >
-                    <Download className="w-4 h-4 mr-2" />
-                    Export All
-                  </Button>
+                  <div className="flex flex-col gap-1">
+                    <Button
+                      size="sm"
+                      className="w-full sm:w-auto"
+                      onClick={onExportAll}
+                      disabled={planStatus?.level === 'blocked' || (planStatus?.limits?.exports && !planStatus.limits.exports.allowed)}
+                      variant={planStatus?.level === 'blocked' || (planStatus?.limits?.exports && !planStatus.limits.exports.allowed) ? 'outline' : 'default'}
+                    >
+                      <Download className="w-4 h-4 mr-2" />
+                      {planStatus?.limits?.exports && !planStatus.limits.exports.allowed ? (
+                        <>Export Limited</>
+                      ) : planStatus?.level === 'blocked' ? (
+                        <>Export Blocked</>
+                      ) : (
+                        <>Export All</>
+                      )}
+                    </Button>
+                    
+                    {/* Show usage info for limited plans */}
+                    {planStatus?.limits?.exports && (
+                      <div className="text-xs text-muted-foreground text-center">
+                        {planStatus.limits.exports.quota.usage}/{planStatus.limits.exports.quota.limit} exports used
+                        {planStatus.limits.exports.quota.remaining === 0 && (
+                          <span className="text-destructive block">Limit reached - upgrade required</span>
+                        )}
+                      </div>
+                    )}
+                    
+                    {/* Upgrade button for blocked/limited exports */}
+                    {(planStatus?.level === 'blocked' || (planStatus?.limits?.exports && !planStatus.limits.exports.allowed)) && onUpgrade && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full sm:w-auto text-xs"
+                        onClick={onUpgrade}
+                      >
+                        <Crown className="w-3 h-3 mr-1" />
+                        Upgrade for Unlimited Exports
+                      </Button>
+                    )}
+                  </div>
                 )}
               </div>
             </div>

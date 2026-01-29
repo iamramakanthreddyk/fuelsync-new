@@ -69,6 +69,38 @@ module.exports = (sequelize) => {
       field: 'analytics_days'
     },
     
+    // Historical data access limits (days back from today)
+    salesReportsDays: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 30,
+      field: 'sales_reports_days'
+    },
+    profitReportsDays: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 30,
+      field: 'profit_reports_days'
+    },
+    analyticsDataDays: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 90,
+      field: 'analytics_data_days'
+    },
+    auditLogsDays: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 30,
+      field: 'audit_logs_days'
+    },
+    transactionHistoryDays: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 90,
+      field: 'transaction_history_days'
+    },
+    
     // Feature flags
     canExport: {
       type: DataTypes.BOOLEAN,
@@ -93,6 +125,40 @@ module.exports = (sequelize) => {
       allowNull: false,
       defaultValue: false,
       field: 'can_view_profit_loss'
+    },
+    
+    // Usage quotas (monthly limits)
+    maxExportsMonthly: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 5,
+      field: 'max_exports_monthly'
+    },
+    maxReportsMonthly: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 10,
+      field: 'max_reports_monthly'
+    },
+    maxManualEntriesMonthly: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 20,
+      field: 'max_manual_entries_monthly'
+    },
+    
+    // Feature degradation settings
+    exportMaxRows: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 50,
+      field: 'export_max_rows'
+    },
+    reportDataDays: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      defaultValue: 30,
+      field: 'report_data_days'
     },
     
     // Pricing

@@ -7,6 +7,8 @@ const express = require('express');
 const router = express.Router();
 const reportController = require('../controllers/reportController');
 const { authenticate, requireMinRole } = require('../middleware/auth');
+const { checkEnhancedPlanCompliance, enforceExportLimits, addUpgradePrompts } = require('../middleware/enhancedPlanLimits');
+const { requirePermission, enforceDateRangeLimit, PERMISSIONS } = require('../middleware/permissions');
 
 // All routes require authentication
 router.use(authenticate);
@@ -21,14 +23,23 @@ const enforceLegacyManager = (req, res, next) => {
 };
 
 // Sales reports
-router.get('/sales', enforceLegacyManager, requireMinRole('manager'), reportController.getSalesReports);
-router.get('/daily-sales', enforceLegacyManager, requireMinRole('manager'), reportController.getDailySalesReport);
+router.get('/sales', enforceLegacyManager, requireMinRole('manager'), enforceDateRangeLimit('sales_reports'), reportController.getSalesReports);
+router.get('/daily-sales', enforceLegacyManager, requireMinRole('manager'), enforceDateRangeLimit('sales_reports'), reportController.getDailySalesReport);
 
 // Sample readings report - shows quality check readings taken per day
-router.get('/sample-readings', enforceLegacyManager, requireMinRole('owner'), reportController.getSampleReadingsReport);
+router.get('/sample-readings', enforceLegacyManager, requireMinRole('owner'), enforceDateRangeLimit('analytics'), reportController.getSampleReadingsReport);
 
 // Sample reading statistics - shows frequency and testing patterns
-router.get('/sample-statistics', enforceLegacyManager, requireMinRole('owner'), reportController.getSampleStatistics);
+router.get('/sample-statistics', enforceLegacyManager, requireMinRole('owner'), enforceDateRangeLimit('analytics'), reportController.getSampleStatistics);
+
+// Export endpoints with enhanced plan limits
+router.get('/sales/export',
+  requirePermission(PERMISSIONS.EXPORT_CSV),
+  checkEnhancedPlanCompliance,
+  enforceExportLimits,
+  addUpgradePrompts,
+  reportController.exportSalesCSV
+);
 
 module.exports = router;
 

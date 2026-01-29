@@ -13,6 +13,7 @@ import { safeToFixed } from '@/lib/format-utils';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Download, ArrowLeft, Building2, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePermissions } from '@/hooks/usePermissions';
 // aggregation is done inline from API rows below
 
 interface FuelTypeData {
@@ -36,6 +37,7 @@ const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
 
 export default function DailySalesReport() {
   const navigate = useNavigate();
+  const { canAccessFeature } = usePermissions();
   const selectedDate = new Date().toISOString().split('T')[0];
 
   // Fetch raw sales readings
@@ -186,18 +188,20 @@ export default function DailySalesReport() {
             </UITooltip>
             <h1 className="text-2xl sm:text-3xl font-bold whitespace-nowrap">Daily Sales Report</h1>
           </div>
-          <UITooltip>
-            <Button
-              onClick={handleExportPDF}
-              className="print:hidden"
-              variant="outline"
-              size="icon"
-              aria-label="Export PDF"
-            >
-              <Printer className="w-4 h-4" />
-            </Button>
-            <span className="text-xs bg-gray-700 text-white rounded px-2 py-1 absolute left-10 top-1/2 -translate-y-1/2 hidden group-hover:block">Export PDF</span>
-          </UITooltip>
+          {canAccessFeature('pdf_export') && (
+            <UITooltip>
+              <Button
+                onClick={handleExportPDF}
+                className="print:hidden"
+                variant="outline"
+                size="icon"
+                aria-label="Export PDF"
+              >
+                <Printer className="w-4 h-4" />
+              </Button>
+              <span className="text-xs bg-gray-700 text-white rounded px-2 py-1 absolute left-10 top-1/2 -translate-y-1/2 hidden group-hover:block">Export PDF</span>
+            </UITooltip>
+          )}
         </div>
 
         {/* Bottom row: Station selector and date info */}

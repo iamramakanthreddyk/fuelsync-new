@@ -848,3 +848,104 @@ exports.getSampleStatistics = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Export sales data to CSV
+ * GET /api/v1/reports/sales/export
+ */
+exports.exportSalesCSV = async (req, res, next) => {
+  try {
+    const { startDate, endDate, stationId } = req.query;
+    const user = await User.findByPk(req.userId);
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'Start date and end date are required'
+      });
+    }
+
+    // Check if export is allowed (handled by middleware)
+    if (req.exportLimits && !req.exportLimits.allowed) {
+      return res.status(403).json({
+        success: false,
+        error: 'Export quota exceeded for this month',
+        quota: req.exportLimits.quota,
+        upgradeMessage: 'Upgrade your plan to increase export limits'
+      });
+    }
+
+    const stationFilter = await getStationFilter(user, stationId);
+
+    // Get sales data with limits
+    const maxRows = req.exportLimits?.maxRows || 10000;
+    const readings = await NozzleReading.findAll({
+      where: {
+        ...EXCLUDE_SAMPLE_READINGS,
+        readingDate: {
+          [Op.between]: [startDate, endDate]
+        },
+        ...stationFilter
+      },
+      include: [
+        {
+          model: Nozzle,
+          as: 'nozzle',
+          include: [
+            {
+              model: Pump,
+              as: 'pump',
+              include: [
+                {
+                  model: Station,
+                  as: 'station'
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      order: [['readingDate', 'ASC'], ['createdAt', 'ASC']],
+      limit: maxRows
+    });
+
+    // Transform data for CSV
+    const csvData = readings.map(reading => ({
+      Date: reading.readingDate,
+      Station: reading.nozzle?.pump?.station?.name || 'Unknown',
+      Pump: reading.nozzle?.pump?.pumpNumber || 'Unknown',
+      Nozzle: reading.nozzle?.nozzleNumber || 'Unknown',
+      'Fuel Type': reading.nozzle?.fuelType || 'Unknown',
+      'Litres Sold': reading.litresSold || 0,
+      'Total Amount': reading.totalAmount || 0,
+      'Cash Amount': reading.cashAmount || 0,
+      'Online Amount': reading.onlineAmount || 0,
+      'Manual Entry': reading.isManualEntry ? 'Yes' : 'No',
+      'Entered By': reading.enteredByUser?.name || 'Unknown',
+      'Created At': reading.createdAt
+    }));
+
+    // Generate CSV
+    const { Parser } = require('json2csv');
+    const fields = Object.keys(csvData[0] || {});
+    const parser = new Parser({ fields });
+    const csv = parser.parse(csvData);
+
+    // Add watermark for limited exports
+    let finalCsv = csv;
+    if (req.exportLimits?.watermark) {
+      const watermark = `\n\n--- FUELSYNC LIMITED EXPORT ---\nUpgrade to remove this limitation and export unlimited data.\nVisit: https://fuelsync.com/upgrade\n---`;
+      finalCsv += watermark;
+    }
+
+    // Set headers for file download
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', `attachment; filename="fuelsync-sales-${startDate}-to-${endDate}.csv"`);
+
+    res.send(finalCsv);
+
+  } catch (error) {
+    console.error('Export sales CSV error:', error);
+    next(error);
+  }
+};

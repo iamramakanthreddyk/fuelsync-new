@@ -12,9 +12,24 @@ import { getErrorMessage } from '@/lib/errorUtils';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
 import type { Plan } from '@/types/database';
+
+// Local form type: extend the backend `Plan` shape with newer optional
+// quota / date-range fields that may not yet exist on the shared `Plan` type.
+type PlanForm = Omit<Plan, 'id' | 'createdAt'> & {
+  maxExportsMonthly?: number;
+  maxReportsMonthly?: number;
+  maxManualEntriesMonthly?: number;
+  exportMaxRows?: number;
+  reportDataDays?: number;
+  salesReportsDays?: number;
+  profitReportsDays?: number;
+  analyticsDataDays?: number;
+  auditLogsDays?: number;
+  transactionHistoryDays?: number;
+};
 import { Settings, Plus, Edit, Trash2, Check, X, Crown, Building2, Users, CreditCard, Calendar, TrendingUp, DollarSign, Loader2 } from 'lucide-react';
 
-const defaultFormData: Omit<Plan, 'id' | 'createdAt'> = {
+const defaultFormData: PlanForm = {
   name: '',
   description: '',
   priceMonthly: 0,
@@ -30,6 +45,18 @@ const defaultFormData: Omit<Plan, 'id' | 'createdAt'> = {
   canTrackExpenses: false,
   canTrackCredits: true,
   canViewProfitLoss: false,
+  // New usage quotas
+  maxExportsMonthly: 5,
+  maxReportsMonthly: 10,
+  maxManualEntriesMonthly: 20,
+  exportMaxRows: 50,
+  reportDataDays: 30,
+  // New date range limits
+  salesReportsDays: 30,
+  profitReportsDays: 30,
+  analyticsDataDays: 90,
+  auditLogsDays: 30,
+  transactionHistoryDays: 90,
   sortOrder: 0,
   isActive: true,
 };
@@ -39,7 +66,7 @@ export default function PlansPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [planToDelete, setPlanToDelete] = useState<string | null>(null);
   const [editingPlan, setEditingPlan] = useState<Plan | null>(null);
-  const [formData, setFormData] = useState<Omit<Plan, 'id' | 'createdAt'>>(defaultFormData);
+  const [formData, setFormData] = useState<PlanForm>(defaultFormData);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -65,8 +92,8 @@ export default function PlansPage() {
 
   // Create plan mutation
   const createPlanMutation = useMutation({
-    mutationFn: async (data: Omit<Plan, 'id' | 'createdAt'>) => {
-      return await apiClient.post<Plan>('/plans', data);
+    mutationFn: async (data: PlanForm) => {
+      return await apiClient.post<Plan>('/plans', data as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
@@ -88,8 +115,8 @@ export default function PlansPage() {
 
   // Update plan mutation
   const updatePlanMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: Omit<Plan, 'id' | 'createdAt'> }) => {
-      return await apiClient.put<Plan>(`/plans/${id}`, data);
+    mutationFn: async ({ id, data }: { id: string; data: PlanForm }) => {
+      return await apiClient.put<Plan>(`/plans/${id}`, data as any);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['plans'] });
@@ -195,9 +222,20 @@ export default function PlansPage() {
       canTrackExpenses: plan.canTrackExpenses,
       canTrackCredits: plan.canTrackCredits,
       canViewProfitLoss: plan.canViewProfitLoss,
+      // New usage quota fields
+      maxExportsMonthly: (plan as any).maxExportsMonthly || 5,
+      maxReportsMonthly: (plan as any).maxReportsMonthly || 10,
+      maxManualEntriesMonthly: (plan as any).maxManualEntriesMonthly || 20,
+      exportMaxRows: (plan as any).exportMaxRows || 50,
+      reportDataDays: (plan as any).reportDataDays || 30,
+      // New date range fields
+      salesReportsDays: (plan as any).salesReportsDays || 30,
+      profitReportsDays: (plan as any).profitReportsDays || 30,
+      analyticsDataDays: (plan as any).analyticsDataDays || 90,
+      auditLogsDays: (plan as any).auditLogsDays || 30,
+      transactionHistoryDays: (plan as any).transactionHistoryDays || 90,
       sortOrder: plan.sortOrder,
       isActive: plan.isActive,
-      features: plan.features,
     });
     setDialogOpen(true);
   };
@@ -463,15 +501,141 @@ export default function PlansPage() {
                       disabled={isSubmitting}
                     />
                   </div>
-                  <div className="flex items-center justify-between">
-                    <Label htmlFor="isActive">Active</Label>
-                    <Switch
-                      id="isActive"
-                      checked={formData.isActive}
-                      onCheckedChange={(checked) => handleInputChange('isActive', checked)}
+                </div>
+              </div>
+
+              {/* Usage Quotas */}
+              <div className="border-t pt-4">
+                <h3 className="font-semibold mb-3">Usage Limits (Monthly)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="maxExportsMonthly">Max Exports *</Label>
+                    <Input
+                      id="maxExportsMonthly"
+                      type="number"
+                      min="0"
+                      value={formData.maxExportsMonthly}
+                      onChange={(e) => handleInputChange('maxExportsMonthly', parseInt(e.target.value) || 0)}
                       disabled={isSubmitting}
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="maxReportsMonthly">Max Reports *</Label>
+                    <Input
+                      id="maxReportsMonthly"
+                      type="number"
+                      min="0"
+                      value={formData.maxReportsMonthly}
+                      onChange={(e) => handleInputChange('maxReportsMonthly', parseInt(e.target.value) || 0)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="maxManualEntriesMonthly">Max Manual Entries *</Label>
+                    <Input
+                      id="maxManualEntriesMonthly"
+                      type="number"
+                      min="0"
+                      value={formData.maxManualEntriesMonthly}
+                      onChange={(e) => handleInputChange('maxManualEntriesMonthly', parseInt(e.target.value) || 0)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="exportMaxRows">Export Max Rows *</Label>
+                    <Input
+                      id="exportMaxRows"
+                      type="number"
+                      min="10"
+                      value={formData.exportMaxRows}
+                      onChange={(e) => handleInputChange('exportMaxRows', parseInt(e.target.value) || 10)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="reportDataDays">Report Data Days *</Label>
+                    <Input
+                      id="reportDataDays"
+                      type="number"
+                      min="1"
+                      value={formData.reportDataDays}
+                      onChange={(e) => handleInputChange('reportDataDays', parseInt(e.target.value) || 1)}
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="salesReportsDays">Sales Reports Days *</Label>
+                    <Input
+                      id="salesReportsDays"
+                      type="number"
+                      min="-1"
+                      value={formData.salesReportsDays}
+                      onChange={(e) => handleInputChange('salesReportsDays', parseInt(e.target.value) || 30)}
+                      disabled={isSubmitting}
+                      placeholder="-1 for unlimited"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="profitReportsDays">Profit Reports Days *</Label>
+                    <Input
+                      id="profitReportsDays"
+                      type="number"
+                      min="-1"
+                      value={formData.profitReportsDays}
+                      onChange={(e) => handleInputChange('profitReportsDays', parseInt(e.target.value) || 30)}
+                      disabled={isSubmitting}
+                      placeholder="-1 for unlimited"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="analyticsDataDays">Analytics Data Days *</Label>
+                    <Input
+                      id="analyticsDataDays"
+                      type="number"
+                      min="-1"
+                      value={formData.analyticsDataDays}
+                      onChange={(e) => handleInputChange('analyticsDataDays', parseInt(e.target.value) || 90)}
+                      disabled={isSubmitting}
+                      placeholder="-1 for unlimited"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="auditLogsDays">Audit Logs Days *</Label>
+                    <Input
+                      id="auditLogsDays"
+                      type="number"
+                      min="-1"
+                      value={formData.auditLogsDays}
+                      onChange={(e) => handleInputChange('auditLogsDays', parseInt(e.target.value) || 30)}
+                      disabled={isSubmitting}
+                      placeholder="-1 for unlimited"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="transactionHistoryDays">Transaction History Days *</Label>
+                    <Input
+                      id="transactionHistoryDays"
+                      type="number"
+                      min="-1"
+                      value={formData.transactionHistoryDays}
+                      onChange={(e) => handleInputChange('transactionHistoryDays', parseInt(e.target.value) || 90)}
+                      disabled={isSubmitting}
+                      placeholder="-1 for unlimited"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Status */}
+              <div className="border-t pt-4">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="isActive">Active</Label>
+                  <Switch
+                    id="isActive"
+                    checked={formData.isActive}
+                    onCheckedChange={(checked) => handleInputChange('isActive', checked)}
+                    disabled={isSubmitting}
+                  />
                 </div>
               </div>
             </div>

@@ -66,6 +66,12 @@ export interface Plan {
   canTrackExpenses: boolean;
   canTrackCredits: boolean;
   canViewProfitLoss: boolean;
+  // Usage quotas (monthly limits)
+  maxExportsMonthly: number;
+  maxReportsMonthly: number;
+  maxManualEntriesMonthly: number;
+  exportMaxRows: number;
+  reportDataDays: number;
   // Pricing
   priceMonthly: number;
   priceYearly?: number;
