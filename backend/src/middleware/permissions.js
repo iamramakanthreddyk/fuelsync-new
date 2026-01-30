@@ -364,12 +364,12 @@ const requireStationAccess = (permission = null) => {
 
 /** * Check if date range is within plan limits
  */
-const checkDateRangeLimit = (user, startDate, endDate, dataType = 'analytics') => {
-  if (!user.plan) {
+const checkDateRangeLimit = (user, startDate, endDate, dataType = 'analytics', ownerPlan = null) => {
+  // Use user's plan if present, otherwise fall back to owner's plan when provided
+  const plan = user.plan || ownerPlan;
+  if (!plan) {
     return { allowed: false, reason: 'No plan assigned' };
   }
-
-  const plan = user.plan;
   let maxDays = 30; // Default fallback
 
   // Determine max days based on data type
@@ -394,7 +394,8 @@ const checkDateRangeLimit = (user, startDate, endDate, dataType = 'analytics') =
   }
 
   // Super admin and unlimited plans have no restrictions
-  if (user.role === 'super_admin' || maxDays === -1 || maxDays === 0) {
+  const userRole = (user.role || '').toLowerCase();
+  if (userRole === 'super_admin' || maxDays === -1 || maxDays === 0) {
     return { allowed: true };
   }
 
@@ -466,7 +467,27 @@ const enforceDateRangeLimit = (dataType = 'analytics') => {
         start = sevenDaysAgo.toISOString().split('T')[0];
       }
 
-      const rangeCheck = checkDateRangeLimit(user, start, end, dataType);
+      // If user has no plan (e.g. manager/employee), attempt to fall back to the station owner's plan.
+      // Prefer an explicit stationId passed in query/body when resolving owner plan.
+      let ownerPlan = null;
+      if (!user.plan) {
+        const requestedStationId = req.query.stationId || req.body.stationId || user.stationId;
+        if (requestedStationId) {
+          try {
+            const station = await Station.findByPk(requestedStationId);
+            if (station && station.ownerId) {
+              const owner = await User.findByPk(station.ownerId, {
+                include: [{ model: require('../models').Plan, as: 'plan' }]
+              });
+              ownerPlan = owner?.plan || null;
+            }
+          } catch (err) {
+            console.warn('Failed to fetch station owner plan for date range fallback', err);
+          }
+        }
+      }
+
+      const rangeCheck = checkDateRangeLimit(user, start, end, dataType, ownerPlan);
 
       if (!rangeCheck.allowed) {
         return res.status(403).json({
@@ -475,7 +496,7 @@ const enforceDateRangeLimit = (dataType = 'analytics') => {
           reason: rangeCheck.reason,
           maxDays: rangeCheck.maxDays,
           requestedDays: rangeCheck.requestedDays,
-          planName: user.plan?.name,
+          planName: (user.plan && user.plan.name) || (ownerPlan && ownerPlan.name) || null,
           upgradeRequired: true
         });
       }

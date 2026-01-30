@@ -21,6 +21,9 @@ router.get('/', userController.getUsers);
 // Get single user
 router.get('/:id', userController.getUser);
 
+// Effective features for auditing (super_admin only)
+router.get('/:id/effective-features', requireRole(['super_admin']), userController.getEffectiveFeatures);
+
 // Create user (super_admin creates owners, owner creates managers/employees, etc.)
 router.post('/', requireMinRole('manager'), userController.createUser);
 

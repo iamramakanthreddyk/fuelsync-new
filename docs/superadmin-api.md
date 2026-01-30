@@ -103,6 +103,31 @@ Delete user. Deletes from both "users" and "auth" system if possible.
 { "success": true, "message": "User deleted successfully" }
 ```
 
+### Effective Features
+
+#### GET /superadmin-users/{userId}/effective-features
+Compute the effective permissions/features available to a user by combining their role and plan. If the user has no plan, the station owner's plan (if any) is used as a fallback.
+
+Response example:
+```json
+{
+  "success": true,
+  "data": {
+    "userId": 123,
+    "email": "manager@example.com",
+    "role": "manager",
+    "stationId": "f7113bb9-...",
+    "plan": { "id": 2, "name": "Standard" },
+    "ownerPlanUsed": false,
+    "rolePermissions": ["view_sales_reports","export_csv"],
+    "planFeatures": { "export_csv": { "allowed": true, "quota": 50 } },
+    "effectivePermissions": {
+      "export_csv": { "roleAllows": true, "planAllows": true, "allowed": true, "details": { "allowed": true, "quota": 50 } }
+    }
+  }
+}
+```
+
 ### 3. Station Management
 
 #### GET /superadmin-stations

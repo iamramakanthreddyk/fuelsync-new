@@ -4,7 +4,7 @@ import { Home, Zap, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
-import { isOwner, getDashboardUrl, getBasePath } from '@/lib/roleUtils';
+import { isOwner, isSuperAdmin, getDashboardUrl, getBasePath } from '@/lib/roleUtils';
 import {
   Building2,
   Users,
@@ -27,6 +27,7 @@ export function MobileBottomNav() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const isOwnerRole = isOwner(user?.role);
+  const isSuper = isSuperAdmin(user?.role);
   const basePath = getBasePath(user?.role);
   const dashboardURL = getDashboardUrl(user?.role);
   const isManager = user?.role === 'manager';
@@ -104,6 +105,46 @@ export function MobileBottomNav() {
       icon: Menu,
       color: "text-slate-600",
       bgColor: "bg-slate-50",
+      isMore: true,
+    },
+  ];
+
+  // If superadmin, override with platform admin items
+  const superAdminNavItems = [
+    {
+      title: 'Users',
+      url: '/superadmin/users',
+      icon: Users,
+      color: 'text-indigo-600',
+      bgColor: 'bg-indigo-50',
+    },
+    {
+      title: 'Stations',
+      url: '/superadmin/stations',
+      icon: Building2,
+      color: 'text-teal-600',
+      bgColor: 'bg-teal-50',
+    },
+    {
+      title: 'Plans',
+      url: '/superadmin/plans',
+      icon: Settings,
+      color: 'text-slate-700',
+      bgColor: 'bg-slate-50',
+    },
+    {
+      title: 'Analytics',
+      url: '/superadmin/analytics',
+      icon: BarChart3,
+      color: 'text-rose-600',
+      bgColor: 'bg-rose-50',
+    },
+    {
+      title: 'More',
+      url: '#more',
+      icon: Menu,
+      color: 'text-slate-600',
+      bgColor: 'bg-slate-50',
       isMore: true,
     },
   ];
@@ -243,7 +284,7 @@ export function MobileBottomNav() {
         <div className="h-0.5 bg-gradient-to-r from-transparent via-slate-300/50 to-transparent"></div>
         <div className="flex items-center justify-around h-16 px-1 safe-area-inset-bottom">
           {/* Main Navigation Items */}
-          {mainNavItems.map((item) => {
+          {(isSuper ? superAdminNavItems : mainNavItems).map((item) => {
             const Icon = item.icon;
             const active = isActive(item.url);
 

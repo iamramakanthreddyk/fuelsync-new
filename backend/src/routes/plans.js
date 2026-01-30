@@ -9,6 +9,9 @@ const { Plan } = require('../models');
 const { authenticate } = require('../middleware/auth');
 const { requireRole } = require('../middleware/permissions');
 
+// Predefined plans that can be created
+const PREDEFINED_PLANS = ['Free', 'Basic', 'Premium', 'Enterprise'];
+
 // All routes require authentication
 router.use(authenticate);
 
@@ -21,7 +24,7 @@ router.get('/', async (req, res) => {
     const plans = await Plan.findAll({
       where: { isActive: true },
       order: [['sortOrder', 'ASC']],
-      attributes: ['id', 'name', 'description', 'priceMonthly', 'priceYearly', 'maxStations', 'maxPumpsPerStation', 'maxNozzlesPerPump', 'maxEmployees', 'maxCreditors', 'isActive']
+      attributes: ['id', 'name', 'description', 'priceMonthly', 'priceYearly', 'maxStations', 'maxPumpsPerStation', 'maxNozzlesPerPump', 'maxEmployees', 'maxCreditors', 'backdatedDays', 'analyticsDays', 'canExport', 'canTrackExpenses', 'canTrackCredits', 'canViewProfitLoss', 'maxExportsMonthly', 'maxReportsMonthly', 'maxManualEntriesMonthly', 'exportMaxRows', 'reportDataDays', 'salesReportsDays', 'profitReportsDays', 'analyticsDataDays', 'auditLogsDays', 'transactionHistoryDays', 'sortOrder', 'isActive']
     });
 
     res.json({
@@ -67,16 +70,24 @@ router.get('/:id', async (req, res) => {
 
 /**
  * POST /api/v1/plans
- * Create a new plan (super admin only)
+ * Create a new plan (super admin only) - Only predefined plans allowed
  */
 router.post('/', requireRole(['super_admin']), async (req, res) => {
   try {
+    // Validate that only predefined plans can be created
+    if (!req.body.name || !PREDEFINED_PLANS.includes(req.body.name)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid plan name. Only predefined plans are allowed: ${PREDEFINED_PLANS.join(', ')}`
+      });
+    }
+
     // Check for existing plan name
     const existing = await Plan.findOne({ where: { name: req.body.name } });
     if (existing) {
       return res.status(409).json({
         success: false,
-        error: 'Plan name must be unique'
+        error: 'Plan already exists'
       });
     }
     const plan = await Plan.create(req.body);

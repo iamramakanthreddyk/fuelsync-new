@@ -2,6 +2,7 @@
 import React from 'react';
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SuperAdminSidebar } from "@/components/SuperAdminSidebar";
+import { MobileBottomNav } from '@/components/MobileBottomNav';
 import { AppHeader } from "@/components/AppHeader";
 
 interface SuperAdminLayoutProps {
@@ -20,6 +21,8 @@ export function SuperAdminLayout({ children }: SuperAdminLayoutProps) {
               {children}
             </div>
           </main>
+          {/* Mobile bottom navigation for superadmin */}
+          <MobileBottomNav />
         </div>
       </div>
     </SidebarProvider>

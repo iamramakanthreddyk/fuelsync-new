@@ -138,29 +138,29 @@ describe('Super Admin Journey', () => {
         .post('/api/v1/plans')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          name: 'Test Premium Plan',
-          description: 'A test premium plan',
-          maxStations: 5,
-          maxPumpsPerStation: 10,
-          maxNozzlesPerPump: 4,
-          maxEmployees: 25,
-          maxCreditors: 100,
-          backdatedDays: 15,
-          analyticsDays: 90,
+          name: 'Enterprise', // Use predefined plan name
+          description: 'Enterprise plan for large operations',
+          maxStations: 999,
+          maxPumpsPerStation: 50,
+          maxNozzlesPerPump: 6,
+          maxEmployees: 500,
+          maxCreditors: 5000,
+          backdatedDays: 90,
+          analyticsDays: 730,
           canExport: true,
           canTrackExpenses: true,
           canTrackCredits: true,
           canViewProfitLoss: true,
-          priceMonthly: 2999,
-          priceYearly: 29999,
-          features: { advanced: true },
-          sortOrder: 1,
+          priceMonthly: 9999,
+          priceYearly: 99999,
+          features: { unlimited: true },
+          sortOrder: 3,
           isActive: true
         });
 
       expect(response.status).toBe(201);
       expect(response.body.success).toBe(true);
-      expect(response.body.data.name).toBe('Test Premium Plan');
+      expect(response.body.data.name).toBe('Enterprise');
       
       createdPlan = response.body.data;
       testReport.passed++;
@@ -224,13 +224,32 @@ describe('Super Admin Journey', () => {
         .post('/api/v1/plans')
         .set('Authorization', `Bearer ${adminToken}`)
         .send({
-          name: 'Test Premium Plan', // Duplicate
-          description: 'Another plan',
-          maxStations: 3,
-          priceMonthly: 1999
+          name: 'Enterprise', // Duplicate of the plan we just created
+          description: 'Another enterprise plan',
+          maxStations: 999,
+          priceMonthly: 9999
         });
 
       expect(response.status).toBe(409); // Backend returns 409 for duplicate name (conflict)
+      testReport.passed++;
+    });
+
+    test('Create plan with invalid name - Edge Case', async () => {
+      testReport.totalTests++;
+      testReport.edgeCases.push('Create plan with non-predefined name');
+      
+      const response = await request(app)
+        .post('/api/v1/plans')
+        .set('Authorization', `Bearer ${adminToken}`)
+        .send({
+          name: 'Custom Plan', // Not in predefined list
+          description: 'A custom plan',
+          maxStations: 5,
+          priceMonthly: 999
+        });
+
+      expect(response.status).toBe(400); // Should reject custom plan names
+      expect(response.body.error).toContain('Invalid plan name');
       testReport.passed++;
     });
 

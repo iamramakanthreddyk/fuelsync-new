@@ -147,7 +147,7 @@ const UsersPage = () => {
     newPassword: "",
   });
 
-
+  const [createAssignLoading, setCreateAssignLoading] = useState(false);
 
   const creatableRoles = useMemo(() => {
     const currentRole = user?.role?.toLowerCase() || "";
@@ -305,7 +305,16 @@ const UsersPage = () => {
     });
   };
 
+  useEffect(() => {
+    if (!selectedUser) return;
+    if (!editForm.planId) return;
+    if (showCustomizeSection) return;
 
+    const matched = plans.find((plan) => plan.id === editForm.planId);
+    if (!matched) return;
+
+    // Feature overrides are now handled in the customize section
+  }, [selectedUser, editForm.planId, plans, showCustomizeSection]);
 
   const handleEditUser = async () => {
     if (!selectedUser) return;
@@ -878,66 +887,6 @@ const UsersPage = () => {
               </div>
             )}
 
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Button type="button" variant={editForm.isActive ? "default" : "outline"} onClick={() => setEditForm({ ...editForm, isActive: true })}>
-                <UserCheck className="mr-2 h-4 w-4" /> Active
-              </Button>
-              <Button type="button" variant={!editForm.isActive ? "destructive" : "outline"} onClick={() => setEditForm({ ...editForm, isActive: false })}>
-                <UserX className="mr-2 h-4 w-4" /> Inactive
-              </Button>
-            </div>
-
-            {user?.role === "super_admin" && (
-              <div className="space-y-2">
-                <Label htmlFor="edit-password">Change Password</Label>
-                <Input
-                  id="edit-password"
-                  type="password"
-                  value={editForm.newPassword}
-                  onChange={(event) => setEditForm({ ...editForm, newPassword: event.target.value })}
-                  placeholder="Enter new password"
-                />
-                <div className="flex flex-col gap-2 sm:flex-row">
-                  <Button
-                    type="button"
-                    onClick={async () => {
-                      if (!editForm.newPassword || editForm.newPassword.length < 6) {
-                        toast({ title: "Error", description: "Password must be at least 6 characters", variant: "destructive" });
-                        return;
-                      }
-                      try {
-                        await apiClient.post(`/users/${editForm.id}/reset-password`, { newPassword: editForm.newPassword });
-                        toast({ title: "Success", description: "Password changed successfully", variant: "success" });
-                        setEditForm({ ...editForm, newPassword: "" });
-                      } catch (error) {
-                        toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
-                      }
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    Change Password
-                  </Button>
-                  <Button type="button" variant="outline" onClick={() => setEditForm({ ...editForm, newPassword: "" })} className="w-full sm:w-auto">
-                    Clear
-                  </Button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-          <CardContent className="flex flex-col gap-2 sm:flex-row">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={() => {
-                setSelectedUser(null);
-              }}
-              className="w-full sm:w-auto"
-            >
-              Close
-            </Button>
-            <Button onClick={handleEditUser} disabled={isUpdating} className="w-full sm:w-auto">
-              {isUpdating ? "Updating..." : "Save changes"}
-            </Button>
           </CardContent>
         </Card>
       )}

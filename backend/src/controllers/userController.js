@@ -26,6 +26,7 @@ const { User, Station, Plan } = require('../models');
 const { Op } = require('sequelize');
 const { USER_ROLES } = require('../config/constants');
 const { logAudit } = require('../utils/auditLog');
+const { PERMISSIONS, ROLE_PERMISSIONS, PLAN_FEATURES } = require('../middleware/permissions');
 
 /**
  * Get users based on role permissions
@@ -592,3 +593,81 @@ async function canAccessUser(currentUser, targetUser) {
 }
 
 module.exports = exports;
+
+/**
+ * Get effective features / permissions for a user (role + plan applied)
+ * GET /api/v1/users/:id/effective-features
+ */
+exports.getEffectiveFeatures = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const currentUser = req.user;
+
+    // Only super_admin can fetch arbitrary user's effective features
+    if ((currentUser.role || '').toLowerCase() !== 'super_admin') {
+      return res.status(403).json({ success: false, error: 'Insufficient permissions' });
+    }
+
+    const targetUser = await User.findByPk(id, {
+      include: [{ model: Station, as: 'station' }, { model: Plan, as: 'plan' }]
+    });
+
+    if (!targetUser) {
+      return res.status(404).json({ success: false, error: 'User not found' });
+    }
+
+    // Determine effective plan: user's own plan or station owner's plan
+    let effectivePlan = targetUser.plan || null;
+    let ownerPlanUsed = false;
+
+    if (!effectivePlan && targetUser.stationId) {
+      const station = await Station.findByPk(targetUser.stationId);
+      if (station && station.ownerId) {
+        const owner = await User.findByPk(station.ownerId, { include: [{ model: Plan, as: 'plan' }] });
+        if (owner && owner.plan) {
+          effectivePlan = owner.plan;
+          ownerPlanUsed = true;
+        }
+      }
+    }
+
+    const role = (targetUser.role || '').toLowerCase();
+    const rolePerms = ROLE_PERMISSIONS[role] || [];
+
+    const planName = effectivePlan ? (effectivePlan.name || '').toLowerCase() : null;
+    const planFeatures = planName ? (PLAN_FEATURES[planName] || {}) : {};
+
+    // Build effective permissions map
+    const effective = {};
+    Object.keys(PERMISSIONS).forEach((key) => {
+      const perm = PERMISSIONS[key];
+      const roleAllows = rolePerms.includes(perm);
+      const planCfg = planFeatures[perm] || { allowed: false };
+      const planAllows = !!planCfg.allowed;
+      effective[perm] = {
+        roleAllows,
+        planAllows,
+        allowed: roleAllows && planAllows,
+        details: planCfg
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        userId: targetUser.id,
+        email: targetUser.email,
+        role: targetUser.role,
+        stationId: targetUser.stationId,
+        plan: effectivePlan ? { id: effectivePlan.id, name: effectivePlan.name } : null,
+        ownerPlanUsed,
+        rolePermissions: rolePerms,
+        planFeatures: planFeatures,
+        effectivePermissions: effective
+      }
+    });
+  } catch (error) {
+    console.error('Get effective features error:', error);
+    next(error);
+  }
+};
