@@ -220,25 +220,27 @@ module.exports = (sequelize) => {
     },
 
     // Soft delete tracking for audit trail
-    deletedAt: {
-      type: DataTypes.DATE,
-      field: 'deleted_at',
-      allowNull: true,
-      comment: 'Timestamp when record was soft-deleted'
-    },
-    deletedBy: {
-      type: DataTypes.UUID,
-      field: 'deleted_by',
-      allowNull: true,
-      references: { model: 'users', key: 'id' },
-      comment: 'User who deleted this reading'
-    },
-    deletionReason: {
-      type: DataTypes.TEXT,
-      field: 'deletion_reason',
-      allowNull: true,
-      comment: 'Reason for deletion (e.g., duplicate, correction)'
-    }
+    // TEMPORARILY DISABLED: columns don't exist in production DB yet
+    // Will re-enable once 20260305 migrations are applied
+    // deletedAt: {
+    //   type: DataTypes.DATE,
+    //   field: 'deleted_at',
+    //   allowNull: true,
+    //   comment: 'Timestamp when record was soft-deleted'
+    // },
+    // deletedBy: {
+    //   type: DataTypes.UUID,
+    //   field: 'deleted_by',
+    //   allowNull: true,
+    //   references: { model: 'users', key: 'id' },
+    //   comment: 'User who deleted this reading'
+    // },
+    // deletionReason: {
+    //   type: DataTypes.TEXT,
+    //   field: 'deletion_reason',
+    //   allowNull: true,
+    //   comment: 'Reason for deletion (e.g., duplicate, correction)'
+    // }
   }, {
     tableName: 'nozzle_readings',
     timestamps: true,

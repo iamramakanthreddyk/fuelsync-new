@@ -3,8 +3,8 @@
  * Data access layer with optimized queries
  */
 
-const { NozzleReading, Nozzle, Pump, Station, FuelPrice, User, Creditor, CreditTransaction, Expense, CostOfGoods, Shift, DailyTransaction } = require('../models');
-const { Op, fn, col, sequelize } = require('sequelize');
+const { NozzleReading, Nozzle, Pump, Station, FuelPrice, User, Creditor, CreditTransaction, Expense, CostOfGoods, Shift, DailyTransaction, sequelize } = require('../models');
+const { Op, fn, col } = require('sequelize');
 
 const EXCLUDE_SAMPLE_READINGS = { isSample: { [Op.ne]: true } };
 
