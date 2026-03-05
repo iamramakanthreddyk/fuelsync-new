@@ -50,6 +50,7 @@ import { SalesTab } from './reports/SalesTab';
 import { NozzlesTab } from './reports/NozzlesTab';
 import { PumpsTab } from './reports/PumpsTab';
 import { EmployeesTab } from './reports/EmployeesTab';
+import { EmployeeSalesBreakdownTab } from './reports/EmployeeSalesBreakdownTab';
 
 // ============================================
 // CONSTANTS & TYPES
@@ -535,6 +536,10 @@ export default function Reports() {
               onPrintPdf={() => handlePrintPdf('pumps')}
             />
             <EmployeesTab
+              dateRange={dateRange}
+              selectedStation={selectedStation}
+            />
+            <EmployeeSalesBreakdownTab
               dateRange={dateRange}
               selectedStation={selectedStation}
             />

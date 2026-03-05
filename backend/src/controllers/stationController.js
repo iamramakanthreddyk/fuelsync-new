@@ -2493,3 +2493,197 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Get employee sales breakdown for a station
+ * Aggregates sales by employee, fuel type, and payment method
+ * 
+ * Query params:
+ *   startDate: YYYY-MM-DD
+ *   endDate: YYYY-MM-DD
+ */
+exports.getEmployeeSalesBreakdown = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const { startDate, endDate } = req.query;
+    const user = req.user;
+
+    // Validate dates first
+    if (!startDate || !endDate) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'startDate and endDate are required',
+        example: 'GET /api/v1/stations/:stationId/employee-sales?startDate=2026-02-01&endDate=2026-02-28'
+      });
+    }
+
+    const { Station } = require('../models');
+    const employeeSalesService = require('../services/employeeSalesService');
+
+    // Handle "all" case - get sales for all user's stations
+    let stationIds = [stationId];
+    
+    if (stationId === 'all') {
+      const userStations = await Station.findAll({
+        where: { ownerId: user.id },
+        attributes: ['id'],
+        raw: true
+      });
+
+      stationIds = userStations.map(s => s.id);
+      
+      if (stationIds.length === 0) {
+        return res.json({
+          success: true,
+          data: [],
+          summary: {
+            totalEmployees: 0,
+            totalSales: 0,
+            totalQuantity: 0,
+            totalCash: 0,
+            totalOnline: 0,
+            totalCredit: 0,
+            dateRange: { startDate, endDate }
+          }
+        });
+      }
+    } else {
+      // Check single station access
+      if (!(await canAccessStation(user, stationId))) {
+        return res.status(403).json({ success: false, error: 'Access denied' });
+      }
+    }
+
+    // Fetch sales data for all stations
+    const allSalesData = [];
+    
+    for (const sid of stationIds) {
+      try {
+        const sales = await employeeSalesService.getEmployeeSalesBreakdown({
+          stationId: sid,
+          startDate,
+          endDate
+        });
+        
+        allSalesData.push(...sales);
+      } catch (error) {
+        console.warn(`[EmployeeSalesBreakdown] Error for station ${sid}:`, error.message);
+        // Continue processing other stations
+      }
+    }
+
+    // Merge data if multiple stations
+    let result = allSalesData;
+    if (stationIds.length > 1) {
+      const mergedMap = new Map();
+      
+      allSalesData.forEach(emp => {
+        const key = emp.employeeName;
+        if (!mergedMap.has(key)) {
+          mergedMap.set(key, {
+            employeeId: emp.employeeId,
+            employeeName: emp.employeeName,
+            totalSales: 0,
+            totalQuantity: 0,
+            totalCash: 0,
+            totalOnline: 0,
+            totalCredit: 0,
+            totalTransactions: 0,
+            byFuelType: new Map(),
+            lastActivityDate: null
+          });
+        }
+        
+        const merged = mergedMap.get(key);
+        merged.totalSales += emp.totalSales;
+        merged.totalQuantity += emp.totalQuantity;
+        merged.totalCash += emp.totalCash;
+        merged.totalOnline += emp.totalOnline;
+        merged.totalCredit += emp.totalCredit;
+        merged.totalTransactions += emp.totalTransactions;
+        
+        if (!merged.lastActivityDate || emp.lastActivityDate > merged.lastActivityDate) {
+          merged.lastActivityDate = emp.lastActivityDate;
+        }
+
+        // Merge fuel types
+        emp.byFuelType.forEach(fuel => {
+          const fuelKey = fuel.fuelType;
+          if (!merged.byFuelType.has(fuelKey)) {
+            merged.byFuelType.set(fuelKey, {
+              fuelType: fuel.fuelType,
+              quantity: 0,
+              saleValue: 0,
+              cashAmount: 0,
+              onlineAmount: 0,
+              creditAmount: 0,
+              transactionCount: 0
+            });
+          }
+          
+          const mergedFuel = merged.byFuelType.get(fuelKey);
+          mergedFuel.quantity += fuel.quantity;
+          mergedFuel.saleValue += fuel.saleValue;
+          mergedFuel.cashAmount += fuel.cashAmount;
+          mergedFuel.onlineAmount += fuel.onlineAmount;
+          mergedFuel.creditAmount += fuel.creditAmount;
+          mergedFuel.transactionCount += fuel.transactionCount;
+        });
+      });
+      
+      result = Array.from(mergedMap.values()).map(emp => {
+        const avgTxn = emp.totalTransactions > 0 
+          ? emp.totalSales / emp.totalTransactions 
+          : 0;
+
+        const byFuelType = Array.from(emp.byFuelType.values()).map(fuel => ({
+          fuelType: fuel.fuelType,
+          quantity: parseFloat(fuel.quantity.toFixed(3)),
+          saleValue: parseFloat(fuel.saleValue.toFixed(2)),
+          cashAmount: parseFloat(fuel.cashAmount.toFixed(2)),
+          onlineAmount: parseFloat(fuel.onlineAmount.toFixed(2)),
+          creditAmount: parseFloat(fuel.creditAmount.toFixed(2)),
+          transactionCount: fuel.transactionCount,
+          averageTransactionValue: fuel.transactionCount > 0
+            ? parseFloat((fuel.saleValue / fuel.transactionCount).toFixed(2))
+            : 0
+        })).sort((a, b) => b.saleValue - a.saleValue);
+
+        return {
+          employeeId: emp.employeeId,
+          employeeName: emp.employeeName,
+          totalSales: parseFloat(emp.totalSales.toFixed(2)),
+          totalQuantity: parseFloat(emp.totalQuantity.toFixed(3)),
+          totalCash: parseFloat(emp.totalCash.toFixed(2)),
+          totalOnline: parseFloat(emp.totalOnline.toFixed(2)),
+          totalCredit: parseFloat(emp.totalCredit.toFixed(2)),
+          totalTransactions: emp.totalTransactions,
+          averageTransaction: parseFloat(avgTxn.toFixed(2)),
+          byFuelType,
+          lastActivityDate: emp.lastActivityDate
+        };
+      });
+    }
+
+    // Calculate summary
+    const summary = {
+      totalEmployees: result.length,
+      totalSales: parseFloat(result.reduce((sum, e) => sum + e.totalSales, 0).toFixed(2)),
+      totalQuantity: parseFloat(result.reduce((sum, e) => sum + e.totalQuantity, 0).toFixed(3)),
+      totalCash: parseFloat(result.reduce((sum, e) => sum + e.totalCash, 0).toFixed(2)),
+      totalOnline: parseFloat(result.reduce((sum, e) => sum + e.totalOnline, 0).toFixed(2)),
+      totalCredit: parseFloat(result.reduce((sum, e) => sum + e.totalCredit, 0).toFixed(2)),
+      dateRange: { startDate, endDate }
+    };
+
+    res.json({
+      success: true,
+      data: result,
+      summary
+    });
+
+  } catch (error) {
+    console.error('Employee sales breakdown error:', error);
+    next(error);
+  }
+};

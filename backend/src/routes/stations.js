@@ -111,5 +111,6 @@ router.get('/:stationId/settlements', requireMinRole('manager'), stationControll
 router.get('/:stationId/variance-summary', requireMinRole('manager'), stationController.getVarianceSummary);
 router.get('/:stationId/settlement-vs-sales', requireMinRole('manager'), stationController.getSettlementVsSales);
 router.get('/:stationId/employee-shortfalls', requireMinRole('manager'), stationController.getEmployeeShortfalls);
+router.get('/:stationId/employee-sales', requireMinRole('manager'), stationController.getEmployeeSalesBreakdown);
 
 module.exports = router;
