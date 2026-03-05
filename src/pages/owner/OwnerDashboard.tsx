@@ -30,7 +30,9 @@ import {
   PendingActionsAlert,
   QuickActionsGrid,
   QuickEntryCardsGrid,
-  SetupWarningsAlert
+  SetupWarningsAlert,
+  TankLevelsSnapshot,
+  TodaysSalesBreakdown
 } from '@/components/owner';
 
 // Types
@@ -186,6 +188,12 @@ export default function OwnerDashboard() {
 
       {/* Stats Grid */}
       <StatsGrid stats={stats ?? null} isLoading={isLoading} />
+
+      {/* Horizontal Grid: Tank Levels + Today's Sales */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <TankLevelsSnapshot />
+        <TodaysSalesBreakdown />
+      </div>
 
       {/* Variance Card - Compact Design */}
       {varianceSummary && (
