@@ -6,7 +6,6 @@
  * - Amount in each category
  */
 
-import { useStations } from '@/hooks/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -19,55 +18,73 @@ interface SalesBreakdown {
 }
 
 export function TodaysSalesBreakdown() {
-  const { data: stationsResponse } = useStations();
-  const stations = stationsResponse?.data || [];
-
   const [breakdown, setBreakdown] = useState<SalesBreakdown>({
     cash: 0,
     online: 0,
     credit: 0,
     total: 0,
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch today's sales for all stations
+  // Fetch today's sales
   useEffect(() => {
-    if (stations.length === 0) return;
-
     setIsLoading(true);
+    setError(null);
+
     const fetchTodaysSales = async () => {
-      const today = new Date().toISOString().split('T')[0];
-      const totals = {
-        cash: 0,
-        online: 0,
-        credit: 0,
-        total: 0,
-      };
+      try {
+        const today = new Date().toISOString().split('T')[0];
 
-      for (const station of stations) {
-        try {
-          // Fetch daily summary for this station
-          const response = await fetch(`/api/v1/daily-summary?stationId=${station.id}&date=${today}`);
-          const data = await response.json();
+        // Correct endpoint: /api/v1/dashboard/daily with startDate and endDate
+        const response = await fetch(
+          `/api/v1/dashboard/daily?startDate=${today}&endDate=${today}`
+        );
 
-          if (data.success && data.data) {
-            const summary = data.data;
-            totals.cash += parseFloat(summary.cash || 0);
-            totals.online += parseFloat(summary.online || 0);
-            totals.credit += parseFloat(summary.credit || 0);
-          }
-        } catch (err) {
-          console.error(`Failed to fetch sales for station ${station.id}:`, err);
+        if (!response.ok) {
+          console.warn(`Failed to fetch daily summary: ${response.status}`);
+          setError('Failed to load sales data');
+          setIsLoading(false);
+          return;
         }
-      }
 
-      totals.total = totals.cash + totals.online + totals.credit;
-      setBreakdown(totals);
-      setIsLoading(false);
+        const data = await response.json();
+
+        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+          // Aggregate all days (should be just one day)
+          const totals = {
+            cash: 0,
+            online: 0,
+            credit: 0,
+            total: 0,
+          };
+
+          data.data.forEach((day: any) => {
+            totals.cash += parseFloat(day.cash || 0);
+            totals.online += parseFloat(day.online || 0);
+            totals.credit += parseFloat(day.credit || 0);
+          });
+
+          totals.total = totals.cash + totals.online + totals.credit;
+          setBreakdown(totals);
+        } else {
+          setBreakdown({
+            cash: 0,
+            online: 0,
+            credit: 0,
+            total: 0,
+          });
+        }
+      } catch (err) {
+        console.error('Error fetching sales data:', err);
+        setError('Failed to load sales data');
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchTodaysSales();
-  }, [stations]);
+  }, []);
 
   const getCashPercent = breakdown.total > 0 ? (breakdown.cash / breakdown.total) * 100 : 0;
   const getOnlinePercent = breakdown.total > 0 ? (breakdown.online / breakdown.total) * 100 : 0;
@@ -88,6 +105,8 @@ export function TodaysSalesBreakdown() {
       <CardContent>
         {isLoading ? (
           <div className="text-center py-4 text-sm text-muted-foreground">Loading sales data...</div>
+        ) : error ? (
+          <div className="text-center py-4 text-sm text-red-600">{error}</div>
         ) : breakdown.total === 0 ? (
           <div className="text-center py-4 text-sm text-muted-foreground">No sales recorded today</div>
         ) : (
@@ -161,7 +180,7 @@ export function TodaysSalesBreakdown() {
             </div>
 
             {/* Legend */}
-            <div className="flex gap-3 text-xs text-muted-foreground border-t pt-3">
+            <div className="flex gap-3 text-xs text-muted-foreground border-t pt-3 flex-wrap">
               <span className="flex items-center gap-1">
                 <span className="w-2 h-2 bg-green-500 rounded-full"></span>
                 Cash

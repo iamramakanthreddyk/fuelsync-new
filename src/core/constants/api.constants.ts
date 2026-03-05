@@ -119,7 +119,7 @@ export const READING_ENDPOINTS = {
 export const SHIFT_ENDPOINTS = {
   BASE: '/shifts',
   BY_ID: (id: string) => `/shifts/${id}`,
-  CURRENT: '/shifts/current',
+  CURRENT: '/shifts/active',
   START: '/shifts/start',
   END: (id: string) => `/shifts/${id}/end`,
 } as const;

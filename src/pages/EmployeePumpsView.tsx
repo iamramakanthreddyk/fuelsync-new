@@ -11,8 +11,8 @@ import { useNavigate } from 'react-router-dom';
 
 export default function EmployeePumpsView() {
   const navigate = useNavigate();
-  const { data: pumps, isLoading } = usePumpsData(currentStation?.id || '');
   const { currentStation } = useRoleAccess();
+  const { data: pumps, isLoading } = usePumpsData(currentStation?.id || '');
 
   if (isLoading) {
     return (

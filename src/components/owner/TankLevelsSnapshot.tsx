@@ -7,16 +7,14 @@
  */
 
 import { useStations } from '@/hooks/api';
-import { useTanks } from '@/hooks/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Fuel, ChevronRight, AlertTriangle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 interface TankSnapshot {
-  stationId: string;
-  stationName: string;
   fuelType: string;
+  displayFuelName: string;
   currentLevel: number;
   capacity: number;
   percentFull: number;
@@ -28,51 +26,72 @@ export function TankLevelsSnapshot() {
   const stations = stationsResponse?.data || [];
 
   const [allTanks, setAllTanks] = useState<TankSnapshot[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch tanks for each station
   useEffect(() => {
-    if (stations.length === 0) return;
+    if (stations.length === 0) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
+    setError(null);
+
     const fetchAllTanks = async () => {
-      const tanks: TankSnapshot[] = [];
+      try {
+        const tanks: TankSnapshot[] = [];
 
-      for (const station of stations) {
-        try {
-          // @ts-ignore - Hook expects station ID
-          const response = await fetch(`/api/v1/tanks?stationId=${station.id}`);
-          const data = await response.json();
+        for (const station of stations) {
+          try {
+            // Correct endpoint: /api/v1/stations/:stationId/tanks
+            const response = await fetch(`/api/v1/stations/${station.id}/tanks`);
+            
+            if (!response.ok) {
+              console.warn(`Failed to fetch tanks for station ${station.id}: ${response.status}`);
+              continue;
+            }
 
-          if (data.success && data.data) {
-            data.data.forEach((tank: any) => {
-              const currentLevel = tank.currentLevel || 0;
-              const capacity = tank.capacity || 1;
-              const percentFull = Math.round((currentLevel / capacity) * 100);
+            const data = await response.json();
 
-              let status: 'critical' | 'low' | 'normal' | 'overflow' = 'normal';
-              if (percentFull <= 10) status = 'critical';
-              else if (percentFull <= 20) status = 'low';
-              else if (percentFull > 100) status = 'overflow';
+            if (data.success && Array.isArray(data.data)) {
+              data.data.forEach((tank: any) => {
+                try {
+                  const currentLevel = tank.currentLevel ?? tank.current_level ?? 0;
+                  const capacity = tank.capacity ?? 1;
+                  const percentFull = Math.round((currentLevel / capacity) * 100);
 
-              tanks.push({
-                stationId: station.id,
-                stationName: station.name,
-                fuelType: tank.displayFuelName || tank.fuelType,
-                currentLevel,
-                capacity,
-                percentFull,
-                status,
+                  let status: 'critical' | 'low' | 'normal' | 'overflow' = 'normal';
+                  if (percentFull <= 10) status = 'critical';
+                  else if (percentFull <= 20) status = 'low';
+                  else if (percentFull > 100) status = 'overflow';
+
+                  tanks.push({
+                    fuelType: tank.fuelType || tank.fuel_type || 'unknown',
+                    displayFuelName: tank.displayFuelName || tank.display_fuel_name || tank.fuelType || tank.fuel_type || 'Unknown',
+                    currentLevel,
+                    capacity,
+                    percentFull,
+                    status,
+                  });
+                } catch (err) {
+                  console.error('Error transforming tank data:', err);
+                }
               });
-            });
+            }
+          } catch (err) {
+            console.error(`Failed to fetch tanks for station ${station.id}:`, err);
           }
-        } catch (err) {
-          console.error(`Failed to fetch tanks for station ${station.id}:`, err);
         }
-      }
 
-      setAllTanks(tanks);
-      setIsLoading(false);
+        setAllTanks(tanks);
+      } catch (err) {
+        console.error('Error fetching tanks:', err);
+        setError('Failed to load tank levels');
+      } finally {
+        setIsLoading(false);
+      }
     };
 
     fetchAllTanks();
@@ -125,6 +144,8 @@ export function TankLevelsSnapshot() {
       <CardContent>
         {isLoading ? (
           <div className="text-center py-4 text-sm text-muted-foreground">Loading tanks...</div>
+        ) : error ? (
+          <div className="text-center py-4 text-sm text-red-600">{error}</div>
         ) : allTanks.length === 0 ? (
           <div className="text-center py-4 text-sm text-muted-foreground">
             No tanks configured. Set up fuel tanks in Inventory.
@@ -135,8 +156,7 @@ export function TankLevelsSnapshot() {
               <div key={idx} className="space-y-1">
                 <div className="flex items-center justify-between">
                   <div className="flex flex-col gap-0.5">
-                    <span className="text-sm font-medium text-gray-700">{tank.fuelType}</span>
-                    <span className="text-xs text-gray-500">{tank.stationName}</span>
+                    <span className="text-sm font-medium text-gray-700">{tank.displayFuelName}</span>
                   </div>
                   <div className="text-right">
                     <span className={`text-sm font-semibold ${getStatusColor(tank.status)}`}>
@@ -149,6 +169,9 @@ export function TankLevelsSnapshot() {
                     className={`h-full ${getBarColor(tank.status)} transition-all`}
                     style={{ width: `${Math.min(tank.percentFull, 100)}%` }}
                   />
+                </div>
+                <div className="text-xs text-gray-500">
+                  {tank.currentLevel.toFixed(0)}L / {tank.capacity.toFixed(0)}L
                 </div>
               </div>
             ))}

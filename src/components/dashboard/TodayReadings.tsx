@@ -26,7 +26,7 @@ export function TodayReadings({ className }: TodayReadingsProps) {
       }
 
       try {
-        const todayReadings = await apiClient.get<any[]>(`/api/v1/readings/today?stationId=${currentStation.id}`);
+        const todayReadings = await apiClient.get<any[]>(`/readings/today?stationId=${currentStation.id}`);
         setReadings(todayReadings || []);
       } catch (error) {
         console.error('Error fetching today\'s readings:', error);

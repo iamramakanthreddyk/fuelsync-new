@@ -73,8 +73,8 @@ export function useEmployeeDashboard(stationId?: string) {
       if (!stationId) return null;
 
       const [shiftRes, readingsRes] = await Promise.all([
-        apiClient.get(`/stations/${stationId}/shifts/current`),
-        apiClient.get(`/stations/${stationId}/readings/today`)
+        apiClient.get(`/shifts/active`),
+        apiClient.get(`/readings/today?stationId=${stationId}`)
       ]);
 
       return {
