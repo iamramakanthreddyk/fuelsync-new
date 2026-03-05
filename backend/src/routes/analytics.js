@@ -101,7 +101,7 @@ router.get('/owner/analytics', requireRole('owner'), enforceDateRangeLimit('anal
  * GET /api/v1/analytics/income-receivables
  * Income & receivables comprehensive report
  */
-router.get('/income-receivables', requireRole('manager'), enforceDateRangeLimit('profit_reports'), dashboardController.getIncomeReceivablesReport);
+router.get('/income-receivables', requireRole(['manager', 'owner']), enforceDateRangeLimit('profit_reports'), dashboardController.getIncomeReceivablesReport);
 
 // ============================================
 // SALES (Consolidated from /api/v1/sales)

@@ -11,6 +11,7 @@ const dashboardRepo = require('../repositories/dashboardRepository');
 const dashboardService = require('../services/dashboardService');
 const paymentService = require('../services/paymentBreakdownService');
 const { FUEL_TYPE_LABELS } = require('../config/constants');
+const ApiResponse = require('../utils/responseFormatter');
 
 /**
  * Get today's dashboard summary
@@ -18,23 +19,21 @@ const { FUEL_TYPE_LABELS } = require('../config/constants');
  */
 exports.getSummary = async (req, res, next) => {
   try {
+    const startTime = Date.now();
     const user = await User.findByPk(req.userId);
     const { stationId } = req.query;
     
     const stationFilter = await dashboardRepo.getStationFilter(user, stationId);
     if (stationFilter === null) {
-      return res.json({
-        success: true,
-        data: { 
-          date: new Date().toISOString().split('T')[0],
-          today: { litres: 0, amount: 0, cash: 0, online: 0, credit: 0, readings: 0 }, 
-          pumps: [] 
-        }
-      });
+      return res.json(new ApiResponse({ 
+        date: new Date().toISOString().split('T')[0],
+        today: { litres: 0, amount: 0, cash: 0, online: 0, credit: 0, readings: 0 }, 
+        pumps: [] 
+      }, { executionMs: Date.now() - startTime }));
     }
 
-    const summary = await dashboardService.calculateDailySummary(stationFilter, user.role);
-    res.json({ success: true, data: summary });
+    const summary = await dashboardService.calculateTodaySummary(stationFilter, user.role);
+    res.json(new ApiResponse(summary, { executionMs: Date.now() - startTime }));
   } catch (error) {
     console.error('Dashboard summary error:', error);
     next(error);
@@ -47,6 +46,7 @@ exports.getSummary = async (req, res, next) => {
  */
 exports.getNozzleBreakdown = async (req, res, next) => {
   try {
+    const startTime = Date.now();
     const { startDate, endDate, pumpId, start_date, end_date, pump_id, stationId } = req.query;
     const user = await User.findByPk(req.userId);
     
@@ -56,15 +56,20 @@ exports.getNozzleBreakdown = async (req, res, next) => {
 
     const stationFilter = await dashboardRepo.getStationFilter(user, stationId);
     if (stationFilter === null) {
-      return res.json({ success: true, data: { startDate: start, endDate: end, nozzles: [] } });
+      return res.json(new ApiResponse({ nozzles: [] }, { 
+        startDate: start, 
+        endDate: end,
+        executionMs: Date.now() - startTime 
+      }));
     }
 
     const nozzles = await dashboardService.calculateNozzleBreakdown(stationFilter, start, end, effectivePumpId);
 
-    res.json({
-      success: true,
-      data: { startDate: start, endDate: end, nozzles }
-    });
+    res.json(new ApiResponse({ nozzles }, { 
+      startDate: start, 
+      endDate: end,
+      executionMs: Date.now() - startTime 
+    }));
   } catch (error) {
     console.error('Nozzle breakdown error:', error);
     next(error);
@@ -74,9 +79,11 @@ exports.getNozzleBreakdown = async (req, res, next) => {
 /**
  * Get daily summary for a date range
  * GET /api/v1/dashboard/daily
+ * REFACTORED: Moved aggregation logic to dashboardService
  */
 exports.getDailySummary = async (req, res, next) => {
   try {
+    const startTime = Date.now();
     const { startDate, endDate, start_date, end_date, stationId } = req.query;
     const user = await User.findByPk(req.userId);
 
@@ -84,55 +91,30 @@ exports.getDailySummary = async (req, res, next) => {
     const effectiveEndDate = endDate || end_date;
 
     if (!effectiveStartDate || !effectiveEndDate) {
-      return res.status(400).json({ success: false, error: 'startDate and endDate are required' });
+      return res.status(400).json(ApiResponse.error('startDate and endDate are required', 400));
     }
 
     const stationFilter = await dashboardRepo.getStationFilter(user, stationId);
     if (stationFilter === null) {
-      return res.json({ success: true, data: [] });
+      return res.json(new ApiResponse([], { 
+        startDate: effectiveStartDate,
+        endDate: effectiveEndDate,
+        executionMs: Date.now() - startTime 
+      }));
     }
 
-    const readings = await dashboardRepo.getDailyReadings(stationFilter, effectiveStartDate, effectiveEndDate);
-    const { txnCache, txnReadingTotals } = await paymentService.allocatePaymentBreakdownsProportionally(readings);
+    // REFACTORED: Use new service function instead of inline aggregation
+    const dailyStats = await dashboardService.calculateDailySummary(
+      stationFilter, 
+      effectiveStartDate, 
+      effectiveEndDate
+    );
 
-    const dateMap = {};
-    const seenTransactions = {};
-
-    readings.forEach(reading => {
-      const date = reading.readingDate;
-      if (!dateMap[date]) {
-        dateMap[date] = { litres: 0, amount: 0, cash: 0, online: 0, credit: 0, readings: 0 };
-        seenTransactions[date] = new Set();
-      }
-
-      dateMap[date].litres += parseFloat(reading.litresSold || 0);
-      dateMap[date].amount += parseFloat(reading.totalAmount || 0);
-      dateMap[date].readings += 1;
-
-      if (reading.transactionId && !seenTransactions[date].has(reading.transactionId)) {
-        seenTransactions[date].add(reading.transactionId);
-        const pb = txnCache[reading.transactionId]?.paymentBreakdown;
-        if (pb) {
-          dateMap[date].cash += parseFloat(pb.cash || 0);
-          dateMap[date].online += parseFloat(pb.online || 0);
-          dateMap[date].credit += parseFloat(pb.credit || 0);
-        }
-      }
-    });
-
-    const dailyStats = Object.keys(dateMap)
-      .sort()
-      .map(date => ({
-        date,
-        litres: parseFloat(dateMap[date].litres.toFixed(2)),
-        amount: parseFloat(dateMap[date].amount.toFixed(2)),
-        cash: parseFloat(dateMap[date].cash.toFixed(2)),
-        online: parseFloat(dateMap[date].online.toFixed(2)),
-        credit: parseFloat(dateMap[date].credit.toFixed(2)),
-        readings: dateMap[date].readings
-      }));
-
-    res.json({ success: true, data: dailyStats });
+    res.json(new ApiResponse(dailyStats, { 
+      startDate: effectiveStartDate,
+      endDate: effectiveEndDate,
+      executionMs: Date.now() - startTime 
+    }));
   } catch (error) {
     console.error('Daily summary error:', error);
     next(error);
@@ -145,6 +127,7 @@ exports.getDailySummary = async (req, res, next) => {
  */
 exports.getFuelBreakdown = async (req, res, next) => {
   try {
+    const startTime = Date.now();
     const { startDate, endDate, start_date, end_date, stationId } = req.query;
     const user = await User.findByPk(req.userId);
 
@@ -154,15 +137,20 @@ exports.getFuelBreakdown = async (req, res, next) => {
 
     const stationFilter = await dashboardRepo.getStationFilter(user, stationId);
     if (stationFilter === null) {
-      return res.json({ success: true, data: { startDate: start, endDate: end, breakdown: [] } });
+      return res.json(new ApiResponse({ breakdown: [] }, { 
+        startDate: start, 
+        endDate: end,
+        executionMs: Date.now() - startTime 
+      }));
     }
 
     const breakdown = await dashboardService.calculateFuelBreakdown(stationFilter, start, end);
 
-    res.json({
-      success: true,
-      data: { startDate: start, endDate: end, breakdown }
-    });
+    res.json(new ApiResponse({ breakdown }, { 
+      startDate: start, 
+      endDate: end,
+      executionMs: Date.now() - startTime 
+    }));
   } catch (error) {
     console.error('Fuel breakdown error:', error);
     next(error);
@@ -175,6 +163,7 @@ exports.getFuelBreakdown = async (req, res, next) => {
  */
 exports.getPumpPerformance = async (req, res, next) => {
   try {
+    const startTime = Date.now();
     const { startDate, endDate, start_date, end_date, stationId } = req.query;
     const user = await User.findByPk(req.userId);
 
@@ -184,7 +173,11 @@ exports.getPumpPerformance = async (req, res, next) => {
 
     const stationFilter = await dashboardRepo.getStationFilter(user, stationId);
     if (stationFilter === null) {
-      return res.json({ success: true, data: { startDate: start, endDate: end, pumps: [] } });
+      return res.json(new ApiResponse({ pumps: [] }, { 
+        startDate: start, 
+        endDate: end,
+        executionMs: Date.now() - startTime 
+      }));
     }
 
     // Extract station IDs from filter
@@ -205,10 +198,11 @@ exports.getPumpPerformance = async (req, res, next) => {
     const readings = await dashboardRepo.getPumpPerformanceData(stationIds, start, end);
     const pumps = dashboardService.formatPumpPerformance(readings);
 
-    res.json({
-      success: true,
-      data: { startDate: start, endDate: end, pumps }
-    });
+    res.json(new ApiResponse({ pumps }, { 
+      startDate: start, 
+      endDate: end,
+      executionMs: Date.now() - startTime 
+    }));
   } catch (error) {
     console.error('Pump performance error:', error);
     next(error);

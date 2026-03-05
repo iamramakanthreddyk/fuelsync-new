@@ -1,0 +1,217 @@
+{
+  "SalesRecord": {
+    "id": "uuid",
+    "stationId": "uuid",
+    "nozzleId": "uuid",
+    "date": "ISO8601",
+    "litres": "decimal(10,2)",
+    "amount": "decimal(10,2)",
+    "price": "decimal(10,4)",
+    "payment": {
+      "cash": "decimal(10,2)",
+      "online": "decimal(10,2)",
+      "credit": "decimal(10,2)"
+    },
+    "enteredByUser": {
+      "id": "uuid",
+      "name": "string"
+    },
+    "nozzle": {
+      "id": "uuid",
+      "nozzleNumber": "string",
+      "fuelType": "enum"
+    }
+  },
+
+  "AggregatedData": {
+    "summary": {
+      "totalLitres": "decimal",
+      "totalAmount": "decimal",
+      "itemCount": "integer",
+      "breakdown": {
+        "cash": "decimal",
+        "online": "decimal",
+        "credit": "decimal"
+      }
+    },
+    "items": [
+      {
+        "id": "string|uuid",
+        "label": "string",
+        "litres": "decimal",
+        "amount": "decimal",
+        "count": "integer",
+        "breakdown": {
+          "cash": "decimal",
+          "online": "decimal",
+          "credit": "decimal"
+        },
+        "percentage": "decimal(5,2)"
+      }
+    ]
+  },
+
+  "DashboardSummary": {
+    "date": "ISO8601",
+    "litres": "decimal",
+    "amount": "decimal",
+    "breakdown": {
+      "cash": "decimal",
+      "online": "decimal",
+      "credit": "decimal"
+    },
+    "creditOutstanding": "decimal",
+    "pumps": [
+      {
+        "id": "uuid",
+        "name": "string",
+        "pumpNumber": "integer",
+        "status": "enum",
+        "nozzles": []
+      }
+    ]
+  },
+
+  "AnalyticsResponse": {
+    "success": "boolean",
+    "data": {
+      "summary": "AggregatedData (optional)",
+      "daily": "AggregatedData (optional)",
+      "fuel": "AggregatedData (optional)",
+      "pump": "AggregatedData (optional)",
+      "nozzle": "AggregatedData (optional)"
+    },
+    "metadata": {
+      "timestamp": "ISO8601",
+      "requestId": "string",
+      "executionMs": "integer",
+      "startDate": "ISO8601 (optional)",
+      "endDate": "ISO8601 (optional)",
+      "metrics": ["string"] 
+    }
+  },
+
+  "SalesResponse": {
+    "success": "boolean",
+    "data": "SalesRecord[] | AggregatedData",
+    "metadata": {
+      "timestamp": "ISO8601",
+      "requestId": "string",
+      "executionMs": "integer",
+      "groupBy": "detail | summary | date | fuel | pump | nozzle",
+      "recordCount": "integer (optional)"
+    }
+  },
+
+  "ExpenseResponse": {
+    "success": "boolean",
+    "data": {
+      "items": [
+        {
+          "id": "uuid",
+          "stationId": "uuid",
+          "category": "string",
+          "amount": "decimal",
+          "description": "string",
+          "date": "ISO8601",
+          "createdBy": "uuid"
+        }
+      ],
+      "summary": {
+        "totalExpenses": "decimal",
+        "byCategory": {
+          "[category]": "decimal"
+        }
+      }
+    },
+    "metadata": {
+      "timestamp": "ISO8601",
+      "requestId": "string",
+      "executionMs": "integer"
+    }
+  },
+
+  "CreditResponse": {
+    "success": "boolean",
+    "data": {
+      "creditors": [
+        {
+          "id": "uuid",
+          "name": "string",
+          "currentBalance": "decimal",
+          "totalCredit": "decimal",
+          "outstanding": "decimal",
+          "isActive": "boolean"
+        }
+      ],
+      "transactions": [
+        {
+          "id": "uuid",
+          "creditorId": "uuid",
+          "amount": "decimal",
+          "type": "credit | settlement",
+          "date": "ISO8601"
+        }
+      ],
+      "summary": {
+        "totalCreditors": "integer",
+        "totalOutstanding": "decimal",
+        "totalTransactions": "integer"
+      }
+    },
+    "metadata": {
+      "timestamp": "ISO8601",
+      "requestId": "string",
+      "executionMs": "integer"
+    }
+  },
+
+  "ReadingResponse": {
+    "success": "boolean",
+    "data": [
+      {
+        "id": "uuid",
+        "nozzleId": "uuid",
+        "stationId": "uuid",
+        "litresSold": "decimal",
+        "totalAmount": "decimal",
+        "pricePerLitre": "decimal",
+        "readingDate": "ISO8601",
+        "isSample": "boolean",
+        "nozzle": {
+          "id": "uuid",
+          "nozzleNumber": "string",
+          "fuelType": "enum"
+        }
+      }
+    ],
+    "metadata": {
+      "timestamp": "ISO8601",
+      "requestId": "string",
+      "executionMs": "integer",
+      "filter": "today | previous | latest (optional)"
+    }
+  },
+
+  "ErrorResponse": {
+    "success": "boolean",
+    "error": "string",
+    "statusCode": "integer",
+    "details": "object (optional)",
+    "timestamp": "ISO8601"
+  },
+
+  "ValidationErrorResponse": {
+    "success": "boolean",
+    "error": "Validation failed",
+    "statusCode": 400,
+    "validationErrors": [
+      {
+        "field": "string",
+        "message": "string",
+        "value": "any (optional)"
+      }
+    ],
+    "timestamp": "ISO8601"
+  }
+}
