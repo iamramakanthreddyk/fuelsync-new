@@ -93,16 +93,15 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
     console.log(`[EmployeeSalesService] Starting aggregation of ${readings.length} readings...`);
     
     readings.forEach((reading, idx) => {
-      try {
-        const employeeId = reading.enteredBy;
-        const employeeName = reading.enteredByUser?.name || 'Unknown';
-        const fuelType = reading.Nozzle?.fuelType || 'Unknown';
-        const litres = parseFloat(reading.litresSold) || 0;
-        const saleValue = parseFloat(reading.totalAmount) || 0;
+      const employeeId = reading.enteredBy;
+      const employeeName = reading.enteredByUser?.name || 'Unknown';
+      const fuelType = reading.Nozzle?.fuelType || 'Unknown';
+      const litres = parseFloat(reading.litresSold) || 0;
+      const saleValue = parseFloat(reading.totalAmount) || 0;
 
-        if (idx < 3) {
-          console.log(`[EmployeeSalesService] Reading ${idx}: employee=${employeeName}, fuel=${fuelType}, litres=${litres}, value=${saleValue}`);
-        }
+      if (idx < 3) {
+        console.log(`[EmployeeSalesService] Reading ${idx}: employee=${employeeName}, fuel=${fuelType}, litres=${litres}, value=${saleValue}`);
+      }
 
       // Get payment breakdown from transaction or reading
       let paymentBreakdown = { cash: 0, online: 0, credit: 0 };
