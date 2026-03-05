@@ -13,11 +13,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CreditCard, CheckCircle2, ChevronDown, ChevronRight, Phone, Calendar, DollarSign, AlertCircle } from 'lucide-react';
+import { CreditCard, CheckCircle2, ChevronDown, ChevronRight, Phone, Calendar, DollarSign, AlertCircle, Printer } from 'lucide-react';
 
 import { useAuth } from '@/hooks/useAuth';
 import { creditService, type Creditor, type CreditTransaction } from '@/services/creditService';
 import { notificationService } from '@/services/notificationService';
+import { printCreditLedger } from '@/lib/report-export';
 
 // CreditorCard component for mobile-friendly display
 function CreditorCard({ creditor, stationId }: { creditor: any; stationId?: string }) {
@@ -147,6 +148,33 @@ export default function CreditLedger() {
   const { user } = useAuth();
   const [search, setSearch] = useState('');
   const [selectedStationId, setSelectedStationId] = useState<string | undefined>(user?.stations?.[0]?.id);
+  const [selectedCreditorId, setSelectedCreditorId] = useState<string | undefined>();
+
+  // Handle PDF printing for selected creditor
+  const handlePrintCreditLedger = async () => {
+    if (!selectedCreditorId || !selectedStationId) {
+      notificationService.push('error', 'Please select a customer and station first');
+      return;
+    }
+
+    try {
+      const selectedCreditor = creditors.find(c => c.id === selectedCreditorId);
+      if (!selectedCreditor) {
+        notificationService.push('error', 'Selected customer not found');
+        return;
+      }
+
+      const transactions = await creditService.getCreditorTransactions(selectedStationId, selectedCreditorId);
+      
+      printCreditLedger(selectedCreditor, transactions, {
+        startDate: new Date().toISOString().split('T')[0], // Today
+        endDate: new Date().toISOString().split('T')[0]    // Today
+      });
+    } catch (error) {
+      console.error('Error printing credit ledger:', error);
+      notificationService.push('error', 'Failed to generate credit ledger PDF');
+    }
+  };
 
   // Validate and fix selectedStationId to ensure it's a valid UUID
   useEffect(() => {
@@ -242,6 +270,7 @@ export default function CreditLedger() {
                 <Select value={selectedStationId || ''} onValueChange={(value) => {
                     if (user?.stations?.some(station => station.id === value)) {
                       setSelectedStationId(value);
+                      setSelectedCreditorId(undefined); // Reset creditor selection when station changes
                     }
                   }}>
                   <SelectTrigger className="w-full sm:w-48">
@@ -257,6 +286,32 @@ export default function CreditLedger() {
                 </Select>
               </div>
             )}
+
+            {/* Creditor Selector */}
+            <div className="w-full sm:w-auto">
+              <Select value={selectedCreditorId || ''} onValueChange={setSelectedCreditorId}>
+                <SelectTrigger className="w-full sm:w-48">
+                  <SelectValue placeholder="Select customer" />
+                </SelectTrigger>
+                <SelectContent>
+                  {creditors.map(creditor => (
+                    <SelectItem key={creditor.id} value={creditor.id}>
+                      {creditor.name} - ₹{creditor.outstanding.toLocaleString('en-IN')}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Print Button */}
+            <Button 
+              onClick={handlePrintCreditLedger}
+              disabled={!selectedCreditorId}
+              className="flex items-center gap-2"
+            >
+              <Printer className="w-4 h-4" />
+              Print PDF
+            </Button>
 
             {/* Search */}
             <div className="flex-1 w-full sm:w-auto">

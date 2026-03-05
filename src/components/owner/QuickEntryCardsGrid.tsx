@@ -13,192 +13,150 @@ interface QuickEntryCardsGridProps {
 
 export function QuickEntryCardsGrid({ navigate }: QuickEntryCardsGridProps) {
   return (
-    <div className="grid gap-3 sm:gap-4 grid-cols-2 lg:grid-cols-3">
+    <div className="grid gap-2 sm:gap-3 grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
       {/* Quick Entry */}
       <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-yellow-500/50 bg-gradient-to-br from-yellow-50/50 to-transparent dark:from-yellow-950/20"
+        className="group cursor-pointer hover:shadow-lg transition-all duration-200 border hover:border-yellow-500/50 bg-gradient-to-br from-yellow-50/30 to-transparent"
         onClick={() => navigate('/owner/quick-entry')}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/quick-entry')}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-yellow-600 transition-colors">
-            <div className="p-2 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Zap className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-500" />
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-yellow-100 rounded-md group-hover:scale-110 transition-transform">
+              <Zap className="w-4 h-4 text-yellow-600" />
             </div>
-            <span>Quick Entry</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Fast nozzle reading entry with auto-calculated sales
-          </p>
-          <div className="mt-3 flex items-center text-xs text-yellow-600 font-medium">
-            <span>Enter now</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-900 group-hover:text-yellow-700">Quick Entry</div>
+              <div className="text-xs text-gray-500 truncate">Fast readings</div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Daily Settlement */}
       <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-green-500/50 bg-gradient-to-br from-green-50/50 to-transparent dark:from-green-950/20"
+        className="group cursor-pointer hover:shadow-lg transition-all duration-200 border hover:border-green-500/50 bg-gradient-to-br from-green-50/30 to-transparent"
         onClick={() => navigate('/owner/stations')} // Navigate to stations to select one
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/stations')}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-green-600 transition-colors">
-            <div className="p-2 bg-green-100 dark:bg-green-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Scale3d className="w-5 h-5 sm:w-6 sm:h-6 text-green-500" />
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-green-100 rounded-md group-hover:scale-110 transition-transform">
+              <Scale3d className="w-4 h-4 text-green-600" />
             </div>
-            <span>Daily Settlement</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Finalize daily sales and reconcile cash counts
-          </p>
-          <div className="mt-3 flex items-center text-xs text-green-600 font-medium">
-            <span>Settle today</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-900 group-hover:text-green-700">Settlement</div>
+              <div className="text-xs text-gray-500 truncate">Daily close</div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Daily Reports */}
       <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-indigo-500/50 bg-gradient-to-br from-indigo-50/50 to-transparent dark:from-indigo-950/20"
+        className="group cursor-pointer hover:shadow-lg transition-all duration-200 border hover:border-indigo-500/50 bg-gradient-to-br from-indigo-50/30 to-transparent"
         onClick={() => navigate('/owner/daily-reports')}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/daily-reports')}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-indigo-600 transition-colors">
-            <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <TrendingUp className="w-5 h-5 sm:w-6 sm:h-6 text-indigo-500" />
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-indigo-100 rounded-md group-hover:scale-110 transition-transform">
+              <TrendingUp className="w-4 h-4 text-indigo-600" />
             </div>
-            <span>Daily Reports</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            View analytics, trends, and sales breakdown
-          </p>
-          <div className="mt-3 flex items-center text-xs text-indigo-600 font-medium">
-            <span>View reports</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-900 group-hover:text-indigo-700">Reports</div>
+              <div className="text-xs text-gray-500 truncate">Analytics</div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Shift Management */}
       <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-orange-500/50 bg-gradient-to-br from-orange-50/50 to-transparent dark:from-orange-950/20"
+        className="group cursor-pointer hover:shadow-lg transition-all duration-200 border hover:border-orange-500/50 bg-gradient-to-br from-orange-50/30 to-transparent"
         onClick={() => navigate('/owner/shifts')}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/shifts')}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-orange-600 transition-colors">
-            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Clock className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-orange-100 rounded-md group-hover:scale-110 transition-transform">
+              <Clock className="w-4 h-4 text-orange-600" />
             </div>
-            <span>Shift Management</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Start/end shifts with cash reconciliation
-          </p>
-          <div className="mt-3 flex items-center text-xs text-orange-600 font-medium">
-            <span>Manage shifts</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-900 group-hover:text-orange-700">Shifts</div>
+              <div className="text-xs text-gray-500 truncate">Management</div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Manage Stations */}
       <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 bg-gradient-to-br from-blue-50/50 to-transparent dark:from-blue-950/20"
+        className="group cursor-pointer hover:shadow-lg transition-all duration-200 border hover:border-blue-500/50 bg-gradient-to-br from-blue-50/30 to-transparent"
         onClick={() => navigate('/owner/stations')}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/stations')}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-primary transition-colors">
-            <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Building2 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-500" />
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-blue-100 rounded-md group-hover:scale-110 transition-transform">
+              <Building2 className="w-4 h-4 text-blue-600" />
             </div>
-            <span>Manage Stations</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Add, edit, and configure your fuel stations
-          </p>
-          <div className="mt-3 flex items-center text-xs text-primary font-medium">
-            <span>Get started</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-900 group-hover:text-blue-700">Stations</div>
+              <div className="text-xs text-gray-500 truncate">Management</div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Manage Employees */}
       <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-primary/50 bg-gradient-to-br from-purple-50/50 to-transparent dark:from-purple-950/20"
+        className="group cursor-pointer hover:shadow-lg transition-all duration-200 border hover:border-purple-500/50 bg-gradient-to-br from-purple-50/30 to-transparent"
         onClick={() => navigate('/owner/employees')}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/employees')}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-primary transition-colors">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <Users className="w-5 h-5 sm:w-6 sm:h-6 text-purple-500" />
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-purple-100 rounded-md group-hover:scale-110 transition-transform">
+              <Users className="w-4 h-4 text-purple-600" />
             </div>
-            <span>Manage Employees</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Add and manage staff across all stations
-          </p>
-          <div className="mt-3 flex items-center text-xs text-primary font-medium">
-            <span>View team</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-900 group-hover:text-purple-700">Employees</div>
+              <div className="text-xs text-gray-500 truncate">Management</div>
+            </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Credit Ledger */}
       <Card 
-        className="group cursor-pointer hover:shadow-xl transition-all duration-300 border-2 hover:border-orange-500/50 bg-gradient-to-br from-orange-50/50 to-transparent dark:from-orange-950/20"
+        className="group cursor-pointer hover:shadow-lg transition-all duration-200 border hover:border-orange-500/50 bg-gradient-to-br from-orange-50/30 to-transparent"
         onClick={() => navigate('/owner/credit-ledger')}
         role="button"
         tabIndex={0}
         onKeyDown={(e) => e.key === 'Enter' && navigate('/owner/credit-ledger')}
       >
-        <CardHeader className="pb-3">
-          <CardTitle className="flex items-center gap-3 text-sm group-hover:text-orange-600 transition-colors">
-            <div className="p-2 bg-orange-100 dark:bg-orange-900/30 rounded-lg group-hover:scale-110 transition-transform">
-              <CreditCard className="w-5 h-5 sm:w-6 sm:h-6 text-orange-500" />
+        <CardContent className="p-3">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-orange-100 rounded-md group-hover:scale-110 transition-transform">
+              <CreditCard className="w-4 h-4 text-orange-600" />
             </div>
-            <span>Credit Ledger</span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-xs sm:text-sm text-muted-foreground">
-            Track outstanding credits and limits per customer
-          </p>
-          <div className="mt-3 flex items-center text-xs text-orange-600 font-medium">
-            <span>View credits</span>
-            <ArrowRight className="w-4 h-4 ml-1 group-hover:translate-x-1 transition-transform" />
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-semibold text-gray-900 group-hover:text-orange-700">Credit Ledger</div>
+              <div className="text-xs text-gray-500 truncate">Outstanding</div>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -433,3 +433,73 @@ export function printPumpsReport<T extends Record<string, any>>(
   w.document.write(`</tbody></table>`);
   finalizePrintWindow(w);
 }
+
+export function printCreditLedger(
+  creditor: any,
+  transactions: any[],
+  dateRange: DateRange,
+  onPopupBlocked?: () => void
+) {
+  const w = createPrintWindow({ reportType: 'credit-ledger', dateRange, onPopupBlocked });
+  if (!w) return;
+
+  // Customer Information
+  w.document.write(`<div class="summary-box">
+    <strong>Customer Information</strong>
+    <div class="summary-row"><span>Customer Name:</span><span>${creditor.name}</span></div>
+    ${creditor.mobile ? `<div class="summary-row"><span>Mobile:</span><span>${creditor.mobile}</span></div>` : ''}
+    <div class="summary-row"><span>Credit Limit:</span><span>${currency(creditor.creditLimit || 0)}</span></div>
+    <div class="summary-row"><span>Outstanding Balance:</span><span>${currency(creditor.outstanding)}</span></div>
+    ${creditor.lastSaleDate ? `<div class="summary-row"><span>Last Sale Date:</span><span>${new Date(creditor.lastSaleDate).toLocaleDateString('en-IN')}</span></div>` : ''}
+  </div>`);
+
+  // Transaction History
+  w.document.write(`<h3>Credit Transaction History</h3>`);
+  
+  if (transactions.length === 0) {
+    w.document.write(`<p>No transactions found for this customer.</p>`);
+  } else {
+    w.document.write(
+      `<table><thead><tr><th>Date</th><th>Type</th><th>Description</th><th>Amount</th><th>Balance</th></tr></thead><tbody>`
+    );
+    
+    let runningBalance = 0;
+    
+    // Sort transactions by date (newest first for ledger view)
+    const sortedTransactions = [...transactions].sort((a, b) => 
+      new Date(b.transactionDate).getTime() - new Date(a.transactionDate).getTime()
+    );
+    
+    sortedTransactions.forEach((transaction) => {
+      const amount = transaction.amount;
+      if (transaction.transactionType === 'credit') {
+        runningBalance += amount;
+      } else {
+        runningBalance -= amount;
+      }
+      
+      const dateDisplay = new Date(transaction.transactionDate).toLocaleDateString('en-IN');
+      const typeDisplay = transaction.transactionType === 'credit' ? 'Credit Purchase' : 'Settlement Payment';
+      const amountDisplay = transaction.transactionType === 'credit' ? `+${currency(amount)}` : `-${currency(amount)}`;
+      
+      w.document.write(`<tr>
+        <td>${dateDisplay}</td>
+        <td>${typeDisplay}</td>
+        <td>${transaction.description || '-'}</td>
+        <td style="color: ${transaction.transactionType === 'credit' ? '#dc2626' : '#16a34a'}">${amountDisplay}</td>
+        <td>${currency(runningBalance)}</td>
+      </tr>`);
+    });
+
+    w.document.write(`</tbody></table>`);
+    
+    // Summary
+    w.document.write(`<div class="summary-box" style="margin-top: 20px;">
+      <strong>Summary</strong>
+      <div class="summary-row"><span>Total Transactions:</span><span>${transactions.length}</span></div>
+      <div class="summary-row"><span>Current Outstanding:</span><span>${currency(creditor.outstanding)}</span></div>
+    </div>`);
+  }
+
+  finalizePrintWindow(w);
+}
