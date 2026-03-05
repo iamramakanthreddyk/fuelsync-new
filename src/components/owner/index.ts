@@ -14,4 +14,5 @@ export { SetupWarningsAlert } from './SetupWarningsAlert';
 export { StationSettingsForm } from './StationSettingsForm';
 export { TankLevelsSnapshot } from './TankLevelsSnapshot';
 export { TodaysSalesBreakdown } from './TodaysSalesBreakdown';
+export { EmployeeShortfallsCard } from './EmployeeShortfallsCard';
 

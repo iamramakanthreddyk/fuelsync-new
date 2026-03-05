@@ -30,7 +30,8 @@ import {
   QuickEntryCardsGrid,
   SetupWarningsAlert,
   TankLevelsSnapshot,
-  TodaysSalesBreakdown
+  TodaysSalesBreakdown,
+  EmployeeShortfallsCard
 } from '@/components/owner';
 
 // Types
@@ -236,6 +237,12 @@ export default function OwnerDashboard() {
           </div>
         </div>
       )}
+
+      {/* Employee Shortfalls Card - Time-based tracking */}
+      <EmployeeShortfallsCard 
+        stationId={primaryStation?.id} 
+        onViewDetails={() => navigate('/owner/reports', { state: { tab: 'employees' } })}
+      />
 
       {/* Stations Card with List */}
       <StationsCard 
