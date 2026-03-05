@@ -73,9 +73,12 @@ const DATE_PRESETS = [
   { label: 'Today', value: 'today' },
   { label: 'Yesterday', value: 'yesterday' },
   { label: 'Last 7 Days', value: 'last7days' },
+  { label: 'Last 14 Days', value: 'last14days' },
   { label: 'Last 30 Days', value: 'last30days' },
+  { label: 'Last 90 Days', value: 'last90days' },
   { label: 'This Month', value: 'thisMonth' },
   { label: 'Last Month', value: 'lastMonth' },
+  { label: 'Last 6 Months', value: 'last6months' },
   { label: 'Custom', value: 'custom' },
 ];
 
@@ -106,8 +109,26 @@ const calculateDateRange = (preset: string): DateRange => {
         startDate: start.toISOString().split('T')[0],
         endDate: today.toISOString().split('T')[0]
       };
+    case 'last14days':
+      start.setDate(today.getDate() - 14);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: today.toISOString().split('T')[0]
+      };
     case 'last30days':
       start.setDate(today.getDate() - 30);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: today.toISOString().split('T')[0]
+      };
+    case 'last90days':
+      start.setDate(today.getDate() - 90);
+      return {
+        startDate: start.toISOString().split('T')[0],
+        endDate: today.toISOString().split('T')[0]
+      };
+    case 'last6months':
+      start.setMonth(today.getMonth() - 6, today.getDate());
       return {
         startDate: start.toISOString().split('T')[0],
         endDate: today.toISOString().split('T')[0]
@@ -396,6 +417,7 @@ export default function Reports() {
             onStationChange={setSelectedStation}
             stations={Array.isArray(stations) ? stations : []}
             onRefresh={handleRefresh}
+            onExportAll={handleExportAll}
             showRefresh={false} // We have our own refresh button
             dataType="analytics"
           />
