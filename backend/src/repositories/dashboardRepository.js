@@ -39,7 +39,7 @@ async function getStationFilter(user, requestedStationId = null) {
  * Get today's readings (exclude sample readings, include only sales)
  */
 async function getTodayReadings(stationFilter) {
-  return NozzleReading.scope('active').findAll({
+  return NozzleReading.findAll({
     where: { 
       ...stationFilter, 
       ...EXCLUDE_SAMPLE_READINGS,
@@ -98,7 +98,7 @@ async function getReadingsWithNozzleInfo(stationFilter, startDate, endDate, pump
 
   if (pumpId) whereClause.pumpId = pumpId;
 
-  return NozzleReading.scope('active').findAll({
+  return NozzleReading.findAll({
     where: {
       ...whereClause,
       transactionId: { [Op.ne]: null }
@@ -116,7 +116,7 @@ async function getReadingsWithNozzleInfo(stationFilter, startDate, endDate, pump
  * Get daily readings for date range
  */
 async function getDailyReadings(stationFilter, startDate, endDate) {
-  return NozzleReading.scope('active').findAll({
+  return NozzleReading.findAll({
     where: {
       ...stationFilter,
       ...EXCLUDE_SAMPLE_READINGS,
@@ -132,7 +132,7 @@ async function getDailyReadings(stationFilter, startDate, endDate) {
  * Get fuel type breakdown
  */
 async function getFuelTypeReadings(stationFilter, startDate, endDate) {
-  return NozzleReading.scope('active').findAll({
+  return NozzleReading.findAll({
     where: {
       ...stationFilter,
       ...EXCLUDE_SAMPLE_READINGS,
@@ -285,7 +285,7 @@ async function getPeriodSalesData(stationIds, startDate, endDate, prevStartDate,
  * Get sales by station for period
  */
 async function getSalesByStation(stationIds, startDate, endDate) {
-  return NozzleReading.scope('active').findAll({
+  return NozzleReading.findAll({
     attributes: [
       'stationId',
       [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales']
@@ -304,7 +304,7 @@ async function getSalesByStation(stationIds, startDate, endDate) {
  * Get sales by fuel type with quantity
  */
 async function getSalesByFuelType(stationIds, startDate, endDate) {
-  return NozzleReading.scope('active').findAll({
+  return NozzleReading.findAll({
     attributes: [
       [sequelize.col('nozzle.fuel_type'), 'fuelType'],
       [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],
@@ -329,7 +329,7 @@ async function getSalesByFuelType(stationIds, startDate, endDate) {
  * Get daily trend data (sales and quantity)
  */
 async function getDailyTrendData(stationIds, startDate, endDate) {
-  return NozzleReading.scope('active').findAll({
+  return NozzleReading.findAll({
     attributes: [
       [fn('DATE', col('reading_date')), 'date'],
       [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'sales'],

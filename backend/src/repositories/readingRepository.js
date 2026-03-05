@@ -68,7 +68,7 @@ exports.getReadingsWithFilters = async (filters) => {
     }
   ];
 
-  const { count, rows } = await NozzleReading.scope('active').findAndCountAll({
+  const { count, rows } = await NozzleReading.findAndCountAll({
     where,
     include,
     offset: parseInt(offset),
@@ -95,7 +95,7 @@ exports.getReadingsForDate = async (stationId, date, accessibleStationIds = null
     where.stationId = stationId;
   }
 
-  return await NozzleReading.scope('active').findAll({
+  return await NozzleReading.findAll({
     where,
     include: [
       {
@@ -126,7 +126,7 @@ exports.getReadingsForDate = async (stationId, date, accessibleStationIds = null
  * @returns {Array} - Readings
  */
 exports.getReadingsAfterDate = async (nozzleId, fromDate) => {
-  return await NozzleReading.scope('active').findAll({
+  return await NozzleReading.findAll({
     where: {
       nozzleId,
       readingDate: { [Op.gte]: fromDate }
@@ -141,7 +141,7 @@ exports.getReadingsAfterDate = async (nozzleId, fromDate) => {
  * @returns {Object} - Reading or null
  */
 exports.getLatestReadingForNozzle = async (nozzleId) => {
-  return await NozzleReading.scope('active').findOne({
+  return await NozzleReading.findOne({
     where: { nozzleId },
     order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
   });
@@ -203,7 +203,7 @@ exports.getLatestReadingsForNozzles = async (nozzleIds) => {
  * @returns {Object} - { totalSales, totalLitres, count }
  */
 exports.getDailySummary = async (stationId, date) => {
-  const readings = await NozzleReading.scope('active').findAll({
+  const readings = await NozzleReading.findAll({
     where: { stationId, readingDate: date }
   });
 
