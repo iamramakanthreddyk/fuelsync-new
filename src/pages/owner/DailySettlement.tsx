@@ -207,7 +207,9 @@ export default function DailySettlement() {
   ];
   const selected = allReadings.filter((r) => selectedIds.includes(r.id));
   const expected = deduplicatePayments(selected);
-  const cashVariance = expected.cash - actualCash;
+  const expectedTotal = expected.cash + expected.online + expected.credit;
+  const actualTotal = actualCash + actualOnline + actualCredit;
+  const totalVariance = expectedTotal - actualTotal;
   const unlinkedIds = (readingsData?.unlinked.readings ?? []).map((r) => r.id);
   const allUnlinkedSelected =
     unlinkedIds.length > 0 && unlinkedIds.every((id) => selectedIds.includes(id));
@@ -516,42 +518,47 @@ export default function DailySettlement() {
                 </div>
               </div>
 
-              {/* Cash variance */}
-              {selectedIds.length > 0 && (
+              {/* Variance — compares sum of all payment types */}
+              {selectedIds.length > 0 && actualTotal > 0 && (
                 <div
                   className={`flex items-center justify-between p-3 rounded-lg border-2 ${
-                    Math.abs(cashVariance) < 1
+                    Math.abs(totalVariance) < 1
                       ? 'border-green-300 bg-green-50'
-                      : cashVariance > 0
+                      : totalVariance > 0
                       ? 'border-red-300 bg-red-50'
                       : 'border-yellow-300 bg-yellow-50'
                   }`}
                 >
                   <div className="flex items-center gap-2">
-                    {Math.abs(cashVariance) < 1 ? (
+                    {Math.abs(totalVariance) < 1 ? (
                       <CheckCircle2 className="w-4 h-4 text-green-600" />
                     ) : (
                       <AlertCircle className="w-4 h-4 text-orange-600" />
                     )}
-                    <span className="text-sm font-medium">
-                      {Math.abs(cashVariance) < 1
-                        ? 'Cash matches'
-                        : cashVariance > 0
-                        ? 'Cash shortfall'
-                        : 'Cash surplus'}
-                    </span>
+                    <div>
+                      <span className="text-sm font-medium">
+                        {Math.abs(totalVariance) < 1
+                          ? 'All amounts match'
+                          : totalVariance > 0
+                          ? 'Shortfall'
+                          : 'Surplus'}
+                      </span>
+                      <p className="text-xs text-muted-foreground">
+                        Expected {fmt(expectedTotal)} · You entered {fmt(actualTotal)}
+                      </p>
+                    </div>
                   </div>
                   <span
                     className={`text-lg font-bold ${
-                      Math.abs(cashVariance) < 1
+                      Math.abs(totalVariance) < 1
                         ? 'text-green-600'
-                        : cashVariance > 0
+                        : totalVariance > 0
                         ? 'text-red-600'
                         : 'text-yellow-600'
                     }`}
                   >
-                    {cashVariance > 0 ? '-' : cashVariance < 0 ? '+' : ''}
-                    {fmt(Math.abs(cashVariance))}
+                    {totalVariance > 0 ? '-' : totalVariance < 0 ? '+' : ''}
+                    {fmt(Math.abs(totalVariance))}
                   </span>
                 </div>
               )}
@@ -571,7 +578,7 @@ export default function DailySettlement() {
               <Button
                 onClick={handleSubmit}
                 disabled={
-                  submitting || submitMutation.isPending || selectedIds.length === 0 || actualCash === 0
+                  submitting || submitMutation.isPending || selectedIds.length === 0 || actualTotal === 0
                 }
                 size="lg"
                 className="w-full text-base py-5"
@@ -580,8 +587,8 @@ export default function DailySettlement() {
                   ? 'Saving…'
                   : selectedIds.length === 0
                   ? 'Select readings first'
-                  : actualCash === 0
-                  ? 'Enter cash amount'
+                  : actualTotal === 0
+                  ? 'Enter amounts to confirm'
                   : 'Confirm Settlement'}
               </Button>
 
