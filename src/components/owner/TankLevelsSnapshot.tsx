@@ -11,6 +11,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Fuel, ChevronRight, AlertTriangle } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { apiClient, ApiResponse } from '@/lib/api-client';
+import type { Tank } from '@/types/api';
 
 interface TankSnapshot {
   fuelType: string;
@@ -46,20 +48,13 @@ export function TankLevelsSnapshot() {
         for (const station of stations) {
           try {
             // Correct endpoint: /api/v1/stations/:stationId/tanks
-            const response = await fetch(`/api/v1/stations/${station.id}/tanks`);
+            const data: ApiResponse<Tank[]> = await apiClient.get(`/stations/${station.id}/tanks`);
             
-            if (!response.ok) {
-              console.warn(`Failed to fetch tanks for station ${station.id}: ${response.status}`);
-              continue;
-            }
-
-            const data = await response.json();
-
             if (data.success && Array.isArray(data.data)) {
-              data.data.forEach((tank: any) => {
+              data.data.forEach((tank: Tank) => {
                 try {
-                  const currentLevel = tank.currentLevel ?? tank.current_level ?? 0;
-                  const capacity = tank.capacity ?? 1;
+                  const currentLevel = tank.currentLevel;
+                  const capacity = tank.capacity;
                   const percentFull = Math.round((currentLevel / capacity) * 100);
 
                   let status: 'critical' | 'low' | 'normal' | 'overflow' = 'normal';
@@ -68,8 +63,8 @@ export function TankLevelsSnapshot() {
                   else if (percentFull > 100) status = 'overflow';
 
                   tanks.push({
-                    fuelType: tank.fuelType || tank.fuel_type || 'unknown',
-                    displayFuelName: tank.displayFuelName || tank.display_fuel_name || tank.fuelType || tank.fuel_type || 'Unknown',
+                    fuelType: tank.fuelType,
+                    displayFuelName: tank.displayFuelName || tank.fuelType,
                     currentLevel,
                     capacity,
                     percentFull,

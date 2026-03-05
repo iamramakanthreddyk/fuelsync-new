@@ -9,6 +9,14 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp } from 'lucide-react';
 import { useEffect, useState } from 'react';
+import { apiClient, ApiResponse } from '@/lib/api-client';
+
+interface DailySalesData {
+  date: string;
+  cash: number;
+  online: number;
+  credit: number;
+}
 
 interface SalesBreakdown {
   cash: number;
@@ -37,20 +45,11 @@ export function TodaysSalesBreakdown() {
         const today = new Date().toISOString().split('T')[0];
 
         // Correct endpoint: /api/v1/dashboard/daily with startDate and endDate
-        const response = await fetch(
-          `/api/v1/dashboard/daily?startDate=${today}&endDate=${today}`
+        const response: ApiResponse<DailySalesData[]> = await apiClient.get(
+          `/dashboard/daily?startDate=${today}&endDate=${today}`
         );
 
-        if (!response.ok) {
-          console.warn(`Failed to fetch daily summary: ${response.status}`);
-          setError('Failed to load sales data');
-          setIsLoading(false);
-          return;
-        }
-
-        const data = await response.json();
-
-        if (data.success && Array.isArray(data.data) && data.data.length > 0) {
+        if (response.success && Array.isArray(response.data) && response.data.length > 0) {
           // Aggregate all days (should be just one day)
           const totals = {
             cash: 0,
@@ -59,7 +58,7 @@ export function TodaysSalesBreakdown() {
             total: 0,
           };
 
-          data.data.forEach((day: any) => {
+          response.data.forEach((day: any) => {
             totals.cash += parseFloat(day.cash || 0);
             totals.online += parseFloat(day.online || 0);
             totals.credit += parseFloat(day.credit || 0);
