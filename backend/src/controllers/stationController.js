@@ -2541,7 +2541,13 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
  */
 exports.getEmployeeSalesBreakdown = async (req, res, next) => {
   try {
-    const { stationId } = req.params;
+    // Handle both /all/employee-sales (no stationId param) and /:stationId/employee-sales
+    let { stationId } = req.params;
+    // If no stationId in params, check if this is the /all route
+    if (!stationId) {
+      stationId = 'all';
+    }
+    
     const { startDate, endDate } = req.query;
     const user = req.user;
 
