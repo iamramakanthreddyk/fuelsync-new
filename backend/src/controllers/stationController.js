@@ -2627,20 +2627,27 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
     // Fetch sales data for all stations
     const allSalesData = [];
     
+    console.log(`[EmployeeSalesBreakdown] Querying ${stationIds.length} stations for ${startDate}-${endDate}, user: ${user.id}`);
+    
     for (const sid of stationIds) {
       try {
+        console.log(`[EmployeeSalesBreakdown] Calling service for station ${sid}...`);
         const sales = await employeeSalesService.getEmployeeSalesBreakdown({
           stationId: sid,
           startDate,
           endDate
         });
         
-        allSalesData.push(...sales);
+        console.log(`[EmployeeSalesBreakdown] Station ${sid} returned:`, Array.isArray(sales) ? sales.length : 'not an array');
+        if (sales && sales.length > 0) {
+          allSalesData.push(...sales);
+        }
       } catch (error) {
-        console.warn(`[EmployeeSalesBreakdown] Error for station ${sid}:`, error.message);
-        // Continue processing other stations
+        console.error(`[EmployeeSalesBreakdown] Error for station ${sid}:`, error.message);
       }
     }
+
+    console.log(`[EmployeeSalesBreakdown] Total accumulated: ${allSalesData.length} employee records`);
 
     // Merge data if multiple stations
     let result = allSalesData;

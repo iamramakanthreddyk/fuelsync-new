@@ -99,10 +99,7 @@ async function getReadingsWithNozzleInfo(stationFilter, startDate, endDate, pump
   if (pumpId) whereClause.pumpId = pumpId;
 
   return NozzleReading.findAll({
-    where: {
-      ...whereClause,
-      transactionId: { [Op.ne]: null }
-    },
+    where: whereClause,
     include: [{
       model: Nozzle, as: 'nozzle', attributes: ['id', 'nozzleNumber', 'fuelType'],
       include: [{ model: Pump, as: 'pump', attributes: ['id', 'name', 'pumpNumber'] }]
@@ -120,8 +117,7 @@ async function getDailyReadings(stationFilter, startDate, endDate) {
     where: {
       ...stationFilter,
       ...EXCLUDE_SAMPLE_READINGS,
-      readingDate: { [Op.between]: [startDate, endDate] },
-      transactionId: { [Op.ne]: null }
+      readingDate: { [Op.between]: [startDate, endDate] }
     },
     attributes: ['readingDate', 'litresSold', 'totalAmount', 'transactionId'],
     raw: true
@@ -136,8 +132,7 @@ async function getFuelTypeReadings(stationFilter, startDate, endDate) {
     where: {
       ...stationFilter,
       ...EXCLUDE_SAMPLE_READINGS,
-      readingDate: { [Op.between]: [startDate, endDate] },
-      transactionId: { [Op.ne]: null }
+      readingDate: { [Op.between]: [startDate, endDate] }
     },
     attributes: ['fuelType', 'litresSold', 'totalAmount', 'transactionId'],
     raw: true
@@ -252,31 +247,42 @@ async function getEmployeeCount(stationIds) {
  * Get period sales data (current and previous)
  */
 async function getPeriodSalesData(stationIds, startDate, endDate, prevStartDate, prevEndDate) {
-  const current = await NozzleReading.findOne({
+  // Use findAll with group: null to get aggregate without GROUP BY
+  const [currentData] = await NozzleReading.findAll({
     attributes: [
       [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
-      [fn('SUM', col('litres_sold')), 'totalQuantity']
+      [fn('SUM', col('litres_sold')), 'totalQuantity'],
+      [fn('COUNT', col('id')), 'totalTransactions']
     ],
     where: {
       ...EXCLUDE_SAMPLE_READINGS,
       stationId: { [Op.in]: stationIds },
       readingDate: { [Op.between]: [startDate, endDate] }
     },
-    raw: true
+    group: null,  // Ensures aggregate across all rows, not grouped
+    raw: true,
+    subQuery: false
   });
 
-  const previous = await NozzleReading.findOne({
+  const [previousData] = await NozzleReading.findAll({
     attributes: [
       [sequelize.literal(`SUM(litres_sold * price_per_litre)`), 'totalSales'],
-      [fn('SUM', col('litres_sold')), 'totalQuantity']
+      [fn('SUM', col('litres_sold')), 'totalQuantity'],
+      [fn('COUNT', col('id')), 'totalTransactions']
     ],
     where: {
       ...EXCLUDE_SAMPLE_READINGS,
       stationId: { [Op.in]: stationIds },
       readingDate: { [Op.between]: [prevStartDate, prevEndDate] }
     },
-    raw: true
+    group: null,  // Ensures aggregate across all rows, not grouped
+    raw: true,
+    subQuery: false
   });
+
+  // Ensure we have objects even if no rows match
+  const current = currentData || { totalSales: 0, totalQuantity: 0, totalTransactions: 0 };
+  const previous = previousData || { totalSales: 0, totalQuantity: 0, totalTransactions: 0 };
 
   return { current, previous };
 }

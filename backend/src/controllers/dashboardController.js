@@ -542,6 +542,8 @@ exports.getOwnerAnalytics = async (req, res, next) => {
 
     const totalSales = parseFloat(periodData.current?.totalSales || 0);
     const totalQuantity = parseFloat(periodData.current?.totalQuantity || 0);
+    const totalTransactions = parseInt(periodData.current?.totalTransactions || 0);
+    const averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
     const prevSales = parseFloat(periodData.previous?.totalSales || 0);
     const salesGrowth = prevSales > 0 ? ((totalSales - prevSales) / prevSales) * 100 : 0;
 
@@ -551,8 +553,8 @@ exports.getOwnerAnalytics = async (req, res, next) => {
         overview: {
           totalSales,
           totalQuantity,
-          totalTransactions: 0,
-          averageTransaction: 0,
+          totalTransactions,
+          averageTransaction: Math.round(averageTransaction * 100) / 100,
           salesGrowth: Math.round(salesGrowth * 100) / 100
         },
         salesByStation: salesByStationData.map(s => ({

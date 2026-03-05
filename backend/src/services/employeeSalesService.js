@@ -17,6 +17,16 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
   const { NozzleReading, Nozzle, User, DailyTransaction } = require('../models');
 
   try {
+    console.log(`[EmployeeSalesService] Querying readings: station=${stationId}, dates=${startDate} to ${endDate}`);
+    
+    // Diagnostic: Check raw database state
+    const rawCount = await sequelize.query(
+      `SELECT COUNT(*) as count FROM nozzle_readings WHERE station_id = ? AND reading_date BETWEEN ? AND ?`,
+      { replacements: [stationId, startDate, endDate], type: sequelize.QueryTypes.SELECT }
+    );
+    console.log(`[EmployeeSalesService] Raw DB query found ${rawCount[0]?.count || 0} readings`);
+    
+    
     // Query all readings for the date range
     const readings = await NozzleReading.findAll({
       where: {
@@ -29,7 +39,7 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
         {
           model: Nozzle,
           attributes: ['id', 'pumpId', 'fuelType'],
-          required: true
+          required: false  // Allow readings without nozzle reference
         },
         {
           model: User,
@@ -52,6 +62,8 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
       ],
       raw: false
     });
+
+    console.log(`[EmployeeSalesService] Found ${readings.length} readings for station ${stationId}`);
 
     // Fetch daily transactions to get accurate payment breakdown
     const transactions = await DailyTransaction.findAll({
@@ -78,12 +90,19 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
     // Aggregate by employee, then by fuel type
     const employeeMap = new Map();
 
-    readings.forEach(reading => {
-      const employeeId = reading.enteredBy;
-      const employeeName = reading.enteredByUser?.name || 'Unknown';
-      const fuelType = reading.Nozzle?.fuelType || 'Unknown';
-      const litres = parseFloat(reading.litresSold) || 0;
-      const saleValue = parseFloat(reading.totalAmount) || 0;
+    console.log(`[EmployeeSalesService] Starting aggregation of ${readings.length} readings...`);
+    
+    readings.forEach((reading, idx) => {
+      try {
+        const employeeId = reading.enteredBy;
+        const employeeName = reading.enteredByUser?.name || 'Unknown';
+        const fuelType = reading.Nozzle?.fuelType || 'Unknown';
+        const litres = parseFloat(reading.litresSold) || 0;
+        const saleValue = parseFloat(reading.totalAmount) || 0;
+
+        if (idx < 3) {
+          console.log(`[EmployeeSalesService] Reading ${idx}: employee=${employeeName}, fuel=${fuelType}, litres=${litres}, value=${saleValue}`);
+        }
 
       // Get payment breakdown from transaction or reading
       let paymentBreakdown = { cash: 0, online: 0, credit: 0 };
@@ -189,6 +208,7 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
     // Sort by total sales descending
     result.sort((a, b) => b.totalSales - a.totalSales);
 
+    console.log(`[EmployeeSalesService] Returning ${result.length} employee records for station ${stationId}`);
     return result;
   } catch (error) {
     console.error('[EmployeeSalesService] Error:', error);
