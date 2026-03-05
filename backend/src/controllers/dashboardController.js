@@ -13,6 +13,9 @@ const paymentService = require('../services/paymentBreakdownService');
 const { FUEL_TYPE_LABELS } = require('../config/constants');
 const ApiResponse = require('../utils/responseFormatter');
 
+// Filter to exclude sample readings from all queries
+const EXCLUDE_SAMPLE_READINGS = { isSample: { [Op.ne]: true } };
+
 /**
  * Get today's dashboard summary
  * GET /api/v1/dashboard/summary
