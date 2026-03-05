@@ -19,14 +19,14 @@ export function useAdminDashboard() {
         apiClient.get<Station[]>('/stations')
       ]);
 
-      const users = usersRes || [];
-      const stations = stationsRes || [];
+      const users = Array.isArray(usersRes) ? usersRes : ((usersRes as any)?.data || []);
+      const stations = Array.isArray(stationsRes) ? stationsRes : ((stationsRes as any)?.data || []);
 
       const stats: AdminStats = {
         totalUsers: users.length,
         totalStations: stations.length,
-        totalOwners: users.filter(u => u.role === 'owner').length,
-        totalEmployees: users.filter(u => u.role === 'employee').length,
+        totalOwners: users.filter((u: User) => u.role === 'owner').length,
+        totalEmployees: users.filter((u: User) => u.role === 'employee').length,
         activeStations: stations.length
       };
 
@@ -55,8 +55,8 @@ export function useOwnerDashboard(stationId?: string) {
       ]);
 
       return {
-        employees: employeesRes || [],
-        pumps: pumpsRes || [],
+        employees: Array.isArray(employeesRes) ? employeesRes : ((employeesRes as any)?.data || []),
+        pumps: Array.isArray(pumpsRes) ? pumpsRes : ((pumpsRes as any)?.data || []),
         stationId
       };
     },
@@ -78,8 +78,8 @@ export function useEmployeeDashboard(stationId?: string) {
       ]);
 
       return {
-        activeShift: (shiftRes as any)?.shift || null,
-        todayReadings: readingsRes || [],
+        activeShift: (shiftRes as any)?.data?.shift || (shiftRes as any)?.shift || null,
+        todayReadings: Array.isArray(readingsRes) ? readingsRes : ((readingsRes as any)?.data || []),
         stationId
       };
     },
