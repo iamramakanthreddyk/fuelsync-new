@@ -17,27 +17,45 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
   const { NozzleReading, Nozzle, User, DailyTransaction } = require('../models');
 
   try {
-    console.log(`[EmployeeSalesService] Querying readings: station=${stationId}, dates=${startDate} to ${endDate}`);
+    // Ensure dates are properly formatted
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    const formattedStartDate = start.toISOString().split('T')[0];
+    const formattedEndDate = end.toISOString().split('T')[0];
+    
+    console.log(`[EmployeeSalesService] Querying readings: station=${stationId}, dates=${formattedStartDate} to ${formattedEndDate}`);
     
     // Diagnostic: Check raw database state
     const rawCount = await sequelize.query(
       `SELECT COUNT(*) as count FROM nozzle_readings WHERE station_id = ? AND reading_date BETWEEN ? AND ?`,
-      { replacements: [stationId, startDate, endDate], type: sequelize.QueryTypes.SELECT }
+      { replacements: [stationId, formattedStartDate, formattedEndDate], type: sequelize.QueryTypes.SELECT }
     );
-    console.log(`[EmployeeSalesService] Raw DB query found ${rawCount[0]?.count || 0} readings`);
+    const readingCount = rawCount[0]?.count || 0;
+    console.log(`[EmployeeSalesService] Raw DB query found ${readingCount} readings`);
     
+    if (readingCount === 0) {
+      console.log(`[EmployeeSalesService] No readings found. Checking raw counts...`);
+      // Diagnostic: Check if there's ANY data for this station
+      const anyCount = await sequelize.query(
+        `SELECT COUNT(*) as count FROM nozzle_readings WHERE station_id = ?`,
+        { replacements: [stationId], type: sequelize.QueryTypes.SELECT }
+      );
+      console.log(`[EmployeeSalesService] Total readings for station ${stationId}: ${anyCount[0]?.count || 0}`);
+    }
     
     // Query all readings for the date range
     const readings = await NozzleReading.findAll({
       where: {
         stationId,
         readingDate: {
-          [Op.between]: [startDate, endDate]
+          [Op.between]: [formattedStartDate, formattedEndDate]
         }
       },
       include: [
         {
           model: Nozzle,
+          as: 'nozzle',
           attributes: ['id', 'pumpId', 'fuelType'],
           required: false  // Allow readings without nozzle reference
         },
@@ -95,7 +113,7 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
     readings.forEach((reading, idx) => {
       const employeeId = reading.enteredBy;
       const employeeName = reading.enteredByUser?.name || 'Unknown';
-      const fuelType = reading.Nozzle?.fuelType || 'Unknown';
+      const fuelType = reading.nozzle?.fuelType || 'Unknown';
       const litres = parseFloat(reading.litresSold) || 0;
       const saleValue = parseFloat(reading.totalAmount) || 0;
 

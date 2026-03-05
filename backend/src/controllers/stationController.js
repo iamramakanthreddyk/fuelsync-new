@@ -2566,13 +2566,17 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
       // Get stations accessible to this user based on role
       if (user.role === 'super_admin') {
         // Super admin can see all stations
+        console.log(`[EmployeeSalesBreakdown] Super admin - checking all stations`);
         // No additional filter
       } else if (user.role === 'owner') {
         // Owner can only see stations they own
         whereClause.ownerId = user.id;
+        console.log(`[EmployeeSalesBreakdown] Owner (ID: ${user.id}) - filtering by ownerId`);
       } else if (user.role === 'manager' || user.role === 'employee') {
         // Manager/Employee can only see their assigned station
+        console.log(`[EmployeeSalesBreakdown] ${user.role.toUpperCase()} requesting all - stationId=${user.stationId}`);
         if (!user.stationId) {
+          console.warn(`[EmployeeSalesBreakdown] ${user.role} without stationId assignment - returning empty`);
           return res.json({
             success: true,
             data: [],
@@ -2595,10 +2599,12 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
 
       const userStations = await Station.findAll({
         where: whereClause,
-        attributes: ['id'],
+        attributes: ['id', 'name'],
         raw: true
       });
 
+      console.log(`[EmployeeSalesBreakdown] Found ${userStations.length} accessible stations:`, userStations.map(s => `${s.id} (${s.name})`));
+      
       stationIds = userStations.map(s => s.id);
       
       if (stationIds.length === 0) {
@@ -2627,27 +2633,28 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
     // Fetch sales data for all stations
     const allSalesData = [];
     
-    console.log(`[EmployeeSalesBreakdown] Querying ${stationIds.length} stations for ${startDate}-${endDate}, user: ${user.id}`);
+    console.log(`[EmployeeSalesBreakdown] Processing ${stationIds.length} station(s) for ${startDate}-${endDate}`);
     
     for (const sid of stationIds) {
       try {
-        console.log(`[EmployeeSalesBreakdown] Calling service for station ${sid}...`);
+        console.log(`[EmployeeSalesBreakdown] Fetching data for station ${sid}...`);
         const sales = await employeeSalesService.getEmployeeSalesBreakdown({
           stationId: sid,
           startDate,
           endDate
         });
         
-        console.log(`[EmployeeSalesBreakdown] Station ${sid} returned:`, Array.isArray(sales) ? sales.length : 'not an array');
-        if (sales && sales.length > 0) {
+        console.log(`[EmployeeSalesBreakdown] Station ${sid} returned ${Array.isArray(sales) ? sales.length : 'invalid'} employee records`);
+        if (sales && Array.isArray(sales) && sales.length > 0) {
+          console.log(`[EmployeeSalesBreakdown] Adding ${sales.length} records from station ${sid}`);
           allSalesData.push(...sales);
         }
       } catch (error) {
-        console.error(`[EmployeeSalesBreakdown] Error for station ${sid}:`, error.message);
+        console.error(`[EmployeeSalesBreakdown] Error fetching data for station ${sid}:`, error.message);
       }
     }
 
-    console.log(`[EmployeeSalesBreakdown] Total accumulated: ${allSalesData.length} employee records`);
+    console.log(`[EmployeeSalesBreakdown] Total accumulated: ${allSalesData.length} employee records across all stations`);
 
     // Merge data if multiple stations
     let result = allSalesData;
