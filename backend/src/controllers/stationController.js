@@ -1370,34 +1370,20 @@ exports.getDailySales = async (req, res, next) => {
     const byFuelType = {};
     const readingsList = [];
 
-    const { DailyTransaction } = require('../models');
+    // Deduplicate payment amounts: when an employee submits a batch of readings,
+    // each reading stores the FULL transaction payment (not a proportional share).
+    // Grouping by (enteredBy + exact amounts) ensures we count each employee's
+    // payment submission only once, regardless of how many readings are in the batch.
+    const seenPaymentKeys = new Set();
 
-    for (const reading of readings) {
-      const saleValue = parseFloat(reading.litresSold || 0) * parseFloat(reading.pricePerLitre || 0);
+    readings.forEach(reading => {
+      const saleValue = parseFloat(reading.totalAmount || 0) ||
+        (parseFloat(reading.litresSold || 0) * parseFloat(reading.pricePerLitre || 0));
       const liters = parseFloat(reading.litresSold || 0);
-      const fuelType = reading.fuelType || reading.Nozzle?.fuelType || 'unknown';
-      
-      // Fetch payment breakdown from DailyTransaction if transactionId exists
-      let cash = 0;
-      let online = 0;
-      let credit = 0;
-
-      if (reading.transactionId) {
-        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
-          attributes: ['paymentBreakdown']
-        });
-        if (transaction && transaction.paymentBreakdown) {
-          cash = parseFloat(transaction.paymentBreakdown.cash || 0);
-          online = parseFloat(transaction.paymentBreakdown.online || 0);
-          credit = parseFloat(transaction.paymentBreakdown.credit || 0);
-        }
-      }
+      const fuelType = reading.fuelType || reading.nozzle?.fuelType || reading.Nozzle?.fuelType || 'unknown';
 
       totalSaleValue += saleValue;
       totalLiters += liters;
-      totalCash += cash;
-      totalOnline += online;
-      totalCredit += credit;
 
       if (!byFuelType[fuelType]) {
         byFuelType[fuelType] = { liters: 0, value: 0 };
@@ -1407,12 +1393,36 @@ exports.getDailySales = async (req, res, next) => {
 
       readingsList.push({
         id: reading.id,
-        nozzleNumber: reading.Nozzle?.nozzleNumber,
+        nozzleNumber: reading.nozzle?.nozzleNumber || reading.Nozzle?.nozzleNumber,
         fuelType,
         liters,
         saleValue
       });
-    }
+
+      const cash = parseFloat(reading.cashAmount || 0);
+      const online = parseFloat(reading.onlineAmount || 0);
+      const credit = parseFloat(reading.creditAmount || 0);
+
+      if (cash > 0 || online > 0 || credit > 0) {
+        // Build a deduplication key: same employee + same exact amounts = same transaction batch.
+        // This prevents counting the same transaction-level payment once per reading.
+        const paymentKey = `${reading.enteredBy}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
+        if (!seenPaymentKeys.has(paymentKey)) {
+          seenPaymentKeys.add(paymentKey);
+          totalCash += cash;
+          totalOnline += online;
+          totalCredit += credit;
+        }
+      } else if (saleValue > 0) {
+        // Legacy fallback: reading has no payment breakdown recorded – treat whole sale as cash.
+        // Use a per-reading key so each legacy reading is counted individually.
+        const legacyKey = `legacy|${reading.id}`;
+        if (!seenPaymentKeys.has(legacyKey)) {
+          seenPaymentKeys.add(legacyKey);
+          totalCash += saleValue;
+        }
+      }
+    });
 
     res.json({
       success: true,
@@ -1573,44 +1583,44 @@ exports.getReadingsForSettlement = async (req, res, next) => {
       }
     }
 
-    // Calculate totals for unlinked readings using the authoritative DailyTransaction payment data
-    const processedUnlinkedTxIds = new Set();
-    const unlinkedTotals = unlinkedReadings.reduce((acc, r) => {
-      const txId = r.transaction?.id;
-      const pb = paymentMap[txId] || {};
-      
-      // Only add payment breakdown once per transaction
-      if (txId && !processedUnlinkedTxIds.has(txId)) {
-        acc.cash += parseFloat(pb.cash || 0);
-        acc.online += parseFloat(pb.online || 0);
-        acc.credit += parseFloat(pb.credit || 0);
-        processedUnlinkedTxIds.add(txId);
-      }
-      
-      acc.litres += r.litresSold;
-      acc.value += r.saleValue;
-      return acc;
-    }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
+    
+    // Helper: deduplicate payment totals across readings.
+    // When an employee submits a batch of readings, each reading may store the
+    // full transaction payment. We count each unique (employee + amounts) once.
+    const calcDeduplicatedTotals = (readingsList) => {
+      const seen = new Set();
+      return readingsList.reduce((acc, r) => {
+        acc.litres += r.litresSold;
+        acc.value += r.saleValue;
+        const cash = r.cashAmount || 0;
+        const online = r.onlineAmount || 0;
+        const credit = r.creditAmount || 0;
+        const employeeId = r.recordedBy?.id || 'unknown';
+        if (cash > 0 || online > 0 || credit > 0) {
+          const key = `${employeeId}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            acc.cash += cash;
+            acc.online += online;
+            acc.credit += credit;
+          }
+        } else {
+          // Legacy: no payment info – treat sale value as cash (once per reading)
+          const legacyKey = `legacy|${r.id}`;
+          if (!seen.has(legacyKey)) {
+            seen.add(legacyKey);
+            acc.cash += r.saleValue;
+          }
+        }
+        return acc;
+      }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
+    };
+
+    // Calculate totals for unlinked readings
+    const unlinkedTotals = calcDeduplicatedTotals(unlinkedReadings);
 
     // Calculate totals for linked readings
-    // Only count payment breakdown once per transaction, not once per reading
-    const processedLinkedTxIds = new Set();
-    const linkedTotals = linkedReadings.reduce((acc, r) => {
-      const txId = r.transaction?.id;
-      const pb = paymentMap[txId] || {};
-      
-      // Only add payment breakdown once per transaction
-      if (txId && !processedLinkedTxIds.has(txId)) {
-        acc.cash += parseFloat(pb.cash || 0);
-        acc.online += parseFloat(pb.online || 0);
-        acc.credit += parseFloat(pb.credit || 0);
-        processedLinkedTxIds.add(txId);
-      }
-      
-      acc.litres += r.litresSold;;
-      acc.value += r.saleValue;
-      return acc;
-    }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
+    const linkedTotals = calcDeduplicatedTotals(linkedReadings);
 
     res.json({
       success: true,
