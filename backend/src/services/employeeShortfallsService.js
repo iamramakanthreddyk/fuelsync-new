@@ -14,7 +14,7 @@ const { Op } = require('sequelize');
  */
 exports.calculateSettlementShortfalls = async (settlement) => {
   try {
-    if (!settlement || settlement.variance >= 0 || !settlement.readingIds || settlement.readingIds.length === 0) {
+    if (!settlement || settlement.variance <= 0 || !settlement.readingIds || settlement.readingIds.length === 0) {
       return null; // No shortfall or no readings to distribute
     }
 
@@ -103,7 +103,7 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
       where: {
         stationId,
         date: { [require('sequelize').Op.between]: [startDate, endDate] },
-        variance: { [require('sequelize').Op.lt]: 0 } // Only negative variance (shortfalls)
+        variance: { [require('sequelize').Op.gt]: 0 } // Only positive variance (shortfalls)
       },
       attributes: ['id', 'date', 'variance', 'readingIds'],
       raw: true
@@ -260,7 +260,7 @@ exports.updateSettlementShortfalls = async (settlementId, transaction) => {
     }
 
     // Skip if already calculated or no shortfall
-    if (settlement.employeeShortfalls !== null || settlement.variance >= 0) {
+    if (settlement.employeeShortfalls !== null || settlement.variance <= 0) {
       return settlement;
     }
 
