@@ -2384,9 +2384,37 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
     let stationIds = [stationId];
     
     if (stationId === 'all') {
-      // Get all stations owned by user
+      let whereClause = { isActive: true };
+
+      // Get stations accessible to this user based on role
+      if (user.role === 'super_admin') {
+        // Super admin can see all stations
+        // No additional filter
+      } else if (user.role === 'owner') {
+        // Owner can only see stations they own
+        whereClause.ownerId = user.id;
+      } else if (user.role === 'manager' || user.role === 'employee') {
+        // Manager/Employee can only see their assigned station
+        if (!user.stationId) {
+          return res.json({
+            success: true,
+            data: [],
+            metadata: {
+              stationId: 'all',
+              dateRange: { startDate, endDate },
+              totalEmployeesAffected: 0,
+              totalShortfallAmount: 0
+            }
+          });
+        }
+        whereClause.id = user.stationId;
+      } else {
+        // Unknown role
+        return res.status(403).json({ success: false, error: 'Invalid user role' });
+      }
+
       const userStations = await Station.findAll({
-        where: { ownerId: user.id },
+        where: whereClause,
         attributes: ['id'],
         raw: true
       });
@@ -2394,6 +2422,7 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
       stationIds = userStations.map(s => s.id);
       
       if (stationIds.length === 0) {
+        console.log(`[EmployeeShortfalls] No stations found for user ${user.id} with role ${user.role}`);
         return res.json({
           success: true,
           data: [],
@@ -2532,8 +2561,40 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
     let stationIds = [stationId];
     
     if (stationId === 'all') {
+      let whereClause = { isActive: true };
+
+      // Get stations accessible to this user based on role
+      if (user.role === 'super_admin') {
+        // Super admin can see all stations
+        // No additional filter
+      } else if (user.role === 'owner') {
+        // Owner can only see stations they own
+        whereClause.ownerId = user.id;
+      } else if (user.role === 'manager' || user.role === 'employee') {
+        // Manager/Employee can only see their assigned station
+        if (!user.stationId) {
+          return res.json({
+            success: true,
+            data: [],
+            summary: {
+              totalEmployees: 0,
+              totalSales: 0,
+              totalQuantity: 0,
+              totalCash: 0,
+              totalOnline: 0,
+              totalCredit: 0,
+              dateRange: { startDate, endDate }
+            }
+          });
+        }
+        whereClause.id = user.stationId;
+      } else {
+        // Unknown role
+        return res.status(403).json({ success: false, error: 'Invalid user role' });
+      }
+
       const userStations = await Station.findAll({
-        where: { ownerId: user.id },
+        where: whereClause,
         attributes: ['id'],
         raw: true
       });
@@ -2541,6 +2602,7 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
       stationIds = userStations.map(s => s.id);
       
       if (stationIds.length === 0) {
+        console.log(`[EmployeeSalesBreakdown] No stations found for user ${user.id} with role ${user.role}`);
         return res.json({
           success: true,
           data: [],

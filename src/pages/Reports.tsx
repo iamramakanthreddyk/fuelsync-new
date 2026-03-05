@@ -120,7 +120,7 @@ const DataTable: React.FC<{ columns: TableColumn[], data: any[] }> = ({ columns,
 // Summary cards component
 const SummaryCards: React.FC<{ data: any[], reportType: ReportType }> = ({ data, reportType }) => {
   const summary = useMemo(() => {
-    if (!data || data.length === 0) return null;
+    if (!Array.isArray(data) || data.length === 0) return null;
 
     if (reportType === 'sales') {
       const totalSales = data.reduce((sum, row) => sum + (row.totalSales ?? 0), 0);
@@ -245,16 +245,17 @@ export default function Reports() {
 
   // Filter data based on fuel type if applicable
   const filteredData = useMemo(() => {
-    if (!reportData.data || fuelTypeFilter === 'all') return reportData.data;
+    if (!Array.isArray(reportData?.data)) return [];
+    if (fuelTypeFilter === 'all') return reportData.data;
     return reportData.data.filter((row: any) => row.fuelType === fuelTypeFilter);
-  }, [reportData.data, fuelTypeFilter]);
+  }, [reportData?.data, fuelTypeFilter]);
 
   // Get unique fuel types for filter
   const fuelTypes = useMemo(() => {
-    if (!reportData.data) return [];
+    if (!Array.isArray(reportData?.data)) return [];
     const types = new Set(reportData.data.map((row: any) => row.fuelType).filter(Boolean));
     return Array.from(types);
-  }, [reportData.data]);
+  }, [reportData?.data]);
 
   const handleExport = () => exportToCsv(filteredData, reportType, startDate, endDate, toast);
 
