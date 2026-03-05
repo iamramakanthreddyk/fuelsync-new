@@ -124,7 +124,7 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
           required: false
         }
       ],
-      attributes: ['id', 'readingDate', 'enteredBy'],
+      attributes: ['id', 'readingDate', 'enteredBy', 'settlementId'],
       raw: false,
       subQuery: false
     });
@@ -156,13 +156,21 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
 
     // Calculate shortfalls for each settlement and distribute to employees
     settlements.forEach(settlement => {
-      if (!settlement.readingIds || settlement.readingIds.length === 0) {
-        return;
+      // Get readingIds - either from field or query from linked readings
+      let settlementReadingIds = [];
+      
+      if (settlement.readingIds) {
+        // readingIds field is populated
+        settlementReadingIds = Array.isArray(settlement.readingIds) 
+          ? settlement.readingIds 
+          : (typeof settlement.readingIds === 'string' ? JSON.parse(settlement.readingIds || '[]') : []);
       }
-
-      const settlementReadingIds = Array.isArray(settlement.readingIds) 
-        ? settlement.readingIds 
-        : (typeof settlement.readingIds === 'string' ? JSON.parse(settlement.readingIds || '[]') : []);
+      
+      if (settlementReadingIds.length === 0) {
+        // Backward compatibility: if readingIds is null/empty, find readings linked to this settlement
+        const linkedReadings = readings.filter(r => r.settlementId === settlement.id);
+        settlementReadingIds = linkedReadings.map(r => r.id);
+      }
 
       if (settlementReadingIds.length === 0) {
         return;
