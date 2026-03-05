@@ -257,13 +257,23 @@ export default function DailySettlement() {
             <p className="text-sm text-muted-foreground truncate">{dailySales.stationName}</p>
           )}
         </div>
-        <Input
-          type="date"
-          value={selectedDate}
-          onChange={(e) => setSelectedDate(e.target.value)}
-          max={new Date().toISOString().split('T')[0]}
-          className="w-36 text-sm"
-        />
+        <div className="flex items-center gap-2">
+          <Input
+            type="date"
+            value={selectedDate}
+            onChange={(e) => setSelectedDate(e.target.value)}
+            max={new Date().toISOString().split('T')[0]}
+            className="w-36 text-sm"
+          />
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate(`/settlements?stationId=${stationId}&date=${selectedDate}`)}
+            className="text-xs"
+          >
+            View history
+          </Button>
+        </div>
       </div>
 
       {/*  Loading / empty  */}
