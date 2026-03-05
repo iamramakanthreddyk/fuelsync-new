@@ -20,6 +20,7 @@ const userRoutes = require('./routes/users');
 const { requireMinRole } = require('./middleware/auth');
 const stationRoutes = require('./routes/stations');
 const readingRoutes = require('./routes/readings');
+const bulkOperationsRoutes = require('./routes/bulkOperations');
 const transactionRoutes = require('./routes/transactions');
 const analyticsRoutes = require('./routes/analytics'); // Consolidated analytics & sales
 const salesRoutes = require('./routes/sales'); // Sales endpoint
@@ -39,6 +40,8 @@ const { FUEL_TYPES, PAYMENT_METHODS, EXPENSE_CATEGORIES, USER_ROLES } = require(
 
 // Import middleware
 const normalizeRequestBody = require('./middleware/normalizeRequestBody');
+const requestTracking = require('./middleware/requestTracking');
+const healthCheck = require('./utils/healthCheck');
 
 // Create Express app
 const app = express();
@@ -110,6 +113,9 @@ const corsOptions = {
 // Apply CORS middleware FIRST - this handles OPTIONS automatically
 app.use(cors(corsOptions));
 
+// Request tracking middleware - MUST be early for request ID correlation
+app.use(requestTracking());
+
 // Security headers - but SAFE for CORS
 app.use(helmet({
   crossOriginResourcePolicy: false,
@@ -159,12 +165,20 @@ app.use(normalizeRequestBody);
 // ============================================
 
 // Health check
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    timestamp: new Date().toISOString(),
-    version: '2.0.0'
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const health = await healthCheck.getFullHealth();
+    const statusCode = health.status === 'ok' ? 200 : 503;
+    res.status(statusCode).json(health);
+  } catch (error) {
+    console.error('[ERROR] Health check failed:', error);
+    res.status(503).json({
+      status: 'error',
+      message: 'Health check failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Diagnostic endpoint to help identify configuration issues
@@ -202,6 +216,7 @@ app.use('/api/v1', expenseRoutes);  // Expenses under /api/v1/stations/:id/expen
 app.use('/api/v1', profitRoutes);   // Profit under /api/v1/stations/:id/profit-* - BEFORE stations
 app.use('/api/v1/stations', stationRoutes);
 app.use('/api/v1/readings', readingRoutes);
+app.use('/api/v1/readings/bulk', bulkOperationsRoutes);  // Bulk operations AFTER readings prefix
 app.use('/api/v1/transactions', transactionRoutes);  // Daily transaction management
 app.use('/api/v1/sales', salesRoutes);              // Sales endpoints
 app.use('/api/v1/analytics', analyticsRoutes);      // Consolidated: dashboard + sales + reports

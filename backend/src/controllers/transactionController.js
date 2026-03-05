@@ -12,6 +12,7 @@
 const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize, FuelPrice, Nozzle, Pump } = require('../models');
 const { logAudit } = require('../utils/auditLog');
 const transactionValidation = require('../services/transactionValidationService');
+const transactionValidationEnhancedService = require('../services/transactionValidationEnhancedService');
 const creditAllocationService = require('../services/creditAllocationService');
 const { VALIDATION_ERRORS, TRANSACTION_STATUS } = require('../config/transactionConstants');
 const { Op } = require('sequelize');
@@ -137,21 +138,27 @@ exports.createTransaction = async (req, res, next) => {
       return res.status(400).json({ success: false, error: VALIDATION_ERRORS.SAMPLE_READINGS_ONLY });
     }
 
-    // Validate payment breakdown
-    const paymentValidation = transactionValidation.validatePaymentBreakdown(paymentBreakdown, totalSaleValue);
-    if (!paymentValidation.isValid) {
+    // Validate using enhanced service (checks amount variance, methods required, credit allocations linked to readings)
+    const enhancedValidation = await transactionValidationEnhancedService.validateTransactionComplete({
+      stationId,
+      transactionDate,
+      readingIds,
+      readings,
+      paymentBreakdown,
+      creditAllocations,
+      totalSaleValue
+    });
+
+    if (!enhancedValidation.isValid) {
       return res.status(400).json({
         success: false,
-        error: paymentValidation.error,
-        details: paymentValidation.details
+        error: enhancedValidation.error,
+        details: enhancedValidation.details,
+        issues: enhancedValidation.issues
       });
     }
 
-    // Validate credit allocations
-    const creditValidation = transactionValidation.validateCreditAllocations(creditAllocations, paymentValidation.normalizedBreakdown.credit);
-    if (!creditValidation.isValid) {
-      return res.status(400).json({ success: false, error: creditValidation.error });
-    }
+    const normalizedBreakdown = enhancedValidation.normalizedBreakdown;
 
     // Persist atomically
     const t = await sequelize.transaction();
@@ -161,7 +168,7 @@ exports.createTransaction = async (req, res, next) => {
         transactionDate,
         totalLiters,
         totalSaleValue,
-        paymentBreakdown: paymentValidation.normalizedBreakdown,
+        paymentBreakdown: normalizedBreakdown,
         creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
         readingIds,
         createdBy: userId,
@@ -201,7 +208,7 @@ exports.createTransaction = async (req, res, next) => {
           transactionDate,
           totalLiters,
           totalSaleValue,
-          paymentBreakdown: paymentValidation.normalizedBreakdown,
+          paymentBreakdown: normalizedBreakdown,
           creditAllocations: creditAllocations.length
         },
         category: 'finance',

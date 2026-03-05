@@ -29,6 +29,7 @@ const { Op } = require('sequelize');
 const { canAccessStation } = require('../middleware/accessControl');
 const { logAudit } = require('../utils/auditLog');
 const readingValidation = require('../services/readingValidationService');
+const readingValidationEnhancedService = require('../services/readingValidationEnhancedService');
 const readingCalculation = require('../services/readingCalculationService');
 const readingCache = require('../services/readingCacheService');
 const readingRepository = require('../repositories/readingRepository');
@@ -120,6 +121,58 @@ exports.createReading = async (req, res, next) => {
         success: false,
         error: readingValidationResult.error,
         previousReading: readingValidationResult.previousReading
+      });
+    }
+
+    // Enhanced validation: Check for duplicates
+    const duplicateCheck = await readingValidationEnhancedService.checkDuplicateReading({
+      nozzleId: normalizedInput.nozzleId,
+      readingDate: normalizedInput.readingDate,
+      readingValue: normalizedInput.readingValue,
+      tolerance: 0.01
+    });
+
+    if (duplicateCheck.isDuplicate) {
+      return res.status(409).json({
+        success: false,
+        error: 'Duplicate reading detected',
+        details: {
+          message: `A reading for nozzle ${normalizedInput.nozzleId} on ${normalizedInput.readingDate} with value ${duplicateCheck.existingReading.readingValue} already exists`,
+          existingReadingId: duplicateCheck.existingReading.id,
+          existingReadingDate: duplicateCheck.existingReading.createdAt
+        }
+      });
+    }
+
+    // Enhanced validation: Check sequence and unusual increases
+    const sequenceValidation = await readingValidationEnhancedService.validateReadingSequence({
+      nozzleId: normalizedInput.nozzleId,
+      currentValue: normalizedInput.readingValue,
+      readingDate: normalizedInput.readingDate,
+      previousValue: previousReading
+    });
+
+    if (!sequenceValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: sequenceValidation.error,
+        details: sequenceValidation.details,
+        warnings: sequenceValidation.warnings
+      });
+    }
+
+    // Enhanced validation: Check for meter specifications compliance
+    const meterValidation = await readingValidationEnhancedService.validateMeterSpecifications({
+      nozzleId: normalizedInput.nozzleId,
+      readingValue: normalizedInput.readingValue,
+      fuelType: nozzle.fuelType
+    });
+
+    if (!meterValidation.isValid) {
+      return res.status(400).json({
+        success: false,
+        error: meterValidation.error,
+        details: meterValidation.details
       });
     }
 
