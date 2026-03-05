@@ -2415,6 +2415,8 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
     // Use the employee shortfalls service to calculate shortfalls
     const allShortfalls = [];
     
+    console.log(`[StationController-EmployeeShortfalls] Querying for stationIds:`, stationIds);
+    
     for (const sid of stationIds) {
       try {
         const shortfalls = await employeeShortfallsService.getEmployeeShortfallsForDateRange({
@@ -2423,6 +2425,7 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
           endDate
         });
         
+        console.log(`[StationController-EmployeeShortfalls] Station ${sid}: Found ${shortfalls.length} employee shortfalls`);
         allShortfalls.push(...shortfalls);
       } catch (error) {
         console.warn(`[EmployeeShortfalls] Error for station ${sid}:`, error.message);
@@ -2476,6 +2479,8 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
 
     // Sort by highest shortfall first
     result.sort((a, b) => b.totalShortfall - a.totalShortfall);
+
+    console.log(`[StationController-EmployeeShortfalls] Final result: ${result.length} employees with shortfalls`);
 
     res.json({
       success: true,

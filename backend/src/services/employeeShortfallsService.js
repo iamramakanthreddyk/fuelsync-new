@@ -14,7 +14,12 @@ const { Op } = require('sequelize');
  */
 exports.calculateSettlementShortfalls = async (settlement) => {
   try {
-    if (!settlement || settlement.variance <= 0 || !settlement.readingIds || settlement.readingIds.length === 0) {
+    // Check if any variance exists (cash, online, or credit)
+    const totalVariance = Math.abs(parseFloat(settlement.variance || 0))
+      + Math.abs(parseFloat(settlement.varianceOnline || 0))
+      + Math.abs(parseFloat(settlement.varianceCredit || 0));
+    
+    if (!settlement || totalVariance === 0 || !settlement.readingIds || settlement.readingIds.length === 0) {
       return null; // No shortfall or no readings to distribute
     }
 
@@ -63,7 +68,9 @@ exports.calculateSettlementShortfalls = async (settlement) => {
 
     // Calculate proportional shortfall per employee
     const totalReadings = readings.length;
-    const totalShortfall = Math.abs(parseFloat(settlement.variance || 0));
+    const totalShortfall = Math.abs(parseFloat(settlement.variance || 0))
+      + Math.abs(parseFloat(settlement.varianceOnline || 0))
+      + Math.abs(parseFloat(settlement.varianceCredit || 0));
     const employeeShortfalls = {};
 
     Object.entries(employeeReadingCounts).forEach(([empId, data]) => {
@@ -101,19 +108,25 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
     console.log(`[EmployeeShortfalls] Query: stationId=${stationId}, dateRange=${startDate} to ${endDate}`);
 
     // Fetch all settlements with shortfalls in date range
+    // Check for variance in ANY field: cash, online, or credit
     const settlements = await Settlement.findAll({
       where: {
         stationId,
         date: { [require('sequelize').Op.between]: [startDate, endDate] },
-        variance: { [require('sequelize').Op.gt]: 0 } // Only positive variance (shortfalls)
+        [require('sequelize').Op.or]: [
+          { variance: { [require('sequelize').Op.gt]: 0 } },          // Cash shortfall
+          { varianceOnline: { [require('sequelize').Op.gt]: 0 } },    // Online shortfall
+          { varianceCredit: { [require('sequelize').Op.gt]: 0 } }     // Credit shortfall
+        ]
       },
-      attributes: ['id', 'date', 'variance', 'readingIds'],
+      attributes: ['id', 'date', 'variance', 'varianceOnline', 'varianceCredit', 'readingIds'],
       raw: true
     });
 
     console.log(`[EmployeeShortfalls] Found ${settlements.length} settlements with shortfalls`);
     settlements.forEach(s => {
-      console.log(`  - Settlement ${s.id}: variance=${s.variance}, readingIds=${s.readingIds ? (Array.isArray(s.readingIds) ? s.readingIds.length : 'JSON-string') : 'null'}`);
+      const totalVar = Math.abs(s.variance || 0) + Math.abs(s.varianceOnline || 0) + Math.abs(s.varianceCredit || 0);
+      console.log(`  - Settlement ${s.id}: cash=${s.variance}, online=${s.varianceOnline}, credit=${s.varianceCredit}, total=${totalVar}, readingIds=${s.readingIds ? (Array.isArray(s.readingIds) ? s.readingIds.length : 'JSON-string') : 'null'}`);
     });
 
     // Fetch all readings in date range with employee info
@@ -170,7 +183,8 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
 
     // Calculate shortfalls for each settlement and distribute to employees
     settlements.forEach(settlement => {
-      console.log(`[EmployeeShortfalls] Processing settlement ${settlement.id} with variance ${settlement.variance}`);
+      const totalVar = Math.abs(settlement.variance || 0) + Math.abs(settlement.varianceOnline || 0) + Math.abs(settlement.varianceCredit || 0);
+      console.log(`[EmployeeShortfalls] Processing settlement ${settlement.id} with total variance ${totalVar} (cash: ${settlement.variance}, online: ${settlement.varianceOnline}, credit: ${settlement.varianceCredit})`);
       
       // Get readingIds - either from field or query from linked readings
       let settlementReadingIds = [];
@@ -184,10 +198,25 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
       }
       
       if (settlementReadingIds.length === 0) {
-        // Backward compatibility: if readingIds is null/empty, find readings linked to this settlement
+        // Try backward compatibility: find readings linked to this settlement via settlementId
         const linkedReadings = readings.filter(r => r.settlementId === settlement.id);
         settlementReadingIds = linkedReadings.map(r => r.id);
-        console.log(`  Readings from settlementId match: ${settlementReadingIds.length}`);
+        if (linkedReadings.length > 0) {
+          console.log(`  Readings from settlementId match: ${settlementReadingIds.length}`);
+        }
+      }
+
+      if (settlementReadingIds.length === 0) {
+        // Final fallback: match readings by date (for very old data without links)
+        const settlementDate = settlement.date instanceof Date ? settlement.date.toISOString().split('T')[0] : settlement.date;
+        const dateMatchedReadings = readings.filter(r => {
+          const readingDate = r.readingDate instanceof Date ? r.readingDate.toISOString().split('T')[0] : r.readingDate;
+          return readingDate === settlementDate;
+        });
+        settlementReadingIds = dateMatchedReadings.map(r => r.id);
+        if (dateMatchedReadings.length > 0) {
+          console.log(`  Readings from date match (fallback): ${settlementReadingIds.length}`);
+        }
       }
 
       if (settlementReadingIds.length === 0) {
@@ -226,7 +255,10 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
 
       // Distribute shortfall proportionally
       const totalReadings = settlementReadings.length;
-      const totalShortfall = Math.abs(parseFloat(settlement.variance || 0));
+      // Total shortfall is sum of cash, online, and credit variances (all positive for shortfalls)
+      const totalShortfall = Math.abs(parseFloat(settlement.variance || 0)) 
+        + Math.abs(parseFloat(settlement.varianceOnline || 0))
+        + Math.abs(parseFloat(settlement.varianceCredit || 0));
 
       Object.entries(empReadingCounts).forEach(([empId, count]) => {
         if (employeeData[empId]) {
@@ -299,7 +331,11 @@ exports.updateSettlementShortfalls = async (settlementId, transaction) => {
     }
 
     // Skip if already calculated or no shortfall
-    if (settlement.employeeShortfalls !== null || settlement.variance <= 0) {
+    const totalVariance = Math.abs(parseFloat(settlement.variance || 0))
+      + Math.abs(parseFloat(settlement.varianceOnline || 0))
+      + Math.abs(parseFloat(settlement.varianceCredit || 0));
+    
+    if (settlement.employeeShortfalls !== null || totalVariance === 0) {
       return settlement;
     }
 
