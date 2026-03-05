@@ -20,7 +20,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
-import { ArrowLeft, CheckCircle2, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
 
 //  Types 
 
@@ -43,13 +43,23 @@ interface ReadingForSettlement {
   closingReading: number;
   litresSold: number;
   saleValue: number;
-  cashAmount: number;
-  onlineAmount: number;
-  creditAmount: number;
+  // legacy flat fields (may be absent in newer API responses)
+  cashAmount?: number;
+  onlineAmount?: number;
+  creditAmount?: number;
   recordedBy: { id: string; name: string } | null;
   recordedAt: string;
+  status?: string;
   settlementId: string | null;
+  carriedForwardFrom?: string | null;
   linkedSettlement: { id: string; date: string; isFinal: boolean } | null;
+  transaction?: {
+    id: string;
+    transactionDate: string;
+    status: string;
+    createdBy: string;
+    paymentBreakdown: { cash: number; online: number; credit: number };
+  } | null;
 }
 
 interface ReadingsForSettlementResponse {
@@ -67,25 +77,39 @@ interface ReadingsForSettlementResponse {
 //  Helpers 
 
 /** Deduplicate payments: when employee submits a batch, every reading stores the
- *  full transaction total. Count each unique (employee + amounts) only once. */
+ *  full transaction total. Count each unique transaction only once.
+ *  Supports both new (transaction.paymentBreakdown) and legacy (cashAmount) shapes. */
 function deduplicatePayments(readings: ReadingForSettlement[]) {
+  const seenTxn = new Set<string>();
   const seen = new Set<string>();
   return readings.reduce(
     (acc, r) => {
-      const cash = r.cashAmount || 0;
-      const online = r.onlineAmount || 0;
-      const credit = r.creditAmount || 0;
-      const emp = r.recordedBy?.id || 'unknown';
-      if (cash > 0 || online > 0 || credit > 0) {
-        const key = `${emp}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          acc.cash += cash;
-          acc.online += online;
-          acc.credit += credit;
+      // Prefer nested transaction breakdown (new API shape)
+      if (r.transaction?.paymentBreakdown) {
+        const txId = r.transaction.id;
+        if (!seenTxn.has(txId)) {
+          seenTxn.add(txId);
+          acc.cash += r.transaction.paymentBreakdown.cash || 0;
+          acc.online += r.transaction.paymentBreakdown.online || 0;
+          acc.credit += r.transaction.paymentBreakdown.credit || 0;
         }
       } else {
-        acc.cash += r.saleValue; // legacy: no breakdown  treat as cash
+        // Legacy flat fields
+        const cash = r.cashAmount || 0;
+        const online = r.onlineAmount || 0;
+        const credit = r.creditAmount || 0;
+        const emp = r.recordedBy?.id || 'unknown';
+        if (cash > 0 || online > 0 || credit > 0) {
+          const key = `${emp}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            acc.cash += cash;
+            acc.online += online;
+            acc.credit += credit;
+          }
+        } else {
+          acc.cash += r.saleValue; // legacy: no breakdown  treat as cash
+        }
       }
       acc.litres += r.litresSold;
       acc.value += r.saleValue;
@@ -119,7 +143,6 @@ export default function DailySettlement() {
   const [actualOnline, setActualOnline] = useState<number>(0);
   const [actualCredit, setActualCredit] = useState<number>(0);
   const [notes, setNotes] = useState('');
-  const [showMore, setShowMore] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   //  Fetch daily sales summary 
@@ -153,10 +176,17 @@ export default function DailySettlement() {
     retry: false,
   });
 
-  // Auto-select all unsettled readings when they load or date changes
+  // Auto-select all unsettled readings and pre-fill owner inputs from employee totals
   useEffect(() => {
     if (readingsData?.unlinked?.readings) {
       setSelectedIds(readingsData.unlinked.readings.map((r) => r.id));
+      // Pre-populate owner's confirmation inputs with employee-reported totals
+      const t = readingsData.unlinked.totals;
+      if (t) {
+        setActualCash(t.cash || 0);
+        setActualOnline(t.online || 0);
+        setActualCredit(t.credit || 0);
+      }
     } else {
       setSelectedIds([]);
     }
@@ -365,9 +395,9 @@ export default function DailySettlement() {
                       </div>
                       <div className="text-xs text-muted-foreground mt-0.5">
                         {safeToFixed(r.litresSold, 1)} L
-                        {r.cashAmount > 0 && `  Cash ${fmt(r.cashAmount)}`}
-                        {r.onlineAmount > 0 && `  Online ${fmt(r.onlineAmount)}`}
-                        {r.creditAmount > 0 && `  Credit ${fmt(r.creditAmount)}`}
+                        {(r.cashAmount ?? 0) > 0 && `  Cash ${fmt(r.cashAmount!)}`}
+                        {(r.onlineAmount ?? 0) > 0 && `  Online ${fmt(r.onlineAmount!)}`}
+                        {(r.creditAmount ?? 0) > 0 && `  Credit ${fmt(r.creditAmount!)}`}
                       </div>
                     </div>
                     <span className="text-sm font-semibold text-green-700 shrink-0">
@@ -412,92 +442,57 @@ export default function DailySettlement() {
             </CardContent>
           </Card>
 
-          {/*  Cash count  */}
+          {/*  Confirm Settlement  */}
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-base">Your Cash Count</CardTitle>
+              <CardTitle className="text-base">Confirm Settlement</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
 
-              {/* Expected vs Actual */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 bg-gray-50 rounded-lg border text-center">
-                  <p className="text-xs text-muted-foreground">Expected cash</p>
-                  <p className="text-xl font-bold text-orange-600">{fmt(expected.cash)}</p>
-                  <p className="text-xs text-muted-foreground">from selected entries</p>
-                </div>
-                <div className="p-3 bg-white rounded-lg border text-center">
-                  <p className="text-xs text-muted-foreground mb-1">Actual cash</p>
-                  <Input
-                    type="number"
-                    step="1"
-                    value={actualCash || ''}
-                    onChange={(e) => setActualCash(parseFloat(e.target.value) || 0)}
-                    className="text-xl font-bold text-center border-0 p-0 h-auto focus-visible:ring-0"
-                    placeholder="0"
-                  />
-                  <p className="text-xs text-muted-foreground">physical count</p>
-                </div>
-              </div>
-
-              {/* Variance */}
-              {actualCash > 0 && selectedIds.length > 0 && (
-                <div
-                  className={`flex items-center justify-between p-3 rounded-lg border-2 ${
-                    Math.abs(cashVariance) < 1
-                      ? 'border-green-300 bg-green-50'
-                      : cashVariance > 0
-                      ? 'border-red-300 bg-red-50'
-                      : 'border-yellow-300 bg-yellow-50'
-                  }`}
-                >
-                  <div className="flex items-center gap-2">
-                    {Math.abs(cashVariance) < 1 ? (
-                      <CheckCircle2 className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <AlertCircle className="w-4 h-4 text-orange-600" />
-                    )}
-                    <span className="text-sm font-medium">
-                      {Math.abs(cashVariance) < 1
-                        ? 'Perfect match'
-                        : cashVariance > 0
-                        ? 'Shortfall'
-                        : 'Surplus'}
-                    </span>
+              {/* Employee-reported payment breakdown banner */}
+              {selectedIds.length > 0 && (
+                <div className="p-3 rounded-lg border border-blue-200 bg-blue-50 space-y-2">
+                  <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Employee Reported</p>
+                  <div className="grid grid-cols-3 gap-2 text-center">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Cash</p>
+                      <p className="text-base font-bold text-blue-800">{fmt(expected.cash)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Online</p>
+                      <p className="text-base font-bold text-blue-800">{fmt(expected.online)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Credit</p>
+                      <p className="text-base font-bold text-blue-800">{fmt(expected.credit)}</p>
+                    </div>
                   </div>
-                  <span
-                    className={`text-lg font-bold ${
-                      Math.abs(cashVariance) < 1
-                        ? 'text-green-600'
-                        : cashVariance > 0
-                        ? 'text-red-600'
-                        : 'text-yellow-600'
-                    }`}
-                  >
-                    {cashVariance > 0 ? '-' : cashVariance < 0 ? '+' : ''}
-                    {fmt(Math.abs(cashVariance))}
-                  </span>
+                  <p className="text-xs text-blue-600 text-center">
+                    Total: {fmt(expected.cash + expected.online + expected.credit)}
+                    {expected.litres > 0 && ` · ${safeToFixed(expected.litres, 0)} L`}
+                  </p>
                 </div>
               )}
 
-              {/* Online / Credit (collapsed) */}
-              <button
-                type="button"
-                onClick={() => setShowMore(!showMore)}
-                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {showMore ? (
-                  <ChevronUp className="w-3 h-3" />
-                ) : (
-                  <ChevronDown className="w-3 h-3" />
-                )}
-                {showMore ? 'Hide' : 'Add'} online & credit amounts
-              </button>
-
-              {showMore && (
-                <div className="grid grid-cols-2 gap-3">
+              {/* Owner confirmation inputs */}
+              <div>
+                <p className="text-xs font-medium text-muted-foreground mb-2">
+                  Verify & adjust if needed, then confirm:
+                </p>
+                <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <Label className="text-xs">Online received (UPI / card)</Label>
+                    <Label className="text-xs">Cash collected</Label>
+                    <Input
+                      type="number"
+                      step="1"
+                      value={actualCash || ''}
+                      onChange={(e) => setActualCash(parseFloat(e.target.value) || 0)}
+                      placeholder="0"
+                      className="mt-1"
+                    />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Online (UPI / card)</Label>
                     <Input
                       type="number"
                       step="1"
@@ -518,6 +513,46 @@ export default function DailySettlement() {
                       className="mt-1"
                     />
                   </div>
+                </div>
+              </div>
+
+              {/* Cash variance */}
+              {selectedIds.length > 0 && (
+                <div
+                  className={`flex items-center justify-between p-3 rounded-lg border-2 ${
+                    Math.abs(cashVariance) < 1
+                      ? 'border-green-300 bg-green-50'
+                      : cashVariance > 0
+                      ? 'border-red-300 bg-red-50'
+                      : 'border-yellow-300 bg-yellow-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    {Math.abs(cashVariance) < 1 ? (
+                      <CheckCircle2 className="w-4 h-4 text-green-600" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-orange-600" />
+                    )}
+                    <span className="text-sm font-medium">
+                      {Math.abs(cashVariance) < 1
+                        ? 'Cash matches'
+                        : cashVariance > 0
+                        ? 'Cash shortfall'
+                        : 'Cash surplus'}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-lg font-bold ${
+                      Math.abs(cashVariance) < 1
+                        ? 'text-green-600'
+                        : cashVariance > 0
+                        ? 'text-red-600'
+                        : 'text-yellow-600'
+                    }`}
+                  >
+                    {cashVariance > 0 ? '-' : cashVariance < 0 ? '+' : ''}
+                    {fmt(Math.abs(cashVariance))}
+                  </span>
                 </div>
               )}
 
@@ -542,7 +577,7 @@ export default function DailySettlement() {
                 className="w-full text-base py-5"
               >
                 {submitting || submitMutation.isPending
-                  ? 'Saving'
+                  ? 'Saving…'
                   : selectedIds.length === 0
                   ? 'Select readings first'
                   : actualCash === 0

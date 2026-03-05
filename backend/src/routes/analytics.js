@@ -28,7 +28,7 @@ router.get('/summary', dashboardController.getSummary);
  * GET /api/v1/analytics/daily
  * Daily summary
  */
-router.get('/daily', requireRole('manager'), dashboardController.getDailySummary);
+router.get('/daily', requireRole('manager', 'owner'), dashboardController.getDailySummary);
 
 // ============================================
 // BREAKDOWNS & ANALYSIS
@@ -38,7 +38,7 @@ router.get('/daily', requireRole('manager'), dashboardController.getDailySummary
  * GET /api/v1/analytics/fuel-breakdown
  * Fuel type breakdown
  */
-router.get('/fuel-breakdown', requireRole('manager'), dashboardController.getFuelBreakdown);
+router.get('/fuel-breakdown', requireRole('manager', 'owner'), dashboardController.getFuelBreakdown);
 
 /**
  * GET /api/v1/analytics/pump-performance
