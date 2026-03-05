@@ -2068,33 +2068,15 @@ exports.getVarianceSummary = async (req, res, next) => {
     let totalVarianceOnline = 0;
     let totalVarianceCredit = 0;
 
-    // Recalculate variances from actual transaction data (like getSettlements does)
+    // Use settlement variance values directly - they're already calculated based on linked readings
     for (const s of settlements) {
       const dateStr = typeof s.date === 'string' ? s.date : s.date.toISOString().split('T')[0];
-      const actualCash = parseFloat(s.actualCash || 0);
-      const ownerOnline = parseFloat(s.online || 0);
-      const ownerCredit = parseFloat(s.credit || 0);
 
-      // Fetch transactions for this settlement date to recalculate employee-reported amounts
-      const transactions = await DailyTransaction.findAll({
-        where: { stationId, transactionDate: dateStr },
-        raw: true
-      });
-
-      // Sum payment breakdown from transactions (employee-reported amounts)
-      let employeeOnline = 0, employeeCredit = 0;
-      transactions.forEach(txn => {
-        const pb = txn.payment_breakdown || txn.paymentBreakdown || {};
-        employeeOnline += parseFloat(pb.online || 0);
-        employeeCredit += parseFloat(pb.credit || 0);
-      });
-
-      // Calculate channel variances (employee reported vs owner confirmed)
-      const varianceOnline = employeeOnline - ownerOnline;
-      const varianceCredit = employeeCredit - ownerCredit;
-
-      // Pull the main variance (cash variance) from settlement
+      // Use the variances already calculated in the settlement (based on its linked readings)
+      // Don't recalculate from ALL transactions for the date - that would include unrelated transactions
       const variance = parseFloat(s.variance || 0);
+      const varianceOnline = parseFloat(s.varianceOnline || 0);
+      const varianceCredit = parseFloat(s.varianceCredit || 0);
 
       if (!byDay[dateStr]) {
         byDay[dateStr] = { 
