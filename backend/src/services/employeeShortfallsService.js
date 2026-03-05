@@ -98,6 +98,8 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
       throw new Error('stationId, startDate, and endDate are required');
     }
 
+    console.log(`[EmployeeShortfalls] Query: stationId=${stationId}, dateRange=${startDate} to ${endDate}`);
+
     // Fetch all settlements with shortfalls in date range
     const settlements = await Settlement.findAll({
       where: {
@@ -107,6 +109,11 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
       },
       attributes: ['id', 'date', 'variance', 'readingIds'],
       raw: true
+    });
+
+    console.log(`[EmployeeShortfalls] Found ${settlements.length} settlements with shortfalls`);
+    settlements.forEach(s => {
+      console.log(`  - Settlement ${s.id}: variance=${s.variance}, readingIds=${s.readingIds ? (Array.isArray(s.readingIds) ? s.readingIds.length : 'JSON-string') : 'null'}`);
     });
 
     // Fetch all readings in date range with employee info
@@ -129,7 +136,14 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
       subQuery: false
     });
 
+    console.log(`[EmployeeShortfalls] Found ${readings.length} total readings for date range`);
+    if (readings.length > 0) {
+      const settledCount = readings.filter(r => r.settlementId).length;
+      console.log(`  - ${settledCount} readings have settlementId set`);
+    }
+
     if (readings.length === 0) {
+      console.log(`[EmployeeShortfalls] No readings found - returning empty result`);
       return [];
     }
 
@@ -156,6 +170,8 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
 
     // Calculate shortfalls for each settlement and distribute to employees
     settlements.forEach(settlement => {
+      console.log(`[EmployeeShortfalls] Processing settlement ${settlement.id} with variance ${settlement.variance}`);
+      
       // Get readingIds - either from field or query from linked readings
       let settlementReadingIds = [];
       
@@ -164,15 +180,18 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
         settlementReadingIds = Array.isArray(settlement.readingIds) 
           ? settlement.readingIds 
           : (typeof settlement.readingIds === 'string' ? JSON.parse(settlement.readingIds || '[]') : []);
+        console.log(`  Readings from readingIds field: ${settlementReadingIds.length}`);
       }
       
       if (settlementReadingIds.length === 0) {
         // Backward compatibility: if readingIds is null/empty, find readings linked to this settlement
         const linkedReadings = readings.filter(r => r.settlementId === settlement.id);
         settlementReadingIds = linkedReadings.map(r => r.id);
+        console.log(`  Readings from settlementId match: ${settlementReadingIds.length}`);
       }
 
       if (settlementReadingIds.length === 0) {
+        console.log(`  No readings found for this settlement - skipping`);
         return;
       }
 
@@ -181,7 +200,10 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
         settlementReadingIds.includes(r.id)
       );
 
+      console.log(`  Settlement readings matched: ${settlementReadings.length}`);
+
       if (settlementReadings.length === 0) {
+        console.log(`  No matched readings - skipping`);
         return;
       }
 
@@ -200,6 +222,8 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
         settlementDates.add(readingDate);
       });
 
+      console.log(`  Employees with readings: ${Object.keys(empReadingCounts).length}`);
+
       // Distribute shortfall proportionally
       const totalReadings = settlementReadings.length;
       const totalShortfall = Math.abs(parseFloat(settlement.variance || 0));
@@ -210,6 +234,8 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
           const shortfall = totalShortfall * proportion;
           employeeData[empId].totalShortfall += shortfall;
           employeeData[empId].shortfallSettlements.add(settlement.id);
+          
+          console.log(`    - ${employeeData[empId].employeeName} (${empId}): ${count} readings, shortfall: ₹${shortfall.toFixed(2)}`);
           
           // Track dates with shortfalls
           settlementDates.forEach(date => {
@@ -243,6 +269,11 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
         };
       })
       .sort((a, b) => b.totalShortfall - a.totalShortfall); // Sort by total shortfall desc
+
+    console.log(`[EmployeeShortfalls] Final result: ${result.length} employees with shortfalls`);
+    result.forEach(emp => {
+      console.log(`  - ${emp.employeeName}: ₹${emp.totalShortfall}`);
+    });
 
     return result;
   } catch (error) {
