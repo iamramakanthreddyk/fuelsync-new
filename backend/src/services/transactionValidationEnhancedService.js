@@ -102,7 +102,7 @@ exports.validateCreditAllocationsMatchReadings = async (
 
   try {
     // Get all readings for this transaction date and station
-    const readings = await NozzleReading.scope('active').findAll({
+    const readings = await NozzleReading.findAll({
       where: {
         stationId,
         readingDate: transactionDate,

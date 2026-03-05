@@ -12,7 +12,7 @@ const { DailyTransaction } = require('../models');
  */
 async function getPaymentBreakdownAggregates(where) {
   try {
-    const transactions = await DailyTransaction.scope('active').findAll({
+    const transactions = await DailyTransaction.findAll({
       where,
       attributes: ['paymentBreakdown'],
       raw: true
@@ -62,7 +62,7 @@ async function allocatePaymentBreakdownsProportionally(readings) {
   }
 
   // Fetch all transactions
-  const transactions = await DailyTransaction.scope('active').findAll({
+  const transactions = await DailyTransaction.findAll({
     where: { id: txnIds },
     attributes: ['id', 'paymentBreakdown'],
     raw: true
