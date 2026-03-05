@@ -76,6 +76,50 @@ const { FUEL_TYPES } = require('../config/constants');
 
 console.log('[INIT] stationController loaded');
 
+// Helper: deduplicate payment totals across readings (shared)
+// Accepts either raw NozzleReading DB objects or the mapped reading objects
+const calcDeduplicatedTotals = (items) => {
+  const seen = new Set();
+  const acc = { cash: 0, online: 0, credit: 0, litres: 0, value: 0 };
+
+  items.forEach((r) => {
+    const litres = parseFloat(r.litresSold || r.litres || 0) || 0;
+    const value = parseFloat(r.saleValue || r.totalAmount || r.value || 0) || 0;
+    acc.litres += litres;
+    acc.value += value;
+
+    const cash = parseFloat(
+      (r.cashAmount ?? r.cash ?? (r.transaction && r.transaction.paymentBreakdown && r.transaction.paymentBreakdown.cash) ?? 0) || 0
+    );
+    const online = parseFloat(
+      (r.onlineAmount ?? r.online ?? (r.transaction && r.transaction.paymentBreakdown && r.transaction.paymentBreakdown.online) ?? 0) || 0
+    );
+    const credit = parseFloat(
+      (r.creditAmount ?? r.credit ?? (r.transaction && r.transaction.paymentBreakdown && r.transaction.paymentBreakdown.credit) ?? 0) || 0
+    );
+
+    const employeeId = (r.recordedBy && r.recordedBy.id) || r.enteredBy || (r.enteredByUser && r.enteredByUser.id) || r.createdBy || 'unknown';
+
+    if (cash > 0 || online > 0 || credit > 0) {
+      const key = `${employeeId}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        acc.cash += cash;
+        acc.online += online;
+        acc.credit += credit;
+      }
+    } else {
+      const legacyKey = `legacy|${r.id}`;
+      if (!seen.has(legacyKey)) {
+        seen.add(legacyKey);
+        acc.cash += value;
+      }
+    }
+  });
+
+  return acc;
+};
+
 // ============================================
 // HELPER: Check if user can access station
 // ============================================
@@ -1370,12 +1414,7 @@ exports.getDailySales = async (req, res, next) => {
     const byFuelType = {};
     const readingsList = [];
 
-    // Deduplicate payment amounts: when an employee submits a batch of readings,
-    // each reading stores the FULL transaction payment (not a proportional share).
-    // Grouping by (enteredBy + exact amounts) ensures we count each employee's
-    // payment submission only once, regardless of how many readings are in the batch.
-    const seenPaymentKeys = new Set();
-
+    // Iterate readings to build summary lists and per-fuel totals
     readings.forEach(reading => {
       const saleValue = parseFloat(reading.totalAmount || 0) ||
         (parseFloat(reading.litresSold || 0) * parseFloat(reading.pricePerLitre || 0));
@@ -1398,31 +1437,13 @@ exports.getDailySales = async (req, res, next) => {
         liters,
         saleValue
       });
-
-      const cash = parseFloat(reading.cashAmount || 0);
-      const online = parseFloat(reading.onlineAmount || 0);
-      const credit = parseFloat(reading.creditAmount || 0);
-
-      if (cash > 0 || online > 0 || credit > 0) {
-        // Build a deduplication key: same employee + same exact amounts = same transaction batch.
-        // This prevents counting the same transaction-level payment once per reading.
-        const paymentKey = `${reading.enteredBy}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
-        if (!seenPaymentKeys.has(paymentKey)) {
-          seenPaymentKeys.add(paymentKey);
-          totalCash += cash;
-          totalOnline += online;
-          totalCredit += credit;
-        }
-      } else if (saleValue > 0) {
-        // Legacy fallback: reading has no payment breakdown recorded – treat whole sale as cash.
-        // Use a per-reading key so each legacy reading is counted individually.
-        const legacyKey = `legacy|${reading.id}`;
-        if (!seenPaymentKeys.has(legacyKey)) {
-          seenPaymentKeys.add(legacyKey);
-          totalCash += saleValue;
-        }
-      }
     });
+
+    // Use shared helper to compute deduplicated payment totals
+    const paymentTotals = calcDeduplicatedTotals(readings);
+    totalCash = paymentTotals.cash;
+    totalOnline = paymentTotals.online;
+    totalCredit = paymentTotals.credit;
 
     res.json({
       success: true,
@@ -1584,38 +1605,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
     }
 
     
-    // Helper: deduplicate payment totals across readings.
-    // When an employee submits a batch of readings, each reading may store the
-    // full transaction payment. We count each unique (employee + amounts) once.
-    const calcDeduplicatedTotals = (readingsList) => {
-      const seen = new Set();
-      return readingsList.reduce((acc, r) => {
-        acc.litres += r.litresSold;
-        acc.value += r.saleValue;
-        const cash = r.cashAmount || 0;
-        const online = r.onlineAmount || 0;
-        const credit = r.creditAmount || 0;
-        const employeeId = r.recordedBy?.id || 'unknown';
-        if (cash > 0 || online > 0 || credit > 0) {
-          const key = `${employeeId}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
-          if (!seen.has(key)) {
-            seen.add(key);
-            acc.cash += cash;
-            acc.online += online;
-            acc.credit += credit;
-          }
-        } else {
-          // Legacy: no payment info – treat sale value as cash (once per reading)
-          const legacyKey = `legacy|${r.id}`;
-          if (!seen.has(legacyKey)) {
-            seen.add(legacyKey);
-            acc.cash += r.saleValue;
-          }
-        }
-        return acc;
-      }, { cash: 0, online: 0, credit: 0, litres: 0, value: 0 });
-    };
-
+    
     // Calculate totals for unlinked readings
     const unlinkedTotals = calcDeduplicatedTotals(unlinkedReadings);
 
