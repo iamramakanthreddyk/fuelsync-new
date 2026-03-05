@@ -255,9 +255,25 @@ exports.getNozzleBreakdown = async (req, res, next) => {
     });
 
     // Group by nozzle and calculate payment totals from transactions
+    // Proportionally allocate each transaction's payment breakdown by reading's share of the transaction total
     const { DailyTransaction } = require('../models');
     const nozzleMap = {};
 
+    // Step 1: fetch unique transactions and compute per-transaction total from readings
+    const txnIds = [...new Set(readings.map(r => r.transactionId).filter(Boolean))];
+    const txnCache = {};
+    const txnReadingTotals = {}; // transactionId -> sum of reading amounts in this result set
+    for (const reading of readings) {
+      if (reading.transactionId) {
+        txnReadingTotals[reading.transactionId] = (txnReadingTotals[reading.transactionId] || 0) + parseFloat(reading.totalAmount || 0);
+      }
+    }
+    for (const txnId of txnIds) {
+      const txn = await DailyTransaction.findByPk(txnId, { attributes: ['paymentBreakdown'], raw: true });
+      if (txn) txnCache[txnId] = txn;
+    }
+
+    // Step 2: allocate
     for (const reading of readings) {
       const nozzleId = reading.nozzle.id;
       if (!nozzleMap[nozzleId]) {
@@ -272,21 +288,18 @@ exports.getNozzleBreakdown = async (req, res, next) => {
         };
       }
 
+      const readingAmount = parseFloat(reading.totalAmount || 0);
       nozzleMap[nozzleId].litres += parseFloat(reading.litresSold || 0);
-      nozzleMap[nozzleId].amount += parseFloat(reading.totalAmount || 0);
+      nozzleMap[nozzleId].amount += readingAmount;
       nozzleMap[nozzleId].readings += 1;
 
-      // Fetch payment breakdown from DailyTransaction if transactionId exists
-      if (reading.transactionId) {
-        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
-          attributes: ['paymentBreakdown'],
-          raw: true
-        });
-        if (transaction && transaction.paymentBreakdown) {
-          nozzleMap[nozzleId].cash += parseFloat(transaction.paymentBreakdown.cash || 0);
-          nozzleMap[nozzleId].online += parseFloat(transaction.paymentBreakdown.online || 0);
-          nozzleMap[nozzleId].credit += parseFloat(transaction.paymentBreakdown.credit || 0);
-        }
+      if (reading.transactionId && txnCache[reading.transactionId]?.paymentBreakdown) {
+        const pb = txnCache[reading.transactionId].paymentBreakdown;
+        const txnTotal = txnReadingTotals[reading.transactionId] || 1;
+        const ratio = txnTotal > 0 ? readingAmount / txnTotal : 0;
+        nozzleMap[nozzleId].cash += parseFloat(pb.cash || 0) * ratio;
+        nozzleMap[nozzleId].online += parseFloat(pb.online || 0) * ratio;
+        nozzleMap[nozzleId].credit += parseFloat(pb.credit || 0) * ratio;
       }
     }
 
@@ -356,6 +369,7 @@ exports.getDailySummary = async (req, res, next) => {
     // Group by date and calculate payment totals from transactions
     const { DailyTransaction } = require('../models');
     const dateMap = {};
+    const seenTransactions = {}; // track transactionId per date to avoid double-counting
 
     for (const reading of readings) {
       const date = reading.readingDate;
@@ -368,14 +382,16 @@ exports.getDailySummary = async (req, res, next) => {
           credit: 0,
           readings: 0
         };
+        seenTransactions[date] = new Set();
       }
 
       dateMap[date].litres += parseFloat(reading.litresSold || 0);
       dateMap[date].amount += parseFloat(reading.totalAmount || 0);
       dateMap[date].readings += 1;
 
-      // Fetch payment breakdown from DailyTransaction if transactionId exists
-      if (reading.transactionId) {
+      // Only count payment breakdown once per unique transaction per date
+      if (reading.transactionId && !seenTransactions[date].has(reading.transactionId)) {
+        seenTransactions[date].add(reading.transactionId);
         const transaction = await DailyTransaction.findByPk(reading.transactionId, {
           attributes: ['paymentBreakdown'],
           raw: true
@@ -448,9 +464,25 @@ exports.getFuelBreakdown = async (req, res, next) => {
     });
 
     // Group by fuel type and calculate payment totals from transactions
+    // Proportionally allocate each transaction's payment breakdown by reading's share of the transaction total
     const { DailyTransaction } = require('../models');
     const fuelMap = {};
 
+    // Step 1: fetch unique transactions and compute per-transaction total from readings
+    const txnIds = [...new Set(readings.map(r => r.transactionId).filter(Boolean))];
+    const txnCache = {};
+    const txnReadingTotals = {};
+    for (const reading of readings) {
+      if (reading.transactionId) {
+        txnReadingTotals[reading.transactionId] = (txnReadingTotals[reading.transactionId] || 0) + parseFloat(reading.totalAmount || 0);
+      }
+    }
+    for (const txnId of txnIds) {
+      const txn = await DailyTransaction.findByPk(txnId, { attributes: ['paymentBreakdown'], raw: true });
+      if (txn) txnCache[txnId] = txn;
+    }
+
+    // Step 2: allocate proportionally
     for (const reading of readings) {
       const fuelType = reading.fuelType;
       if (!fuelMap[fuelType]) {
@@ -463,20 +495,17 @@ exports.getFuelBreakdown = async (req, res, next) => {
         };
       }
 
+      const readingAmount = parseFloat(reading.totalAmount || 0);
       fuelMap[fuelType].litres += parseFloat(reading.litresSold || 0);
-      fuelMap[fuelType].amount += parseFloat(reading.totalAmount || 0);
+      fuelMap[fuelType].amount += readingAmount;
 
-      // Fetch payment breakdown from DailyTransaction if transactionId exists
-      if (reading.transactionId) {
-        const transaction = await DailyTransaction.findByPk(reading.transactionId, {
-          attributes: ['paymentBreakdown'],
-          raw: true
-        });
-        if (transaction && transaction.paymentBreakdown) {
-          fuelMap[fuelType].cash += parseFloat(transaction.paymentBreakdown.cash || 0);
-          fuelMap[fuelType].online += parseFloat(transaction.paymentBreakdown.online || 0);
-          fuelMap[fuelType].credit += parseFloat(transaction.paymentBreakdown.credit || 0);
-        }
+      if (reading.transactionId && txnCache[reading.transactionId]?.paymentBreakdown) {
+        const pb = txnCache[reading.transactionId].paymentBreakdown;
+        const txnTotal = txnReadingTotals[reading.transactionId] || 1;
+        const ratio = txnTotal > 0 ? readingAmount / txnTotal : 0;
+        fuelMap[fuelType].cash += parseFloat(pb.cash || 0) * ratio;
+        fuelMap[fuelType].online += parseFloat(pb.online || 0) * ratio;
+        fuelMap[fuelType].credit += parseFloat(pb.credit || 0) * ratio;
       }
     }
 

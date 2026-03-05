@@ -257,11 +257,30 @@ export default function Settlements() {
                           <p className="text-sm">Credit: ₹{settlement.credit}</p>
                         </div>
                       </div>
-                      {settlement.variance !== '0.00' && (
-                        <div className="mt-2">
-                          <p className="text-sm text-red-600">Variance: ₹{settlement.variance}</p>
-                        </div>
-                      )}
+                      {(() => {
+                        const cashVar = parseFloat(settlement.variance || 0);
+                        const onlineVar = parseFloat(settlement.varianceOnline || 0);
+                        const creditVar = parseFloat(settlement.varianceCredit || 0);
+                        const totalVar = cashVar + onlineVar + creditVar;
+                        const hasVariance = totalVar !== 0 || cashVar !== 0 || onlineVar !== 0 || creditVar !== 0;
+                        if (!hasVariance) return null;
+                        return (
+                          <div className="mt-3 p-2 rounded-md bg-red-50 border border-red-200 space-y-0.5">
+                            <p className="text-sm font-semibold text-red-700">
+                              Total Variance: ₹{totalVar.toFixed(2)}
+                            </p>
+                            {cashVar !== 0 && (
+                              <p className="text-xs text-red-600">Cash: ₹{cashVar.toFixed(2)} (Employee ₹{parseFloat(settlement.employeeCash || 0).toFixed(2)} → Owner ₹{parseFloat(settlement.actualCash || 0).toFixed(2)})</p>
+                            )}
+                            {onlineVar !== 0 && (
+                              <p className="text-xs text-red-600">Online: ₹{onlineVar.toFixed(2)} (Employee ₹{parseFloat(settlement.employeeOnline || 0).toFixed(2)} → Owner ₹{parseFloat(settlement.online || 0).toFixed(2)})</p>
+                            )}
+                            {creditVar !== 0 && (
+                              <p className="text-xs text-red-600">Credit: ₹{creditVar.toFixed(2)} (Employee ₹{parseFloat(settlement.employeeCredit || 0).toFixed(2)} → Owner ₹{parseFloat(settlement.credit || 0).toFixed(2)})</p>
+                            )}
+                          </div>
+                        );
+                      })()}
                       {settlement.notes && (
                         <div className="mt-2">
                           <p className="text-sm">Notes: {settlement.notes}</p>
