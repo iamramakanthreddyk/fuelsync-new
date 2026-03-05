@@ -195,41 +195,37 @@ export default function OwnerDashboard() {
         <TodaysSalesBreakdown />
       </div>
 
-      {/* Variance Card - Compact Design */}
+      {/* Variance Card - Compact Inline Design */}
       {varianceSummary && (
-        <Card className={`border-l-4 ${
-          varianceSummary.totalVariance > 0 ? 'border-l-red-500 bg-red-50/50' :
-          varianceSummary.totalVariance < 0 ? 'border-l-yellow-500 bg-yellow-50/50' :
-          'border-l-green-500 bg-green-50/50'
+        <div className={`p-3 sm:p-4 rounded-lg border-l-4 ${
+          varianceSummary.totalVariance > 0 ? 'border-l-red-500 bg-red-50/30' :
+          varianceSummary.totalVariance < 0 ? 'border-l-yellow-500 bg-yellow-50/30' :
+          'border-l-green-500 bg-green-50/30'
         }`}>
-          <CardContent className="p-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertCircle className={`w-4 h-4 ${
-                  varianceSummary.totalVariance > 0 ? 'text-red-600' :
-                  varianceSummary.totalVariance < 0 ? 'text-yellow-600' :
-                  'text-green-600'
-                }`} />
-                <span className="text-sm font-medium text-muted-foreground">Monthly Variance</span>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <AlertCircle className={`w-4 h-4 ${
+                varianceSummary.totalVariance > 0 ? 'text-red-600' :
+                varianceSummary.totalVariance < 0 ? 'text-yellow-600' :
+                'text-green-600'
+              }`} />
+              <div>
+                <div className="text-sm font-medium text-muted-foreground">Monthly Variance</div>
+                <div className="text-xs text-muted-foreground">
+                  {varianceSummary.dayCount} days • {safeToFixed(Math.abs(varianceSummary.variancePercentage), 1)}% of sales
+                </div>
               </div>
-              <div className={`text-right ${
+            </div>
+            <div className="text-right">
+              <div className={`text-lg font-bold ${
                 varianceSummary.totalVariance > 0 ? 'text-red-700' :
                 varianceSummary.totalVariance < 0 ? 'text-yellow-700' :
                 'text-green-700'
               }`}>
-                <div className="text-lg font-bold">
-                  {varianceSummary.totalVariance > 0 ? '-' : varianceSummary.totalVariance < 0 ? '+' : ''}
-                  ₹{Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  {safeToFixed(Math.abs(varianceSummary.variancePercentage), 1)}% of sales
-                </div>
+                {varianceSummary.totalVariance > 0 ? '-' : varianceSummary.totalVariance < 0 ? '+' : ''}
+                ₹{Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </div>
-            </div>
-
-            {/* Status indicator - subtle */}
-            <div className="mt-2 flex items-center justify-between text-xs">
-              <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+              <div className={`text-xs px-2 py-0.5 rounded-full inline-block ${
                 varianceSummary.totalVariance > 0 ? 'bg-red-100 text-red-800' :
                 varianceSummary.totalVariance < 0 ? 'bg-yellow-100 text-yellow-800' :
                 'bg-green-100 text-green-800'
@@ -237,13 +233,10 @@ export default function OwnerDashboard() {
                 {varianceSummary.totalVariance > 0 ? 'Shortfall' :
                  varianceSummary.totalVariance < 0 ? 'Overage' :
                  'Balanced'}
-              </span>
-              <span className="text-muted-foreground">
-                {varianceSummary.dayCount} days
-              </span>
+              </div>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* Stations Card with List */}

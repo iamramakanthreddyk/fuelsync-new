@@ -1,8 +1,8 @@
 
 import React from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
-import { Fuel } from "lucide-react";
+import { Fuel, Upload, Calculator, BarChart3, Settings } from "lucide-react";
 
 export function QuickActions() {
   const { isOwner, isAdmin, isManager, isEmployee } = useRoleAccess();
@@ -12,21 +12,26 @@ export function QuickActions() {
       title: "Add Reading",
       description: "Upload or manual entry",
       href: "/upload",
-      color: "hover:bg-blue-50 hover:border-blue-200"
+      icon: Upload,
+      color: "bg-blue-500 hover:bg-blue-600",
+      textColor: "text-blue-50"
     },
     {
-      title: "Settlements (Daily Closure)",
+      title: "Daily Settlement",
       description: "End of day summary",
       href: "/settlements",
-      // keep old path as alias: /daily-closure will also render settlements
-      color: "hover:bg-green-50 hover:border-green-200"
+      icon: Calculator,
+      color: "bg-green-500 hover:bg-green-600",
+      textColor: "text-green-50"
     },
     // 'View Reports' should be visible to managers and above; hide for employees
     ...(isEmployee ? [] : [{
-      title: "View Reports",
+      title: "Reports",
       description: "Sales & analytics",
       href: "/reports",
-      color: "hover:bg-purple-50 hover:border-purple-200"
+      icon: BarChart3,
+      color: "bg-purple-500 hover:bg-purple-600",
+      textColor: "text-purple-50"
     }])
   ];
 
@@ -34,41 +39,53 @@ export function QuickActions() {
     <Card className="card-mobile">
       <CardHeader className="px-4 py-3 sm:px-6 sm:py-4">
         <CardTitle className="text-sm sm:text-base">Quick Actions</CardTitle>
-        <CardDescription className="text-xs sm:text-sm">Common daily tasks</CardDescription>
       </CardHeader>
-      <CardContent className="px-4 pb-4 sm:px-6 space-y-2 sm:space-y-3">
-        <div className="grid grid-cols-1 gap-2 sm:gap-3">
-          {actions.map((action, index) => (
-            <button
-              key={index}
-              onClick={() => window.location.href = action.href}
-              className={`touch-target p-3 sm:p-4 text-left border-2 rounded-lg transition-all duration-200 group active:scale-95 ${action.color}`}
-            >
-              <div className="font-medium text-sm sm:text-base group-hover:text-primary transition-colors">
-                {action.title}
-              </div>
-              <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                {action.description}
-              </div>
-            </button>
-          ))}
-          
+      <CardContent className="px-4 pb-4 sm:px-6">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          {actions.map((action, index) => {
+            const IconComponent = action.icon;
+            return (
+              <button
+                key={index}
+                onClick={() => window.location.href = action.href}
+                className={`${action.color} ${action.textColor} p-3 sm:p-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm hover:shadow-md flex flex-col items-center justify-center text-center min-h-[80px] sm:min-h-[100px] group`}
+              >
+                <IconComponent className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
+                <div className="font-medium text-xs sm:text-sm leading-tight">
+                  {action.title}
+                </div>
+                <div className="text-xs opacity-90 mt-0.5 leading-tight hidden sm:block">
+                  {action.description}
+                </div>
+              </button>
+            );
+          })}
+
           {(isOwner || isAdmin) && (
             <button
               onClick={() => window.location.href = '/prices'}
-              className="touch-target p-3 sm:p-4 text-left border-2 rounded-lg hover:bg-amber-50 hover:border-amber-200 transition-all duration-200 group flex items-start gap-3 active:scale-95"
+              className="bg-amber-500 hover:bg-amber-600 text-amber-50 p-3 sm:p-4 rounded-lg transition-all duration-200 hover:scale-105 active:scale-95 shadow-sm hover:shadow-md flex flex-col items-center justify-center text-center min-h-[80px] sm:min-h-[100px] group"
             >
-              <Fuel className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="flex-1">
-                <div className="font-medium text-sm sm:text-base group-hover:text-amber-700 transition-colors">
-                  Update Fuel Prices
-                </div>
-                <div className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-                  Manage & update per litre rates
-                </div>
+              <Fuel className="w-5 h-5 sm:w-6 sm:h-6 mb-1 sm:mb-2 group-hover:scale-110 transition-transform" />
+              <div className="font-medium text-xs sm:text-sm leading-tight">
+                Fuel Prices
+              </div>
+              <div className="text-xs opacity-90 mt-0.5 leading-tight hidden sm:block">
+                Update rates
               </div>
             </button>
           )}
+        </div>
+
+        {/* Settings link for all users */}
+        <div className="mt-3 pt-3 border-t border-gray-100">
+          <button
+            onClick={() => window.location.href = '/settings'}
+            className="w-full flex items-center justify-center gap-2 p-2 rounded-lg hover:bg-gray-50 transition-colors group text-sm text-muted-foreground hover:text-foreground"
+          >
+            <Settings className="w-4 h-4 group-hover:rotate-90 transition-transform" />
+            <span>Settings</span>
+          </button>
         </div>
       </CardContent>
     </Card>

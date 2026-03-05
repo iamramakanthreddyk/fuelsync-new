@@ -13,6 +13,7 @@ import { Fuel, ChevronRight, AlertTriangle } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { apiClient, ApiResponse } from '@/lib/api-client';
 import type { Tank } from '@/types/api';
+import { getFuelColorScheme } from '@/core/fuel/fuelConfig';
 
 interface TankSnapshot {
   fuelType: string;
@@ -21,6 +22,13 @@ interface TankSnapshot {
   capacity: number;
   percentFull: number;
   status: 'critical' | 'low' | 'normal' | 'overflow';
+  fuelColors: {
+    bg: string;
+    text: string;
+    border: string;
+    dot: string;
+    bar: string;
+  };
 }
 
 export function TankLevelsSnapshot() {
@@ -56,6 +64,7 @@ export function TankLevelsSnapshot() {
                   const currentLevel = tank.currentLevel;
                   const capacity = tank.capacity;
                   const percentFull = Math.round((currentLevel / capacity) * 100);
+                  const fuelColors = getFuelColorScheme(tank.fuelType);
 
                   let status: 'critical' | 'low' | 'normal' | 'overflow' = 'normal';
                   if (percentFull <= 10) status = 'critical';
@@ -69,6 +78,10 @@ export function TankLevelsSnapshot() {
                     capacity,
                     percentFull,
                     status,
+                    fuelColors: {
+                      ...fuelColors,
+                      bar: fuelColors.dot,
+                    },
                   });
                 } catch (err) {
                   console.error('Error transforming tank data:', err);
@@ -91,32 +104,6 @@ export function TankLevelsSnapshot() {
 
     fetchAllTanks();
   }, [stations]);
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'critical':
-        return 'text-red-600 bg-red-50';
-      case 'low':
-        return 'text-yellow-600 bg-yellow-50';
-      case 'overflow':
-        return 'text-orange-600 bg-orange-50';
-      default:
-        return 'text-green-600 bg-green-50';
-    }
-  };
-
-  const getBarColor = (status: string) => {
-    switch (status) {
-      case 'critical':
-        return 'bg-red-500';
-      case 'low':
-        return 'bg-yellow-500';
-      case 'overflow':
-        return 'bg-orange-500';
-      default:
-        return 'bg-green-500';
-    }
-  };
 
   const criticalTanks = allTanks.filter(t => t.status === 'critical').length;
   const lowTanks = allTanks.filter(t => t.status === 'low').length;
@@ -154,14 +141,14 @@ export function TankLevelsSnapshot() {
                     <span className="text-sm font-medium text-gray-700">{tank.displayFuelName}</span>
                   </div>
                   <div className="text-right">
-                    <span className={`text-sm font-semibold ${getStatusColor(tank.status)}`}>
+                    <span className={`text-sm font-semibold ${tank.fuelColors.text}`}>
                       {tank.percentFull}%
                     </span>
                   </div>
                 </div>
                 <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
                   <div
-                    className={`h-full ${getBarColor(tank.status)} transition-all`}
+                    className={`h-full ${tank.fuelColors.bar} transition-all`}
                     style={{ width: `${Math.min(tank.percentFull, 100)}%` }}
                   />
                 </div>
