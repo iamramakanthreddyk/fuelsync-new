@@ -2030,7 +2030,7 @@ exports.getVarianceSummary = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    const { Settlement } = require('../models');
+    const { Settlement, DailyTransaction } = require('../models');
     const { Op } = require('sequelize');
 
     const where = { stationId };
@@ -2068,13 +2068,33 @@ exports.getVarianceSummary = async (req, res, next) => {
     let totalVarianceOnline = 0;
     let totalVarianceCredit = 0;
 
-    settlements.forEach(s => {
+    // Recalculate variances from actual transaction data (like getSettlements does)
+    for (const s of settlements) {
       const dateStr = typeof s.date === 'string' ? s.date : s.date.toISOString().split('T')[0];
+      const actualCash = parseFloat(s.actualCash || 0);
+      const ownerOnline = parseFloat(s.online || 0);
+      const ownerCredit = parseFloat(s.credit || 0);
+
+      // Fetch transactions for this settlement date to recalculate employee-reported amounts
+      const transactions = await DailyTransaction.findAll({
+        where: { stationId, transactionDate: dateStr },
+        raw: true
+      });
+
+      // Sum payment breakdown from transactions (employee-reported amounts)
+      let employeeOnline = 0, employeeCredit = 0;
+      transactions.forEach(txn => {
+        const pb = txn.payment_breakdown || txn.paymentBreakdown || {};
+        employeeOnline += parseFloat(pb.online || 0);
+        employeeCredit += parseFloat(pb.credit || 0);
+      });
+
+      // Calculate channel variances (employee reported vs owner confirmed)
+      const varianceOnline = employeeOnline - ownerOnline;
+      const varianceCredit = employeeCredit - ownerCredit;
+
+      // Pull the main variance (cash variance) from settlement
       const variance = parseFloat(s.variance || 0);
-      const varianceOnline = parseFloat(s.varianceOnline || 0);
-      const varianceCredit = parseFloat(s.varianceCredit || 0);
-      const expectedCash = parseFloat(s.expectedCash || 0);
-      const expectedTotal = expectedCash + parseFloat(s.online || 0) + parseFloat(s.credit || 0);
 
       if (!byDay[dateStr]) {
         byDay[dateStr] = { 
@@ -2090,19 +2110,19 @@ exports.getVarianceSummary = async (req, res, next) => {
       byDay[dateStr].variance += variance;
       byDay[dateStr].varianceOnline += varianceOnline;
       byDay[dateStr].varianceCredit += varianceCredit;
-      byDay[dateStr].expectedCash += expectedCash;
+      byDay[dateStr].expectedCash += parseFloat(s.expectedCash || 0);
       byDay[dateStr].settlementCount += 1;
       
       // Total variance is the sum of all variances (cash + online + credit)
       totalVariance += variance + varianceOnline + varianceCredit;
-      totalExpectedCash += expectedTotal;
+      totalExpectedCash += parseFloat(s.expectedCash || 0);
       totalVarianceOnline += varianceOnline;
       totalVarianceCredit += varianceCredit;
-    });
+    }
 
     const byDayArray = Object.values(byDay).map(day => {
       const dayTotalVariance = day.variance + day.varianceOnline + day.varianceCredit;
-      const dayExpectedTotal = day.expectedCash; // Already includes online/credit in settlements
+      const dayExpectedTotal = day.expectedCash;
       return {
         ...day,
         totalVariance: parseFloat(dayTotalVariance.toFixed(2)),
@@ -2134,9 +2154,8 @@ exports.getVarianceSummary = async (req, res, next) => {
         byDay: byDayArray,
         summary: {
           status,
-          interpretation: totalVariance > 0 ? 'Shortfall (more cash needed)' : totalVariance < 0 ? 'Overage (excess cash)' : 'Perfect',
-          message: status === 'HEALTHY' ? `Total variance is ${Math.abs(variancePercentage).toFixed(2)}% (acceptable)` : `${status} variance - ${Math.abs(variancePercentage).toFixed(2)}%`,
-          breakdown: `Cash: ${totalVariance - totalVarianceOnline - totalVarianceCredit}, Online: ${totalVarianceOnline}, Credit: ${totalVarianceCredit}`
+          interpretation: totalVariance > 0 ? 'Shortfall' : totalVariance < 0 ? 'Overage' : 'Perfect',
+          message: status === 'HEALTHY' ? `Total variance is ${Math.abs(variancePercentage).toFixed(2)}% (acceptable) - Cash: ${totalVariance - totalVarianceOnline - totalVarianceCredit}, Online: ${totalVarianceOnline}, Credit: ${totalVarianceCredit}` : `${status} - variance is ${Math.abs(variancePercentage).toFixed(2)}%`
         }
       }
     });
