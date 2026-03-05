@@ -126,14 +126,16 @@ module.exports = (sequelize) => {
 
   /**
    * Scopes for soft delete functionality
+   * TEMPORARILY DISABLED: soft delete columns don't exist in production DB yet
+   * Will re-enable once 20260305 migrations are applied
    */
-  Expense.addScope('active', {
-    where: { deletedAt: null }
-  });
+  // Expense.addScope('active', {
+  //   where: { deletedAt: null }
+  // });
 
-  Expense.addScope('deleted', {
-    where: { deletedAt: { [Op.not]: null } }
-  });
+  // Expense.addScope('deleted', {
+  //   where: { deletedAt: { [Op.not]: null } }
+  // });
 
   Expense.addScope('withDeleted', {
     // Returns all records (both active and deleted)

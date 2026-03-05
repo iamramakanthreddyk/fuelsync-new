@@ -150,18 +150,20 @@ module.exports = (sequelize) => {
 
   /**
    * Scopes for soft delete functionality
+   * TEMPORARILY DISABLED: soft delete columns don't exist in production DB yet
+   * Will re-enable once 20260305 migrations are applied
    */
-  DailyTransaction.addScope('active', {
-    where: { deletedAt: null }
-  });
+  // DailyTransaction.addScope('active', {
+  //   where: { deletedAt: null }
+  // });
 
-  DailyTransaction.addScope('deleted', {
-    where: { deletedAt: { [require('sequelize').Op.not]: null } }
-  });
+  // DailyTransaction.addScope('deleted', {
+  //   where: { deletedAt: { [require('sequelize').Op.not]: null } }
+  // });
 
-  DailyTransaction.addScope('withDeleted', {
-    // Returns all records (both active and deleted)
-  });
+  // DailyTransaction.addScope('withDeleted', {
+  //   // Returns all records (both active and deleted)
+  // });
 
   DailyTransaction.associate = (models) => {
     DailyTransaction.belongsTo(models.Station, { foreignKey: 'stationId', as: 'station' });

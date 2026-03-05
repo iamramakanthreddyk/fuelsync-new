@@ -401,18 +401,20 @@ module.exports = (sequelize) => {
 
   /**
    * Scopes for soft delete functionality
+   * TEMPORARILY DISABLED: soft delete columns don't exist in production DB yet
+   * Will re-enable once 20260305 migrations are applied
    */
-  NozzleReading.addScope('active', {
-    where: { deletedAt: null }
-  });
+  // NozzleReading.addScope('active', {
+  //   where: { deletedAt: null }
+  // });
 
-  NozzleReading.addScope('deleted', {
-    where: { deletedAt: { [Op.not]: null } }
-  });
+  // NozzleReading.addScope('deleted', {
+  //   where: { deletedAt: { [Op.not]: null } }
+  // });
 
-  NozzleReading.addScope('withDeleted', {
-    // Returns all records (both active and deleted)
-  });
+  // NozzleReading.addScope('withDeleted', {
+  //   // Returns all records (both active and deleted)
+  // });
 
   NozzleReading.associate = (models) => {
     NozzleReading.belongsTo(models.Nozzle, { foreignKey: 'nozzleId', as: 'nozzle' });
