@@ -40,7 +40,7 @@ const { FUEL_TYPES, PAYMENT_METHODS, EXPENSE_CATEGORIES, USER_ROLES } = require(
 
 // Import middleware
 const normalizeRequestBody = require('./middleware/normalizeRequestBody');
-const requestTracking = require('./middleware/requestTracking');
+const { requestTracking } = require('./middleware/requestTracking');
 const healthCheck = require('./utils/healthCheck');
 
 // Create Express app
@@ -114,7 +114,7 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // Request tracking middleware - MUST be early for request ID correlation
-app.use(requestTracking());
+app.use(requestTracking);
 
 // Security headers - but SAFE for CORS
 app.use(helmet({
