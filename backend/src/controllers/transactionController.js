@@ -11,6 +11,10 @@
 
 const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize, FuelPrice, Nozzle, Pump } = require('../models');
 const { logAudit } = require('../utils/auditLog');
+const transactionValidation = require('../services/transactionValidationService');
+const creditAllocationService = require('../services/creditAllocationService');
+const { VALIDATION_ERRORS, TRANSACTION_STATUS } = require('../config/transactionConstants');
+const { Op } = require('sequelize');
 // Minimal helper to compute litresSold and totalAmount similar to readingController
 async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap, isSample = false, forceNotInitial = false }) {
   // Find previous (last) reading for nozzle before or on date
@@ -88,7 +92,6 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
 
   return await NozzleReading.create(payload, { transaction });
 }
-const { Op } = require('sequelize');
 
 /**
  * Create a daily transaction
@@ -106,160 +109,51 @@ const { Op } = require('sequelize');
  */
 exports.createTransaction = async (req, res, next) => {
   try {
-    const {
-      stationId,
-      transactionDate,
-      readingIds = [],
-      paymentBreakdown = { cash: 0, online: 0, credit: 0 },
-      creditAllocations = [],
-      notes = ''
-    } = req.body;
-
+    const { stationId, transactionDate, readingIds = [], paymentBreakdown = {}, creditAllocations = [], notes = '' } = req.body;
     const userId = req.userId;
 
-    // Validation
-    if (!stationId) {
-      return res.status(400).json({
-        success: false,
-        error: 'stationId is required'
-      });
-    }
+    // Input validation
+    if (!stationId) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.STATION_REQUIRED });
+    if (!transactionDate) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.DATE_REQUIRED });
+    if (!Array.isArray(readingIds) || readingIds.length === 0) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.READINGS_REQUIRED });
 
-    if (!transactionDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'transactionDate is required (YYYY-MM-DD)'
-      });
-    }
-
-    if (!Array.isArray(readingIds) || readingIds.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'readingIds must be a non-empty array'
-      });
-    }
-
-    // Verify user has access to station
+    // Verify station exists
     const station = await Station.findByPk(stationId);
-    if (!station) {
-      return res.status(404).json({
-        success: false,
-        error: 'Station not found'
-      });
-    }
+    if (!station) return res.status(404).json({ success: false, error: VALIDATION_ERRORS.STATION_NOT_FOUND });
 
-    // Fetch all readings to validate and sum
+    // Fetch readings to validate and sum
     const readings = await NozzleReading.findAll({
-      where: {
-        id: readingIds,
-        stationId,
-        readingDate: transactionDate,
-        isInitialReading: false
-      }
+      where: { id: readingIds, stationId, readingDate: transactionDate, isInitialReading: false }
     });
 
-    if (readings.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No valid readings found for specified IDs, station, and date'
-      });
-    }
+    if (readings.length === 0) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.NO_READINGS_FOUND });
 
-    // Sum readings to get totals
+    // Calculate totals
     const totalLiters = readings.reduce((sum, r) => sum + parseFloat(r.litresSold || 0), 0);
     const totalSaleValue = readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
 
-    // Check if all readings are sample readings
-    // Note: Sequelize returns camelCase for attributes, but can also have raw values
-    const allSampleReadings = readings.length > 0 && readings.every(r => {
-      const isSampleVal = r.isSample !== undefined ? r.isSample : (r.dataValues?.isSample || r.dataValues?.is_sample || false);
-      return isSampleVal === true;
-    });
+    // Check if all readings are samples
+    if (transactionValidation.areAllReadingsSamples(readings)) {
+      return res.status(400).json({ success: false, error: VALIDATION_ERRORS.SAMPLE_READINGS_ONLY });
+    }
 
-    // If all readings are samples, return error (samples should not create transactions)
-    if (allSampleReadings) {
+    // Validate payment breakdown
+    const paymentValidation = transactionValidation.validatePaymentBreakdown(paymentBreakdown, totalSaleValue);
+    if (!paymentValidation.isValid) {
       return res.status(400).json({
         success: false,
-        error: 'Sample readings cannot create transactions. Only use sample readings for testing/verification.'
+        error: paymentValidation.error,
+        details: paymentValidation.details
       });
     }
 
-    // Validate payment breakdown sums correctly
-    const paymentTotal = parseFloat(paymentBreakdown.cash || 0) +
-                        parseFloat(paymentBreakdown.online || 0) +
-                        parseFloat(paymentBreakdown.credit || 0);
-
-    // CRITICAL VALIDATION: At least one payment method must be > 0
-    if (paymentTotal <= 0 || 
-        (parseFloat(paymentBreakdown.cash || 0) <= 0 && 
-         parseFloat(paymentBreakdown.online || 0) <= 0 && 
-         parseFloat(paymentBreakdown.credit || 0) <= 0)) {
-      return res.status(400).json({
-        success: false,
-        error: 'At least one payment method (cash, online, or credit) must be greater than 0',
-        details: {
-          cash: parseFloat(paymentBreakdown.cash || 0),
-          online: parseFloat(paymentBreakdown.online || 0),
-          credit: parseFloat(paymentBreakdown.credit || 0)
-        }
-      });
+    // Validate credit allocations
+    const creditValidation = transactionValidation.validateCreditAllocations(creditAllocations, paymentValidation.normalizedBreakdown.credit);
+    if (!creditValidation.isValid) {
+      return res.status(400).json({ success: false, error: creditValidation.error });
     }
 
-    // Build per-reading breakdown for better error messages
-    const perReading = readings.map(r => ({ id: r.id, litresSold: parseFloat(r.litresSold || 0), totalAmount: parseFloat(r.totalAmount || 0) }));
-    const diff = Math.abs(paymentTotal - totalSaleValue);
-    // Allow a small tolerance (₹0.50) to account for rounding differences introduced on the client
-    const TOLERANCE = 0.5;
-    if (diff > TOLERANCE) {
-      return res.status(400).json({
-        success: false,
-        error: `Payment breakdown (₹${paymentTotal.toFixed(2)}) must match total sale value (₹${totalSaleValue.toFixed(2)}). Difference: ₹${diff.toFixed(2)}`,
-        details: {
-          totalSaleValue: parseFloat(totalSaleValue.toFixed(2)),
-          paymentTotal: parseFloat(paymentTotal.toFixed(2)),
-          difference: parseFloat(diff.toFixed(2)),
-          perReading
-        }
-      });
-    }
-
-    // Validate credit allocations if credit amount > 0
-    if (paymentBreakdown.credit > 0) {
-      if (!Array.isArray(creditAllocations) || creditAllocations.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'Credit allocations required when credit amount > 0'
-        });
-      }
-
-      const creditTotal = creditAllocations.reduce((sum, c) => sum + parseFloat(c.amount || 0), 0);
-      const creditDiff = Math.abs(creditTotal - paymentBreakdown.credit);
-      if (creditDiff > 0.01) {
-        return res.status(400).json({
-          success: false,
-          error: `Credit allocations (₹${creditTotal.toFixed(2)}) must match credit amount (₹${paymentBreakdown.credit.toFixed(2)})`
-        });
-      }
-
-      // Verify creditors exist
-      const creditorIds = creditAllocations.map(c => c.creditorId);
-      const creditors = await Creditor.findAll({
-        where: { id: creditorIds }
-      });
-
-      if (creditors.length !== creditorIds.length) {
-        return res.status(400).json({
-          success: false,
-          error: 'One or more creditors not found'
-        });
-      }
-    }
-
-    // Check if transaction already exists for this date - REMOVED
-    // Multiple transactions per day are now allowed (for multiple employees/shifts)
-    // Settlement will aggregate all transactions for the day
-
-    // Persist transaction and any credit allocations atomically
+    // Persist atomically
     const t = await sequelize.transaction();
     try {
       const dailyTxn = await DailyTransaction.create({
@@ -267,75 +161,32 @@ exports.createTransaction = async (req, res, next) => {
         transactionDate,
         totalLiters,
         totalSaleValue,
-        paymentBreakdown: {
-          cash: parseFloat(paymentBreakdown.cash || 0),
-          online: parseFloat(paymentBreakdown.online || 0),
-          credit: parseFloat(paymentBreakdown.credit || 0)
-        },
-        creditAllocations: creditAllocations.map(c => ({
-          creditorId: c.creditorId,
-          amount: parseFloat(c.amount)
-        })),
+        paymentBreakdown: paymentValidation.normalizedBreakdown,
+        creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
         readingIds,
         createdBy: userId,
         notes,
-        status: 'submitted'
+        status: TRANSACTION_STATUS.SUBMITTED
       }, { transaction: t });
 
-      // If there are credit allocations, create CreditTransaction rows and update creditor balances
-      const createdCreditTxns = [];
-      if (Array.isArray(creditAllocations) && creditAllocations.length > 0) {
-        for (const alloc of creditAllocations) {
-          const creditorId = alloc.creditorId;
-          const allocAmount = parseFloat(alloc.amount || 0);
-          if (!creditorId || !allocAmount || allocAmount <= 0) continue;
+      // Process credit allocations (creates CreditTransactions and updates creditor balances)
+      const createdCreditTxns = await creditAllocationService.processCreditAllocations({
+        stationId,
+        creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
+        transactionDate,
+        readingIds,
+        notes,
+        userId,
+        transaction: t
+      });
 
-          // Lock creditor row for update (non-sqlite)
-          const findOptions = { transaction: t };
-          if (sequelize.getDialect() !== 'sqlite') findOptions.lock = t.LOCK.UPDATE;
-
-          const creditor = await Creditor.findByPk(creditorId, findOptions);
-          if (!creditor || String(creditor.stationId) !== String(stationId)) {
-            await t.rollback();
-            return res.status(404).json({ success: false, error: 'Creditor not found for allocation' });
-          }
-
-          // Check credit limit
-          if (!creditor.canTakeCredit(allocAmount)) {
-            await t.rollback();
-            return res.status(400).json({ success: false, error: { message: `Credit limit exceeded for ${creditor.name}` } });
-          }
-
-          const creditTxn = await CreditTransaction.create({
-            stationId,
-            creditorId,
-            transactionType: 'credit',
-            amount: allocAmount,
-            transactionDate: transactionDate || new Date().toISOString().split('T')[0],
-            notes: notes || null,
-            nozzleReadingId: readingIds && readingIds.length > 0 ? readingIds[0] : null,
-            enteredBy: userId
-          }, { transaction: t });
-
-          // Update creditor balance
-          await creditor.update({
-            currentBalance: parseFloat(creditor.currentBalance) + allocAmount,
-            lastTransactionDate: new Date()
-          }, { transaction: t });
-
-          createdCreditTxns.push(creditTxn);
-        }
-      }
-
-      // Update all related NozzleReadings to set transactionId
-      console.log('[DEBUG] About to update NozzleReadings with transactionId:', dailyTxn.id, 'for readingIds:', readingIds);
-      const updateResult = await NozzleReading.update(
+      // Link readings to transaction
+      await NozzleReading.update(
         { transactionId: dailyTxn.id },
         { where: { id: readingIds }, transaction: t }
       );
-      console.log('[DEBUG] NozzleReading.update result:', updateResult);
 
-      // Log daily transaction creation
+      // Audit log
       const currentUser = await User.findByPk(userId);
       await logAudit({
         userId,
@@ -350,12 +201,12 @@ exports.createTransaction = async (req, res, next) => {
           transactionDate,
           totalLiters,
           totalSaleValue,
-          paymentBreakdown,
+          paymentBreakdown: paymentValidation.normalizedBreakdown,
           creditAllocations: creditAllocations.length
         },
         category: 'finance',
         severity: 'info',
-        description: `Created daily transaction: ₹${totalSaleValue} from ${totalLiters}L of fuel`
+        description: `Created daily transaction: ₹${totalSaleValue.toFixed(2)} from ${totalLiters}L of fuel`
       });
 
       await t.commit();
@@ -375,15 +226,12 @@ exports.createTransaction = async (req, res, next) => {
       });
     } catch (err) {
       await t.rollback();
-      console.error('[ERROR] createTransaction (commit):', err);
+      console.error('[ERROR] createTransaction:', err);
       return res.status(500).json({ success: false, error: err.message });
     }
   } catch (error) {
     console.error('[ERROR] createTransaction:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return res.status(500).json({ success: false, error: error.message });
   }
 };
 
@@ -403,25 +251,25 @@ exports.createQuickEntry = async (req, res, next) => {
     const { stationId, transactionDate, readings = [], paymentBreakdown, creditAllocations = [], notes = '' } = req.body;
     const userId = req.userId;
 
-    if (!stationId) return res.status(400).json({ success: false, error: 'stationId is required' });
-    if (!transactionDate) return res.status(400).json({ success: false, error: 'transactionDate is required' });
-    if (!Array.isArray(readings) || readings.length === 0) return res.status(400).json({ success: false, error: 'readings array required' });
+    if (!stationId) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.STATION_REQUIRED });
+    if (!transactionDate) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.DATE_REQUIRED });
+    if (!Array.isArray(readings) || readings.length === 0) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.READINGS_REQUIRED });
 
     const station = await Station.findByPk(stationId);
-    if (!station) return res.status(404).json({ success: false, error: 'Station not found' });
+    if (!station) return res.status(404).json({ success: false, error: VALIDATION_ERRORS.STATION_NOT_FOUND });
 
     const t = await sequelize.transaction();
     try {
       // Create readings sequentially to preserve previous-reading logic
       const createdReadings = [];
-      // Build station prices map from payload if provided
-      const stationPricesArr = Array.isArray(req.body.stationPrices) ? req.body.stationPrices : [];
-      const stationPricesMap = stationPricesArr.reduce((acc, p) => {
-        const key = (p.fuelType || p.fuel_type || '').toString().toLowerCase();
-        const val = p.price !== undefined ? p.price : p.price_per_litre;
-        if (key && val !== undefined && val !== null) acc[key] = parseFloat(String(val));
-        return acc;
-      }, {});
+      const stationPricesMap = Array.isArray(req.body.stationPrices)
+        ? req.body.stationPrices.reduce((acc, p) => {
+            const key = (p.fuelType || p.fuel_type || '').toString().toLowerCase();
+            const val = p.price !== undefined ? p.price : p.price_per_litre;
+            if (key && val !== undefined && val !== null) acc[key] = parseFloat(String(val));
+            return acc;
+          }, {})
+        : {};
 
       for (const r of readings) {
         const nozzleId = r.nozzleId || r.nozzle_id;
@@ -440,7 +288,7 @@ exports.createQuickEntry = async (req, res, next) => {
           transaction: t,
           stationPricesMap,
           isSample: isSampleVal,
-          forceNotInitial: true // CRITICAL: In quick entry with payment, readings are never initial
+          forceNotInitial: true
         });
         createdReadings.push(created);
       }
@@ -453,72 +301,45 @@ exports.createQuickEntry = async (req, res, next) => {
       const totalLiters = billableReadings.reduce((s, r) => s + parseFloat(r.litresSold || 0), 0);
       const totalSaleValue = billableReadings.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
 
-      // Check if all readings are sample readings
-      // Note: Sequelize returns camelCase for attributes, but can also have raw values
-      const allSampleReadings = createdReadings.length > 0 && createdReadings.every(r => {
-        const isSampleVal = r.isSample !== undefined ? r.isSample : (r.dataValues?.isSample || r.dataValues?.is_sample || false);
-        return isSampleVal === true;
-      });
-
-      // If there are no billable readings (only initial readings were recorded), commit and return
-      if (readingIds.length === 0) {
+      // Check if all readings are samples
+      if (transactionValidation.areAllReadingsSamples(createdReadings)) {
         await t.commit();
-        const result = { createdReadings };
-        return res.status(201).json({ success: true, message: 'Initial readings recorded. No transaction created.', data: result });
-      }
-
-      // If all readings are sample readings, commit and return (no transaction created for samples)
-      if (allSampleReadings) {
-        await t.commit();
-        const result = { createdReadings };
-        return res.status(201).json({ success: true, message: 'Sample readings recorded. No transaction created.', data: result });
-      }
-
-      // Validate paymentBreakdown presence
-      let paymentTotal = parseFloat((paymentBreakdown && paymentBreakdown.cash) || 0) +
-             parseFloat((paymentBreakdown && paymentBreakdown.online) || 0) +
-             parseFloat((paymentBreakdown && paymentBreakdown.credit) || 0);
-
-      // CRITICAL VALIDATION: At least one payment method must be > 0 (skip if all readings are samples)
-      const cashAmt = parseFloat((paymentBreakdown && paymentBreakdown.cash) || 0);
-      const onlineAmt = parseFloat((paymentBreakdown && paymentBreakdown.online) || 0);
-      const creditAmt = parseFloat((paymentBreakdown && paymentBreakdown.credit) || 0);
-      
-      if (!allSampleReadings && (paymentTotal <= 0 || (cashAmt <= 0 && onlineAmt <= 0 && creditAmt <= 0))) {
-        await t.rollback();
-        return res.status(400).json({
-          success: false,
-          error: 'At least one payment method (cash, online, or credit) must be greater than 0',
-          details: {
-            cash: cashAmt,
-            online: onlineAmt,
-            credit: creditAmt,
-            totalSaleValue: parseFloat(totalSaleValue.toFixed(2))
-          }
+        return res.status(201).json({
+          success: true,
+          message: 'Sample readings recorded. No transaction created.',
+          data: { createdReadings }
         });
       }
 
-      let diff = Math.abs(paymentTotal - totalSaleValue);
-      const TOLERANCE = 0.5;
-      let autoBalanced = false;
-      
-      // Only auto-balance if there's a computed sale value
-      // If totalSaleValue is 0 (e.g., duplicate readings with no litres sold), 
-      // accept the payment as-is (could be miscellaneous income or service charge)
-      if (diff > TOLERANCE && totalSaleValue > 0) {
-        // Auto-balance cash to match computed sale total
-        const newCash = Math.max(0, parseFloat(totalSaleValue) - (onlineAmt + creditAmt));
-        paymentTotal = newCash + onlineAmt + creditAmt;
-        diff = Math.abs(paymentTotal - totalSaleValue);
-        autoBalanced = true;
-        // If still not within tolerance, return details for debugging
-        if (diff > TOLERANCE) {
-          await t.rollback();
-          const perReading = createdReadings.map(r => ({ id: r.id, nozzleId: r.nozzleId, litresSold: parseFloat(r.litresSold || 0), pricePerLitre: parseFloat(r.pricePerLitre || 0), totalAmount: parseFloat(r.totalAmount || 0) }));
-          return res.status(400).json({ success: false, error: 'Payment total mismatch with created readings', details: { paymentTotal: parseFloat(paymentTotal.toFixed(2)), totalSaleValue: parseFloat(totalSaleValue.toFixed(2)), difference: parseFloat(diff.toFixed(2)), perReading } });
-        }
-        // Update paymentBreakdown.cash to newCash for persistence
-        paymentBreakdown.cash = newCash;
+      // If no billable readings, commit and return
+      if (readingIds.length === 0) {
+        await t.commit();
+        return res.status(201).json({
+          success: true,
+          message: 'Initial readings recorded. No transaction created.',
+          data: { createdReadings }
+        });
+      }
+
+      // Validate or auto-balance payment breakdown
+      const paymentBalance = transactionValidation.autoBalancePayment(paymentBreakdown, totalSaleValue);
+      if (!paymentBalance.isValid) {
+        await t.rollback();
+        return res.status(400).json({
+          success: false,
+          error: paymentBalance.error,
+          details: paymentBalance.details
+        });
+      }
+
+      // Validate credit allocations
+      const creditValidation = transactionValidation.validateCreditAllocations(
+        creditAllocations,
+        paymentBalance.normalizedBreakdown.credit
+      );
+      if (!creditValidation.isValid) {
+        await t.rollback();
+        return res.status(400).json({ success: false, error: creditValidation.error });
       }
 
       // Create DailyTransaction
@@ -527,62 +348,32 @@ exports.createQuickEntry = async (req, res, next) => {
         transactionDate,
         totalLiters,
         totalSaleValue,
-        paymentBreakdown: {
-          cash: parseFloat((paymentBreakdown && paymentBreakdown.cash) || 0),
-          online: parseFloat((paymentBreakdown && paymentBreakdown.online) || 0),
-          credit: parseFloat((paymentBreakdown && paymentBreakdown.credit) || 0)
-        },
-        creditAllocations: (creditAllocations || []).map(c => ({ creditorId: c.creditorId || c.creditor_id, amount: parseFloat(c.amount || 0) })),
+        paymentBreakdown: paymentBalance.normalizedBreakdown,
+        creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
         readingIds,
         createdBy: userId,
         notes,
-        status: 'submitted'
+        status: TRANSACTION_STATUS.SUBMITTED
       }, { transaction: t });
 
-      // Handle credit allocations same as createTransaction
-      const createdCreditTxns = [];
-      if (Array.isArray(creditAllocations) && creditAllocations.length > 0) {
-        for (const alloc of creditAllocations) {
-          const creditorId = alloc.creditorId || alloc.creditor_id;
-          const allocAmount = parseFloat(alloc.amount || 0);
-          if (!creditorId || !allocAmount || allocAmount <= 0) continue;
+      // Process credit allocations (batch query creditors, fix N+1)
+      const createdCreditTxns = await creditAllocationService.processCreditAllocations({
+        stationId,
+        creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
+        transactionDate,
+        readingIds,
+        notes,
+        userId,
+        transaction: t
+      });
 
-          const findOptions = { transaction: t };
-          if (sequelize.getDialect() !== 'sqlite') findOptions.lock = t.LOCK.UPDATE;
-          const creditor = await Creditor.findByPk(creditorId, findOptions);
-          if (!creditor || String(creditor.stationId) !== String(stationId)) {
-            await t.rollback();
-            return res.status(404).json({ success: false, error: 'Creditor not found for allocation' });
-          }
-          if (!creditor.canTakeCredit(allocAmount)) {
-            await t.rollback();
-            return res.status(400).json({ success: false, error: `Credit limit exceeded for ${creditor.name}` });
-          }
-
-          const creditTxn = await CreditTransaction.create({
-            stationId,
-            creditorId,
-            transactionType: 'credit',
-            amount: allocAmount,
-            transactionDate: transactionDate || new Date().toISOString().split('T')[0],
-            notes: notes || null,
-            nozzleReadingId: readingIds && readingIds.length > 0 ? readingIds[0] : null,
-            enteredBy: userId
-          }, { transaction: t });
-
-          await creditor.update({ currentBalance: parseFloat(creditor.currentBalance) + allocAmount, lastTransactionDate: new Date() }, { transaction: t });
-          createdCreditTxns.push(creditTxn);
-        }
-      }
-
-
-      // Update all related NozzleReadings to set transactionId
+      // Link readings to transaction
       await NozzleReading.update(
         { transactionId: dailyTxn.id },
         { where: { id: readingIds }, transaction: t }
       );
 
-      // Log quick entry transaction creation
+      // Audit log
       const currentUser = await User.findByPk(userId);
       await logAudit({
         userId,
@@ -597,13 +388,13 @@ exports.createQuickEntry = async (req, res, next) => {
           transactionDate,
           totalLiters,
           totalSaleValue,
-          paymentBreakdown,
+          paymentBreakdown: paymentBalance.normalizedBreakdown,
           creditAllocations: creditAllocations?.length || 0,
           readingsCount: readingIds?.length || 0
         },
         category: 'finance',
         severity: 'info',
-        description: `Created quick entry: ₹${totalSaleValue} from ${totalLiters}L with ${(creditAllocations || []).length} credit allocations`
+        description: `Created quick entry: ₹${totalSaleValue.toFixed(2)} from ${totalLiters}L with ${(creditAllocations || []).length} credit allocations`
       });
 
       await t.commit();
@@ -615,10 +406,17 @@ exports.createQuickEntry = async (req, res, next) => {
         ]
       });
 
-      return res.status(201).json({ success: true, message: 'Quick entry created', data: result, createdReadings, creditTransactions: createdCreditTxns, autoBalanced });
+      return res.status(201).json({
+        success: true,
+        message: 'Quick entry created',
+        data: result,
+        createdReadings,
+        creditTransactions: createdCreditTxns,
+        autoBalanced: paymentBalance.autoBalanced
+      });
     } catch (err) {
       await t.rollback();
-      console.error('[ERROR] createQuickEntry (commit):', err);
+      console.error('[ERROR] createQuickEntry:', err);
       return res.status(500).json({ success: false, error: err.message });
     }
   } catch (error) {
