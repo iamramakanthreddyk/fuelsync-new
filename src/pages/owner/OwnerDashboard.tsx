@@ -195,27 +195,27 @@ export default function OwnerDashboard() {
 
       {/* Variance Card - Compact Inline Design */}
       {varianceSummary && (
-        <div className={`p-3 sm:p-4 rounded-lg border-l-4 ${
-          varianceSummary.totalVariance > 0 ? 'border-l-red-500 bg-red-50/30' :
-          varianceSummary.totalVariance < 0 ? 'border-l-yellow-500 bg-yellow-50/30' :
-          'border-l-green-500 bg-green-50/30'
+        <div className={`p-2 sm:p-3 rounded-md border-l-4 ${
+          varianceSummary.totalVariance > 0 ? 'border-l-red-500 bg-red-50/20' :
+          varianceSummary.totalVariance < 0 ? 'border-l-yellow-500 bg-yellow-50/20' :
+          'border-l-green-500 bg-green-50/20'
         }`}>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
               <AlertCircle className={`w-4 h-4 ${
                 varianceSummary.totalVariance > 0 ? 'text-red-600' :
                 varianceSummary.totalVariance < 0 ? 'text-yellow-600' :
                 'text-green-600'
               }`} />
-              <div>
-                <div className="text-sm font-medium text-muted-foreground">Monthly Variance</div>
-                <div className="text-xs text-muted-foreground">
-                  {varianceSummary.dayCount} days • {safeToFixed(Math.abs(varianceSummary.variancePercentage), 1)}% of sales
+              <div className="min-w-0">
+                <div className="text-sm font-medium text-muted-foreground truncate">Monthly Variance</div>
+                <div className="text-xs text-muted-foreground truncate">
+                  {varianceSummary.dayCount} days • {safeToFixed(Math.abs(varianceSummary.variancePercentage), 1)}%
                 </div>
               </div>
             </div>
-            <div className="text-right">
-              <div className={`text-lg font-bold ${
+            <div className="flex items-center gap-2">
+              <div className={`text-base font-semibold ${
                 varianceSummary.totalVariance > 0 ? 'text-red-700' :
                 varianceSummary.totalVariance < 0 ? 'text-yellow-700' :
                 'text-green-700'
@@ -223,7 +223,7 @@ export default function OwnerDashboard() {
                 {varianceSummary.totalVariance > 0 ? '-' : varianceSummary.totalVariance < 0 ? '+' : ''}
                 ₹{Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
               </div>
-              <div className={`text-xs px-2 py-0.5 rounded-full inline-block ${
+              <div className={`text-xs px-1.5 py-0.5 rounded-full ${
                 varianceSummary.totalVariance > 0 ? 'bg-red-100 text-red-800' :
                 varianceSummary.totalVariance < 0 ? 'bg-yellow-100 text-yellow-800' :
                 'bg-green-100 text-green-800'
