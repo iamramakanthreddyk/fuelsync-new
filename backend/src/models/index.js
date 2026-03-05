@@ -44,7 +44,15 @@ if (dialect === 'sqlite') {
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
-  const storagePath = path.join(dataDir, 'fuelsync.db');
+  
+  // Use DATABASE_PATH if provided (for tests), otherwise use default
+  let storagePath;
+  if (process.env.DATABASE_PATH) {
+    storagePath = process.env.DATABASE_PATH;
+    console.log(`📝 [MODELS] Using DATABASE_PATH environment variable`);
+  } else {
+    storagePath = path.join(dataDir, 'fuelsync.db');
+  }
   
   sequelize = new Sequelize({
     dialect: 'sqlite',

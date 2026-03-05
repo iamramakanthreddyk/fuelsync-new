@@ -11,8 +11,13 @@
  */
 
 const request = require('supertest');
-const app = require('../../src/app');
+
+// NOTE: Environment is set in tests/setup.js BEFORE this file loads
+// Database: test.db (isolated from production)
+console.log('🧪 [ADMIN JOURNEY] Using database:', process.env.DATABASE_PATH);
+
 const { sequelize, User, Plan, Station } = require('../../src/models');
+const app = require('../../src/app');
 
 describe('Super Admin Journey', () => {
   let adminToken;

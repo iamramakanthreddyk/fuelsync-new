@@ -1,4 +1,9 @@
 const request = require('supertest');
+
+// NOTE: Environment is set in tests/setup.js BEFORE this file loads
+// Database: test.db (isolated from production)
+console.log('🧪 [ATOMICITY TEST] Using database:', process.env.DATABASE_PATH);
+
 let app; // required after DB sync to ensure tables exist
 const { sequelize, User, Station, Nozzle, Pump, Creditor, CreditTransaction } = require('../../src/models');
 

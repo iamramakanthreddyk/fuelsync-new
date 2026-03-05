@@ -8,51 +8,36 @@
  */
 
 const request = require('supertest');
-const path = require('path');
-const fs = require('fs');
 
-// Setup test database path
-const TEST_DB_PATH = path.join(__dirname, '..', 'data', 'test.db');
+// NOTE: Environment variables are set in tests/setup.js BEFORE this file is loaded
+// Database path: process.env.DATABASE_PATH (already set to test.db)
+// Dialect: process.env.DB_DIALECT = 'sqlite'
 
-// Clean up test database before tests
+console.log('🧪 [API TEST] Using database:', process.env.DATABASE_PATH);
+
+// Now require models - they will use the test database path set in setup.js
+const { syncDatabase, seedDefaultData, sequelize } = require('../src/models');
+let app;
+
+// Single beforeAll to initialize database and app
 beforeAll(async () => {
-  // Remove test database if exists
-  if (fs.existsSync(TEST_DB_PATH)) {
-    fs.unlinkSync(TEST_DB_PATH);
-  }
+  console.log('🧪 [API TEST] Initializing test database...');
   
-  // Ensure data directory exists
-  const dataDir = path.dirname(TEST_DB_PATH);
-  if (!fs.existsSync(dataDir)) {
-    fs.mkdirSync(dataDir, { recursive: true });
-  }
-  
-  // Set environment for test
-  process.env.DATABASE_PATH = TEST_DB_PATH;
-  process.env.DB_DIALECT = 'sqlite';
-  process.env.JWT_SECRET = 'test-jwt-secret';
-  
-  // Initialize database
-  const { syncDatabase, seedDefaultData } = require('../src/models');
+  // Sync database and seed data
   await syncDatabase({ force: true });
   await seedDefaultData();
-});
-
-// Get app after models are initialized
-let app;
-beforeAll(() => {
+  
+  console.log('✅ [API TEST] Database ready, loading app...');
+  
+  // Load app after database is ready
   app = require('../src/app');
 });
 
 // Clean up after all tests
 afterAll(async () => {
-  const sequelize = require('../src/models').sequelize;
+  console.log('🧪 [API TEST] Cleaning up...');
   await sequelize.close();
-  
-  // Remove test database
-  if (fs.existsSync(TEST_DB_PATH)) {
-    fs.unlinkSync(TEST_DB_PATH);
-  }
+  console.log('✅ [API TEST] Test database closed');
 });
 
 // Test state - stores IDs and tokens across tests

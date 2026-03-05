@@ -11,6 +11,11 @@
  */
 
 const request = require('supertest');
+
+// NOTE: Environment is set in tests/setup.js BEFORE this file loads
+// Database: test.db (isolated from production)
+console.log('🧪 [EMPLOYEE JOURNEY] Using database:', process.env.DATABASE_PATH);
+
 const app = require('../../src/app');
 const { sequelize, User, Plan, Station, Pump, Nozzle, Shift } = require('../../src/models');
 const bcrypt = require('bcryptjs');

@@ -1,4 +1,9 @@
 const request = require('supertest');
+
+// NOTE: Environment is set in tests/setup.js BEFORE this file loads
+// Database: test.db (isolated from production)
+console.log('🧪 [SETTLEMENT TEST] Using database:', process.env.DATABASE_PATH);
+
 let app;
 const { sequelize, User, Station, Nozzle, Pump } = require('../../src/models');
 

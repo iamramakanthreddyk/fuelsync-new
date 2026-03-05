@@ -2065,27 +2065,50 @@ exports.getVarianceSummary = async (req, res, next) => {
     const byDay = {};
     let totalVariance = 0;
     let totalExpectedCash = 0;
+    let totalVarianceOnline = 0;
+    let totalVarianceCredit = 0;
 
     settlements.forEach(s => {
       const dateStr = typeof s.date === 'string' ? s.date : s.date.toISOString().split('T')[0];
       const variance = parseFloat(s.variance || 0);
+      const varianceOnline = parseFloat(s.varianceOnline || 0);
+      const varianceCredit = parseFloat(s.varianceCredit || 0);
       const expectedCash = parseFloat(s.expectedCash || 0);
+      const expectedTotal = expectedCash + parseFloat(s.online || 0) + parseFloat(s.credit || 0);
 
       if (!byDay[dateStr]) {
-        byDay[dateStr] = { date: dateStr, variance: 0, expectedCash: 0, settlementCount: 0 };
+        byDay[dateStr] = { 
+          date: dateStr, 
+          variance: 0, 
+          varianceOnline: 0, 
+          varianceCredit: 0, 
+          expectedCash: 0, 
+          settlementCount: 0 
+        };
       }
 
       byDay[dateStr].variance += variance;
+      byDay[dateStr].varianceOnline += varianceOnline;
+      byDay[dateStr].varianceCredit += varianceCredit;
       byDay[dateStr].expectedCash += expectedCash;
       byDay[dateStr].settlementCount += 1;
-      totalVariance += variance;
-      totalExpectedCash += expectedCash;
+      
+      // Total variance is the sum of all variances (cash + online + credit)
+      totalVariance += variance + varianceOnline + varianceCredit;
+      totalExpectedCash += expectedTotal;
+      totalVarianceOnline += varianceOnline;
+      totalVarianceCredit += varianceCredit;
     });
 
-    const byDayArray = Object.values(byDay).map(day => ({
-      ...day,
-      variancePercentage: day.expectedCash > 0 ? parseFloat(((day.variance / day.expectedCash) * 100).toFixed(2)) : 0
-    }));
+    const byDayArray = Object.values(byDay).map(day => {
+      const dayTotalVariance = day.variance + day.varianceOnline + day.varianceCredit;
+      const dayExpectedTotal = day.expectedCash; // Already includes online/credit in settlements
+      return {
+        ...day,
+        totalVariance: parseFloat(dayTotalVariance.toFixed(2)),
+        variancePercentage: dayExpectedTotal > 0 ? parseFloat(((dayTotalVariance / dayExpectedTotal) * 100).toFixed(2)) : 0
+      };
+    });
 
     const avgDailyVariance = byDayArray.length > 0 ? totalVariance / byDayArray.length : 0;
     const variancePercentage = totalExpectedCash > 0 ? parseFloat(((totalVariance / totalExpectedCash) * 100).toFixed(2)) : 0;
@@ -2102,14 +2125,18 @@ exports.getVarianceSummary = async (req, res, next) => {
         settlementCount: settlements.length,
         dayCount: byDayArray.length,
         totalVariance: parseFloat(totalVariance.toFixed(2)),
+        totalVarianceCash: parseFloat((totalVariance - totalVarianceOnline - totalVarianceCredit).toFixed(2)),
+        totalVarianceOnline: parseFloat(totalVarianceOnline.toFixed(2)),
+        totalVarianceCredit: parseFloat(totalVarianceCredit.toFixed(2)),
         avgDailyVariance: parseFloat(avgDailyVariance.toFixed(2)),
         totalExpectedCash: parseFloat(totalExpectedCash.toFixed(2)),
         variancePercentage,
         byDay: byDayArray,
         summary: {
           status,
-          interpretation: totalVariance > 0 ? 'Shortfall' : totalVariance < 0 ? 'Overage' : 'Perfect',
-          message: status === 'HEALTHY' ? `Variance is ${Math.abs(variancePercentage).toFixed(2)}% (acceptable)` : `${status} variance - ${Math.abs(variancePercentage).toFixed(2)}%`
+          interpretation: totalVariance > 0 ? 'Shortfall (more cash needed)' : totalVariance < 0 ? 'Overage (excess cash)' : 'Perfect',
+          message: status === 'HEALTHY' ? `Total variance is ${Math.abs(variancePercentage).toFixed(2)}% (acceptable)` : `${status} variance - ${Math.abs(variancePercentage).toFixed(2)}%`,
+          breakdown: `Cash: ${totalVariance - totalVarianceOnline - totalVarianceCredit}, Online: ${totalVarianceOnline}, Credit: ${totalVarianceCredit}`
         }
       }
     });
@@ -2328,14 +2355,14 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
       });
     }
 
-    const { Settlement, Station } = require('../models');
-    const { Op, sequelize } = require('sequelize');
+    const { Station } = require('../models');
+    const employeeShortfallsService = require('../services/employeeShortfallsService');
 
     // Handle "all" case - get shortfalls for all user's stations
     let stationIds = [stationId];
     
     if (stationId === 'all') {
-      // Get all stations owned by user (simpler approach)
+      // Get all stations owned by user
       const userStations = await Station.findAll({
         where: { ownerId: user.id },
         attributes: ['id'],
@@ -2363,75 +2390,67 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
       }
     }
 
-    // Fetch all settlements for station(s) in date range
-    const settlements = await Settlement.findAll({
-      where: {
-        stationId: {
-          [Op.in]: stationIds
-        },
-        date: {
-          [Op.gte]: startDate,
-          [Op.lte]: endDate
-        }
-      },
-      raw: true
-    });
-
-    // Aggregate employee shortfalls from settlement data
-    const employeeMap = new Map();
-
-    settlements.forEach(settlement => {
-      if (!settlement.employee_shortfalls && !settlement.employeeShortfalls) {
-        return; // Skip if no shortfall data
-      }
-
-      // Handle both camelCase (from ORM) and snake_case (from raw query)
-      const shortfallData = settlement.employee_shortfalls || settlement.employeeShortfalls || {};
-
-      Object.entries(shortfallData).forEach(([empKey, empData]) => {
-        const employeeName = empData.employeeName || empData.employee_name || 'Unknown';
-        const shortfallAmount = parseFloat(empData.shortfall || 0);
+    // Use the employee shortfalls service to calculate shortfalls
+    const allShortfalls = [];
+    
+    for (const sid of stationIds) {
+      try {
+        const shortfalls = await employeeShortfallsService.getEmployeeShortfallsForDateRange({
+          stationId: sid,
+          startDate,
+          endDate
+        });
         
-        // Format date as YYYY-MM-DD
-        const settlementDate = settlement.date instanceof Date 
-          ? settlement.date.toISOString().split('T')[0]
-          : settlement.date;
+        allShortfalls.push(...shortfalls);
+      } catch (error) {
+        console.warn(`[EmployeeShortfalls] Error for station ${sid}:`, error.message);
+        // Continue processing other stations
+      }
+    }
 
-        if (!employeeMap.has(employeeName)) {
-          employeeMap.set(employeeName, {
-            employeeName,
-            employeeId: empData.employeeId || empData.employee_id,
+    // Merge and aggregate if multiple stations
+    let result = allShortfalls;
+    if (stationIds.length > 1) {
+      const mergedMap = new Map();
+      
+      allShortfalls.forEach(emp => {
+        const key = emp.employeeName;
+        if (!mergedMap.has(key)) {
+          mergedMap.set(key, {
+            employeeName: emp.employeeName,
+            employeeId: emp.employeeId,
             totalShortfall: 0,
             daysWithShortfall: new Set(),
+            averagePerDay: 0,
+            settlementsCount: 0,
             shortfallDates: new Set(),
-            settlementsCount: 0
+            lastShortfallDate: null
           });
         }
-
-        const emp = employeeMap.get(employeeName);
-        emp.totalShortfall += shortfallAmount;
-        emp.daysWithShortfall.add(settlementDate); // Track unique dates
-        emp.shortfallDates.add(settlementDate); // Add to date array
-        emp.settlementsCount += 1;
+        
+        const merged = mergedMap.get(key);
+        merged.totalShortfall += emp.totalShortfall;
+        merged.settlementsCount += emp.settlementsCount;
+        (emp.shortfallDates || []).forEach(d => merged.shortfallDates.add(d));
+        if (emp.lastShortfallDate && (!merged.lastShortfallDate || emp.lastShortfallDate > merged.lastShortfallDate)) {
+          merged.lastShortfallDate = emp.lastShortfallDate;
+        }
       });
-    });
-
-    // Convert to array and calculate metrics
-    const result = Array.from(employeeMap.values()).map(emp => {
-      const sortedDates = Array.from(emp.shortfallDates).sort();
-      return {
-        employeeName: emp.employeeName,
-        employeeId: emp.employeeId,
-        totalShortfall: parseFloat(emp.totalShortfall.toFixed(2)),
-        daysWithShortfall: emp.daysWithShortfall.size,
-        averagePerDay: emp.daysWithShortfall.size > 0 
-          ? parseFloat((emp.totalShortfall / emp.daysWithShortfall.size).toFixed(2))
-          : 0,
-        settlementsCount: emp.settlementsCount,
-        shortfallDates: sortedDates,
-        lastShortfallDate: sortedDates.length > 0 ? sortedDates[sortedDates.length - 1] : null
-      };
-    });
+      
+      result = Array.from(mergedMap.values()).map(emp => {
+        const daysCount = emp.shortfallDates.size;
+        return {
+          employeeName: emp.employeeName,
+          employeeId: emp.employeeId,
+          totalShortfall: parseFloat(emp.totalShortfall.toFixed(2)),
+          daysWithShortfall: daysCount,
+          averagePerDay: daysCount > 0 ? parseFloat((emp.totalShortfall / daysCount).toFixed(2)) : 0,
+          settlementsCount: emp.settlementsCount,
+          shortfallDates: Array.from(emp.shortfallDates).sort(),
+          lastShortfallDate: emp.lastShortfallDate
+        };
+      });
+    }
 
     // Sort by highest shortfall first
     result.sort((a, b) => b.totalShortfall - a.totalShortfall);
@@ -2440,12 +2459,13 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
       success: true,
       data: result,
       metadata: {
-        stationId,
+        stationId: stationId === 'all' ? 'all' : stationId,
         dateRange: { startDate, endDate },
         totalEmployeesAffected: result.length,
         totalShortfallAmount: parseFloat(
           result.reduce((sum, e) => sum + e.totalShortfall, 0).toFixed(2)
-        )
+        ),
+        calculatedUsing: 'employee-shortfalls-service (from readings analysis)'
       }
     });
 
