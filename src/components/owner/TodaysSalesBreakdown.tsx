@@ -44,9 +44,9 @@ export function TodaysSalesBreakdown() {
       try {
         const today = new Date().toISOString().split('T')[0];
 
-        // Correct endpoint: /api/v1/dashboard/daily with startDate and endDate
+        // Correct endpoint: /api/v1/analytics/daily with startDate and endDate
         const response: ApiResponse<DailySalesData[]> = await apiClient.get(
-          `/dashboard/daily?startDate=${today}&endDate=${today}`
+          `/analytics/daily?startDate=${today}&endDate=${today}`
         );
 
         if (response.success && Array.isArray(response.data) && response.data.length > 0) {
