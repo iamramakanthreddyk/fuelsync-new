@@ -5,7 +5,7 @@
  * Uses service and repository layers for clean separation of concerns
  */
 
-const { User, Station, Creditor, CreditTransaction, Shift, NozzleReading, Nozzle, Pump, DailyTransaction } = require('../models');
+const { User, Station, Creditor, CreditTransaction, Shift, NozzleReading, Nozzle, Pump, DailyTransaction, Settlement } = require('../models');
 const { Op, fn, col, sequelize } = require('sequelize');
 const dashboardRepo = require('../repositories/dashboardRepository');
 const dashboardService = require('../services/dashboardService');
@@ -611,7 +611,7 @@ exports.getIncomeReceivablesReport = async (req, res, next) => {
     });
 
     // Get settlements for the period
-    const settlements = await sequelize.models.Settlement.findAll({
+    const settlements = await Settlement.findAll({
       where: {
         stationId,
         date: { [Op.between]: [queryStart, queryEnd] }
