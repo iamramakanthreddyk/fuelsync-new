@@ -127,52 +127,68 @@ async function calculateFuelBreakdown(stationFilter, startDate, endDate) {
 }
 
 /**
- * Format pump performance data (REFACTORED)
- * Reduced from 50 lines to 16 lines using AggregationService
+ * Format pump performance data
+ * Aggregates readings by pump, with nozzle breakdown
  */
 function formatPumpPerformance(readings) {
-  // REFACTORED: Two-dimensional aggregation (pump + nozzle) using single service call
-  const pumpAgg = AggregationService.aggregateByDimension(
-    readings,
-    'pump_id',
-    {},
-    {},
-    {
-      dimensionLabel: 'pumpId',
-      dimensionFields: {
-        pumpId: 'pump_id',
-        pumpName: 'pump_name',
-        pumpNumber: row => row.pump_number?.toString(),
-        stationName: 'station_name'
-      },
-      skipPaymentAllocation: true,
-      customAggregation: (reading) => ({
-        totalSales: parseFloat(reading.litres_sold || 0) * parseFloat(reading.price_per_litre || 0),
-        totalQuantity: parseFloat(reading.litres_sold || 0)
-      })
-    }
-  );
+  if (!Array.isArray(readings) || readings.length === 0) {
+    return [];
+  }
 
-  // Process nozzles within pumps
-  return pumpAgg.map(pump => ({
-    ...pump,
-    nozzles: readings
-      .filter(r => r.pump_id === pump.pumpId)
-      .reduce((nozzleMap, reading) => {
-        const nozzleId = reading.nozzle_id;
-        if (!nozzleMap[nozzleId]) {
-          nozzleMap[nozzleId] = {
-            nozzleId,
-            nozzleNumber: reading.nozzle_number?.toString(),
-            fuelType: reading.fuel_type,
-            sales: 0,
-            quantity: 0
-          };
-        }
-        nozzleMap[nozzleId].sales += parseFloat(reading.litres_sold || 0) * parseFloat(reading.price_per_litre || 0);
-        nozzleMap[nozzleId].quantity += parseFloat(reading.litres_sold || 0);
-        return nozzleMap;
-      }, {})
+  // Group by pump
+  const pumpMap = {};
+  
+  readings.forEach(reading => {
+    const pumpId = reading.pump_id;
+    if (!pumpMap[pumpId]) {
+      pumpMap[pumpId] = {
+        pumpId,
+        pumpName: reading.pump_name,
+        pumpNumber: reading.pump_number?.toString(),
+        stationName: reading.station_name,
+        totalSales: 0,
+        totalQuantity: 0,
+        nozzles: {}
+      };
+    }
+
+    const sales = parseFloat(reading.litres_sold || 0) * parseFloat(reading.price_per_litre || 0);
+    const quantity = parseFloat(reading.litres_sold || 0);
+    
+    pumpMap[pumpId].totalSales += sales;
+    pumpMap[pumpId].totalQuantity += quantity;
+
+    // Aggregate nozzles within pump
+    const nozzleId = reading.nozzle_id;
+    if (!pumpMap[pumpId].nozzles[nozzleId]) {
+      pumpMap[pumpId].nozzles[nozzleId] = {
+        nozzleId,
+        nozzleNumber: reading.nozzle_number?.toString(),
+        fuelType: reading.fuel_type,
+        sales: 0,
+        quantity: 0
+      };
+    }
+
+    pumpMap[pumpId].nozzles[nozzleId].sales += sales;
+    pumpMap[pumpId].nozzles[nozzleId].quantity += quantity;
+  });
+
+  // Convert nozzle maps to arrays and return pump array
+  return Object.values(pumpMap).map(pump => ({
+    pumpId: pump.pumpId,
+    pumpName: pump.pumpName,
+    pumpNumber: pump.pumpNumber,
+    stationName: pump.stationName,
+    totalSales: parseFloat(pump.totalSales.toFixed(2)),
+    totalQuantity: parseFloat(pump.totalQuantity.toFixed(2)),
+    nozzles: Object.values(pump.nozzles).map(nozzle => ({
+      nozzleId: nozzle.nozzleId,
+      nozzleNumber: nozzle.nozzleNumber,
+      fuelType: nozzle.fuelType,
+      sales: parseFloat(nozzle.sales.toFixed(2)),
+      quantity: parseFloat(nozzle.quantity.toFixed(2))
+    }))
   }));
 }
 
