@@ -44,25 +44,21 @@ export function TodaysSalesBreakdown() {
       try {
         const today = new Date().toISOString().split('T')[0];
 
-        // Correct endpoint: /api/v1/analytics/daily with startDate and endDate
-        const response: ApiResponse<DailySalesData[]> = await apiClient.get(
+        // Fetch daily sales breakdown
+        const response: ApiResponse<any> = await apiClient.get(
           `/analytics/daily?startDate=${today}&endDate=${today}`
         );
 
-        if (response.success && Array.isArray(response.data) && response.data.length > 0) {
-          // Aggregate all days (should be just one day)
+        if (response.success && response.data) {
+          // API returns { summary, items } structure
+          const summary = response.data.summary || response.data;
+          
           const totals = {
-            cash: 0,
-            online: 0,
-            credit: 0,
+            cash: parseFloat(summary.breakdown?.cash || 0),
+            online: parseFloat(summary.breakdown?.online || 0),
+            credit: parseFloat(summary.breakdown?.credit || 0),
             total: 0,
           };
-
-          response.data.forEach((day: any) => {
-            totals.cash += parseFloat(day.cash || 0);
-            totals.online += parseFloat(day.online || 0);
-            totals.credit += parseFloat(day.credit || 0);
-          });
 
           totals.total = totals.cash + totals.online + totals.credit;
           setBreakdown(totals);
