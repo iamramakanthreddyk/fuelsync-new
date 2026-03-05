@@ -31,6 +31,7 @@ import {
   printPumpsReport,
 } from '@/lib/report-export';
 import { safeToFixed } from '@/lib/format-utils';
+import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import {
   BarChart3,
   Activity,
@@ -497,7 +498,11 @@ export default function Reports() {
               </div>
             </div>
             <div className="text-2xl font-bold text-purple-600">
-              {insights.fuelTypeBreakdown[0]?.type || 'N/A'}
+              {insights.fuelTypeBreakdown[0] ? (
+                FUEL_TYPE_LABELS[insights.fuelTypeBreakdown[0].type as keyof typeof FUEL_TYPE_LABELS] || insights.fuelTypeBreakdown[0].type
+              ) : (
+                'N/A'
+              )}
             </div>
             <p className="text-sm text-gray-600 mt-1">
               {insights.fuelTypeBreakdown[0] ? `${insights.fuelTypeBreakdown[0].percentage.toFixed(1)}% of revenue` : 'No data'}
