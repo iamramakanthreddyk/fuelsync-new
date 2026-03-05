@@ -11,7 +11,6 @@ import { apiClient } from "@/lib/api-client";
 import { useStations, queryKeys } from "@/hooks/api";
 import { Plus, Building2, MapPin, Fuel, Users, Phone, Mail, Edit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { getStationBadgeClasses } from '@/lib/badgeColors';
 import { Station } from '@/types/api';
 
 export default function MyStations() {
@@ -27,11 +26,12 @@ export default function MyStations() {
     pincode: '',
     phone: '',
     email: '',
-    gstNumber: ''
+    gstNumber: '',
+    oilCompany: ''
   });
 
   const { toast } = useToast();
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, loading } = useAuth();
   const queryClient = useQueryClient();
 
   // Fetch owner's stations only after authentication
@@ -54,7 +54,7 @@ export default function MyStations() {
       setIsAddDialogOpen(false);
       setFormData({
         name: '', code: '', address: '', city: '', state: '',
-        pincode: '', phone: '', email: '', gstNumber: ''
+        pincode: '', phone: '', email: '', gstNumber: '', oilCompany: ''
       });
       toast({ title: "Success", description: "Station created successfully", variant: "success" });
     },
@@ -83,7 +83,7 @@ export default function MyStations() {
       setEditingStation(null);
       setFormData({
         name: '', code: '', address: '', city: '', state: '',
-        pincode: '', phone: '', email: '', gstNumber: ''
+        pincode: '', phone: '', email: '', gstNumber: '', oilCompany: ''
       });
       toast({ title: "Success", description: "Station updated successfully", variant: "success" });
     },
@@ -153,7 +153,8 @@ export default function MyStations() {
       pincode: station.pincode || '',
       phone: station.phone || '',
       email: station.email || '',
-      gstNumber: station.gstNumber || ''
+      gstNumber: station.gstNumber || '',
+      oilCompany: station.oilCompany || ''
     });
     setIsEditDialogOpen(true);
   };
@@ -275,6 +276,15 @@ export default function MyStations() {
                   placeholder="+91 9876543210"
                 />
               </div>
+              <div>
+                <Label htmlFor="oilCompany">Brand</Label>
+                <Input
+                  id="oilCompany"
+                  value={formData.oilCompany}
+                  onChange={(e) => setFormData(prev => ({ ...prev, oilCompany: e.target.value }))}
+                  placeholder="e.g. Indian Oil, HP, BPCL"
+                />
+              </div>
               <div className="sm:col-span-2">
                 <Label htmlFor="email">Email</Label>
                 <Input
@@ -388,6 +398,15 @@ export default function MyStations() {
                   value={formData.email}
                   onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
                   placeholder="station@example.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="edit-oilCompany">Brand</Label>
+                <Input
+                  id="edit-oilCompany"
+                  value={formData.oilCompany || ''}
+                  onChange={(e) => setFormData(prev => ({ ...prev, oilCompany: e.target.value }))}
+                  placeholder="e.g. Indian Oil, HP, BPCL"
                 />
               </div>
               <div className="sm:col-span-2">
