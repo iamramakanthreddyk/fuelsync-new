@@ -18,6 +18,9 @@ import type {
   ExpenseCategory,
 } from '@/core/enums';
 
+// Re-export enums for convenience
+export type { UserRole, FuelType, PaymentMethod, PumpStatus, ShiftType, ShiftStatus, ExpenseCategory };
+
 // ============================================
 // BASE ENTITIES
 // ============================================

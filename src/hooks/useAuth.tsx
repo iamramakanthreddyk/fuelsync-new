@@ -2,7 +2,10 @@ import { createContext, useContext, useEffect, useState, useCallback, ReactNode,
 import { apiClient, getToken, setToken, removeToken, getStoredUser, setStoredUser, ApiError } from '@/lib/api-client';
 import { getErrorMessage } from '@/lib/errorUtils';
 import { authService } from '@/services/authService';
-import type { User } from '@/types/api';
+import type { User, UserRole } from '@/types/api';
+
+// Re-export types for convenience
+export type { User, UserRole };
 
 // ============================================
 // TYPES
@@ -248,67 +251,4 @@ export function useAuthSafe(): AuthContextType | null {
   return useContext(AuthContext) ?? null;
 }
 
-/**
- * Hook for role-based access control
- */
-export function useRoleAccess() {
-  const { user } = useAuth();
-  
-  const normalizeRole = (r: string): string => {
-    const lower = r.toLowerCase().trim();
-    if (lower === 'superadmin' || lower === 'super admin') return 'super_admin';
-    if (lower === 'pump owner' || lower === 'pump_owner') return 'owner';
-    return r;
-  };
-
-  const role = normalizeRole(user?.role || 'employee');
-  const roleLevel = ROLE_HIERARCHY[role] || 0;
-
-  const hasRole = useCallback((requiredRole: string) => {
-    return normalizeRole(role) === normalizeRole(requiredRole);
-  }, [role]);
-
-  const hasMinRole = useCallback((minRole: string) => {
-    const normalizedMinRole = normalizeRole(minRole);
-    const minLevel = ROLE_HIERARCHY[normalizedMinRole] || 0;
-    return roleLevel >= minLevel;
-  }, [roleLevel]);
-
-  const isSuperAdmin = role === 'super_admin';
-  const isOwner = role === 'owner';
-  const isManager = role === 'manager';
-  const isEmployee = role === 'employee';
-  const isStaff = isManager || isEmployee;
-  const canManageStation = isOwner || isSuperAdmin;
-  const canManageEmployees = isOwner || isSuperAdmin;
-  const canSetPrices = hasMinRole('manager');
-  const canEnterReadings = true; // All roles can enter readings
-  const canEditReadings = hasMinRole('manager');
-  const canDeleteReadings = hasMinRole('manager');
-  const canViewAnalytics = hasMinRole('manager');
-  const canManageCreditors = hasMinRole('manager');
-  const canSettleCredits = isOwner || isSuperAdmin;
-  const canEnterExpenses = hasMinRole('manager');
-
-  return {
-    role,
-    roleLevel,
-    hasRole,
-    hasMinRole,
-    isSuperAdmin,
-    isOwner,
-    isManager,
-    isEmployee,
-    isStaff,
-    canManageStation,
-    canManageEmployees,
-    canSetPrices,
-    canEnterReadings,
-    canEditReadings,
-    canDeleteReadings,
-    canViewAnalytics,
-    canManageCreditors,
-    canSettleCredits,
-    canEnterExpenses,
-  };
-}
+// Note: useRoleAccess is exported from @/hooks/useRoleAccess to avoid circular imports

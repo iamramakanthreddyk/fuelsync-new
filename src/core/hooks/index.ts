@@ -7,7 +7,8 @@
  */
 
 // Re-export existing hooks
-export { useAuth, useRoleAccess, AuthProvider } from '../../hooks/useAuth';
+export { useAuth, AuthProvider } from '../../hooks/useAuth';
+export { useRoleAccess } from '../../hooks/useRoleAccess';
 export { useErrorHandler } from '../../hooks/useErrorHandler';
 
 // Export new core hooks

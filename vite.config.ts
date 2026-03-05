@@ -13,7 +13,7 @@ export default defineConfig(({ mode }) => ({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.svg', 'logo.jpeg'],
+      includeAssets: ['favicon.ico', 'logo.jpeg'],
       manifest: {
         name: 'FuelSync - Fuel Station Management',
         short_name: 'FuelSync',
@@ -25,9 +25,9 @@ export default defineConfig(({ mode }) => ({
         start_url: '/',
         icons: [
           {
-            src: 'favicon.svg',
+            src: 'favicon.ico',
             sizes: '192x192 512x512',
-            type: 'image/svg+xml',
+            type: 'image/x-icon',
             purpose: 'any'
           },
           {
