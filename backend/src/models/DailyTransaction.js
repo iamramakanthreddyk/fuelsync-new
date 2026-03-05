@@ -114,6 +114,27 @@ module.exports = (sequelize) => {
         key: 'id'
       },
       comment: 'Links to settlement record when day is closed'
+    },
+
+    // Soft delete tracking for audit trail
+    deletedAt: {
+      type: DataTypes.DATE,
+      field: 'deleted_at',
+      allowNull: true,
+      comment: 'Timestamp when record was soft-deleted'
+    },
+    deletedBy: {
+      type: DataTypes.UUID,
+      field: 'deleted_by',
+      allowNull: true,
+      references: { model: 'users', key: 'id' },
+      comment: 'User who deleted this transaction'
+    },
+    deletionReason: {
+      type: DataTypes.TEXT,
+      field: 'deletion_reason',
+      allowNull: true,
+      comment: 'Reason for deletion (e.g., entered in error, test transaction)'
     }
   }, {
     tableName: 'daily_transactions',
@@ -125,6 +146,21 @@ module.exports = (sequelize) => {
       { fields: ['created_by'] },
       { fields: ['status'] }
     ]
+  });
+
+  /**
+   * Scopes for soft delete functionality
+   */
+  DailyTransaction.addScope('active', {
+    where: { deletedAt: null }
+  });
+
+  DailyTransaction.addScope('deleted', {
+    where: { deletedAt: { [require('sequelize').Op.not]: null } }
+  });
+
+  DailyTransaction.addScope('withDeleted', {
+    // Returns all records (both active and deleted)
   });
 
   DailyTransaction.associate = (models) => {

@@ -471,6 +471,7 @@ exports.getReadingById = async (req, res, next) => {
  */
 
 exports.updateReading = async (req, res, next) => {
+  let t;
   try {
     const { id } = req.params;
     const { readingValue, notes } = req.body;
@@ -505,31 +506,40 @@ exports.updateReading = async (req, res, next) => {
       }
     }
 
-    // Prepare updates
-    const updates = {};
-    if (readingValue !== undefined) updates.readingValue = newReadingValue;
-    if (notes !== undefined) updates.notes = notes;
+    // Create transaction for atomic cascading updates
+    t = await sequelize.transaction();
 
-    // Update this reading
-    await reading.update(updates);
-
-    // Recalculate cascading readings (all readings on/after this date)
-    const allReadingsAfter = await readingRepository.getReadingsAfterDate(reading.nozzleId, reading.readingDate);
-    
-    // Get starting previous value
-    const prevReading = await NozzleReading.getPreviousReading(reading.nozzleId, reading.readingDate);
-    const startingPrevValue = prevReading ? parseFloat(prevReading.readingValue) : 0;
-
-    // Batch recalculate
-    const recalculated = await readingCalculation.recalculateReadingsBatch(
-      allReadingsAfter,
-      startingPrevValue,
-      reading.stationId
-    );
-
-    // Apply all updates atomically
-    const t = await sequelize.transaction();
     try {
+      // Prepare updates for current reading
+      const updates = {};
+      if (readingValue !== undefined) updates.readingValue = newReadingValue;
+      if (notes !== undefined) updates.notes = notes;
+
+      // Update this reading within transaction
+      await reading.update(updates, { transaction: t });
+
+      // Recalculate cascading readings (all readings on/after this date)
+      const allReadingsAfter = await NozzleReading.findAll({
+        where: {
+          nozzleId: reading.nozzleId,
+          readingDate: { [require('sequelize').Op.gte]: reading.readingDate }
+        },
+        order: [['readingDate', 'ASC'], ['createdAt', 'ASC']],
+        transaction: t
+      });
+      
+      // Get starting previous value
+      const prevReading = await NozzleReading.getPreviousReading(reading.nozzleId, reading.readingDate);
+      const startingPrevValue = prevReading ? parseFloat(prevReading.readingValue) : 0;
+
+      // Batch recalculate
+      const recalculated = await readingCalculation.recalculateReadingsBatch(
+        allReadingsAfter,
+        startingPrevValue,
+        reading.stationId
+      );
+
+      // Apply all cascading updates atomically
       for (const update of recalculated) {
         await NozzleReading.update(
           {
@@ -541,23 +551,40 @@ exports.updateReading = async (req, res, next) => {
           { where: { id: update.id }, transaction: t }
         );
       }
+
+      // Commit transaction - all cascading updates succeed or none
       await t.commit();
+
+      // Refresh nozzle cache after successful commit
+      await readingCache.refreshNozzleCache(reading.nozzleId);
+
+      // Audit log
+      const currentUser = await User.findByPk(user.id);
+      await logAudit({
+        userId: user.id,
+        userEmail: currentUser?.email,
+        userRole: currentUser?.role,
+        stationId: reading.stationId,
+        action: 'UPDATE',
+        entityType: 'NozzleReading',
+        entityId: id,
+        oldValues: { readingValue: oldReadingValue },
+        newValues: { readingValue: newReadingValue },
+        category: 'data',
+        severity: 'info',
+        description: `Updated reading ${id}: ${oldReadingValue} → ${newReadingValue} (cascaded to ${recalculated.length} subsequent readings)`
+      });
+
+      res.json({
+        success: true,
+        data: await readingRepository.getReadingWithRelations(id),
+        message: `Reading updated. Cascaded recalculation to ${recalculated.length} subsequent readings`
+      });
     } catch (err) {
       await t.rollback();
+      console.error('[ERROR] updateReading cascade failed:', err);
       throw err;
     }
-
-    // Refresh nozzle cache
-    await readingCache.refreshNozzleCache(reading.nozzleId);
-
-    // Audit log
-    console.log(`[AUDIT] User ${user.id} (${user.role}) updated reading ${id}: from ${oldReadingValue} to ${newReadingValue}`);
-
-    res.json({
-      success: true,
-      data: await readingRepository.getReadingWithRelations(id),
-      message: 'Reading updated and calculations refreshed'
-    });
   } catch (error) {
     console.error('Update reading error:', error);
     next(error);

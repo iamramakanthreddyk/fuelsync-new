@@ -109,11 +109,47 @@ module.exports = (sequelize) => {
         type: DataTypes.ENUM('draft', 'final', 'locked'),
         defaultValue: 'draft',
         field: 'status'
+      },
+
+      // Soft delete tracking for audit trail
+      deletedAt: {
+        type: DataTypes.DATE,
+        field: 'deleted_at',
+        allowNull: true,
+        comment: 'Timestamp when record was soft-deleted'
+      },
+      deletedBy: {
+        type: DataTypes.UUID,
+        field: 'deleted_by',
+        allowNull: true,
+        references: { model: 'users', key: 'id' },
+        comment: 'User who deleted this settlement'
+      },
+      deletionReason: {
+        type: DataTypes.TEXT,
+        field: 'deletion_reason',
+        allowNull: true,
+        comment: 'Reason for deletion (e.g., correction, duplicate)'
       }
   }, {
     tableName: 'settlements',
     underscored: true,
     timestamps: true
+  });
+
+  /**
+   * Scopes for soft delete functionality
+   */
+  Settlement.addScope('active', {
+    where: { deletedAt: null }
+  });
+
+  Settlement.addScope('deleted', {
+    where: { deletedAt: { [require('sequelize').Op.not]: null } }
+  });
+
+  Settlement.addScope('withDeleted', {
+    // Returns all records (both active and deleted)
   });
 
   Settlement.associate = (models) => {

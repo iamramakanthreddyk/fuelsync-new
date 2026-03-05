@@ -102,11 +102,10 @@ exports.validateCreditAllocationsMatchReadings = async (
 
   try {
     // Get all readings for this transaction date and station
-    const readings = await NozzleReading.findAll({
+    const readings = await NozzleReading.scope('active').findAll({
       where: {
         stationId,
         readingDate: transactionDate,
-        deletedAt: null,
         creditorId: { [Op.ne]: null } // Only credit readings
       },
       attributes: ['creditorId', 'totalAmount'],

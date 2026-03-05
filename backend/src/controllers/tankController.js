@@ -14,6 +14,7 @@ const { Tank, TankRefill, Station, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 const { canAccessStation } = require('../middleware/accessControl');
 const { logAudit } = require('../utils/auditLog');
+const costOfGoodsService = require('../services/costOfGoodsService');
 
 /**
  * Get all tanks for a station
@@ -520,6 +521,23 @@ exports.recordRefill = async (req, res, next) => {
     
     // Tank level is updated by afterCreate hook
     await tank.reload({ transaction: t });
+
+    // Update COGS on refill (auto-calculate from actual purchase)
+    try {
+      await costOfGoodsService.updateCOGSOnRefill({
+        stationId: tank.stationId,
+        refillId: refill.id,
+        refillAmount: parseFloat(litres),
+        refillDate: refill.refillDate,
+        unitPrice: parseFloat(costPerLitre || 0),
+        totalPrice: refill.totalCost,
+        fuelType: tank.fuelType,
+        transaction: t
+      });
+    } catch (cogsError) {
+      console.warn('[WARN] COGS update failed on refill:', cogsError.message);
+      // Don't block refill recording if COGS fails
+    }
 
     // Log tank refill
     await logAudit({

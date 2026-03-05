@@ -18,15 +18,14 @@ exports.checkDuplicateReading = async (nozzleId, readingDate, readingValue, excl
   try {
     const where = {
       nozzleId,
-      readingDate,
-      deletedAt: null
+      readingDate
     };
 
     if (excludeReadingId) {
       where.id = { [Op.ne]: excludeReadingId };
     }
 
-    const existing = await NozzleReading.findOne({
+    const existing = await NozzleReading.scope('active').findOne({
       where,
       attributes: ['id', 'readingValue', 'createdAt', 'enteredBy'],
       order: [['createdAt', 'DESC']]
@@ -65,10 +64,9 @@ exports.checkDuplicateReading = async (nozzleId, readingDate, readingValue, excl
 exports.validateReadingSequence = async (nozzleId, readingDate, readingValue) => {
   try {
     // Get all readings for this nozzle in chronological order
-    const readings = await NozzleReading.findAll({
+    const readings = await NozzleReading.scope('active').findAll({
       where: {
-        nozzleId,
-        deletedAt: null
+        nozzleId
       },
       attributes: ['id', 'readingDate', 'readingValue', 'isInitialReading'],
       order: [['readingDate', 'ASC'], ['createdAt', 'ASC']],
@@ -165,14 +163,13 @@ exports.checkUnusualIncrease = async (nozzleId, readingValue, previousReading, r
     const thirtyDaysAgo = new Date(readingDate);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const recentReadings = await NozzleReading.findAll({
+    const recentReadings = await NozzleReading.scope('active').findAll({
       where: {
         nozzleId,
         readingDate: {
           [Op.gte]: thirtyDaysAgo.toISOString().split('T')[0],
           [Op.lt]: readingDate
         },
-        deletedAt: null,
         isSample: false
       },
       attributes: ['litresSold'],

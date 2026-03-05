@@ -36,11 +36,10 @@ exports.verifyNozzleCoverage = async (stationId, date) => {
     }
 
     // Get all readings for that date
-    const readings = await NozzleReading.findAll({
+    const readings = await NozzleReading.scope('active').findAll({
       where: {
         stationId,
-        readingDate: date,
-        deletedAt: null
+        readingDate: date
       },
       attributes: ['nozzleId'],
       raw: true
@@ -93,10 +92,9 @@ exports.verifyReadingAmounts = async (settlementId) => {
     }
 
     // Get readings
-    const readings = await NozzleReading.findAll({
+    const readings = await NozzleReading.scope('active').findAll({
       where: {
-        id: settlement.readingIds,
-        deletedAt: null
+        id: settlement.readingIds
       },
       attributes: ['id', 'totalAmount', 'litresSold', 'pricePerLitre']
     });

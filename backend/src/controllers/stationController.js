@@ -73,6 +73,7 @@ const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, sequelize }
 const { logAudit } = require('../utils/auditLog');
 const { fn, col } = require('sequelize');
 const { FUEL_TYPES } = require('../config/constants');
+const settlementVerificationService = require('../services/settlementVerificationService');
 
 console.log('[INIT] stationController loaded');
 
@@ -1760,6 +1761,32 @@ exports.recordSettlement = async (req, res, next) => {
 
     const t = await sequelize.transaction();
     try {
+      // Enhanced verification: Check settlement integrity before finalization
+      if (isFinal) {
+        const verificationResult = await settlementVerificationService.verifySettlementComplete({
+          stationId,
+          settlementDate,
+          readingIds: readingIds || [],
+          transactions,
+          paymentBreakdown: {
+            cash: parsedActualCash,
+            online: parsedOnline,
+            credit: parsedCredit
+          },
+          transaction: t
+        });
+
+        if (!verificationResult.isValid) {
+          await t.rollback();
+          return res.status(400).json({
+            success: false,
+            error: 'Settlement verification failed - cannot finalize',
+            details: verificationResult.error,
+            issues: verificationResult.issues
+          });
+        }
+      }
+
       let finalizedAt = null;
       if (isFinal) {
         finalizedAt = new Date();

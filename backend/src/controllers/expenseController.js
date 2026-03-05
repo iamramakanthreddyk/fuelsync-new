@@ -10,10 +10,11 @@
  * All CREATE/UPDATE/DELETE operations are tracked via logAudit() from utils/auditLog
  */
 
-const { Expense, CostOfGoods, NozzleReading, CreditTransaction, Station } = require('../models');
+const { Expense, CostOfGoods, NozzleReading, CreditTransaction, Station, User } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
 const { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, FUEL_TYPES } = require('../config/constants');
 const { logAudit } = require('../utils/auditLog');
+const expenseCategorization = require('../services/expenseCategorization');
 
 /**
  * Get expense categories (for dropdown)
@@ -105,11 +106,35 @@ const createExpense = async (req, res) => {
       enteredBy: req.user.id
     });
 
+    // Get category suggestion if not already provided
+    let categorySuggestion = null;
+    try {
+      categorySuggestion = await expenseCategorization.suggestCategory({
+        description,
+        amount,
+        timestamp: new Date()
+      });
+      
+      // Record correction if user provided category is different
+      if (categorySuggestion.category !== category) {
+        await expenseCategorization.recordCorrection({
+          description,
+          suggestedCategory: categorySuggestion.category,
+          selectedCategory: category,
+          timestamp: new Date()
+        });
+      }
+    } catch (suggestionError) {
+      console.warn('[WARN] Category suggestion failed:', suggestionError.message);
+      // Don't block expense creation if suggestion fails
+    }
+
     // Log expense creation
+    const currentUser = await User.findByPk(req.user.id);
     await logAudit({
       userId: req.user.id,
-      userEmail: req.user.email,
-      userRole: req.user.role,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
       stationId,
       action: 'CREATE',
       entityType: 'Expense',
@@ -125,7 +150,15 @@ const createExpense = async (req, res) => {
       description: `Created expense: ${description} (₹${amount})`
     });
     
-    res.status(201).json({ success: true, data: expense });
+    res.status(201).json({ 
+      success: true, 
+      data: expense,
+      suggestion: categorySuggestion ? {
+        category: categorySuggestion.category,
+        confidence: categorySuggestion.confidence,
+        keywords: categorySuggestion.keywords
+      } : null
+    });
   } catch (error) {
     console.error('Create expense error:', error);
     res.status(500).json({ success: false, error: { message: 'Failed to create expense' } });

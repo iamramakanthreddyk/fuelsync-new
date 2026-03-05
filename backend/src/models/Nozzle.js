@@ -189,7 +189,7 @@ module.exports = (sequelize) => {
     const { Op } = require('sequelize');
     
     // Get all readings in date range
-    const readings = await NozzleReading.findAll({
+    const readings = await NozzleReading.scope('active').findAll({
       where: {
         nozzleId,
         readingDate: { [Op.between]: [startDate, endDate] },
