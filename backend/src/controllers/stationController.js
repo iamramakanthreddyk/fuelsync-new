@@ -1821,6 +1821,8 @@ exports.recordSettlement = async (req, res, next) => {
 
       // Link selected readings to this settlement and update their status
       let linkedReadingsCount = 0;
+      let actualReadingIds = readingIds;
+      
       if (readingIds && Array.isArray(readingIds) && readingIds.length > 0) {
         // Link specific readings and update status to 'settled'
         const [affectedRows] = await NozzleReading.update(
@@ -1828,24 +1830,43 @@ exports.recordSettlement = async (req, res, next) => {
           { where: { id: { [Op.in]: readingIds } }, transaction: t }
         );
         linkedReadingsCount = affectedRows;
+        actualReadingIds = readingIds;
       } else {
         // Link all unlinked readings for this station/date and update status
+        const linkedReadings = await NozzleReading.findAll({
+          where: {
+            stationId,
+            readingDate: settlementDate,
+            settlementId: null,
+            [Op.or]: [
+              { isInitialReading: false },
+              { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
+            ]
+          },
+          attributes: ['id'],
+          transaction: t,
+          raw: true
+        });
+        
+        const linkedReadingIds = linkedReadings.map(r => r.id);
+        
         const [affectedRows] = await NozzleReading.update(
           { settlementId: record.id, status: 'settled' },
           {
-            where: {
-              stationId,
-              readingDate: settlementDate,
-              settlementId: null,
-              [Op.or]: [
-                { isInitialReading: false },
-                { isInitialReading: true, litresSold: { [Op.gt]: 0 } }
-              ]
-            },
+            where: { id: { [Op.in]: linkedReadingIds } },
             transaction: t
           }
         );
         linkedReadingsCount = affectedRows;
+        actualReadingIds = linkedReadingIds;
+      }
+
+      // Update settlement with actual readingIds for employee shortfall calculation
+      if (actualReadingIds && actualReadingIds.length > 0) {
+        await Settlement.update(
+          { readingIds: actualReadingIds },
+          { where: { id: record.id }, transaction: t }
+        );
       }
 
       await t.commit();
