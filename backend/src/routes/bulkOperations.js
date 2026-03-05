@@ -6,7 +6,7 @@
 const express = require('express');
 const router = express.Router();
 const bulkOperationsController = require('../controllers/bulkOperationsController');
-const { auth, requireMinRole } = require('../middleware/auth');
+const { authenticate, requireMinRole } = require('../middleware/auth');
 const multer = require('multer');
 
 // Multer configuration for file uploads
@@ -23,7 +23,7 @@ const upload = multer({
 });
 
 // All routes require authentication
-router.use(auth);
+router.use(authenticate);
 
 /**
  * Validate bulk readings before import
