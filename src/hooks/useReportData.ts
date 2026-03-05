@@ -273,26 +273,45 @@ export function useNozzleBreakdown({ dateRange, selectedStation }: ReportQueryPa
       const response = await apiClient.get<{
         success: boolean;
         data: {
-          startDate: string;
-          endDate: string;
-          nozzles: Array<{
-            nozzleId: string;
-            nozzleNumber: number;
-            fuelType?: string;
-            fuelLabel?: string;
-            pump?: { id?: string; name?: string; number?: number };
-            litres?: number;
-            amount?: number;
-            cash?: number;
-            online?: number;
-            credit?: number;
-            readings?: number;
-          }>;
+          nozzles: {
+            summary?: {
+              totalLitres: number;
+              totalAmount: number;
+              breakdown: { cash: number; online: number; credit: number };
+              itemCount: number;
+            };
+            items: Array<{
+              nozzleId: string;
+              nozzleNumber: number;
+              fuelType?: string;
+              pump?: { id?: string; name?: string; number?: string };
+              litres?: number;
+              amount?: number;
+              cash?: number;
+              online?: number;
+              credit?: number;
+              count?: number;
+              label?: string;
+            }>;
+          };
         };
       }>(`/analytics/nozzle-breakdown?${params}`);
 
-      const backendNozzles =
-        (response as any)?.data?.nozzles || (response as any)?.nozzles || [];
+      // Handle both old and new backend response formats
+      let backendNozzles = [];
+      
+      // New format: { nozzles: { summary, items } }
+      if ((response as any)?.data?.nozzles?.items) {
+        backendNozzles = (response as any).data.nozzles.items;
+      } 
+      // Old format: { nozzles: [...] }
+      else if (Array.isArray((response as any)?.data?.nozzles)) {
+        backendNozzles = (response as any).data.nozzles;
+      } 
+      // Fallback
+      else {
+        backendNozzles = [];
+      }
 
       // Map backend shape to UI shape
       const mapped: NozzleBreakdown[] = (
@@ -305,9 +324,9 @@ export function useNozzleBreakdown({ dateRange, selectedStation }: ReportQueryPa
         stationName: '',
         totalSales: n.amount ?? 0,
         totalQuantity: n.litres ?? 0,
-        transactions: n.readings ?? 0,
+        transactions: n.count ?? n.readings ?? 0,
         avgTransactionValue:
-          n.readings && n.readings > 0 ? (n.amount ?? 0) / n.readings : 0,
+          (n.count ?? n.readings ?? 0) > 0 ? (n.amount ?? 0) / (n.count ?? n.readings ?? 1) : 0,
       }));
 
       return mapped;
