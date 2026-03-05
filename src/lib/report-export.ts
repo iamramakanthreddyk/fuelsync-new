@@ -471,7 +471,7 @@ export function printCreditLedger(
     );
     
     sortedTransactions.forEach((transaction) => {
-      const amount = transaction.amount;
+      const amount = parseFloat(transaction.amount) || 0;
       if (transaction.transactionType === 'credit') {
         runningBalance += amount;
       } else {

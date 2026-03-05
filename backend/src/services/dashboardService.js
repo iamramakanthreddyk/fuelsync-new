@@ -177,8 +177,8 @@ function formatPumpPerformance(readings) {
     }
     
     const pump = pumpMap.get(r.pump_id);
-    pump.totalSales += r.litres_sold * r.price_per_litre;
-    pump.totalQuantity += r.litres_sold;
+    pump.totalSales += parseFloat(r.litres_sold || 0) * parseFloat(r.price_per_litre || 0);
+    pump.totalQuantity += parseFloat(r.litres_sold || 0);
     pump.transactions += 1;
 
     if (!pump.nozzles.has(r.nozzle_id)) {
@@ -192,8 +192,8 @@ function formatPumpPerformance(readings) {
     }
     
     const nozzle = pump.nozzles.get(r.nozzle_id);
-    nozzle.sales += r.litres_sold * r.price_per_litre;
-    nozzle.quantity += r.litres_sold;
+    nozzle.sales += parseFloat(r.litres_sold || 0) * parseFloat(r.price_per_litre || 0);
+    nozzle.quantity += parseFloat(r.litres_sold || 0);
   });
 
   return Array.from(pumpMap.values()).map(pump => ({
