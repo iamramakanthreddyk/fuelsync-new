@@ -83,23 +83,28 @@ async function calculateNozzleBreakdown(stationFilter, startDate, endDate, pumpI
     pumpId
   );
 
-  const { txnCache, txnReadingTotals } = await paymentService.allocatePaymentBreakdownsProportionally(readings);
+  // Flatten nozzle data for aggregation service
+  const flattenedReadings = readings.map(r => ({
+    id: r.id,
+    nozzleId: r.nozzle?.id,
+    nozzleNumber: r.nozzle?.nozzleNumber,
+    fuelType: r.nozzle?.fuelType,
+    pumpId: r.nozzle?.pump?.id,
+    pumpName: r.nozzle?.pump?.name,
+    pumpNumber: r.nozzle?.pump?.pumpNumber,
+    litresSold: r.litresSold,
+    totalAmount: r.totalAmount,
+    transactionId: r.transactionId
+  }));
+
+  const { txnCache, txnReadingTotals } = await paymentService.allocatePaymentBreakdownsProportionally(flattenedReadings);
 
   // REFACTORED: Single aggregation call replaces 44-line manual aggregation loop
   return AggregationService.aggregateByDimension(
-    readings,
-    'nozzle.id',
+    flattenedReadings,
+    'nozzleId',
     txnCache,
-    txnReadingTotals,
-    {
-      dimensionLabel: 'nozzleId',
-      dimensionFields: {
-        nozzleId: 'nozzle.id',
-        nozzleNumber: 'nozzle.nozzleNumber',
-        fuelType: 'nozzle.fuelType',
-        pump: { id: 'nozzle.pump.id', name: 'nozzle.pump.name', number: 'nozzle.pump.pumpNumber' }
-      }
-    }
+    txnReadingTotals
   );
 }
 
@@ -109,20 +114,24 @@ async function calculateNozzleBreakdown(stationFilter, startDate, endDate, pumpI
  */
 async function calculateFuelBreakdown(stationFilter, startDate, endDate) {
   const readings = await dashboardRepo.getFuelTypeReadings(stationFilter, startDate, endDate);
-  const { txnCache, txnReadingTotals } = await paymentService.allocatePaymentBreakdownsProportionally(readings);
+  
+  // Flatten nozzle data for fuel type aggregation
+  const flattenedReadings = readings.map(r => ({
+    id: r.id,
+    fuelType: r.nozzle?.fuelType,
+    litresSold: r.litresSold,
+    totalAmount: r.totalAmount,
+    transactionId: r.transactionId
+  }));
+
+  const { txnCache, txnReadingTotals } = await paymentService.allocatePaymentBreakdownsProportionally(flattenedReadings);
 
   // REFACTORED: Single aggregation call replaces 35-line manual aggregation loop
   return AggregationService.aggregateByDimension(
-    readings,
+    flattenedReadings,
     'fuelType',
     txnCache,
-    txnReadingTotals,
-    {
-      dimensionLabel: 'fuelType',
-      dimensionFields: {
-        label: fuelType => FUEL_TYPE_LABELS[fuelType] || fuelType
-      }
-    }
+    txnReadingTotals
   );
 }
 

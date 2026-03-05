@@ -48,7 +48,13 @@ class AggregationService {
           online: 0,
           credit: 0,
           count: 0,
-          label: this.getDimensionLabel(dimensionKey, key, reading)
+          label: this.getDimensionLabel(dimensionKey, key, reading),
+          // Preserve metadata for better responses
+          ...(dimensionKey === 'nozzleId' && {
+            nozzleNumber: reading.nozzleNumber,
+            fuelType: reading.fuelType,
+            pump: reading.pumpName ? { id: reading.pumpId, name: reading.pumpName, number: reading.pumpNumber } : null
+          })
         };
       }
 
@@ -109,10 +115,14 @@ class AggregationService {
         }
 
       case 'nozzleId':
-        return `Nozzle ${reading.nozzle?.nozzleNumber || value}`;
+        // Handle both flattened and nested structures
+        const nozzleNumber = reading.nozzleNumber || reading.nozzle?.nozzleNumber || value;
+        const fuelType = reading.fuelType || reading.nozzle?.fuelType || '';
+        return fuelType ? `Nozzle ${nozzleNumber} (${FUEL_TYPE_LABELS[fuelType] || fuelType})` : `Nozzle ${nozzleNumber}`;
 
       case 'pumpId':
-        return `Pump ${reading.nozzle?.pump?.name || reading.pump?.name || value}`;
+        const pumpName = reading.pumpName || reading.nozzle?.pump?.name || reading.pump?.name || value;
+        return `Pump ${pumpName}`;
 
       default:
         return String(value);

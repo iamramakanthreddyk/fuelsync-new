@@ -134,8 +134,12 @@ async function getFuelTypeReadings(stationFilter, startDate, endDate) {
       ...EXCLUDE_SAMPLE_READINGS,
       readingDate: { [Op.between]: [startDate, endDate] }
     },
-    attributes: ['fuelType', 'litresSold', 'totalAmount', 'transactionId'],
-    raw: true
+    include: [{
+      model: Nozzle, as: 'nozzle', attributes: ['fuelType'],
+      required: true
+    }],
+    attributes: ['id', 'litresSold', 'totalAmount', 'transactionId'],
+    raw: false
   });
 }
 
