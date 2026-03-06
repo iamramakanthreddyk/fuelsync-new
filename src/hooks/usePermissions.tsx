@@ -177,12 +177,12 @@ const getRolePermissions = (role: string): string[] => {
       'audit_logs', 'backup_restore'
     ],
     owner: [
-      'manage_stations', 'manage_users', 'manage_equipment', 'export_csv', 'export_pdf',
+      'manage_stations', 'manage_users', 'manage_equipment', 'set_prices', 'export_csv', 'export_pdf',
       'export_reports', 'view_sales_reports', 'view_profit_loss', 'view_advanced_reports',
       'view_sample_reports', 'manual_data_entry', 'bulk_data_entry'
     ],
     manager: [
-      'view_sales_reports', 'view_sample_reports', 'manual_data_entry', 'export_csv', 'export_pdf'
+      'view_sales_reports', 'view_sample_reports', 'manual_data_entry', 'set_prices', 'export_csv', 'export_pdf'
     ],
     employee: [
       'manual_data_entry', 'view_sales_reports'
@@ -195,7 +195,19 @@ const getRolePermissions = (role: string): string[] => {
 /**
  * Check plan-based permission
  */
+// Permissions that are gated by subscription plan
+const PLAN_GATED_PERMISSIONS = new Set([
+  'export_csv', 'export_pdf', 'export_reports',
+  'view_profit_loss', 'view_advanced_reports',
+  'manual_data_entry', 'bulk_data_entry'
+]);
+
 const checkPlanPermission = (user: any, permission: string): { allowed: boolean; reason?: string } => {
+  // Role-based permissions are never plan-gated
+  if (!PLAN_GATED_PERMISSIONS.has(permission)) {
+    return { allowed: true };
+  }
+
   if (!user.plan) {
     return { allowed: false, reason: 'No plan assigned' };
   }
@@ -240,7 +252,8 @@ const checkPlanPermission = (user: any, permission: string): { allowed: boolean;
 
   const featureConfig = planConfig[permission];
   if (!featureConfig) {
-    return { allowed: false, reason: 'Feature not available in plan' };
+    // Permission is not plan-gated; allow based on role only
+    return { allowed: true };
   }
 
   return { allowed: featureConfig.allowed || featureConfig.unlimited };

@@ -9,6 +9,7 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Tabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useStations } from '@/hooks/api';
 import {
   useSalesReports,
@@ -42,6 +43,8 @@ import {
   Zap,
   Target,
   Clock,
+  AlertCircle,
+  X,
 } from 'lucide-react';
 
 // Import tab components
@@ -166,6 +169,19 @@ const calculatePerformanceMetrics = (current: any, previous?: any): { trend: num
 };
 
 // ============================================
+// TYPES
+// ============================================
+
+interface PlanLimitError {
+  maxDays?: number;
+  planName?: string;
+  reason?: string;
+  requestedDays?: number;
+  upgradeRequired?: boolean;
+  error?: string;
+}
+
+// ============================================
 // MAIN COMPONENT
 // ============================================
 
@@ -176,6 +192,7 @@ export default function Reports() {
   const [datePreset, setDatePreset] = useState<string>('thisMonth');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [planLimitError, setPlanLimitError] = useState<PlanLimitError | null>(null);
 
   // Fetch stations
   const { data: stationsResponse } = useStations();
@@ -203,19 +220,19 @@ export default function Reports() {
   }, []);
 
   // Fetch report data using custom hooks
-  const { data: salesReports, isLoading: salesLoading, refetch: refetchSales } = useSalesReports({
+  const { data: salesReports, isLoading: salesLoading, error: salesError, refetch: refetchSales } = useSalesReports({
     dateRange,
     selectedStation,
   });
-  const { data: pumpPerformance, isLoading: pumpsLoading, refetch: refetchPumps } = usePumpPerformance({
+  const { data: pumpPerformance, isLoading: pumpsLoading, error: pumpsError, refetch: refetchPumps } = usePumpPerformance({
     dateRange,
     selectedStation,
   });
-  const { data: nozzleBreakdown, isLoading: nozzlesLoading, refetch: refetchNozzles } = useNozzleBreakdown({
+  const { data: nozzleBreakdown, isLoading: nozzlesLoading, error: nozzlesError, refetch: refetchNozzles } = useNozzleBreakdown({
     dateRange,
     selectedStation,
   });
-  const { data: settlements, isLoading: settlementsLoading, refetch: refetchSettlements } = useSettlements({
+  const { data: settlements, isLoading: settlementsLoading, error: settlementsError, refetch: refetchSettlements } = useSettlements({
     dateRange,
     selectedStation,
   });
@@ -223,6 +240,7 @@ export default function Reports() {
   // Refresh all data
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
+    setPlanLimitError(null);
     try {
       await Promise.all([refetchSales(), refetchPumps(), refetchNozzles(), refetchSettlements()]);
       setLastUpdated(new Date());
@@ -230,16 +248,76 @@ export default function Reports() {
         title: 'Data Refreshed',
         description: 'All reports have been updated with the latest data.',
       });
-    } catch (error) {
-      toast({
-        title: 'Refresh Failed',
-        description: 'Unable to refresh data. Please try again.',
-        variant: 'destructive',
-      });
+    } catch (error: any) {
+      // Check if error is a plan limit error
+      if (error?.response?.data?.error === 'Date range exceeds plan limits') {
+        setPlanLimitError({
+          maxDays: error.response.data.maxDays,
+          planName: error.response.data.planName,
+          reason: error.response.data.reason,
+          requestedDays: error.response.data.requestedDays,
+        });
+      } else {
+        toast({
+          title: 'Refresh Failed',
+          description: 'Unable to refresh data. Please try again.',
+          variant: 'destructive',
+        });
+      }
     } finally {
       setIsRefreshing(false);
     }
   }, [refetchSales, refetchPumps, refetchNozzles, refetchSettlements, toast]);
+
+  // Monitor date range changes and clear errors
+  useEffect(() => {
+    setPlanLimitError(null);
+  }, [dateRange]);
+
+  // Calculate days between date range
+  const calculateDaysDifference = (): number => {
+    const start = new Date(dateRange.startDate);
+    const end = new Date(dateRange.endDate);
+    const diffTime = Math.abs(end.getTime() - start.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+    return diffDays;
+  };
+
+  // Watch for query errors from any of the report hooks and surface useful messages
+  useEffect(() => {
+    const checkError = (err: any) => {
+      if (!err) return false;
+      const data = err.response?.data;
+      if (data && (data.error === 'Date range exceeds plan limits' || data.upgradeRequired)) {
+        setPlanLimitError({
+          maxDays: data.maxDays,
+          planName: data.planName || data.plan,
+          reason: data.reason || data.error,
+          requestedDays: data.requestedDays || calculateDaysDifference(),
+          upgradeRequired: !!data.upgradeRequired,
+          error: data.error
+        });
+        return true;
+      }
+
+      if (data && data.error) {
+        setPlanLimitError({
+          reason: data.error,
+          planName: data.planName || '',
+          error: data.error,
+        });
+        return true;
+      }
+
+      return false;
+    };
+
+    // Check each query error; prefer plan-limit style handling but show other messages too
+    if (checkError(salesError)) return;
+    if (checkError(pumpsError)) return;
+    if (checkError(nozzlesError)) return;
+    if (checkError(settlementsError)) return;
+  }, [salesError, pumpsError, nozzlesError, settlementsError]);
 
   // Aggregate raw readings into sales reports if needed
   const aggregatedSalesReports = useMemo(() => {
@@ -407,6 +485,38 @@ export default function Reports() {
             </div>
           </ReportHeader>
         </div>
+
+        {/* Plan Limit / API Error Alert */}
+        {planLimitError && (
+          <Alert variant="destructive" className="border-red-200 bg-red-50">
+            <div className="flex items-start gap-2 w-full">
+              <AlertCircle className="h-4 w-4 mt-1" />
+              <AlertDescription className="ml-2 flex-1">
+                <div className="flex items-start justify-between gap-4">
+                  <div>
+                    <p className="font-semibold mb-1">{planLimitError.upgradeRequired ? 'Date Range Exceeds Plan Limits' : 'Report Error'}</p>
+                    <p className="text-sm mb-2">{planLimitError.reason || planLimitError.error}</p>
+                    {planLimitError.maxDays !== undefined && (
+                      <div className="text-sm space-y-1">
+                        <p><strong>Plan:</strong> {planLimitError.planName || '—'}</p>
+                        <p><strong>Max allowed:</strong> {planLimitError.maxDays} days</p>
+                        <p><strong>Requested:</strong> {planLimitError.requestedDays} days</p>
+                      </div>
+                    )}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setPlanLimitError(null)}
+                    className="shrink-0"
+                  >
+                    <X className="w-4 h-4" />
+                  </Button>
+                </div>
+              </AlertDescription>
+            </div>
+          </Alert>
+        )}
 
         {/* Enhanced Filters */}
         <div className="space-y-4">
