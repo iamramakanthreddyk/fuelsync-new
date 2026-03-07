@@ -9,6 +9,7 @@
 
 import { BaseEntity, Activatable, Addressable, Contactable, Notable, CreateDTO, UpdateDTO } from './base.model';
 import { OilCompany } from '../enums';
+import type { StationOwner, StationPump, StationStaff, StationMetrics, StationSettings, StationNotificationSettings, StationConfiguration } from '@/types/station';
 
 // ============================================
 // STATION ENTITY
@@ -40,87 +41,13 @@ export interface StationWithRelations extends Station {
   metrics?: StationMetrics;
 }
 
-/**
- * Simplified owner info
- */
-export interface StationOwner {
-  id: string;
-  name: string;
-  email: string;
-  phone?: string;
-}
-
-/**
- * Simplified pump info for station context
- */
-export interface StationPump {
-  id: string;
-  pumpNumber: number;
-  name: string;
-  status: string;
-  nozzleCount: number;
-}
-
-/**
- * Simplified staff info for station context
- */
-export interface StationStaff {
-  id: string;
-  name: string;
-  role: string;
-  isActive: boolean;
-}
-
-/**
- * Station metrics summary
- */
-export interface StationMetrics {
-  pumpCount: number;
-  activePumps: number;
-  nozzleCount: number;
-  activeNozzles: number;
-  staffCount: number;
-  activeStaff: number;
-  todaySales?: number;
-  monthSales?: number;
-}
+/* Station small interfaces are centralized in src/types/station.ts */
 
 // ============================================
 // STATION SETTINGS
 // ============================================
 
-/**
- * Station operational settings
- */
-export interface StationSettings {
-  requireShiftForReadings: boolean;
-  alertOnMissedReadings: boolean;
-  missedReadingThresholdDays: number;
-  defaultShiftType?: string;
-  autoCloseShifts: boolean;
-  shiftEndReminderMinutes: number;
-}
-
-/**
- * Station notification settings
- */
-export interface StationNotificationSettings {
-  lowInventoryAlert: boolean;
-  lowInventoryThreshold: number;
-  criticalInventoryThreshold: number;
-  dailySummaryEmail: boolean;
-  dailySummaryTime: string;
-  shiftEndReminder: boolean;
-  priceChangeAlert: boolean;
-}
-
-/**
- * Combined station configuration
- */
-export interface StationConfiguration {
-  operational: StationSettings;
-  notifications: StationNotificationSettings;
-}
+/* Station settings and configuration types are centralized in src/types/station.ts */
 
 // ============================================
 // STATION DTOs

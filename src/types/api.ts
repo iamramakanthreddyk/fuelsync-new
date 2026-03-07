@@ -18,6 +18,8 @@ import type {
   ExpenseCategory,
 } from '@/core/enums';
 
+import type { StationSettings } from '@/types/station';
+
 // Re-export enums for convenience
 export type { UserRole, FuelType, PaymentMethod, PumpStatus, ShiftType, ShiftStatus, ExpenseCategory };
 
@@ -86,6 +88,8 @@ export interface Station {
   email?: string;
   gstNumber?: string;
   oilCompany?: string;
+  /** Optional brand field retained for backward compatibility with older UI code */
+  brand?: string;
   isActive: boolean;
   requireShiftForReadings: boolean;
   alertOnMissedReadings: boolean;
@@ -104,11 +108,8 @@ export interface Station {
   todaySales?: number;
 }
 
-export interface StationSettings {
-  requireShiftForReadings: boolean;
-  alertOnMissedReadings: boolean;
-  missedReadingThresholdDays: number;
-}
+// StationSettings imported from central types
+export type { StationSettings };
 
 export interface Pump {
   id: string;

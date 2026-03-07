@@ -57,26 +57,22 @@ export default function AdminStations() {
   const { data: owners, isLoading: ownersLoading, error: ownersError } = useQuery({
     queryKey: ['owners'],
     queryFn: async () => {
-      try {
-        const response = await apiClient.get<any>('/users?role=owner');
-        
-        // Extract data from wrapped response { success, data, pagination }
-        let usersList: User[] = [];
-        
-        if (response && typeof response === 'object') {
-          if ('data' in response && Array.isArray(response.data)) {
-            usersList = response.data;
-          } else if (Array.isArray(response)) {
-            usersList = response;
-          }
+      const response = await apiClient.get<any>('/users?role=owner');
+
+      // Extract data from wrapped response { success, data, pagination }
+      let usersList: User[] = [];
+
+      if (response && typeof response === 'object') {
+        if ('data' in response && Array.isArray(response.data)) {
+          usersList = response.data;
+        } else if (Array.isArray(response)) {
+          usersList = response;
         }
-        
-        // Filter for owner role
-        const owners = usersList.filter((user: User) => user.role === 'owner');
-        return owners;
-      } catch (error) {
-        throw error;
       }
+
+      // Filter for owner role
+      const owners = usersList.filter((user: User) => user.role === 'owner');
+      return owners;
     },
   });
 
@@ -86,24 +82,20 @@ export default function AdminStations() {
     queryFn: async () => {
       if (!newStation.owner_id) return null;
       
-      try {
-        // Get owner details with plan
-        const ownerResponse = await apiClient.get<any>(`/users/${newStation.owner_id}`);
-        const owner = ownerResponse?.data || ownerResponse;
-        
-        // Get owner's current station count
-        const stationsResponse = await apiClient.get<any>('/api/v1/stations');
-        const allStations = stationsResponse?.data || stationsResponse || [];
-        const ownerStations = allStations.filter((s: any) => s.ownerId === newStation.owner_id);
-        
-        return {
-          owner,
-          stationCount: ownerStations.length,
-          plan: owner?.plan
-        };
-      } catch (error) {
-        throw error;
-      }
+      // Get owner details with plan
+      const ownerResponse = await apiClient.get<any>(`/users/${newStation.owner_id}`);
+      const owner = ownerResponse?.data || ownerResponse;
+
+      // Get owner's current station count
+      const stationsResponse = await apiClient.get<any>('/api/v1/stations');
+      const allStations = stationsResponse?.data || stationsResponse || [];
+      const ownerStations = allStations.filter((s: any) => s.ownerId === newStation.owner_id);
+
+      return {
+        owner,
+        stationCount: ownerStations.length,
+        plan: owner?.plan,
+      };
     },
     enabled: !!newStation.owner_id,
   });
@@ -307,7 +299,7 @@ export default function AdminStations() {
       </div>
 
       <div className="grid grid-cols-1 gap-4 md:gap-6">
-        {stations?.map((station: any) => (
+        {stations?.map((station: Station) => (
           <Card key={station.id} className="relative hover:shadow-lg transition-all duration-200 border-0 shadow-sm bg-card/50 backdrop-blur-sm">
             <CardHeader className="pb-4">
               <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-3">

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { User, Station } from '@/types/database';
+import { User, Station } from '@/types/api';
 
 export interface AdminStats {
   totalUsers: number;

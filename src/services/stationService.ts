@@ -5,64 +5,11 @@
  */
 
 import { apiClient, ApiResponse, PaginatedResponse } from '@/lib/api-client';
+import type { StationSettings, StationStaff } from '@/types/station';
+import type { Station, Pump, Nozzle } from '@/types/api';
 
-// Types
-export interface Station {
-  id: string;
-  ownerId: string;
-  name: string;
-  code?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  phone?: string;
-  gstNumber?: string;
-  oilCompany?: string;
-  isActive: boolean;
-  requireShiftForReadings: boolean;
-  alertOnMissedReadings: boolean;
-  missedReadingThresholdDays: number;
-  createdAt: string;
-  updatedAt: string;
-  pumpCount?: number;
-  activePumps?: number;
-  owner?: { id: string; name: string; email: string };
-  pumps?: Pump[];
-}
+// Reuse central StationSettings type
 
-export interface Pump {
-  id: string;
-  stationId: string;
-  pumpNumber: number;
-  name: string;
-  status: 'active' | 'inactive' | 'maintenance';
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-  nozzles?: Nozzle[];
-}
-
-export interface Nozzle {
-  id: string;
-  pumpId: string;
-  stationId: string;
-  nozzleNumber: number;
-  fuelType: 'petrol' | 'diesel';
-  status: 'active' | 'inactive' | 'maintenance';
-  initialReading: number;
-  lastReading?: number;
-  lastReadingDate?: string;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface StationSettings {
-  requireShiftForReadings: boolean;
-  alertOnMissedReadings: boolean;
-  missedReadingThresholdDays: number;
-}
 
 export interface CreateStationRequest {
   name: string;
@@ -161,10 +108,16 @@ export const stationService = {
    */
   async getStationSettings(id: string): Promise<StationSettings | null> {
     try {
-      const response = await apiClient.get<ApiResponse<StationSettings>>(`/stations/${id}/settings`);
+      const response = await apiClient.get<ApiResponse<any>>(`/stations/${id}/settings`);
 
-      if (response.success && response.data) {
-        return response.data;
+      if (response && (response as ApiResponse<any>).success && (response as ApiResponse<any>).data) {
+        const payload = (response as ApiResponse<any>).data;
+        // backend returns { id, name, settings }
+        if (payload && typeof payload === 'object' && 'settings' in payload) {
+          return payload.settings as StationSettings;
+        }
+        // fallback: if API returned settings directly
+        return payload as StationSettings;
       }
       return null;
     } catch {
@@ -177,13 +130,15 @@ export const stationService = {
    * PUT /api/v1/stations/:id/settings
    */
   async updateStationSettings(id: string, settings: Partial<StationSettings>): Promise<StationSettings> {
-    const response = await apiClient.put<ApiResponse<StationSettings>>(`/stations/${id}/settings`, settings);
+    const response = await apiClient.put<ApiResponse<any>>(`/stations/${id}/settings`, settings);
 
-    if (!response.success || !response.data) {
+    if (!response || !(response as ApiResponse<any>).success || !(response as ApiResponse<any>).data) {
       throw new Error('Failed to update station settings');
     }
 
-    return response.data;
+    const payload = (response as ApiResponse<any>).data;
+    if (payload && typeof payload === 'object' && 'settings' in payload) return payload.settings as StationSettings;
+    return payload as StationSettings;
   },
 
   // ============================================
@@ -285,12 +240,12 @@ export const stationService = {
    * GET /api/v1/stations/:stationId/staff
    */
 
-  // Use StationStaff type for staff (from core/models/station.model.ts)
-  async getStaff(stationId: string): Promise<import("@/core/models/station.model").StationStaff[]> {
-    const response = await apiClient.get<ApiResponse<import("@/core/models/station.model").StationStaff[]>>(`/stations/${stationId}/staff`);
+  // Use StationStaff type from central types
+  async getStaff(stationId: string): Promise<StationStaff[]> {
+    const response = await apiClient.get<ApiResponse<StationStaff[]>>(`/stations/${stationId}/staff`);
 
-    if (response.success && response.data) {
-      return response.data;
+    if (response && (response as ApiResponse<StationStaff[]>).success && (response as ApiResponse<StationStaff[]>).data) {
+      return (response as ApiResponse<StationStaff[]>).data;
     }
     return [];
   }

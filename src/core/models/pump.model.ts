@@ -8,6 +8,7 @@
 
 import { BaseEntity, Notable, CreateDTO, UpdateDTO } from './base.model';
 import { EquipmentStatus, FuelType } from '../enums';
+import type { Pump as ApiPump, Nozzle as ApiNozzle } from '@/types/api';
 
 // ============================================
 // PUMP ENTITY
@@ -16,17 +17,7 @@ import { EquipmentStatus, FuelType } from '../enums';
 /**
  * Pump entity - represents a fuel dispenser
  */
-export interface Pump extends BaseEntity, Notable {
-  stationId: string;
-  pumpNumber: number;
-  name: string;
-  status: EquipmentStatus;
-  manufacturer?: string;
-  model?: string;
-  serialNumber?: string;
-  installationDate?: string;
-  lastMaintenanceDate?: string;
-}
+export type Pump = ApiPump & BaseEntity & Notable;
 
 /**
  * Pump with related data
@@ -43,18 +34,7 @@ export interface PumpWithRelations extends Pump {
 /**
  * Nozzle entity - represents a fuel dispensing nozzle
  */
-export interface Nozzle extends BaseEntity, Notable {
-  pumpId: string;
-  stationId: string;
-  nozzleNumber: number;
-  fuelType: FuelType;
-  status: EquipmentStatus;
-  initialReading: number;
-  lastReading?: number;
-  lastReadingDate?: string;
-  calibrationDate?: string;
-  calibrationFactor?: number;
-}
+export type Nozzle = ApiNozzle & BaseEntity & Notable;
 
 /**
  * Nozzle with related data

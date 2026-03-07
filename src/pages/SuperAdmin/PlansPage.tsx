@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from '@/lib/errorUtils';
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/lib/api-client";
-import type { Plan } from '@/types/database';
+import type { Plan } from '@/types/api';
 
 // Local form type: extend the backend `Plan` shape with newer optional
 // quota / date-range fields that may not yet exist on the shared `Plan` type.

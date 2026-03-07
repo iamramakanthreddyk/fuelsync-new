@@ -11,24 +11,13 @@
  */
 
 import { apiClient, ApiResponse, PaginatedResponse } from '@/lib/api-client';
+import type { NozzleReading } from '@/types/api';
 
 // ============================================
 // TYPE DEFINITIONS
 // ============================================
 
-// Readings
-export interface NozzleReading {
-  id: string;
-  nozzleId: string;
-  stationId: string;
-  previousReading: number;
-  currentReading: number;
-  litresSold: number;
-  fuelType: 'petrol' | 'diesel';
-  readingDate: string;
-  createdAt: string;
-  updatedAt: string;
-}
+// Readings (use central NozzleReading)
 
 export interface ReadingFilters {
   stationId?: string;
@@ -181,7 +170,13 @@ export const dataService = {
     const response = await apiClient.get<ApiResponse<PaginatedResponse<NozzleReading>>>('/readings', {
       params: filters,
     });
-    return response?.data || { items: [], pagination: { page: 1, limit: 20, total: 0 } };
+    return (
+      response?.data || {
+        success: true,
+        data: [] as NozzleReading[],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
+      }
+    );
   },
 
   /**
@@ -252,7 +247,13 @@ export const dataService = {
     const response = await apiClient.get<ApiResponse<PaginatedResponse<Transaction>>>('/transactions', {
       params: filters,
     });
-    return response?.data || { items: [], pagination: { page: 1, limit: 20, total: 0 } };
+    return (
+      response?.data || {
+        success: true,
+        data: [] as Transaction[],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
+      }
+    );
   },
 
   /**
@@ -396,7 +397,13 @@ export const dataService = {
     const response = await apiClient.get<ApiResponse<PaginatedResponse<Shift>>>('/shifts', {
       params: filters,
     });
-    return response?.data || { items: [], pagination: { page: 1, limit: 20, total: 0 } };
+    return (
+      response?.data || {
+        success: true,
+        data: [] as Shift[],
+        pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
+      }
+    );
   },
 
   /**

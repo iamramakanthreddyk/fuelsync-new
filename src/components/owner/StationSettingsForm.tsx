@@ -6,24 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, ApiResponse } from '@/lib/api-client';
+import type { StationSettings, StationSettingsPayload } from '@/types/station';
 import { AlertCircle, Check } from 'lucide-react';
 
 interface StationSettingsFormProps {
   stationId: string;
-}
-
-interface StationSettings {
-  success: boolean;
-  data: {
-    id: string;
-    name: string;
-    settings: {
-      requireShiftForReadings: boolean;
-      alertOnMissedReadings: boolean;
-      missedReadingThresholdDays: number;
-    };
-  };
 }
 
 export function StationSettingsForm({ stationId }: StationSettingsFormProps) {
@@ -32,11 +20,11 @@ export function StationSettingsForm({ stationId }: StationSettingsFormProps) {
   const [isSaving, setIsSaving] = useState(false);
 
   // Fetch current settings
-  const { data: settingsResponse, isLoading } = useQuery<StationSettings | null>({
+  const { data: settingsResponse, isLoading } = useQuery<ApiResponse<StationSettingsPayload> | null>({
     queryKey: ['station-settings', stationId],
     queryFn: async () => {
       try {
-        const response = await apiClient.get<StationSettings>(`/stations/${stationId}/settings`);
+        const response = await apiClient.get<ApiResponse<StationSettingsPayload>>(`/stations/${stationId}/settings`);
         return response ?? null;
       } catch (error) {
         return null;
@@ -45,7 +33,7 @@ export function StationSettingsForm({ stationId }: StationSettingsFormProps) {
     enabled: !!stationId
   });
 
-  const settings = settingsResponse?.data?.settings;
+  const settings = settingsResponse?.data?.settings as StationSettings | undefined;
 
   // Local state for form
   const [formData, setFormData] = useState({

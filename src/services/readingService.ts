@@ -4,20 +4,7 @@
  */
 
 import { apiClient, ApiResponse } from '@/lib/api-client';
-
-export interface NozzleReading {
-  id: string;
-  nozzleId: string;
-  stationId: string;
-  reading: number;
-  recordedAt: string; // ISO date
-  createdAt: string;
-  updatedAt: string;
-  userId?: string;
-  paymentType?: string;
-  creditorId?: string | null;
-  notes?: string;
-}
+import type { NozzleReading } from '@/types/api';
 
 export interface PreviousReadingInfo {
   reading: number;

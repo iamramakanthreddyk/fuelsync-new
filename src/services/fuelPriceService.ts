@@ -1,17 +1,5 @@
 import { apiClient, ApiResponse } from '@/lib/api-client';
-
-/**
- * Fuel Price interface matching backend FuelPrice model
- */
-export interface FuelPrice {
-  id: string;
-  stationId: string;
-  fuelType: 'petrol' | 'diesel';
-  price: number;
-  effectiveFrom: string;
-  updatedBy: string;
-  createdAt: string;
-}
+import type { FuelPrice } from '@/types/api';
 
 /**
  * Response structure from GET /api/v1/stations/:stationId/prices

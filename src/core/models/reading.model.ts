@@ -8,6 +8,7 @@
 
 import { BaseEntity, Notable, DateRangeFilter } from './base.model';
 import { FuelType } from '../enums';
+import type { NozzleReading as ApiNozzleReading } from '@/types/api';
 
 // ============================================
 // NOZZLE READING ENTITY
@@ -16,26 +17,7 @@ import { FuelType } from '../enums';
 /**
  * Nozzle reading entity - represents a meter reading
  */
-export interface NozzleReading extends BaseEntity, Notable {
-  nozzleId: string;
-  stationId: string;
-  pumpId: string;
-  shiftId?: number;
-  enteredBy: string;
-  readingDate: string;
-  previousReading: number;
-  currentReading: number;
-  litresSold: number;
-  fuelType: FuelType;
-  pricePerLitre: number;
-  totalAmount: number;
-  // Per-reading tender fields deprecated. Use transaction.paymentBreakdown instead.
-  // cashAmount: number;
-  // onlineAmount: number;
-  // creditAmount: number;
-  creditorId?: string;
-  isInitialReading: boolean;
-}
+export type NozzleReading = ApiNozzleReading & BaseEntity & Notable;
 
 /**
  * Reading with related data

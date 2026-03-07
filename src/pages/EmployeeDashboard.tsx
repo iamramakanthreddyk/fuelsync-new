@@ -34,6 +34,9 @@ const EmployeeDashboard = () => {
         const pricesData = await fuelPriceService.getFuelPrices(currentStation.id);
         setFuelPrices(pricesData || []);
       } catch (error) {
+        // log but do not disrupt UI
+        // eslint-disable-next-line no-console
+        console.debug('fetchFuelPrices failed', error);
       }
     };
     if (currentStation?.id) {

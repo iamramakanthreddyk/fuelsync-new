@@ -5,7 +5,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
-import { User, Station, Plan } from '@/types/database';
+import { User, Station, Plan } from '@/types/api';
 import { Users, Building2, Package, TrendingUp } from 'lucide-react';
 import { useAdminDashboard } from '@/hooks/useDashboardQueries';
 import { DashboardHeader, MetricCard, DashboardGrid, COMMON_METRICS } from '@/components/dashboard/shared';
@@ -101,7 +101,7 @@ export default function AdminDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.recentUsers?.slice(0, 5).map((user) => (
+              {data?.recentUsers?.slice(0, 5).map((user: User) => (
                 <TableRow key={user.id}>
                   <TableCell className="font-medium">{user.name}</TableCell>
                   <TableCell>{user.email}</TableCell>
@@ -143,7 +143,7 @@ export default function AdminDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {data?.recentStations?.slice(0, 5).map((station) => (
+              {data?.recentStations?.slice(0, 5).map((station: Station) => (
                 <TableRow key={station.id}>
                   <TableCell className="font-medium">{station.name}</TableCell>
                   <TableCell>

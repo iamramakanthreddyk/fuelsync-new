@@ -9,6 +9,7 @@
 
 import { BaseEntity, Activatable, Contactable, CreateDTO, UpdateDTO } from './base.model';
 import { UserRole } from '../enums';
+import type { User as ApiUser } from '@/types/api';
 
 // ============================================
 // USER ENTITY
@@ -17,17 +18,7 @@ import { UserRole } from '../enums';
 /**
  * User entity - represents a system user
  */
-export interface User extends BaseEntity, Activatable, Contactable {
-  email: string;
-  name: string;
-  role: UserRole;
-  stationId?: string;
-  planId?: string;
-  avatarUrl?: string;
-  lastLoginAt?: string;
-  emailVerified: boolean;
-  phoneVerified: boolean;
-}
+export type User = ApiUser & BaseEntity & Activatable & Contactable;
 
 /**
  * User with related data
