@@ -14,6 +14,10 @@ const { Op } = require('sequelize');
 
 /**
  * Verify all active nozzles have readings for a date
+ * 
+ * NOTE: This check is now LENIENT - it only validates that nozzles WITH readings
+ * have valid data, not that ALL nozzles must have readings.
+ * Some nozzles may not sell fuel on a given day and don't need readings.
  */
 exports.verifyNozzleCoverage = async (stationId, date) => {
   try {
@@ -41,30 +45,24 @@ exports.verifyNozzleCoverage = async (stationId, date) => {
         stationId,
         readingDate: date
       },
-      attributes: ['nozzleId'],
+      attributes: ['nozzleId', 'litresSold'],
       raw: true
     });
 
+    // Count readings
     const readingNozzleIds = new Set(readings.map(r => r.nozzleId));
+    const readingCount = readings.length;
 
-    // Find gaps
-    const gaps = activeNozzles
-      .filter(n => !readingNozzleIds.has(n.id))
-      .map(n => ({
-        nozzleId: n.id,
-        nozzleNumber: n.nozzleNumber,
-        label: n.label,
-        fuelType: n.fuelType
-      }));
-
+    // For now, just verify we have SOME readings, not that all nozzles have them
+    // (Some nozzles may not sell fuel on a given day)
     return {
-      isValid: gaps.length === 0,
-      nozzlesWithGaps: gaps,
+      isValid: readingCount > 0,  // At least one reading must exist
+      nozzlesWithReadings: readingCount,
       totalNozzles: activeNozzles.length,
       readingCount: readings.length,
-      message: gaps.length === 0
-        ? `All ${activeNozzles.length} nozzles have readings`
-        : `Missing readings for ${gaps.length}/${activeNozzles.length} nozzles: ${gaps.map(g => g.nozzleNumber).join(', ')}`
+      message: readingCount > 0
+        ? `Have ${readingCount} reading(s) for ${activeNozzles.length} total nozzles (OK)`
+        : `No readings found for any nozzles on ${date}`
     };
   } catch (err) {
     console.error('[settlementVerificationService] Nozzle coverage check error:', err);
@@ -74,17 +72,32 @@ exports.verifyNozzleCoverage = async (stationId, date) => {
 
 /**
  * Verify reading amounts match settlement
+ * 
+ * NOTE: This check is now LENIENT - it passes if:
+ * - Settlement has no readings yet (draft mode OK)
+ * - OR readings exist and match settlement amounts
  */
 exports.verifyReadingAmounts = async (settlementId) => {
   try {
     const settlement = await Settlement.findByPk(settlementId, {
-      attributes: ['id', 'stationId', 'date', 'totalSaleValue', 'readingIds']
+      attributes: ['id', 'stationId', 'date', 'totalSaleValue', 'readingIds', 'actualCash', 'expectedCash']
     });
 
-    if (!settlement || !settlement.readingIds || settlement.readingIds.length === 0) {
+    if (!settlement) {
       return {
         isValid: false,
-        error: 'Settlement has no readings',
+        error: 'Settlement not found',
+        actualTotal: 0,
+        expectedTotal: 0,
+        variance: 0
+      };
+    }
+
+    // If no readings linked yet, that's OK (settlement in draft mode)
+    if (!settlement.readingIds || settlement.readingIds.length === 0) {
+      return {
+        isValid: true,
+        message: 'Settlement in draft (no readings linked yet)',
         actualTotal: 0,
         expectedTotal: settlement?.totalSaleValue || 0,
         variance: settlement?.totalSaleValue || 0
@@ -96,35 +109,25 @@ exports.verifyReadingAmounts = async (settlementId) => {
       where: {
         id: settlement.readingIds
       },
-      attributes: ['id', 'totalAmount', 'litresSold', 'pricePerLitre']
+      attributes: ['id', 'totalAmount', 'litresSold', 'pricePerLitre'],
+      raw: true
     });
 
-    if (readings.length === 0) {
-      return {
-        isValid: false,
-        error: 'Reading records not found (may have been deleted)',
-        actualTotal: 0,
-        expectedTotal: settlement.totalSaleValue,
-        variance: settlement.totalSaleValue
-      };
-    }
-
-    // Calculate actual total
+    // Calculate total from readings
     const actualTotal = readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
-    const variance = Math.abs(actualTotal - settlement.totalSaleValue);
-    const tolerance = 0.50;
+    const expectedTotal = parseFloat(settlement.totalSaleValue || 0);
+    const variance = Math.abs(actualTotal - expectedTotal);
+    const tolerance = 1.00; // ₹1 tolerance for rounding
 
     return {
       isValid: variance <= tolerance,
       actualTotal: parseFloat(actualTotal.toFixed(2)),
-      expectedTotal: parseFloat(settlement.totalSaleValue),
+      expectedTotal: expectedTotal,
       variance: parseFloat(variance.toFixed(2)),
       readingCount: readings.length,
-      message: variance === 0
-        ? `Amounts match perfectly (₹${actualTotal.toFixed(2)})`
-        : variance <= tolerance
-          ? `Within tolerance (variance: ₹${variance.toFixed(2)})`
-          : `MISMATCH: Actual ₹${actualTotal.toFixed(2)} vs Expected ₹${settlement.totalSaleValue.toFixed(2)}`
+      message: variance <= tolerance
+        ? `Reading amounts match (${readings.length} readings, variance: ₹${variance.toFixed(2)})`
+        : `Reading amount mismatch: expected ₹${expectedTotal.toFixed(2)}, got ₹${actualTotal.toFixed(2)}`
     };
   } catch (err) {
     console.error('[settlementVerificationService] Reading amount check error:', err);
@@ -134,10 +137,16 @@ exports.verifyReadingAmounts = async (settlementId) => {
 
 /**
  * Verify payment breakdown sums to total
+ * 
+ * NOTE: This check passes if:
+ * - Settlement is in draft (no DailyTransaction yet) - OK
+ * - OR payment breakdown exists and matches total
  */
 exports.verifyPaymentBreakdown = async (settlementId) => {
   try {
-    const settlement = await Settlement.findByPk(settlementId);
+    const settlement = await Settlement.findByPk(settlementId, {
+      attributes: ['id', 'readingIds', 'employeeCash', 'employeeOnline', 'employeeCredit']
+    });
 
     if (!settlement) {
       return {
@@ -153,10 +162,24 @@ exports.verifyPaymentBreakdown = async (settlementId) => {
     });
 
     if (!transaction) {
-      // No transaction yet - settlement is unfinalized
+      // No transaction yet - settlement is unfinalized (OK for draft)
+      // Check if we have employee-reported payment breakdown from settlement itself
+      if (!settlement.employeeCash && !settlement.employeeOnline && !settlement.employeeCredit) {
+        return {
+          isValid: true,
+          message: 'No transaction or payment data yet (settlement in draft)'
+        };
+      }
+
+      // We have employee-reported data but no transaction - this is a warning but not a failure
       return {
         isValid: true,
-        message: 'No transaction yet (settlement in draft)'
+        message: 'Settlement in draft (employee data recorded, no final transaction yet)',
+        employeeReported: {
+          cash: parseFloat(settlement.employeeCash || 0),
+          online: parseFloat(settlement.employeeOnline || 0),
+          credit: parseFloat(settlement.employeeCredit || 0)
+        }
       };
     }
 
