@@ -35,7 +35,7 @@ function PlanManagement() {
         const arr = (res as unknown as { data?: Plan[] })?.data ?? (res as unknown as Plan[]);
         setPlans(arr as Plan[]);
       } catch (err) {
-        // eslint-disable-next-line no-console
+         
         console.error('Failed to load plans', err);
         toast({ title: 'Failed to load plans', variant: 'destructive' });
       }

@@ -284,7 +284,7 @@ export default function DataEntry() {
         }
       } catch (txErr) {
         // Log transaction creation error but continue (non-fatal)
-        // eslint-disable-next-line no-console
+         
         console.debug('Failed to create transaction for reading', txErr);
       }
 
@@ -301,7 +301,7 @@ export default function DataEntry() {
         }
       } catch (err) {
         // Log invalidation error (non-fatal)
-        // eslint-disable-next-line no-console
+         
         console.debug('Query invalidation failed', err);
       }
 

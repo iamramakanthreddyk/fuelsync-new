@@ -147,7 +147,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
         (jsonData as Record<string, unknown>)['data'] = convertKeysToCamel(dataPayload as object);
       } catch (e) {
         // fallback: leave data as-is (log minor conversion error)
-        // eslint-disable-next-line no-console
+         
         console.debug('api-client: data conversion to camelCase failed', e);
       }
 
@@ -248,7 +248,7 @@ async function request<T>(
         // attach headers back to config
         (config as any).headers = hdrs;
       } catch (err) {
-        // eslint-disable-next-line no-console
+         
         console.debug('api-client: header adjustment failed', err);
       }
     }

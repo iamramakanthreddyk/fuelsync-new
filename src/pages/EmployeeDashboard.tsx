@@ -35,7 +35,7 @@ const EmployeeDashboard = () => {
         setFuelPrices(pricesData || []);
       } catch (error) {
         // log but do not disrupt UI
-        // eslint-disable-next-line no-console
+         
         console.debug('fetchFuelPrices failed', error);
       }
     };

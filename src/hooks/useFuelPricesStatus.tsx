@@ -74,7 +74,7 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
       const useFallback = Boolean(stationId) || (ctxStationId && effectiveStation && ctxStationId === effectiveStation.id);
       if (useFallback) {
         // Debug: log mismatch for investigation
-        // eslint-disable-next-line no-console
+         
         console.debug('[useFuelPricesStatus] falling back to globalPrices. react-query prices:', pricesArray, 'globalPrices:', globalPrices, 'effectiveStation:', effectiveStation, 'ctxStationId:', ctxStationId);
         // Convert globalPrices (Record<string, number>) to a synthetic pricesArray shape
         pricesArray = Object.entries(globalPrices).map(([fuel_type, price_per_litre]) => ({ fuel_type, price_per_litre }));
