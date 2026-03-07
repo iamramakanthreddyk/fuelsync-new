@@ -256,7 +256,10 @@ export default function QuickDataEntryEnhanced() {
         if (!nozzle) return;
         // Match UI logic for last reading (compareValue)
         const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-        const trueLastReading = allLastReadings ? allLastReadings[nozzle.id] : undefined;
+        // Use lastReading from nozzle object first, then from allLastReadings query
+        const trueLastReading = nozzle.lastReading !== null && nozzle.lastReading !== undefined
+          ? nozzle.lastReading
+          : (allLastReadings ? allLastReadings[nozzle.id] : undefined);
         const parsedLastReading = (trueLastReading !== null && trueLastReading !== undefined) ? parseFloat(String(trueLastReading)) : null;
         const compareValue = (parsedLastReading !== null && !isNaN(parsedLastReading))
           ? parsedLastReading
@@ -406,7 +409,10 @@ export default function QuickDataEntryEnhanced() {
       // Note: Sample readings don't contribute to payment allocation but are still submitted
       const entriesWithSale = data.map(entry => {
         const nozzle = pumps?.flatMap((p: any) => p.nozzles || []).find((n: any) => n.id === entry.nozzleId);
-        const trueLastReading = allLastReadings ? allLastReadings[entry.nozzleId] : undefined;
+        // Use lastReading from nozzle object first, then from allLastReadings query
+        const trueLastReading = nozzle?.lastReading !== null && nozzle?.lastReading !== undefined
+          ? nozzle.lastReading
+          : (allLastReadings ? allLastReadings[entry.nozzleId] : undefined);
         const lastReading = (trueLastReading !== undefined && trueLastReading !== null)
           ? trueLastReading
           : (nozzle?.initialReading || 0);
@@ -789,7 +795,10 @@ export default function QuickDataEntryEnhanced() {
                     {pump.nozzles?.map((nozzle: any) => {
                       const nozzleId = nozzle.id;
                       const reading = readings[nozzleId];
-                      const lastReading = allLastReadings ? allLastReadings[nozzleId] : undefined;
+                      // Use lastReading from nozzle object first, then from allLastReadings query, fallback to initialReading
+                      const lastReading = nozzle.lastReading !== null && nozzle.lastReading !== undefined
+                        ? nozzle.lastReading
+                        : (allLastReadings ? allLastReadings[nozzleId] : undefined);
                       const compareValue = (lastReading !== null && lastReading !== undefined)
                         ? lastReading
                         : (nozzle.initialReading || 0);
