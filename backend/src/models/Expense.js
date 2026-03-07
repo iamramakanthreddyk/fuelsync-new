@@ -46,7 +46,7 @@ module.exports = (sequelize) => {
     
     // Req #3: Frequency for grouping expenses by daily/monthly period
     frequency: {
-      type: DataTypes.ENUM('daily', 'weekly', 'monthly', 'one_time'),
+      type: DataTypes.STRING(20),
       allowNull: false,
       defaultValue: 'one_time',
       comment: 'Recurrence: daily (cleaning, generator), monthly (salary, electricity), one_time (equipment)'
@@ -104,7 +104,7 @@ module.exports = (sequelize) => {
     // Manager/Owner entry = auto_approved
     // Employee entry = pending (requires manager/owner sign-off)
     approvalStatus: {
-      type: DataTypes.ENUM('pending', 'approved', 'rejected', 'auto_approved'),
+      type: DataTypes.STRING(20),
       allowNull: false,
       defaultValue: 'auto_approved',
       field: 'approval_status',
