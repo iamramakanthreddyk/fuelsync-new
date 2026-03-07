@@ -338,26 +338,26 @@ export default function QuickDataEntryEnhanced() {
     }
   }, [saleSummary.totalSaleValue]);
 
-  // Default payment allocation: add sale value to cash when sale increases
-  const prevSaleValueRef = useRef<number>(0);
+  // Auto-correct payment allocation: recalculate cash when sale value changes
+  // This ensures payment allocation always reflects all entered readings
   useEffect(() => {
     const newTotalSaleValue = saleSummary.totalSaleValue;
-    const prevSaleValue = prevSaleValueRef.current;
+    if (newTotalSaleValue <= 0) return;
 
-    // Only adjust when sale value increases
-    if (newTotalSaleValue > prevSaleValue) {
-      const increase = newTotalSaleValue - prevSaleValue;
-      const currentCash = toNumber(paymentAllocation.cash);
-      const newCash = currentCash + increase;
+    const currentCash = toNumber(paymentAllocation.cash);
+    const currentOnline = toNumber(paymentAllocation.online);
+    const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
+    const totalAllocated = currentCash + currentOnline + totalCredit;
 
+    // If total allocated doesn't match sale value, update cash to fill the gap
+    // This handles cases where readings are adjusted and need the payment to be recalculated
+    if (Math.abs(totalAllocated - newTotalSaleValue) > 0.01) {
+      const newCash = Math.max(0, newTotalSaleValue - currentOnline - totalCredit);
       setPaymentAllocation(prev => ({
         ...prev,
         cash: newCash.toString()
       }));
     }
-
-    // Update the ref with the new sale value
-    prevSaleValueRef.current = newTotalSaleValue;
   }, [saleSummary.totalSaleValue]);
 
   // Initialize online breakdown when online > 0
