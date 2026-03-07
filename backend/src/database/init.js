@@ -181,7 +181,10 @@ async function runColumnMigrations() {
       table: 'expenses',
       column: 'frequency',
       sql: isPostgres
-        ? `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_expenses_frequency') THEN CREATE TYPE enum_expenses_frequency AS ENUM('daily','weekly','monthly','one_time'); END IF; END $$; ALTER TABLE expenses ADD COLUMN IF NOT EXISTS frequency enum_expenses_frequency NOT NULL DEFAULT 'one_time';`
+        ? [
+            `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_expenses_frequency') THEN CREATE TYPE enum_expenses_frequency AS ENUM('daily','weekly','monthly','one_time'); END IF; END $$;`,
+            `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS frequency enum_expenses_frequency NOT NULL DEFAULT 'one_time';`
+          ]
         : `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS frequency TEXT NOT NULL DEFAULT 'one_time';`
     },
     {
@@ -195,7 +198,10 @@ async function runColumnMigrations() {
       table: 'expenses',
       column: 'approval_status',
       sql: isPostgres
-        ? `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_expenses_approval_status') THEN CREATE TYPE enum_expenses_approval_status AS ENUM('pending','approved','rejected','auto_approved'); END IF; END $$; ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approval_status enum_expenses_approval_status NOT NULL DEFAULT 'auto_approved';`
+        ? [
+            `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_expenses_approval_status') THEN CREATE TYPE enum_expenses_approval_status AS ENUM('pending','approved','rejected','auto_approved'); END IF; END $$;`,
+            `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approval_status enum_expenses_approval_status NOT NULL DEFAULT 'auto_approved';`
+          ]
         : `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approval_status TEXT NOT NULL DEFAULT 'auto_approved';`
     },
     {
@@ -219,7 +225,10 @@ async function runColumnMigrations() {
 
   for (const migration of columnMigrations) {
     try {
-      await db.sequelize.query(migration.sql);
+      const statements = Array.isArray(migration.sql) ? migration.sql : [migration.sql];
+      for (const stmt of statements) {
+        await db.sequelize.query(stmt);
+      }
       console.log(`   ✅ Column OK: ${migration.table}.${migration.column}`);
     } catch (err) {
       // Column might already exist in SQLite (which doesn't support IF NOT EXISTS on ALTER)
