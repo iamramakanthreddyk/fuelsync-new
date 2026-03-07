@@ -184,6 +184,16 @@ async function runColumnMigrations() {
     },
     {
       table: 'expenses',
+      column: 'receipt_number',
+      sql: `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS receipt_number VARCHAR(50) DEFAULT NULL;`
+    },
+    {
+      table: 'expenses',
+      column: 'payment_method',
+      sql: `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS payment_method VARCHAR(30) DEFAULT NULL;`
+    },
+    {
+      table: 'expenses',
       column: 'approved_by',
       sql: isPostgres
         ? `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;`
