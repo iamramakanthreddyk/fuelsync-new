@@ -762,25 +762,65 @@ export default function QuickDataEntryEnhanced() {
         {canSelectStation && (
           <Card className="shadow-lg">
             <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <Label htmlFor="station-select" className="text-sm font-medium text-gray-700">
-                  Select Station:
-                </Label>
-                <Select value={selectedStation} onValueChange={setSelectedStation}>
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="Choose a station" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {stations?.map((station: any) => (
-                      <SelectItem key={station.id} value={station.id}>
-                        <div className="flex items-center space-x-2">
-                          <Building2 className="h-4 w-4" />
-                          <span>{station.name}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {/* Station Selector */}
+                <div className="flex flex-col space-y-2">
+                  <Label htmlFor="station-select" className="text-sm font-medium text-gray-700">
+                    Station
+                  </Label>
+                  <Select value={selectedStation} onValueChange={setSelectedStation}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Choose a station" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {stations?.map((station: any) => (
+                        <SelectItem key={station.id} value={station.id}>
+                          <div className="flex items-center space-x-2">
+                            <Building2 className="h-4 w-4" />
+                            <span>{station.name}</span>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Employee Assignment - Only for owners and managers */}
+                {selectedStation && (
+                  <div className="flex flex-col space-y-2">
+                    <Label htmlFor="employee-select" className="text-sm font-medium text-gray-700">
+                      Assign Entry To
+                    </Label>
+                    <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select an employee" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {employeesToAssign.map((employee: User) => (
+                          <SelectItem key={employee.id} value={employee.id}>
+                            <span>{employee.name || employee.email}</span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {/* Reading Date */}
+                {selectedStation && (
+                  <div className="flex flex-col space-y-2">
+                    <Label htmlFor="reading-date" className="text-sm font-medium text-gray-700">
+                      Reading Date
+                    </Label>
+                    <Input
+                      id="reading-date"
+                      type="date"
+                      value={readingDate}
+                      onChange={(e) => setReadingDate(e.target.value)}
+                      className="w-full"
+                    />
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -790,43 +830,33 @@ export default function QuickDataEntryEnhanced() {
         {isEmployee && selectedStation && (
           <Card className="shadow-lg">
             <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <Label className="text-sm font-medium text-gray-700">
-                  Your Station:
-                </Label>
-                <div className="flex items-center space-x-2">
-                  <Building2 className="h-4 w-4" />
-                  <span className="text-sm font-medium">
-                    {stations?.find((s: any) => s.id === selectedStation)?.name || 'Station'}
-                  </span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Station Display */}
+                <div className="flex flex-col space-y-2">
+                  <Label className="text-sm font-medium text-gray-700">
+                    Your Station
+                  </Label>
+                  <div className="flex items-center space-x-2 p-2 bg-blue-50 rounded text-sm font-medium text-blue-900">
+                    <Building2 className="h-4 w-4" />
+                    <span>
+                      {stations?.find((s: any) => s.id === selectedStation)?.name || 'Station'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
 
-        {/* Employee Selection - Only for owners and managers */}
-        {(isOwner || isManager) && selectedStation && (
-          <Card className="shadow-lg">
-            <CardContent className="p-6">
-              <div className="flex items-center space-x-4">
-                <Label htmlFor="employee-select" className="text-sm font-medium text-gray-700">
-                  Assign Entry To:
-                </Label>
-                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
-                  <SelectTrigger className="w-64">
-                    <SelectValue placeholder="Select an employee" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {employeesToAssign.map((employee: User) => (
-                      <SelectItem key={employee.id} value={employee.id}>
-                        <div className="flex items-center space-x-2">
-                          <span>{employee.name || employee.email}</span>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {/* Reading Date */}
+                <div className="flex flex-col space-y-2">
+                  <Label htmlFor="reading-date" className="text-sm font-medium text-gray-700">
+                    Reading Date
+                  </Label>
+                  <Input
+                    id="reading-date"
+                    type="date"
+                    value={readingDate}
+                    onChange={(e) => setReadingDate(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -863,24 +893,6 @@ export default function QuickDataEntryEnhanced() {
                 </CardContent>
               </Card>
             )}
-
-            {/* Reading Date */}
-            <Card className="shadow-lg">
-              <CardContent className="p-6">
-                <div className="flex items-center space-x-4">
-                  <Label htmlFor="reading-date" className="text-sm font-medium text-gray-700">
-                    Reading Date:
-                  </Label>
-                  <Input
-                    id="reading-date"
-                    type="date"
-                    value={readingDate}
-                    onChange={(e) => setReadingDate(e.target.value)}
-                    className="w-auto"
-                  />
-                </div>
-              </CardContent>
-            </Card>
 
             {/* Pumps and Nozzles */}
             <div className="grid gap-6">
