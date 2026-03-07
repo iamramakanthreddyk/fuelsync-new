@@ -77,11 +77,15 @@ exports.verifyNozzleCoverage = async (stationId, date) => {
  * - Settlement has no readings yet (draft mode OK)
  * - OR readings exist and match settlement amounts
  */
-exports.verifyReadingAmounts = async (settlementId) => {
+exports.verifyReadingAmounts = async (settlementId, transaction = null) => {
   try {
-    const settlement = await Settlement.findByPk(settlementId, {
+    const options = {
       attributes: ['id', 'stationId', 'date', 'totalSaleValue', 'readingIds', 'actualCash', 'expectedCash']
-    });
+    };
+    if (transaction) {
+      options.transaction = transaction;
+    }
+    const settlement = await Settlement.findByPk(settlementId, options);
 
     if (!settlement) {
       return {
@@ -105,13 +109,17 @@ exports.verifyReadingAmounts = async (settlementId) => {
     }
 
     // Get readings
-    const readings = await NozzleReading.findAll({
+    const readingOptions = {
       where: {
         id: settlement.readingIds
       },
       attributes: ['id', 'totalAmount', 'litresSold', 'pricePerLitre'],
       raw: true
-    });
+    };
+    if (transaction) {
+      readingOptions.transaction = transaction;
+    }
+    const readings = await NozzleReading.findAll(readingOptions);
 
     // Calculate total from readings
     const actualTotal = readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
@@ -142,11 +150,15 @@ exports.verifyReadingAmounts = async (settlementId) => {
  * - Settlement is in draft (no DailyTransaction yet) - OK
  * - OR payment breakdown exists and matches total
  */
-exports.verifyPaymentBreakdown = async (settlementId) => {
+exports.verifyPaymentBreakdown = async (settlementId, transaction = null) => {
   try {
-    const settlement = await Settlement.findByPk(settlementId, {
+    const options = {
       attributes: ['id', 'readingIds', 'employeeCash', 'employeeOnline', 'employeeCredit']
-    });
+    };
+    if (transaction) {
+      options.transaction = transaction;
+    }
+    const settlement = await Settlement.findByPk(settlementId, options);
 
     if (!settlement) {
       return {
@@ -156,12 +168,16 @@ exports.verifyPaymentBreakdown = async (settlementId) => {
     }
 
     // Get daily transaction for this settlement
-    const transaction = await DailyTransaction.findOne({
+    const txOptions = {
       where: { settlementId },
       attributes: ['id', 'totalSaleValue', 'paymentBreakdown', 'creditAllocations']
-    });
+    };
+    if (transaction) {
+      txOptions.transaction = transaction;
+    }
+    const dailyTxn = await DailyTransaction.findOne(txOptions);
 
-    if (!transaction) {
+    if (!dailyTxn) {
       // No transaction yet - settlement is unfinalized (OK for draft)
       // Check if we have employee-reported payment breakdown from settlement itself
       if (!settlement.employeeCash && !settlement.employeeOnline && !settlement.employeeCredit) {
@@ -184,13 +200,13 @@ exports.verifyPaymentBreakdown = async (settlementId) => {
     }
 
     // Calculate payment breakdown sum
-    const breakdown = transaction.paymentBreakdown || {};
+    const breakdown = dailyTxn.paymentBreakdown || {};
     const cash = parseFloat(breakdown.cash || 0);
     const online = parseFloat(breakdown.online || 0);
     const credit = parseFloat(breakdown.credit || 0);
     const sum = cash + online + credit;
 
-    const expectedTotal = parseFloat(transaction.totalSaleValue);
+    const expectedTotal = parseFloat(dailyTxn.totalSaleValue);
     const variance = Math.abs(sum - expectedTotal);
     const tolerance = 0.50;
 
@@ -225,31 +241,43 @@ exports.verifyPaymentBreakdown = async (settlementId) => {
 /**
  * Verify credit allocations are valid
  */
-exports.verifyCreditAllocations = async (settlementId) => {
+exports.verifyCreditAllocations = async (settlementId, dbTransaction = null) => {
   try {
-    const settlement = await Settlement.findByPk(settlementId);
+    const settlementOpts = {};
+    if (dbTransaction) {
+      settlementOpts.transaction = dbTransaction;
+    }
+    const settlement = await Settlement.findByPk(settlementId, settlementOpts);
 
-    const transaction = await DailyTransaction.findOne({
+    const txOpts = {
       where: { settlementId },
       attributes: ['id', 'creditAllocations']
-    });
+    };
+    if (dbTransaction) {
+      txOpts.transaction = dbTransaction;
+    }
+    const dailyTxn = await DailyTransaction.findOne(txOpts);
 
-    if (!transaction || !transaction.creditAllocations) {
+    if (!dailyTxn || !dailyTxn.creditAllocations) {
       return {
         isValid: true,
         message: 'No credit allocations'
       };
     }
 
-    const allocations = transaction.creditAllocations;
+    const allocations = dailyTxn.creditAllocations;
 
     // Verify each creditor exists and is active
     const issues = [];
 
     for (const alloc of allocations) {
-      const creditor = await Creditor.findByPk(alloc.creditorId, {
+      const creditorOpts = {
         attributes: ['id', 'name', 'isActive', 'creditLimit', 'currentBalance']
-      });
+      };
+      if (dbTransaction) {
+        creditorOpts.transaction = dbTransaction;
+      }
+      const creditor = await Creditor.findByPk(alloc.creditorId, creditorOpts);
 
       if (!creditor) {
         issues.push({
@@ -302,8 +330,12 @@ exports.verifyCreditAllocations = async (settlementId) => {
 /**
  * Comprehensive settlement verification
  * Run all checks before finalization
+ * @param {string} settlementId - Settlement ID to verify
+ * @param {string} stationId - Station ID for nozzle verification
+ * @param {string} date - Date for nozzle verification
+ * @param {object} transaction - Optional Sequelize transaction context
  */
-exports.verifySettlementComplete = async (settlementId, stationId, date) => {
+exports.verifySettlementComplete = async (settlementId, stationId, date, transaction = null) => {
   try {
     // Run all checks in parallel
     const [
@@ -313,9 +345,9 @@ exports.verifySettlementComplete = async (settlementId, stationId, date) => {
       creditAllocations
     ] = await Promise.all([
       this.verifyNozzleCoverage(stationId, date),
-      this.verifyReadingAmounts(settlementId),
-      this.verifyPaymentBreakdown(settlementId),
-      this.verifyCreditAllocations(settlementId)
+      this.verifyReadingAmounts(settlementId, transaction),
+      this.verifyPaymentBreakdown(settlementId, transaction),
+      this.verifyCreditAllocations(settlementId, transaction)
     ]);
 
     const allValid = 

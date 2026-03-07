@@ -1843,7 +1843,8 @@ exports.recordSettlement = async (req, res, next) => {
           const verificationResult = await settlementVerificationService.verifySettlementComplete(
             record.id,     // settlementId
             stationId,     // stationId
-            settlementDate // date (should match settlement.date)
+            settlementDate, // date (should match settlement.date)
+            t              // pass transaction context for consistency
           );
 
           if (!verificationResult.canFinalize) {
