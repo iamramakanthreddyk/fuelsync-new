@@ -124,12 +124,15 @@ async function executeMigrations() {
     try {
       await db.sequelize.sync({ alter: false });
       console.log('   ✅ Database schema verified\n');
-      return true;
     } catch (syncError) {
       // If sync fails, it might be old schema - that's OK, we have tables
       console.log(`   ⚠️  Schema sync skipped (tables exist): ${syncError.message}\n`);
-      return true;
     }
+
+    // Run additive column migrations (safely adds new columns if missing)
+    await runColumnMigrations();
+    
+    return true;
     
   } catch (error) {
     console.error('\n❌ [MIGRATIONS] Migration check failed!');
@@ -139,6 +142,43 @@ async function executeMigrations() {
     console.log('\n✅ Continuing - tables already exist in database\n');
     return true;
   }
+}
+
+/**
+ * Step 3b: Safely add new columns that may be missing from existing tables
+ * Uses IF NOT EXISTS so it's safe to run on every startup
+ */
+async function runColumnMigrations() {
+  console.log('\n🔧 [COLUMN MIGRATIONS] Checking for missing columns...\n');
+
+  const isPostgres = db.sequelize.options.dialect === 'postgres';
+
+  // List of additive column migrations - safe to run repeatedly
+  const columnMigrations = [
+    {
+      table: 'nozzle_readings',
+      column: 'assigned_employee_id',
+      sql: isPostgres
+        ? `ALTER TABLE nozzle_readings ADD COLUMN IF NOT EXISTS assigned_employee_id UUID REFERENCES users(id) ON DELETE SET NULL;`
+        : `ALTER TABLE nozzle_readings ADD COLUMN IF NOT EXISTS assigned_employee_id TEXT REFERENCES users(id);`
+    }
+  ];
+
+  for (const migration of columnMigrations) {
+    try {
+      await db.sequelize.query(migration.sql);
+      console.log(`   ✅ Column OK: ${migration.table}.${migration.column}`);
+    } catch (err) {
+      // Column might already exist in SQLite (which doesn't support IF NOT EXISTS on ALTER)
+      if (err.message.includes('duplicate column') || err.message.includes('already exists')) {
+        console.log(`   ✅ Column already exists: ${migration.table}.${migration.column}`);
+      } else {
+        console.warn(`   ⚠️  Column migration skipped (${migration.table}.${migration.column}): ${err.message}`);
+      }
+    }
+  }
+
+  console.log('\n   ✅ Column migration check complete\n');
 }
 
 /**
