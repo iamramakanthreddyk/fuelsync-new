@@ -147,6 +147,7 @@ export default function DailySettlement() {
   const [actualCredit, setActualCredit] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
 
   //  Fetch daily sales summary 
   const { data: dailySales, isLoading: salesLoading } = useQuery({
@@ -202,6 +203,7 @@ export default function DailySettlement() {
     setOnlineBreakdown(null);
     setActualCredit(0);
     setNotes('');
+    setSelectedEmployeeId('');
   }, [selectedDate]);
 
   //  Derived values 
@@ -214,9 +216,28 @@ export default function DailySettlement() {
   const expectedTotal = expected.cash + expected.online + expected.credit;
   const actualTotal = actualCash + actualOnline + actualCredit;
   const totalVariance = expectedTotal - actualTotal;
+  
+  // Calculate online breakdown total
+  const onlineBreakdownTotal = onlineBreakdown ? 
+    (Object.values(onlineBreakdown.upi || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
+     Object.values(onlineBreakdown.card || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
+     Object.values(onlineBreakdown.oil_company || {}).reduce((sum: number, v: any) => sum + (v || 0), 0)) : 0;
+  
+  // Validate online breakdown matches online amount
+  const onlineBreakdownMismatch = onlineBreakdown ? Math.abs(onlineBreakdownTotal - actualOnline) > 0.01 : false;
+  
   const unlinkedIds = (readingsData?.unlinked.readings ?? []).map((r) => r.id);
   const allUnlinkedSelected =
     unlinkedIds.length > 0 && unlinkedIds.every((id) => selectedIds.includes(id));
+
+  // Get unique employees from selected readings
+  const selectedEmployees = Array.from(
+    new Map(
+      selected
+        .filter((r) => r.recordedBy?.id)
+        .map((r) => [r.recordedBy!.id, r.recordedBy!])
+    ).values()
+  );
 
   //  Submit 
   const submitMutation = useMutation({
@@ -230,6 +251,7 @@ export default function DailySettlement() {
       setOnlineBreakdown(null);
       setActualCredit(0);
       setNotes('');
+      setSelectedEmployeeId('');
       queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
       queryClient.invalidateQueries({ queryKey: ['readings-for-settlement'] });
       queryClient.invalidateQueries({ queryKey: ['settlements'] });
@@ -248,6 +270,27 @@ export default function DailySettlement() {
       toast({ title: 'Select at least one reading', variant: 'destructive' });
       return;
     }
+    
+    // Validate online breakdown if online payment > 0
+    if (actualOnline > 0 && onlineBreakdown && onlineBreakdownMismatch) {
+      toast({
+        title: 'Online Breakdown Mismatch',
+        description: `Breakdown total ₹${safeToFixed(onlineBreakdownTotal, 2)} does not match Online payment ₹${safeToFixed(actualOnline, 2)}`,
+        variant: 'destructive'
+      });
+      return;
+    }
+    
+    // Require employee association
+    if (selectedEmployees.length > 0 && !selectedEmployeeId) {
+      toast({
+        title: 'Employee Association Required',
+        description: 'Please select which employee this settlement is from',
+        variant: 'destructive'
+      });
+      return;
+    }
+    
     setSubmitting(true);
     submitMutation.mutate(
       {
@@ -261,6 +304,7 @@ export default function DailySettlement() {
         readingIds: selectedIds,
         isFinal: true,
         ...(onlineBreakdown ? { paymentSubBreakdown: onlineBreakdown } : {}),
+        ...(selectedEmployeeId ? { associatedEmployeeId: selectedEmployeeId } : {}),
       },
       { onSettled: () => setSubmitting(false) }
     );
@@ -642,7 +686,51 @@ export default function DailySettlement() {
                       )}
                     </CollapsibleContent>
                   </Collapsible>
+                  
+                  {/* Online Breakdown Validation */}
+                  {onlineBreakdown && actualOnline > 0 && (
+                    <div className={`p-2 rounded border-2 mt-2 ${
+                      onlineBreakdownMismatch
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-green-300 bg-green-50'
+                    }`}>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium">
+                          {onlineBreakdownMismatch ? '❌ Breakdown Mismatch' : '✓ Breakdown Matches'}
+                        </span>
+                        <span className={onlineBreakdownMismatch ? 'text-red-700 font-semibold' : 'text-green-700 font-semibold'}>
+                          ₹{safeToFixed(onlineBreakdownTotal, 2)} / ₹{safeToFixed(actualOnline, 2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
+
+              {/* Employee Association */}
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <Label className="text-sm font-semibold text-blue-900">Associate Entry to Employee</Label>
+                <div className="mt-2">
+                  {selectedEmployees.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      {selectedEmployees.map(emp => (
+                        <label key={emp.id} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-blue-100">
+                          <input
+                            type="radio"
+                            name="employeeAssociation"
+                            value={emp.id}
+                            checked={selectedEmployeeId === emp.id}
+                            onChange={(e) => setSelectedEmployeeId(e.target.value)}
+                            className="w-4 h-4"
+                          />
+                          <span className="text-sm">{emp.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">No employees in selected readings</p>
+                  )}
+                </div>
+              </div>
 
               {/* Variance — compares sum of all payment types */}
               {selectedIds.length > 0 && actualTotal > 0 && (
@@ -704,13 +792,22 @@ export default function DailySettlement() {
               <Button
                 onClick={handleSubmit}
                 disabled={
-                  submitting || submitMutation.isPending || selectedIds.length === 0 || actualTotal === 0
+                  submitting || 
+                  submitMutation.isPending || 
+                  selectedIds.length === 0 || 
+                  actualTotal === 0 ||
+                  onlineBreakdownMismatch ||
+                  (selectedEmployees.length > 0 && !selectedEmployeeId)
                 }
                 size="lg"
                 className="w-full text-base py-5"
               >
                 {submitting || submitMutation.isPending
                   ? 'Saving…'
+                  : onlineBreakdownMismatch
+                  ? 'Fix online breakdown mismatch'
+                  : selectedEmployees.length > 0 && !selectedEmployeeId
+                  ? 'Select an employee'
                   : selectedIds.length === 0
                   ? 'Select readings first'
                   : actualTotal === 0

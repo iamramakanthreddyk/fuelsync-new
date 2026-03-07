@@ -231,6 +231,21 @@ export default function QuickDataEntryEnhanced() {
     enabled: !!selectedStation
   });
 
+  // Helper: Calculate online breakdown total
+  const calculateOnlineBreakdownTotal = (breakdown: PaymentSubBreakdown | null | undefined): number => {
+    if (!breakdown) return 0;
+    return (
+      Object.values(breakdown.upi || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
+      Object.values(breakdown.card || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
+      Object.values(breakdown.oil_company || {}).reduce((sum: number, v: any) => sum + (v || 0), 0)
+    );
+  };
+
+  // Calculate online breakdown total and validate
+  const onlineBreakdownTotal = calculateOnlineBreakdownTotal(paymentAllocation.onlineBreakdown);
+  const onlineBreakdownMismatch = paymentAllocation.onlineBreakdown ? 
+    Math.abs(onlineBreakdownTotal - toNumber(paymentAllocation.online)) > 0.01 : false;
+
   // Calculate sale value summary for current entry (for validation only)
   const saleSummary = useMemo(() => {
     let totalLiters = 0;
@@ -490,7 +505,10 @@ export default function QuickDataEntryEnhanced() {
           credit: 0
         },
         creditAllocations: nonSampleReadings.length > 0 && totalCreditTxn > 0 ? paymentAllocation.credits.map(c => ({ creditorId: c.creditorId, amount: toNumber(c.amount) })) : [],
-        stationPrices
+        stationPrices,
+        // Associate entry to current employee
+        ...(user?.id ? { associatedEmployeeId: user.id } : {}),
+        ...(paymentAllocation.onlineBreakdown ? { paymentSubBreakdown: paymentAllocation.onlineBreakdown } : {})
       };
 
       const response = await apiClient.post('/transactions/quick-entry', quickEntryPayload);
@@ -584,6 +602,16 @@ export default function QuickDataEntryEnhanced() {
 
     // Separate sample and non-sample readings
     const nonSampleEntries = entries.filter(e => !e.is_sample);
+
+    // Validate online breakdown if online payment > 0
+    if (toNumber(paymentAllocation.online) > 0 && onlineBreakdownMismatch) {
+      toast({
+        title: 'Online Breakdown Mismatch',
+        description: `Breakdown total ₹${safeToFixed(onlineBreakdownTotal, 2)} does not match Online payment ₹${safeToFixed(toNumber(paymentAllocation.online), 2)}`,
+        variant: 'destructive'
+      });
+      return;
+    }
 
     // Only validate payment allocation if there are non-sample readings
     if (nonSampleEntries.length > 0) {
@@ -1099,7 +1127,37 @@ export default function QuickDataEntryEnhanced() {
                       </Collapsible>
                     </div>
 
-                  {/* Credit Allocations */}
+                  {/* Online Breakdown Validation */}
+                  {paymentAllocation.onlineBreakdown && toNumber(paymentAllocation.online) > 0 && (
+                    <div className={`p-2 rounded border-2 ${
+                      onlineBreakdownMismatch
+                        ? 'border-red-300 bg-red-50'
+                        : 'border-green-300 bg-green-50'
+                    }`}>
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-medium">
+                          {onlineBreakdownMismatch ? '❌ Breakdown Mismatch' : '✓ Breakdown Matches'}
+                        </span>
+                        <span className={onlineBreakdownMismatch ? 'text-red-700 font-semibold' : 'text-green-700 font-semibold'}>
+                          ₹{safeToFixed(onlineBreakdownTotal, 2)} / ₹{safeToFixed(toNumber(paymentAllocation.online), 2)}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Employee Info */}
+                  <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                    <Label className="text-sm font-semibold text-blue-900">Entry By Employee</Label>
+                    <div className="mt-2">
+                      <p className="text-sm font-medium text-blue-900">{user?.name || 'Unknown'}</p>
+                      <p className="text-xs text-blue-700">{user?.email || ''}</p>
+                      {user?.stationId && (
+                        <p className="text-xs text-blue-600 mt-1">
+                          Station: {stations?.find(s => s.id === user.stationId)?.name || 'Loading...'}
+                        </p>
+                      )}
+                    </div>
+                  </div>
                   {paymentAllocation.credits.map((credit: CreditAllocation, index: number) => {
                     const selectedCreditor = creditors?.find(c => c.id === credit.creditorId);
                     const availableBalance = selectedCreditor ? selectedCreditor.creditLimit - selectedCreditor.currentBalance : 0;
@@ -1190,11 +1248,11 @@ export default function QuickDataEntryEnhanced() {
                     onClick={() => {
                       handleSubmit();
                     }}
-                    disabled={Object.keys(readings).length === 0}
+                    disabled={Object.keys(readings).length === 0 || onlineBreakdownMismatch}
                     className="px-8"
                     size="lg"
                   >
-                    {submitReadingsMutation.isPending ? 'Saving...' : 'Submit All Readings ✓'}
+                    {submitReadingsMutation.isPending ? 'Saving...' : onlineBreakdownMismatch ? 'Fix breakdown mismatch' : 'Submit All Readings ✓'}
                   </Button>
                 </div>
               </CardContent>
