@@ -131,6 +131,9 @@ async function executeMigrations() {
 
     // Run additive column migrations (safely adds new columns if missing)
     await runColumnMigrations();
+
+    // Run compatibility migrations for legacy expense schemas
+    await runExpenseCompatibilityMigrations();
     
     return true;
     
@@ -194,6 +197,11 @@ async function runColumnMigrations() {
     },
     {
       table: 'expenses',
+      column: 'notes',
+      sql: `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS notes TEXT DEFAULT NULL;`
+    },
+    {
+      table: 'expenses',
       column: 'approved_by',
       sql: isPostgres
         ? `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;`
@@ -241,6 +249,94 @@ async function runColumnMigrations() {
   }
 
   console.log('\n   ✅ Column migration check complete\n');
+}
+
+/**
+ * Step 3c: Compatibility migrations for older expense schemas
+ * Handles legacy columns from baseline schema:
+ * - created_by -> entered_by
+ * - status -> approval_status mapping
+ */
+async function runExpenseCompatibilityMigrations() {
+  console.log('\n🧩 [COMPATIBILITY] Checking legacy expenses schema compatibility...\n');
+
+  try {
+    const queryInterface = db.sequelize.getQueryInterface();
+
+    let tableDescription;
+    try {
+      tableDescription = await queryInterface.describeTable('expenses');
+    } catch (tableError) {
+      console.log(`   ℹ️  Skipping compatibility checks: ${tableError.message}`);
+      return;
+    }
+
+    // 1) Legacy created_by -> entered_by
+    if (tableDescription.created_by && !tableDescription.entered_by) {
+      try {
+        await queryInterface.renameColumn('expenses', 'created_by', 'entered_by');
+        console.log('   ✅ Renamed expenses.created_by -> expenses.entered_by');
+      } catch (renameError) {
+        console.warn(`   ⚠️  Could not rename created_by to entered_by: ${renameError.message}`);
+      }
+    }
+
+    // Refresh schema after potential rename
+    tableDescription = await queryInterface.describeTable('expenses');
+
+    // 2) Backfill entered_by from created_by if both columns exist
+    if (tableDescription.created_by && tableDescription.entered_by) {
+      try {
+        await db.sequelize.query(
+          `UPDATE expenses SET entered_by = created_by WHERE entered_by IS NULL AND created_by IS NOT NULL;`
+        );
+        console.log('   ✅ Backfilled expenses.entered_by from created_by');
+      } catch (backfillError) {
+        console.warn(`   ⚠️  Could not backfill entered_by: ${backfillError.message}`);
+      }
+    }
+
+    // 3) Map legacy status -> approval_status if both exist
+    tableDescription = await queryInterface.describeTable('expenses');
+    if (tableDescription.status && tableDescription.approval_status) {
+      try {
+        await db.sequelize.query(
+          `UPDATE expenses
+           SET approval_status = CASE
+             WHEN status = 'approved' THEN 'approved'
+             WHEN status = 'rejected' THEN 'rejected'
+             WHEN status = 'pending' THEN 'pending'
+             WHEN approval_status IS NULL THEN 'pending'
+             ELSE approval_status
+           END
+           WHERE status IS NOT NULL;`
+        );
+        console.log('   ✅ Mapped expenses.status -> expenses.approval_status');
+      } catch (statusMapError) {
+        console.warn(`   ⚠️  Could not map status to approval_status: ${statusMapError.message}`);
+      }
+    }
+
+    // 4) Ensure entered_by is nullable in compatibility mode
+    tableDescription = await queryInterface.describeTable('expenses');
+    if (tableDescription.entered_by) {
+      try {
+        await db.sequelize.query(
+          `ALTER TABLE expenses ALTER COLUMN entered_by DROP NOT NULL;`
+        );
+        console.log('   ✅ Ensured expenses.entered_by is nullable');
+      } catch (nullableError) {
+        // SQLite does not support ALTER COLUMN DROP NOT NULL
+        if (!nullableError.message.toLowerCase().includes('syntax error')) {
+          console.warn(`   ⚠️  Could not relax entered_by nullability: ${nullableError.message}`);
+        }
+      }
+    }
+
+    console.log('\n   ✅ Compatibility migration check complete\n');
+  } catch (error) {
+    console.warn(`\n   ⚠️  Compatibility migrations skipped: ${error.message}\n`);
+  }
 }
 
 /**
