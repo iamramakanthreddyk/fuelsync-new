@@ -157,7 +157,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
         });
       }
     }
-  }, [saleSummary.totalSaleValue, state.paymentBreakdown.online, state.paymentBreakdown.credit, state.step, mode]);
+  }, [saleSummary.totalSaleValue, state.paymentBreakdown, state.paymentBreakdown.online, state.paymentBreakdown.credit, state.paymentBreakdown.cash, state.step, mode]);
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({

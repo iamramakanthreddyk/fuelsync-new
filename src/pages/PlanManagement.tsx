@@ -40,7 +40,7 @@ function PlanManagement() {
         toast({ title: 'Failed to load plans', variant: 'destructive' });
       }
     })();
-  }, []);
+  }, [toast]);
 
   const handleEdit = (plan: Plan) => {
     setEditing(plan.id);
