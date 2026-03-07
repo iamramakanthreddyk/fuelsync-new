@@ -46,7 +46,9 @@ import {
   TrendingUp,
   IndianRupee,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  DollarSign,
+  Settings
 } from 'lucide-react';
 
 interface StationFormData {
@@ -339,6 +341,7 @@ export default function StationsManagement() {
   const [formData, setFormData] = useState<StationFormData>(initialFormData);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [editingStation, setEditingStation] = useState<Station | null>(null);
+  const [expandedStations, setExpandedStations] = useState<Record<string, boolean>>({});
 
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -495,7 +498,7 @@ export default function StationsManagement() {
               onClick={() => navigate(`/owner/stations/${station.id}`)}
             >
               <CardHeader className="pb-3 bg-gradient-to-r from-primary/5 via-primary/3 to-transparent border-b border-border/30">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10 flex-shrink-0 ring-1 ring-primary/20">
                       <Building2 className="w-6 h-6 text-primary" />
@@ -516,13 +519,60 @@ export default function StationsManagement() {
                               : 'bg-gray-100 text-gray-800 hover:bg-gray-100 border-gray-200'
                           }`}
                         >
-                          {station.isActive ? '● Active' : '○ Inactive'} ({station.isActive ? 'true' : 'false'})
+                          {station.isActive ? '● Active' : '○ Inactive'}
                         </Badge>
                       </div>
                     </div>
                   </div>
+                  
+                  {/* Right: Action Buttons - MAIN ACTIONS */}
+                  <div className="flex-shrink-0 flex gap-2 flex-col md:flex-row">
+                    {/* Settle Button */}
+                    <Button
+                      size="sm"
+                      className="bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white shadow-md hover:shadow-lg transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/owner/daily-settlement/${station.id}`);
+                      }}
+                      title="Record daily settlement - verify cash count with system readings"
+                    >
+                      <DollarSign className="w-4 h-4 mr-1.5" />
+                      <span className="hidden sm:inline">Settle</span>
+                    </Button>
+
+                    {/* Manage Button */}
+                    <Button
+                      size="sm"
+                      className="bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white shadow-md hover:shadow-lg transition-all"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/owner/stations/${station.id}`);
+                      }}
+                      title="Configure pumps, nozzles, fuel prices, and settings"
+                    >
+                      <Settings className="w-4 h-4 mr-1.5" />
+                      <span className="hidden sm:inline">Manage</span>
+                    </Button>
+
+                    {/* Edit Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleEdit(station);
+                      }}
+                      className="hover:bg-blue-50 hover:border-blue-200"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </Button>
+                  </div>
                 </div>
               </CardHeader>
+              
+              {/* Collapsible Details - Only show when expanded */}
+              {expandedStations[station.id] && (
               <CardContent className="space-y-4 p-4" onClick={(e) => e.stopPropagation()}>
                 {/* Key Metrics Grid */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -601,49 +651,38 @@ export default function StationsManagement() {
                   </div>
                 )}
 
-                {/* Action Buttons */}
-                <div className="flex flex-col sm:flex-row gap-2 pt-3 border-t border-border/30">
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="flex-1 sm:flex-none bg-green-50 hover:bg-green-100 border-green-200 text-green-700 hover:text-green-800"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/owner/daily-settlement/${station.id}`);
-                      }}
-                    >
-                      <TrendingUp className="w-4 h-4 mr-2" />
-                      Settle
-                    </Button>
-                    <Button
-                      variant="default"
-                      size="sm"
-                      className="flex-1 sm:flex-none bg-primary hover:bg-primary/90 text-primary-foreground shadow-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/owner/stations/${station.id}`);
-                      }}
-                    >
-                      <ArrowRight className="w-4 h-4 mr-2" />
-                      Manage
-                    </Button>
-                  </div>
-                  <div className="flex gap-2 sm:ml-auto">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleEdit(station);
-                      }}
-                      className="hover:bg-blue-50 hover:border-blue-200"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                  </div>
+                {/* Collapse Toggle */}
+                <div 
+                  className="pt-2 border-t border-border/30 flex justify-center cursor-pointer hover:bg-accent/30 transition-colors -mx-4 -mb-4 px-4 py-2"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setExpandedStations(prev => ({
+                      ...prev,
+                      [station.id]: false
+                    }));
+                  }}
+                >
+                  <ChevronUp className="w-5 h-5 text-muted-foreground" />
                 </div>
               </CardContent>
+              )}
+
+              {/* Expand Indicator - Always visible for collapsed state */}
+              {!expandedStations[station.id] && (
+              <div 
+                className="p-3 bg-muted/50 flex justify-center cursor-pointer hover:bg-accent/50 transition-colors"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setExpandedStations(prev => ({
+                    ...prev,
+                    [station.id]: true
+                  }));
+                }}
+                title="Click to expand details"
+              >
+                <ChevronDown className="w-5 h-5 text-muted-foreground" />
+              </div>
+              )}
             </Card>
             );
           })}
