@@ -147,8 +147,17 @@ export default function QuickDataEntryEnhanced() {
   const { setStationId } = useFuelPricesGlobal();
 
   // Fetch stations
-  const stationsResponse = useStations().data;
-  const stations: Station[] = stationsResponse?.success ? stationsResponse.data : [];
+  const stationsQuery = useStations();
+  const stationsResponse = stationsQuery.data;
+
+  // type guard for API success shape
+  const isApiSuccess = <T,>(v: any): v is { success: true; data: T } => Boolean(v && typeof v === 'object' && v.success === true && 'data' in v);
+
+  const stations: Station[] = useMemo(() => {
+    if (!stationsResponse) return [];
+    if (isApiSuccess<Station[]>(stationsResponse) && Array.isArray(stationsResponse.data)) return stationsResponse.data;
+    return [];
+  }, [stationsResponse]);
 
   // Determine if user can select stations (owners/managers) or is auto-assigned (employees)
   const canSelectStation = user?.role === 'owner' || user?.role === 'manager';
@@ -157,8 +166,14 @@ export default function QuickDataEntryEnhanced() {
   const isManager = user?.role === 'manager';
   
   // Fetch employees for selected station (owners/managers can assign to employees)
-  const { data: staffData } = useStationStaff(selectedStation);
-  const employees: User[] = staffData?.data || [];
+  const staffQuery = useStationStaff(selectedStation);
+  const staffResponse = staffQuery.data;
+  const employees: User[] = useMemo(() => {
+    if (!staffResponse) return [];
+    if (isApiSuccess<User[]>(staffResponse) && Array.isArray(staffResponse.data)) return staffResponse.data;
+    if (Array.isArray(staffResponse)) return staffResponse as User[];
+    return [];
+  }, [staffResponse]);
   const employeesToAssign = employees.filter((emp: User) => emp.role === 'employee');
 
   // Auto-select station based on role
@@ -196,7 +211,11 @@ export default function QuickDataEntryEnhanced() {
   // Fetch pumps for selected station
   const pumpsQuery = usePumps(selectedStation);
   const pumpsResponse = pumpsQuery.data;
-  const pumps: Pump[] = pumpsResponse?.success ? pumpsResponse.data : [];
+  const pumps: Pump[] = useMemo(() => {
+    if (!pumpsResponse) return [];
+    if (isApiSuccess<Pump[]>(pumpsResponse) && Array.isArray(pumpsResponse.data)) return pumpsResponse.data;
+    return [];
+  }, [pumpsResponse]);
   const pumpsLoading = pumpsQuery.isLoading;
 
   // Get fuel prices for selected station from global context (preloaded on app init)
@@ -224,7 +243,7 @@ export default function QuickDataEntryEnhanced() {
   });
 
   // Fetch creditors for selected station
-  const { data: creditors = [] } = useQuery<Creditor[]>({
+  const creditorsQuery = useQuery<Creditor[]>({
     queryKey: ['creditors', selectedStation],
     queryFn: async () => {
       if (!selectedStation) return [];
@@ -235,8 +254,8 @@ export default function QuickDataEntryEnhanced() {
           if (Array.isArray(response)) {
             return response;
           }
-          if ('data' in response && Array.isArray(response.data)) {
-            return response.data;
+          if ('data' in response && Array.isArray((response as any).data)) {
+            return (response as any).data;
           }
         }
         return [];
@@ -246,6 +265,14 @@ export default function QuickDataEntryEnhanced() {
     },
     enabled: !!selectedStation
   });
+
+  const creditorsResp = creditorsQuery.data;
+  const creditors: Creditor[] = useMemo(() => {
+    if (!creditorsResp) return [];
+    if (isApiSuccess<Creditor[]>(creditorsResp) && Array.isArray(creditorsResp.data)) return creditorsResp.data;
+    if (Array.isArray(creditorsResp)) return creditorsResp as Creditor[];
+    return [];
+  }, [creditorsResp]);
 
   // Helper: Calculate online breakdown total
   const calculateOnlineBreakdownTotal = (breakdown: PaymentSubBreakdown | null | undefined): number => {
@@ -354,7 +381,7 @@ export default function QuickDataEntryEnhanced() {
       required,
       difference
     };
-  }, [readings, paymentAllocation, saleSummary.totalSaleValue, onlineBreakdownTotal]);
+  }, [readings, paymentAllocation, saleSummary.totalSaleValue]);
 
   // Calculate non-sample readings count for UI logic
   const nonSampleReadings = useMemo(() => {
@@ -373,7 +400,7 @@ export default function QuickDataEntryEnhanced() {
     if (totalSaleValue > 0 && currentTotal === 0 && paymentAllocation.cash === '0' && paymentAllocation.online === '0' && paymentAllocation.credits.length === 0) {
       setPaymentAllocation({ cash: totalSaleValue.toString(), online: '0', onlineBreakdown: null, credits: [] });
     }
-  }, [saleSummary.totalSaleValue]);
+  }, [saleSummary.totalSaleValue, paymentAllocation]);
 
   // Auto-correct payment allocation: recalculate cash when sale value changes
   // This ensures payment allocation always reflects all entered readings
@@ -395,12 +422,14 @@ export default function QuickDataEntryEnhanced() {
         cash: newCash.toString()
       }));
     }
-  }, [saleSummary.totalSaleValue]);
+  }, [saleSummary.totalSaleValue, paymentAllocation]);
+
+  const { onlineBreakdown, online } = paymentAllocation;
 
   // Initialize online breakdown when online > 0
   useEffect(() => {
-    const onlineAmount = toNumber(String(paymentAllocation.online));
-    if (onlineAmount > 0 && !paymentAllocation.onlineBreakdown) {
+    const onlineAmount = toNumber(String(online));
+    if (onlineAmount > 0 && !onlineBreakdown) {
       setPaymentAllocation(prev => ({
         ...prev,
         onlineBreakdown: initializeOnlineBreakdown()
@@ -411,13 +440,13 @@ export default function QuickDataEntryEnhanced() {
         onlineBreakdown: null
       }));
     }
-  }, [paymentAllocation.online]);
+  }, [online, onlineBreakdown]);
 
   // Auto-sync online payment with breakdown total (reconciliation)
   useEffect(() => {
-    const breakdownTotal = calculateOnlineBreakdownTotal(paymentAllocation.onlineBreakdown);
-    const currentOnline = toNumber(paymentAllocation.online);
-    
+    const breakdownTotal = calculateOnlineBreakdownTotal(onlineBreakdown);
+    const currentOnline = toNumber(online);
+
     // If breakdown total exists and differs from online field, sync them
     if (breakdownTotal > 0 && Math.abs(breakdownTotal - currentOnline) > 0.01) {
       // Update online field to match breakdown and adjust cash to compensate
@@ -428,7 +457,7 @@ export default function QuickDataEntryEnhanced() {
         cash: Math.max(0, toNumber(prev.cash) - difference).toString()
       }));
     }
-  }, [onlineBreakdownTotal]);
+  }, [onlineBreakdown, online]);
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({

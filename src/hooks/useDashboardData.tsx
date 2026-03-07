@@ -8,6 +8,7 @@
  */
 
 import { useDashboardSummary } from './api';
+import { unwrapDataOrObject } from '@/lib/api-utils';
 import { useAuth } from './useAuth';
 import { useQueryClient } from '@tanstack/react-query';
 
@@ -61,12 +62,13 @@ export const useDashboardData = (stationId?: string) => {
   const result = useDashboardSummary(effectiveStationId || '', undefined, undefined);
 
   // Transform the centralized hook result to match the expected DashboardData interface
-  const data: DashboardData | undefined = result.data?.data ? {
-    todaySales: result.data.data.today?.amount ?? 0,
-    todayPayments: (result.data.data.today?.cash ?? 0) + (result.data.data.today?.online ?? 0) + (result.data.data.today?.credit ?? 0),
-    totalReadings: result.data.data.today?.readings ?? 0,
-    today: result.data.data.today ?? null,
-    pumps: result.data.data.pumps ?? [],
+  const payload = unwrapDataOrObject(result.data, undefined);
+  const data: DashboardData | undefined = payload ? {
+    todaySales: payload.today?.amount ?? 0,
+    todayPayments: (payload.today?.cash ?? 0) + (payload.today?.online ?? 0) + (payload.today?.credit ?? 0),
+    totalReadings: payload.today?.readings ?? 0,
+    today: payload.today ?? null,
+    pumps: payload.pumps ?? [],
     lastReading: null,
     pendingClosures: 0,
     trendsData: [], // Simplified - trends would need separate hook

@@ -275,13 +275,13 @@ export default function Reports() {
   }, [dateRange]);
 
   // Calculate days between date range
-  const calculateDaysDifference = (): number => {
+  const calculateDaysDifference = useCallback((): number => {
     const start = new Date(dateRange.startDate);
     const end = new Date(dateRange.endDate);
     const diffTime = Math.abs(end.getTime() - start.getTime());
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
     return diffDays;
-  };
+  }, [dateRange]);
 
   // Watch for query errors from any of the report hooks and surface useful messages
   useEffect(() => {
@@ -317,7 +317,7 @@ export default function Reports() {
     if (checkError(pumpsError)) return;
     if (checkError(nozzlesError)) return;
     if (checkError(settlementsError)) return;
-  }, [salesError, pumpsError, nozzlesError, settlementsError]);
+  }, [salesError, pumpsError, nozzlesError, settlementsError, calculateDaysDifference]);
 
   // Aggregate raw readings into sales reports if needed
   const aggregatedSalesReports = useMemo(() => {

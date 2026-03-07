@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useMemo } from '
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 
 type PriceRecord = Record<string, number>;
 type PricesByStation = Record<string, PriceRecord>;
@@ -38,8 +39,9 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
   const [stationId, setStationId] = useState<string>('');
 
   // Get stations data to construct the correct query key
-  const { data: stationsResponse } = useStations();
-  const stations = stationsResponse?.data || [];
+  const stationsQuery = useStations();
+  const stationsResponse = stationsQuery.data;
+  const stations = unwrapDataOrArray(stationsResponse, []);
   const stationsKey = stations?.map(s => s.id).sort().join(',');
 
   // Subscribe to global fuel prices cache

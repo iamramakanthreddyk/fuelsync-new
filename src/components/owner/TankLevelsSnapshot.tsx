@@ -10,7 +10,7 @@ import { useStations } from '@/hooks/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Fuel, ChevronRight, AlertTriangle } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { apiClient, ApiResponse } from '@/lib/api-client';
 import type { Tank } from '@/types/api';
 import { getFuelColorScheme } from '@/core/fuel/fuelConfig';
@@ -33,7 +33,7 @@ interface TankSnapshot {
 
 export function TankLevelsSnapshot() {
   const { data: stationsResponse } = useStations();
-  const stations = stationsResponse?.data || [];
+  const stations = useMemo(() => stationsResponse?.data || [], [stationsResponse?.data]);
 
   const [allTanks, setAllTanks] = useState<TankSnapshot[]>([]);
   const [isLoading, setIsLoading] = useState(true);

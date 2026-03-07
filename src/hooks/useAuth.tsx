@@ -54,8 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const token = getToken();
-  const session = token ? { access_token: token } : null;
+  const session = useMemo(() => {
+    const t = getToken();
+    return t ? { access_token: t } : null;
+  }, []);
   const isLoggedIn = !!user && !!token;
 
   // Verify token with backend

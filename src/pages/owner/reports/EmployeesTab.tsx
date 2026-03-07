@@ -85,7 +85,7 @@ export const EmployeesTab: React.FC<EmployeesTabProps> = ({
     enabled: !!(selectedStation && dateRange?.startDate && dateRange?.endDate),
   });
 
-  const employeeShortfalls: EmployeeShortfallData[] = shortfallData ?? [];
+  const employeeShortfalls: EmployeeShortfallData[] = useMemo(() => shortfallData ?? [], [shortfallData]);
 
   // Calculate summary stats
   const summaryStats = useMemo(() => {

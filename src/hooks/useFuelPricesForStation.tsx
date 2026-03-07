@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { usePumps } from './api';
 import { useFuelPricesData } from './useFuelPricesData';
+import { unwrapDataOrArray, isApiSuccess } from '@/lib/api-utils';
 
 export interface StationFuelPricesStatus {
   prices: Record<string, number>; // { PETROL: 105.50, DIESEL: 95.75 }
@@ -27,7 +28,8 @@ export interface StationFuelPricesStatus {
  */
 export function useFuelPricesForStation(stationId?: string): StationFuelPricesStatus {
   const { pricesByStation } = useFuelPricesGlobal();
-  const { data: pumpsResponse } = usePumps(stationId || '');
+  const pumpsQuery = usePumps(stationId || '');
+  const pumpsResponse = pumpsQuery.data;
   const { data: fuelPricesData, isLoading: fuelPricesLoading } = useFuelPricesData(stationId);
 
   return useMemo(() => {
@@ -68,8 +70,8 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
 
     // Get fuel types from active nozzles
     const activeFuelTypes = new Set<string>();
-    if (pumpsResponse?.data && Array.isArray(pumpsResponse.data)) {
-      pumpsResponse.data.forEach(pump => {
+    const pumpsArray = unwrapDataOrArray(pumpsResponse, []);
+    pumpsArray.forEach(pump => {
         if (pump.nozzles && Array.isArray(pump.nozzles)) {
           pump.nozzles.forEach(nozzle => {
             if (nozzle.status === 'active') {
@@ -77,8 +79,7 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
             }
           });
         }
-      });
-    }
+    });
 
     // Find missing fuel types (active in nozzles but no price set)
     const missingFuelTypes = Array.from(activeFuelTypes).filter(

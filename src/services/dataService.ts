@@ -163,7 +163,19 @@ function buildQuery(params: Record<string, any> | undefined): string {
   if (!params) return '';
   const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
   if (!entries.length) return '';
-  return `?${new URLSearchParams(Object.fromEntries(entries as [string, string][])).toString()}`;
+  const obj: Record<string, string> = {};
+  entries.forEach(([k, v]) => { obj[k] = typeof v === 'string' ? v : String(v); });
+  return `?${new URLSearchParams(obj).toString()}`;
+}
+
+function toUrlParams<T extends Record<string, any> | undefined>(params?: T): Record<string, string> {
+  if (!params) return {};
+  const out: Record<string, string> = {};
+  Object.entries(params).forEach(([k, v]) => {
+    if (v === undefined || v === null || v === '') return;
+    out[k] = typeof v === 'string' ? v : String(v);
+  });
+  return out;
 }
 
 async function fetchOr<T>(request: Promise<ApiResponse<T> | undefined>, fallback: T): Promise<T> {
@@ -195,7 +207,7 @@ export const dataService = {
    */
   async getReadings(filters: ReadingFilters = {}): Promise<PaginatedResponse<NozzleReading>> {
     return fetchOr(
-      apiClient.get<ApiResponse<PaginatedResponse<NozzleReading>>>('/readings', { params: filters }),
+      apiClient.get<ApiResponse<PaginatedResponse<NozzleReading>>>('/readings', { params: toUrlParams(filters) }),
       paginatedFallback<NozzleReading>()
     );
   },
@@ -261,7 +273,7 @@ export const dataService = {
    */
   async getTransactions(filters: TransactionFilters = {}): Promise<PaginatedResponse<Transaction>> {
     return fetchOr(
-      apiClient.get<ApiResponse<PaginatedResponse<Transaction>>>('/transactions', { params: filters }),
+      apiClient.get<ApiResponse<PaginatedResponse<Transaction>>>('/transactions', { params: toUrlParams(filters) }),
       paginatedFallback<Transaction>()
     );
   },
@@ -328,7 +340,7 @@ export const dataService = {
    * ONE endpoint for all summary data
    */
   async getSummary(params: AnalyticsParams = {}): Promise<DashboardSummary> {
-    return fetchOr(apiClient.get<ApiResponse<DashboardSummary>>('/analytics/summary', { params }), {
+    return fetchOr(apiClient.get<ApiResponse<DashboardSummary>>('/analytics/summary', { params: toUrlParams(params) }), {
       totalSales: 0,
       totalVolume: 0,
       activeShifts: 0,
@@ -341,21 +353,21 @@ export const dataService = {
    * Get fuel breakdown analytics
    */
   async getFuelBreakdown(params: AnalyticsParams = {}): Promise<FuelBreakdown[]> {
-    return fetchOr(apiClient.get<ApiResponse<FuelBreakdown[]>>('/analytics/fuel-breakdown', { params }), []);
+    return fetchOr(apiClient.get<ApiResponse<FuelBreakdown[]>>('/analytics/fuel-breakdown', { params: toUrlParams(params) }), []);
   },
 
   /**
    * Get pump performance analytics
    */
   async getPumpPerformance(params: AnalyticsParams = {}): Promise<PumpPerformance[]> {
-    return fetchOr(apiClient.get<ApiResponse<PumpPerformance[]>>('/analytics/pump-performance', { params }), []);
+    return fetchOr(apiClient.get<ApiResponse<PumpPerformance[]>>('/analytics/pump-performance', { params: toUrlParams(params) }), []);
   },
 
   /**
    * Get financial overview
    */
   async getFinancialOverview(params: AnalyticsParams = {}): Promise<FinancialOverview> {
-    return fetchOr(apiClient.get<ApiResponse<FinancialOverview>>('/analytics/financial', { params }), {
+    return fetchOr(apiClient.get<ApiResponse<FinancialOverview>>('/analytics/financial', { params: toUrlParams(params) }), {
       grossSales: 0,
       netSales: 0,
       costOfGoods: 0,
@@ -372,7 +384,7 @@ export const dataService = {
    * Get system alerts
    */
   async getAlerts(params: AnalyticsParams = {}): Promise<any[]> {
-    return fetchOr(apiClient.get<ApiResponse<any[]>>('/analytics/alerts', { params }), []);
+    return fetchOr(apiClient.get<ApiResponse<any[]>>('/analytics/alerts', { params: toUrlParams(params) }), []);
   },
 
   // ============================================
@@ -383,7 +395,7 @@ export const dataService = {
    * Get shifts with optional filters
    */
   async getShifts(filters: ShiftFilters = {}): Promise<PaginatedResponse<Shift>> {
-    return fetchOr(apiClient.get<ApiResponse<PaginatedResponse<Shift>>>('/shifts', { params: filters }), paginatedFallback<Shift>());
+    return fetchOr(apiClient.get<ApiResponse<PaginatedResponse<Shift>>>('/shifts', { params: toUrlParams(filters) }), paginatedFallback<Shift>());
   },
 
   /**

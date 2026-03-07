@@ -11,6 +11,7 @@ import { usePumps } from './api';
 import type { UseQueryResult } from '@tanstack/react-query';
 import type { Pump, Nozzle } from '@/types/api';
 import { useStationStore } from '@/store/stationStore';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 
 // Backwards-compatible wrapper that returns the raw `Pump[]` (or undefined)
 // instead of the ApiResponse envelope. Many legacy components expect
@@ -22,7 +23,7 @@ export function usePumpsData(stationId?: string): UseQueryResult<Pump[] | undefi
 
 	const res = usePumps(idToUse) as UseQueryResult<any>;
 
-	const normalizedData: Pump[] | undefined = res.data && res.data.success ? res.data.data : undefined;
+	const normalizedData: Pump[] | undefined = unwrapDataOrArray(res.data, undefined as any) as Pump[] | undefined;
 
 	return {
 		...res,

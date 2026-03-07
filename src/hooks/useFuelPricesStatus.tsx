@@ -32,12 +32,11 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
   const { data: fuelPrices, isLoading } = useFuelPricesData(stationId);
   const { currentStation } = useRoleAccess();
   
-  // Use provided stationId or fall back to currentStation
-  const effectiveStation = stationId ? { id: stationId } : currentStation;
-
   const { prices: globalPrices, stationId: ctxStationId } = useFuelPricesGlobal();
 
   const status = useMemo<FuelPricesStatus>(() => {
+    // Determine effectiveStation inside memo to avoid unstable object in deps
+    const effectiveStation = stationId ? { id: stationId } : currentStation;
     // If still loading, don't block entry - assume prices will load
     if (isLoading) {
       return {
@@ -109,7 +108,7 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
       warning,
       canEnterReadings
     };
-  }, [fuelPrices, isLoading, effectiveStation, ctxStationId, globalPrices, stationId]);
+  }, [fuelPrices, isLoading, stationId, currentStation, ctxStationId, globalPrices]);
 
   return status;
 }
