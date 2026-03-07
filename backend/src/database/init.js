@@ -168,6 +168,52 @@ async function runColumnMigrations() {
       sql: isPostgres
         ? `ALTER TABLE daily_transactions ADD COLUMN IF NOT EXISTS payment_sub_breakdown JSONB DEFAULT NULL;`
         : `ALTER TABLE daily_transactions ADD COLUMN IF NOT EXISTS payment_sub_breakdown TEXT DEFAULT NULL;`
+    },
+    // expenses table columns added by 20260307-enhance-expenses-table migration
+    {
+      table: 'expenses',
+      column: 'entered_by',
+      sql: isPostgres
+        ? `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS entered_by UUID REFERENCES users(id) ON DELETE SET NULL;`
+        : `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS entered_by TEXT REFERENCES users(id);`
+    },
+    {
+      table: 'expenses',
+      column: 'frequency',
+      sql: isPostgres
+        ? `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_expenses_frequency') THEN CREATE TYPE enum_expenses_frequency AS ENUM('daily','weekly','monthly','one_time'); END IF; END $$; ALTER TABLE expenses ADD COLUMN IF NOT EXISTS frequency enum_expenses_frequency NOT NULL DEFAULT 'one_time';`
+        : `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS frequency TEXT NOT NULL DEFAULT 'one_time';`
+    },
+    {
+      table: 'expenses',
+      column: 'approved_by',
+      sql: isPostgres
+        ? `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approved_by UUID REFERENCES users(id) ON DELETE SET NULL;`
+        : `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approved_by TEXT REFERENCES users(id);`
+    },
+    {
+      table: 'expenses',
+      column: 'approval_status',
+      sql: isPostgres
+        ? `DO $$ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'enum_expenses_approval_status') THEN CREATE TYPE enum_expenses_approval_status AS ENUM('pending','approved','rejected','auto_approved'); END IF; END $$; ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approval_status enum_expenses_approval_status NOT NULL DEFAULT 'auto_approved';`
+        : `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approval_status TEXT NOT NULL DEFAULT 'auto_approved';`
+    },
+    {
+      table: 'expenses',
+      column: 'approved_at',
+      sql: `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP WITH TIME ZONE DEFAULT NULL;`
+    },
+    {
+      table: 'expenses',
+      column: 'tags',
+      sql: isPostgres
+        ? `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS tags JSONB DEFAULT NULL;`
+        : `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS tags TEXT DEFAULT NULL;`
+    },
+    {
+      table: 'expenses',
+      column: 'expense_month',
+      sql: `ALTER TABLE expenses ADD COLUMN IF NOT EXISTS expense_month VARCHAR(7) DEFAULT NULL;`
     }
   ];
 
