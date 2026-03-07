@@ -1761,41 +1761,9 @@ exports.recordSettlement = async (req, res, next) => {
 
     const t = await sequelize.transaction();
     try {
-      // Enhanced verification: Check settlement integrity before finalization
-      if (isFinal) {
-        const verificationResult = await settlementVerificationService.verifySettlementComplete({
-          stationId,
-          settlementDate,
-          readingIds: readingIds || [],
-          transactions,
-          paymentBreakdown: {
-            cash: parsedActualCash,
-            online: parsedOnline,
-            credit: parsedCredit
-          },
-          transaction: t
-        });
-
-        if (!verificationResult.isValid) {
-          await t.rollback();
-          return res.status(400).json({
-            success: false,
-            error: 'Settlement verification failed - cannot finalize',
-            details: verificationResult.error,
-            issues: verificationResult.issues
-          });
-        }
-      }
-
       let finalizedAt = null;
-      if (isFinal) {
-        finalizedAt = new Date();
-        // Un-finalize previous settlements for this station/date
-        await Settlement.update({ isFinal: false, finalizedAt: null }, {
-          where: { stationId, date: settlementDate, isFinal: true },
-          transaction: t
-        });
-      }
+      
+      // Create settlement record first (always as draft initially)
       const record = await Settlement.create({
         stationId,
         date: settlementDate,
@@ -1815,8 +1783,8 @@ exports.recordSettlement = async (req, res, next) => {
         recordedBy: user.id,
         recordedAt: new Date(),
         status: settlementStatus,
-        isFinal: !!isFinal,
-        finalizedAt
+        isFinal: false,          // Always created as draft initially
+        finalizedAt: null
       }, { transaction: t });
 
       // Link selected readings to this settlement and update their status
@@ -1867,6 +1835,46 @@ exports.recordSettlement = async (req, res, next) => {
           { readingIds: actualReadingIds },
           { where: { id: record.id }, transaction: t }
         );
+      }
+
+      // Verify settlement integrity if finalizing
+      if (isFinal) {
+        try {
+          const verificationResult = await settlementVerificationService.verifySettlementComplete(
+            record.id,     // settlementId
+            stationId,     // stationId
+            settlementDate // date (should match settlement.date)
+          );
+
+          if (!verificationResult.canFinalize) {
+            await t.rollback();
+            return res.status(400).json({
+              success: false,
+              error: 'Settlement verification failed - cannot finalize',
+              details: verificationResult.issues,
+              checks: verificationResult.checks
+            });
+          }
+
+          // Verification passed - mark as final
+          finalizedAt = new Date();
+          
+          // Un-finalize previous settlements for this station/date
+          await Settlement.update({ isFinal: false, finalizedAt: null }, {
+            where: { stationId, date: settlementDate, isFinal: true },
+            transaction: t
+          });
+
+          // Mark this settlement as final
+          await Settlement.update(
+            { isFinal: true, finalizedAt },
+            { where: { id: record.id }, transaction: t }
+          );
+        } catch (verificationErr) {
+          console.error('[recordSettlement] Verification error:', verificationErr);
+          await t.rollback();
+          throw verificationErr;
+        }
       }
 
       await t.commit();
