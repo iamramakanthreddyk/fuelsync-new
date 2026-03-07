@@ -10,17 +10,6 @@ module.exports = {
   async up(queryInterface, Sequelize) {
     const dialect = queryInterface.sequelize.getDialect();
 
-    // Create enum type first (Postgres only)
-    if (dialect === 'postgres') {
-      await queryInterface.sequelize.query(
-        `DO $$ BEGIN
-           IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'settlements_status') THEN
-             CREATE TYPE settlements_status AS ENUM ('recorded','approved','disputed');
-           END IF;
-         END$$;`
-      );
-    }
-
     // Create settlements table (use UUIDs to match models)
     const idType = Sequelize.DataTypes.UUID;
     const uuidDefault = dialect === 'postgres' ? Sequelize.literal('gen_random_uuid()') : undefined;
@@ -121,10 +110,13 @@ module.exports = {
         defaultValue: Sequelize.literal('CURRENT_TIMESTAMP')
       },
       status: {
-        // Use ENUM on Postgres, otherwise use STRING
-        type: dialect === 'postgres' ? 'settlements_status' : Sequelize.DataTypes.STRING,
+        // Use VARCHAR to avoid PostgreSQL ENUM type issues
+        type: Sequelize.DataTypes.STRING(20),
         allowNull: false,
-        defaultValue: 'recorded'
+        defaultValue: 'draft',
+        validate: {
+          isIn: [['draft', 'final', 'locked']]
+        }
       }
     };
 
@@ -144,12 +136,6 @@ module.exports = {
   },
 
   async down(queryInterface) {
-    const dialect = queryInterface.sequelize.getDialect();
-
     await queryInterface.dropTable('settlements');
-
-    if (dialect === 'postgres') {
-      await queryInterface.sequelize.query('DROP TYPE IF EXISTS settlements_status;');
-    }
   }
 };

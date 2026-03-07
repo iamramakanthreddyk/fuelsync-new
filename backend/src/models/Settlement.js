@@ -112,9 +112,12 @@ module.exports = (sequelize) => {
         allowNull: true
       },
       status: {
-        type: DataTypes.ENUM('draft', 'final', 'locked'),
+        type: DataTypes.STRING(20),
         defaultValue: 'draft',
-        field: 'status'
+        field: 'status',
+        validate: {
+          isIn: [['draft', 'final', 'locked']]
+        }
       },
 
       // Soft delete tracking for audit trail
