@@ -80,7 +80,20 @@ exports.verifyNozzleCoverage = async (stationId, date) => {
 exports.verifyReadingAmounts = async (settlementId, transaction = null) => {
   try {
     const options = {
-      attributes: ['id', 'stationId', 'date', 'totalSaleValue', 'readingIds', 'actualCash', 'expectedCash']
+      attributes: [
+        'id',
+        'stationId',
+        'date',
+        'totalSaleValue',
+        'readingIds',
+        'actualCash',
+        'expectedCash',
+        'online',
+        'credit',
+        'employeeCash',
+        'employeeOnline',
+        'employeeCredit'
+      ]
     };
     if (transaction) {
       options.transaction = transaction;
@@ -123,7 +136,19 @@ exports.verifyReadingAmounts = async (settlementId, transaction = null) => {
 
     // Calculate total from readings
     const actualTotal = readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
-    const expectedTotal = parseFloat(settlement.totalSaleValue || 0);
+    const settlementTotal = parseFloat(settlement.totalSaleValue || 0);
+    const employeeReportedTotal =
+      parseFloat(settlement.employeeCash || 0) +
+      parseFloat(settlement.employeeOnline || 0) +
+      parseFloat(settlement.employeeCredit || 0);
+    const ownerConfirmedTotal =
+      parseFloat(settlement.expectedCash || 0) +
+      parseFloat(settlement.online || 0) +
+      parseFloat(settlement.credit || 0);
+
+    const expectedTotal = settlementTotal > 0
+      ? settlementTotal
+      : (employeeReportedTotal > 0 ? employeeReportedTotal : ownerConfirmedTotal);
     const variance = Math.abs(actualTotal - expectedTotal);
     const tolerance = 1.00; // ₹1 tolerance for rounding
 

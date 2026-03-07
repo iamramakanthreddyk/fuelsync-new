@@ -1732,6 +1732,7 @@ exports.recordSettlement = async (req, res, next) => {
     employeeCash = parseFloat(employeeCash.toFixed(2));
     employeeOnline = parseFloat(employeeOnline.toFixed(2));
     employeeCredit = parseFloat(employeeCredit.toFixed(2));
+    const calculatedTotalSaleValue = parseFloat((employeeCash + employeeOnline + employeeCredit).toFixed(2));
 
     // Calculate variance for all payment methods
     const varianceOnline = employeeOnline - parsedOnline;
@@ -1767,6 +1768,7 @@ exports.recordSettlement = async (req, res, next) => {
       const record = await Settlement.create({
         stationId,
         date: settlementDate,
+        totalSaleValue: calculatedTotalSaleValue,
         expectedCash: parsedExpectedCash,
         actualCash: parsedActualCash,
         variance: parseFloat(calculatedVariance.toFixed(2)),
