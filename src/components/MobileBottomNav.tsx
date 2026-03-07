@@ -18,7 +18,8 @@ import {
   Fuel,
   Scale3d,
   Droplets,
-  PieChart
+  PieChart,
+  Receipt
 } from 'lucide-react';
 
 export function MobileBottomNav() {
@@ -159,6 +160,13 @@ export function MobileBottomNav() {
       bgColor: "bg-cyan-50",
     },
     {
+      title: "Expenses",
+      url: `${basePath}/expenses`,
+      icon: Receipt,
+      color: "text-red-600",
+      bgColor: "bg-red-50",
+    },
+    {
       title: "Employees",
       url: `${basePath}/employees`,
       icon: Users,
@@ -221,6 +229,13 @@ export function MobileBottomNav() {
       icon: Droplets,
       color: "text-cyan-600",
       bgColor: "bg-cyan-50",
+    },
+    {
+      title: "Expenses",
+      url: "/manager/expenses",
+      icon: Receipt,
+      color: "text-red-600",
+      bgColor: "bg-red-50",
     },
     ...(isManager ? [
       {
