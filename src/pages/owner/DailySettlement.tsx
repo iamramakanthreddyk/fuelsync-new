@@ -524,8 +524,7 @@ export default function DailySettlement() {
                 </div>
                 
                 {/* Online Payment Breakdown */}
-                {actualOnline > 0 && (
-                  <Collapsible defaultOpen={!!onlineBreakdown} className="mt-3">
+                <Collapsible defaultOpen={!!onlineBreakdown} className="mt-3">
                     <CollapsibleTrigger asChild>
                       <Button
                         type="button"
@@ -643,8 +642,7 @@ export default function DailySettlement() {
                       )}
                     </CollapsibleContent>
                   </Collapsible>
-                )}
-              </div>
+                </div>
 
               {/* Variance — compares sum of all payment types */}
               {selectedIds.length > 0 && actualTotal > 0 && (
