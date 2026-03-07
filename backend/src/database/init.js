@@ -172,6 +172,11 @@ async function runColumnMigrations() {
         ? `ALTER TABLE daily_transactions ADD COLUMN IF NOT EXISTS payment_sub_breakdown JSONB DEFAULT NULL;`
         : `ALTER TABLE daily_transactions ADD COLUMN IF NOT EXISTS payment_sub_breakdown TEXT DEFAULT NULL;`
     },
+    {
+      table: 'settlements',
+      column: 'total_sale_value',
+      sql: `ALTER TABLE settlements ADD COLUMN IF NOT EXISTS total_sale_value DECIMAL(12,2) NOT NULL DEFAULT 0;`
+    },
     // expenses table columns added by 20260307-enhance-expenses-table migration
     {
       table: 'expenses',

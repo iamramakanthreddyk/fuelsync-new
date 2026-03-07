@@ -35,6 +35,12 @@ module.exports = (sequelize) => {
     variance: {
       type: DataTypes.DECIMAL(12,2)
     },
+    totalSaleValue: {
+      type: DataTypes.DECIMAL(12,2),
+      allowNull: false,
+      defaultValue: 0,
+      field: 'total_sale_value'
+    },
     // Employee-reported values (auto-aggregated from readings)
     employeeCash: {
       type: DataTypes.DECIMAL(12,2),

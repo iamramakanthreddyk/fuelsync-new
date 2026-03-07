@@ -1906,7 +1906,9 @@ exports.recordSettlement = async (req, res, next) => {
       
       res.json(responseData);
     } catch (err) {
-      await t.rollback();
+      if (!t.finished) {
+        await t.rollback();
+      }
       throw err;
     }
 
