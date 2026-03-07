@@ -26,6 +26,7 @@ const analyticsRoutes = require('./routes/analytics'); // Consolidated analytics
 const salesRoutes = require('./routes/sales'); // Sales endpoint
 const creditRoutes = require('./routes/credits');
 const expenseRoutes = require('./routes/expenses');
+const dbSchemaRoutes = require('./routes/dbSchema');
 const profitRoutes = require('./routes/profit'); // Profit tracking
 const tankRoutes = require('./routes/tanks');
 const shiftRoutes = require('./routes/shifts');
@@ -213,6 +214,7 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1', creditRoutes);   // Credits under /api/v1/stations/:id/creditors - BEFORE stations
 app.use('/api/v1', expenseRoutes);  // Expenses under /api/v1/stations/:id/expenses - BEFORE stations
+app.use('/api/v1', dbSchemaRoutes); // DB schema introspection
 app.use('/api/v1', profitRoutes);   // Profit under /api/v1/stations/:id/profit-* - BEFORE stations
 app.use('/api/v1/stations', stationRoutes);
 app.use('/api/v1/readings', readingRoutes);
