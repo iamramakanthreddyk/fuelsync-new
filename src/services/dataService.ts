@@ -152,6 +152,33 @@ export interface EndShiftDto {
 // DATA SERVICE
 // ============================================
 
+// Helper utilities to reduce duplication
+const DEFAULT_PAGINATION = { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false };
+
+function paginatedFallback<T>(): PaginatedResponse<T> {
+  return { success: true, data: [] as T[], pagination: { ...DEFAULT_PAGINATION } } as PaginatedResponse<T>;
+}
+
+function buildQuery(params: Record<string, any> | undefined): string {
+  if (!params) return '';
+  const entries = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
+  if (!entries.length) return '';
+  return `?${new URLSearchParams(Object.fromEntries(entries as [string, string][])).toString()}`;
+}
+
+async function fetchOr<T>(request: Promise<ApiResponse<T> | undefined>, fallback: T): Promise<T> {
+  try {
+    const resp = await request;
+    return (resp?.data ?? fallback) as T;
+  } catch (err) {
+    // keep logging minimal but useful for debugging
+    // don't throw here to keep callers simple — they expect safe defaults/nulls
+    // callers that need to surface errors should call apiClient directly
+    console.error('API request failed:', err);
+    return fallback;
+  }
+}
+
 /**
  * Unified Data Service
  * ONE entry point for all API calls
@@ -167,15 +194,9 @@ export const dataService = {
    * Get readings with optional filters
    */
   async getReadings(filters: ReadingFilters = {}): Promise<PaginatedResponse<NozzleReading>> {
-    const response = await apiClient.get<ApiResponse<PaginatedResponse<NozzleReading>>>('/readings', {
-      params: filters,
-    });
-    return (
-      response?.data || {
-        success: true,
-        data: [] as NozzleReading[],
-        pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
-      }
+    return fetchOr(
+      apiClient.get<ApiResponse<PaginatedResponse<NozzleReading>>>('/readings', { params: filters }),
+      paginatedFallback<NozzleReading>()
     );
   },
 
@@ -197,13 +218,8 @@ export const dataService = {
    */
   async getPreviousReading(nozzleId: string, date?: string): Promise<NozzleReading | null> {
     try {
-      const params = new URLSearchParams();
-      params.append('nozzleId', nozzleId);
-      if (date) params.append('date', date);
-      
-      const response = await apiClient.get<ApiResponse<NozzleReading>>(
-        `/readings/previous/${nozzleId}?${params.toString()}`
-      );
+      const q = buildQuery({ nozzleId, date });
+      const response = await apiClient.get<ApiResponse<NozzleReading>>(`/readings/previous/${nozzleId}${q}`);
       return response?.data || null;
     } catch (error) {
       console.error('Failed to fetch previous reading:', error);
@@ -244,15 +260,9 @@ export const dataService = {
    * Get transactions with optional filters
    */
   async getTransactions(filters: TransactionFilters = {}): Promise<PaginatedResponse<Transaction>> {
-    const response = await apiClient.get<ApiResponse<PaginatedResponse<Transaction>>>('/transactions', {
-      params: filters,
-    });
-    return (
-      response?.data || {
-        success: true,
-        data: [] as Transaction[],
-        pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
-      }
+    return fetchOr(
+      apiClient.get<ApiResponse<PaginatedResponse<Transaction>>>('/transactions', { params: filters }),
+      paginatedFallback<Transaction>()
     );
   },
 
@@ -279,14 +289,9 @@ export const dataService = {
     startDate?: string,
     endDate?: string
   ): Promise<Transaction[]> {
-    const params = new URLSearchParams();
-    if (startDate) params.append('startDate', startDate);
-    if (endDate) params.append('endDate', endDate);
-    
-    const response = await apiClient.get<ApiResponse<Transaction[]>>(
-      `/transactions/${stationId}?${params.toString()}`
-    );
-    return response?.data || [];
+    const q = buildQuery({ startDate, endDate });
+    const resp = await apiClient.get<ApiResponse<Transaction[]>>(`/transactions/${stationId}${q}`);
+    return resp?.data ?? [];
   },
 
   /**
@@ -323,49 +328,34 @@ export const dataService = {
    * ONE endpoint for all summary data
    */
   async getSummary(params: AnalyticsParams = {}): Promise<DashboardSummary> {
-    const response = await apiClient.get<ApiResponse<DashboardSummary>>('/analytics/summary', {
-      params,
-    });
-    return response?.data || {
+    return fetchOr(apiClient.get<ApiResponse<DashboardSummary>>('/analytics/summary', { params }), {
       totalSales: 0,
       totalVolume: 0,
       activeShifts: 0,
       alerts: 0,
       lastUpdated: new Date().toISOString(),
-    };
+    });
   },
 
   /**
    * Get fuel breakdown analytics
    */
   async getFuelBreakdown(params: AnalyticsParams = {}): Promise<FuelBreakdown[]> {
-    const response = await apiClient.get<ApiResponse<FuelBreakdown[]>>(
-      '/analytics/fuel-breakdown',
-      { params }
-    );
-    return response?.data || [];
+    return fetchOr(apiClient.get<ApiResponse<FuelBreakdown[]>>('/analytics/fuel-breakdown', { params }), []);
   },
 
   /**
    * Get pump performance analytics
    */
   async getPumpPerformance(params: AnalyticsParams = {}): Promise<PumpPerformance[]> {
-    const response = await apiClient.get<ApiResponse<PumpPerformance[]>>(
-      '/analytics/pump-performance',
-      { params }
-    );
-    return response?.data || [];
+    return fetchOr(apiClient.get<ApiResponse<PumpPerformance[]>>('/analytics/pump-performance', { params }), []);
   },
 
   /**
    * Get financial overview
    */
   async getFinancialOverview(params: AnalyticsParams = {}): Promise<FinancialOverview> {
-    const response = await apiClient.get<ApiResponse<FinancialOverview>>(
-      '/analytics/financial',
-      { params }
-    );
-    return response?.data || {
+    return fetchOr(apiClient.get<ApiResponse<FinancialOverview>>('/analytics/financial', { params }), {
       grossSales: 0,
       netSales: 0,
       costOfGoods: 0,
@@ -375,15 +365,14 @@ export const dataService = {
       cashOnHand: 0,
       creditOutstanding: 0,
       bankDeposits: 0,
-    };
+    });
   },
 
   /**
    * Get system alerts
    */
   async getAlerts(params: AnalyticsParams = {}): Promise<any[]> {
-    const response = await apiClient.get<ApiResponse<any[]>>('/analytics/alerts', { params });
-    return response?.data || [];
+    return fetchOr(apiClient.get<ApiResponse<any[]>>('/analytics/alerts', { params }), []);
   },
 
   // ============================================
@@ -394,16 +383,7 @@ export const dataService = {
    * Get shifts with optional filters
    */
   async getShifts(filters: ShiftFilters = {}): Promise<PaginatedResponse<Shift>> {
-    const response = await apiClient.get<ApiResponse<PaginatedResponse<Shift>>>('/shifts', {
-      params: filters,
-    });
-    return (
-      response?.data || {
-        success: true,
-        data: [] as Shift[],
-        pagination: { page: 1, limit: 20, total: 0, totalPages: 0, hasMore: false },
-      }
-    );
+    return fetchOr(apiClient.get<ApiResponse<PaginatedResponse<Shift>>>('/shifts', { params: filters }), paginatedFallback<Shift>());
   },
 
   /**
