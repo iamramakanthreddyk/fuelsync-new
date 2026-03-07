@@ -26,6 +26,7 @@ import { PaymentSplit, SaleCalculation } from '@/components/readings';
 import type { PaymentSplitData } from '@/components/readings';
 import { useCreateReading } from '@/hooks/useDataQueries';
 import { Checkbox } from '@/components/ui/checkbox';
+import { UserCheck } from 'lucide-react';
 
 import { useStationPumps } from "@/hooks/useStationPumps";
 import { useRoleAccess, StationAccess } from '@/hooks/useRoleAccess';
@@ -66,7 +67,11 @@ export default function DataEntry() {
   const [paymentSplit, setPaymentSplit] = useState<PaymentSplitData | null>(null);
   const [showCreditOption, setShowCreditOption] = useState(false);
 
-  useAuth();
+  // Req #1: Track which employee this reading is attributed to
+  const [assignedEmployeeId, setAssignedEmployeeId] = useState<string>('');
+
+  const { user } = useAuth();
+  const canManageOnBehalf = ['manager', 'owner', 'super_admin'].includes(user?.role ?? '');
 
   const queryClient = useQueryClient();
 
@@ -97,6 +102,21 @@ export default function DataEntry() {
   // Derived dropdown options, use the availableStations list
   const { data: pumps = [], isLoading: pumpsLoading, error: pumpsError } = useStationPumps(selectedStation || availableStations[0]?.id);
   
+  // Req #1: Fetch employees of the selected station so manager/owner can assign readings
+  const stationForQuery = selectedStation || availableStations[0]?.id;
+  const { data: stationEmployees = [] } = useQuery({
+    queryKey: ['station-employees', stationForQuery],
+    queryFn: async () => {
+      if (!stationForQuery) return [];
+      try {
+        const res = await apiClient.get<any>(`/api/v1/stations/${stationForQuery}/staff`);
+        const list = Array.isArray(res) ? res : (res as any)?.data || [];
+        return list.filter((u: any) => u.role === 'employee' && u.isActive !== false);
+      } catch { return []; }
+    },
+    enabled: !!stationForQuery && canManageOnBehalf,
+  });
+
   // Get all nozzles for the selected station (for simplified manual entry)
   const { data: allNozzles = [] } = useQuery({
     queryKey: ['all-nozzles', selectedStation || availableStations[0]?.id],
@@ -240,8 +260,12 @@ export default function DataEntry() {
             cash: paymentSplit.cash,
             online: paymentSplit.online,
             credit: paymentSplit.credit
-          }
-        })
+          },
+          // Req #2: include sub-type breakdown if collected
+          ...(paymentSplit.paymentSubBreakdown && { paymentSubBreakdown: paymentSplit.paymentSubBreakdown })
+        }),
+        // Req #1: attribute reading to selected employee (manager/owner only)
+        ...(assignedEmployeeId && { assignedEmployeeId }),
       };
 
       const result = await apiClient.post<{ litresSold?: number; totalAmount?: number }>('/readings', payload);
@@ -253,7 +277,9 @@ export default function DataEntry() {
             stationId: data.station_id,
             readingIds: [(result as any).id],
             totalAmount: saleCalculation.saleValue,
-            paymentBreakdown: { cash: paymentSplit.cash, online: paymentSplit.online, credit: paymentSplit.credit }
+            paymentBreakdown: { cash: paymentSplit.cash, online: paymentSplit.online, credit: paymentSplit.credit },
+            // Req #2: include sub-breakdown so backend stores detailed online payment type
+            ...(paymentSplit.paymentSubBreakdown && { paymentSubBreakdown: paymentSplit.paymentSubBreakdown }),
           });
         }
       } catch (txErr) {
@@ -289,6 +315,7 @@ export default function DataEntry() {
       setCurrentReadingValue(0);
       setPaymentSplit(null);
       setShowCreditOption(false);
+      setAssignedEmployeeId('');
     } catch (error: unknown) {
       let message = 'Error adding manual reading';
       if (typeof error === 'object' && error !== null && 'message' in error && typeof (error as { message?: unknown }).message === 'string') {
@@ -463,6 +490,37 @@ export default function DataEntry() {
                     </Select>
                   </div>
                 </div>
+
+                {/* Req #1: Employee picker (manager/owner only) */}
+                {canManageOnBehalf && stationEmployees.length > 0 && (
+                  <div className="space-y-2">
+                    <Label className="flex items-center gap-2">
+                      <UserCheck className="w-4 h-4 text-indigo-500" />
+                      Entered on behalf of
+                      <span className="text-xs text-muted-foreground font-normal">(optional — leave blank to record as yourself)</span>
+                    </Label>
+                    <Select value={assignedEmployeeId} onValueChange={setAssignedEmployeeId}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select employee (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="">— Self (you) —</SelectItem>
+                        {stationEmployees.map((emp: any) => (
+                          <SelectItem key={emp.id} value={emp.id}>
+                            {emp.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    {assignedEmployeeId && (
+                      <p className="text-xs text-indigo-600 flex items-center gap-1">
+                        <UserCheck className="w-3 h-3" />
+                        This reading will be attributed to the selected employee.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Volume, Date, Time */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <div className="space-y-2">

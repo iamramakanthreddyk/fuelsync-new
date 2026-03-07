@@ -35,51 +35,209 @@ module.exports = {
   },
 
   /**
-   * Payment Methods - Easily expandable
+   * Payment Methods - Top-level categories
    */
   PAYMENT_METHODS: {
     CASH: 'cash',
-    UPI: 'upi',
-    CARD: 'card',
+    UPI: 'upi',         // Google Pay, PhonePe, Paytm, etc.
+    CARD: 'card',       // Debit / Credit card
+    OIL_COMPANY: 'oil_company',  // HP Pay, IOCL Card, BPCL SmartFleet, etc.
     CREDIT: 'credit',  // On credit to creditor
-    FLEET_CARD: 'fleet_card',  // Company fleet cards
-    WALLET: 'wallet'  // Paytm, PhonePe wallet
   },
 
   PAYMENT_METHOD_LABELS: {
     cash: 'Cash',
-    upi: 'UPI',
+    upi: 'UPI / Online',
     card: 'Card',
+    oil_company: 'Oil Company Card',
     credit: 'Credit',
-    fleet_card: 'Fleet Card',
-    wallet: 'Digital Wallet'
   },
 
   /**
-   * Expense Categories - For tracking station expenses
+   * UPI Sub-types (under "online" / "upi" category)
+   * These are the most common UPI apps used at fuel stations in India
+   */
+  UPI_SUB_TYPES: {
+    GPAY: 'gpay',
+    PHONEPE: 'phonepe',
+    PAYTM: 'paytm',
+    AMAZON_PAY: 'amazon_pay',
+    CRED: 'cred',
+    BHIM: 'bhim',
+    OTHER_UPI: 'other_upi',
+  },
+
+  UPI_SUB_TYPE_LABELS: {
+    gpay: 'Google Pay',
+    phonepe: 'PhonePe',
+    paytm: 'Paytm',
+    amazon_pay: 'Amazon Pay',
+    cred: 'CRED',
+    bhim: 'BHIM UPI',
+    other_upi: 'Other UPI',
+  },
+
+  /**
+   * Card Sub-types
+   */
+  CARD_SUB_TYPES: {
+    DEBIT_CARD: 'debit_card',
+    CREDIT_CARD: 'credit_card',
+  },
+
+  CARD_SUB_TYPE_LABELS: {
+    debit_card: 'Debit Card',
+    credit_card: 'Credit Card',
+  },
+
+  /**
+   * Oil Company Card Sub-types
+   * Fuel company-specific payment cards / loyalty programs
+   */
+  OIL_COMPANY_SUB_TYPES: {
+    HP_PAY: 'hp_pay',            // Hindustan Petroleum
+    IOCL_CARD: 'iocl_card',      // Indian Oil
+    BPCL_SMARTFLEET: 'bpcl_smartfleet',  // Bharat Petroleum
+    ESSAR_FLEET: 'essar_fleet',
+    RELIANCE_FLEET: 'reliance_fleet',
+    OTHER_OIL_COMPANY: 'other_oil_company',
+  },
+
+  OIL_COMPANY_SUB_TYPE_LABELS: {
+    hp_pay: 'HP Pay',
+    iocl_card: 'IOCL Card',
+    bpcl_smartfleet: 'BPCL SmartFleet',
+    essar_fleet: 'Essar Fleet Card',
+    reliance_fleet: 'Reliance Fleet Card',
+    other_oil_company: 'Other Oil Company Card',
+  },
+
+  /**
+   * Default empty payment sub-breakdown structure.
+   * Used when creating a new DailyTransaction with granular payment info.
+   */
+  DEFAULT_PAYMENT_SUB_BREAKDOWN: {
+    cash: 0,
+    upi: {
+      gpay: 0,
+      phonepe: 0,
+      paytm: 0,
+      amazon_pay: 0,
+      cred: 0,
+      bhim: 0,
+      other_upi: 0,
+    },
+    card: {
+      debit_card: 0,
+      credit_card: 0,
+    },
+    oil_company: {
+      hp_pay: 0,
+      iocl_card: 0,
+      bpcl_smartfleet: 0,
+      essar_fleet: 0,
+      reliance_fleet: 0,
+      other_oil_company: 0,
+    },
+    credit: 0,  // creditor credit, tracked separately in creditAllocations
+  },
+
+  /**
+   * Collapse a payment_sub_breakdown into the legacy { cash, online, credit } shape.
+   * Used for backward-compatible reporting and settlement validation.
+   */
+  collapsePaymentBreakdown(subBreakdown) {
+    if (!subBreakdown) return { cash: 0, online: 0, credit: 0 };
+    const upiTotal = Object.values(subBreakdown.upi || {}).reduce((a, b) => a + (b || 0), 0);
+    const cardTotal = Object.values(subBreakdown.card || {}).reduce((a, b) => a + (b || 0), 0);
+    const oilTotal = Object.values(subBreakdown.oil_company || {}).reduce((a, b) => a + (b || 0), 0);
+    return {
+      cash: subBreakdown.cash || 0,
+      online: upiTotal + cardTotal + oilTotal,
+      credit: subBreakdown.credit || 0,
+    };
+  },
+
+  /**
+   * Expense Categories - For tracking station operational expenses
+   * Organized by frequency and type
    */
   EXPENSE_CATEGORIES: {
+    // Monthly / Fixed
     SALARY: 'salary',
     ELECTRICITY: 'electricity',
     RENT: 'rent',
-    MAINTENANCE: 'maintenance',
-    SUPPLIES: 'supplies',
-    TAXES: 'taxes',
     INSURANCE: 'insurance',
+    LOAN_EMI: 'loan_emi',
+    // Daily / Variable
+    CLEANING: 'cleaning',
+    GENERATOR_FUEL: 'generator_fuel',
+    DRINKING_WATER: 'drinking_water',
+    // One-time / Irregular
+    MAINTENANCE: 'maintenance',
+    EQUIPMENT_PURCHASE: 'equipment_purchase',
+    // Overhead
+    TAXES: 'taxes',
     TRANSPORTATION: 'transportation',
-    MISCELLANEOUS: 'miscellaneous'
+    SUPPLIES: 'supplies',
+    MISCELLANEOUS: 'miscellaneous',
   },
 
   EXPENSE_CATEGORY_LABELS: {
-    salary: 'Employee Salary',
+    salary: 'Staff Salary',
     electricity: 'Electricity Bill',
     rent: 'Rent',
-    maintenance: 'Maintenance & Repairs',
-    supplies: 'Office Supplies',
-    taxes: 'Taxes & Duties',
     insurance: 'Insurance',
+    loan_emi: 'Loan / EMI',
+    cleaning: 'Cleaning & Sanitation',
+    generator_fuel: 'Generator Fuel',
+    drinking_water: 'Drinking Water',
+    maintenance: 'Maintenance & Repairs',
+    equipment_purchase: 'Equipment Purchase',
+    taxes: 'Taxes & Duties',
     transportation: 'Transportation',
-    miscellaneous: 'Miscellaneous'
+    supplies: 'Office / Store Supplies',
+    miscellaneous: 'Miscellaneous',
+  },
+
+  /**
+   * Expense Frequency - Groups expenses for daily vs monthly summaries
+   */
+  EXPENSE_FREQUENCY: {
+    DAILY: 'daily',
+    WEEKLY: 'weekly',
+    MONTHLY: 'monthly',
+    ONE_TIME: 'one_time',
+  },
+
+  /**
+   * Default category → frequency mapping (for UX pre-fill)
+   */
+  EXPENSE_CATEGORY_FREQUENCY_MAP: {
+    salary: 'monthly',
+    electricity: 'monthly',
+    rent: 'monthly',
+    insurance: 'monthly',
+    loan_emi: 'monthly',
+    cleaning: 'daily',
+    generator_fuel: 'daily',
+    drinking_water: 'daily',
+    maintenance: 'one_time',
+    equipment_purchase: 'one_time',
+    taxes: 'monthly',
+    transportation: 'one_time',
+    supplies: 'weekly',
+    miscellaneous: 'one_time',
+  },
+
+  /**
+   * Expense Approval Status
+   */
+  EXPENSE_APPROVAL_STATUS: {
+    PENDING: 'pending',
+    APPROVED: 'approved',
+    REJECTED: 'rejected',
+    AUTO_APPROVED: 'auto_approved',  // Manager/Owner entry - auto approved
   },
 
   /**

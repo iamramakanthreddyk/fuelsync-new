@@ -61,6 +61,8 @@ router.get('/stations/:stationId/expenses', expenseController.getExpenses);
 router.post('/stations/:stationId/expenses', requireRole('manager', 'owner', 'super_admin'), expenseController.createExpense);
 router.put('/expenses/:id', requireRole('manager', 'owner', 'super_admin'), expenseController.updateExpense);
 router.delete('/expenses/:id', requireRole('manager', 'owner', 'super_admin'), expenseController.deleteExpense);
+// Req #3: Approve / reject employee-entered expenses
+router.patch('/expenses/:id/approve', requireRole('manager', 'owner', 'super_admin'), expenseController.approveExpense);
 router.get('/stations/:stationId/expense-summary', expenseController.getExpenseSummary);
 
 // Cost of goods - owner only

@@ -13,6 +13,7 @@ interface ProfitSummary {
     totalRevenue: number;
     totalCostOfGoods: number;
     totalExpenses: number;
+    pendingExpenses?: number;
     grossProfit: number;
     netProfit: number;
     profitMargin: number;
@@ -28,7 +29,7 @@ interface ProfitSummary {
       profitMargin: number | null;
       hasCompleteData?: boolean;
     }>;
-    byExpenseCategory: Array<{ category: string; amount: number }>;
+    byExpenseCategory: Array<{ category: string; label?: string; amount: number }>;
     readingDetails?: Record<string, {
       withCostPrice: Array<{
         date: string;
@@ -191,8 +192,9 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
                   </div>
                   <AlertCircle className="w-5 h-5 text-muted-foreground" />
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  Fuel + Expenses
+                <p className="text-xs text-muted-foreground mt-1">
+                  Fuel: ₹{safeToFixed(profitData.summary.totalCostOfGoods, 0)}
+                  {profitData.summary.totalExpenses > 0 && ` · Expenses: ₹${safeToFixed(profitData.summary.totalExpenses, 0)}`}
                 </p>
               </CardContent>
             </Card>
@@ -213,6 +215,59 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
               </CardContent>
             </Card>
           </div>
+
+          {/* P&L Waterfall — Revenue → Gross Profit → Expenses → Net Profit */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">P&L Statement</CardTitle>
+              <CardDescription>{getMonthLabel(selectedMonth)}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-1 text-sm">
+                {/* Revenue */}
+                <div className="flex justify-between py-2 border-b">
+                  <span className="text-muted-foreground">Total Revenue</span>
+                  <span className="font-semibold">₹{safeToFixed(profitData.summary.totalRevenue, 0)}</span>
+                </div>
+                {/* Fuel cost */}
+                <div className="flex justify-between py-1.5 pl-4 text-muted-foreground">
+                  <span>− Fuel Cost (COGS)</span>
+                  <span className="text-red-600">₹{safeToFixed(profitData.summary.totalCostOfGoods, 0)}</span>
+                </div>
+                {/* Gross profit */}
+                <div className={`flex justify-between py-2 border-t border-b font-semibold ${
+                  profitData.summary.grossProfit >= 0 ? 'text-green-700' : 'text-red-700'
+                }`}>
+                  <span>= Gross Profit</span>
+                  <span>₹{safeToFixed(profitData.summary.grossProfit, 0)}</span>
+                </div>
+                {/* Operating expenses */}
+                {profitData.summary.totalExpenses > 0 && (
+                  <div className="flex justify-between py-1.5 pl-4 text-muted-foreground">
+                    <span>− Operating Expenses</span>
+                    <span className="text-red-600">₹{safeToFixed(profitData.summary.totalExpenses, 0)}</span>
+                  </div>
+                )}
+                {/* Pending notice */}
+                {(profitData.summary.pendingExpenses ?? 0) > 0 && (
+                  <div className="flex justify-between py-1 pl-4 text-xs text-amber-600">
+                    <span>⏳ Pending approval (excluded)</span>
+                    <span>₹{safeToFixed(profitData.summary.pendingExpenses!, 0)}</span>
+                  </div>
+                )}
+                {/* Net profit */}
+                <div className={`flex justify-between py-2 border-t mt-1 font-bold text-base ${
+                  profitData.summary.netProfit >= 0 ? 'text-green-700' : 'text-red-700'
+                }`}>
+                  <span>= Net Profit</span>
+                  <span>₹{safeToFixed(Math.abs(profitData.summary.netProfit), 0)}{profitData.summary.netProfit < 0 ? ' (Loss)' : ''}</span>
+                </div>
+                <p className="text-xs text-muted-foreground pt-1 text-right">
+                  {safeToFixed(profitData.summary.profitMargin, 1)}% net margin · ₹{safeToFixed(profitData.summary.profitPerLitre, 1)}/L
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
           {/* Fuel Type Performance - Simplified */}
           <Card>
@@ -258,22 +313,25 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
           {profitData.breakdown.byExpenseCategory.length > 0 && (
             <Card>
               <CardHeader className="pb-3">
-                <CardTitle className="text-lg">Monthly Expenses</CardTitle>
+                <CardTitle className="text-lg">Operating Expenses Breakdown</CardTitle>
+                <CardDescription>
+                  Approved only · Total: ₹{safeToFixed(profitData.summary.totalExpenses, 0)}
+                  {(profitData.summary.pendingExpenses ?? 0) > 0 && (
+                    <span className="ml-2 text-amber-600">
+                      · ₹{safeToFixed(profitData.summary.pendingExpenses!, 0)} pending (not counted)
+                    </span>
+                  )}
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {profitData.breakdown.byExpenseCategory.slice(0, 6).map((expense) => (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {profitData.breakdown.byExpenseCategory.map((expense) => (
                     <div key={expense.category} className="flex justify-between items-center p-2 border rounded">
-                      <span className="capitalize text-sm">{expense.category}</span>
+                      <span className="text-sm">{expense.label ?? expense.category}</span>
                       <span className="font-medium">₹{safeToFixed(expense.amount, 0)}</span>
                     </div>
                   ))}
                 </div>
-                {profitData.breakdown.byExpenseCategory.length > 6 && (
-                  <p className="text-xs text-muted-foreground mt-3 text-center">
-                    +{profitData.breakdown.byExpenseCategory.length - 6} more categories
-                  </p>
-                )}
               </CardContent>
             </Card>
           )}

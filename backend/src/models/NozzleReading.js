@@ -44,7 +44,20 @@ module.exports = (sequelize) => {
       }
     },
     
-    // Reading data
+    // Reading attribution (Req #1: manager/owner enters on behalf of employee)
+    // NULL = self-entry (entered_by and attribution are the same person)
+    // UUID = manager/owner entered this reading, but it BELONGS TO this employee
+    assignedEmployeeId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      defaultValue: null,
+      field: 'assigned_employee_id',
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      comment: 'Employee this reading is attributed to. NULL = self-entry. Set by manager/owner when entering on behalf of employee.'
+    },
     readingDate: {
       type: DataTypes.DATEONLY,
       allowNull: false,
@@ -250,7 +263,9 @@ module.exports = (sequelize) => {
       { fields: ['nozzle_id', 'reading_date'] },
       { fields: ['pump_id', 'reading_date'] },
       { fields: ['fuel_type', 'reading_date'] },
-      { fields: ['creditor_id'] }
+      { fields: ['creditor_id'] },
+      { fields: ['entered_by'] },
+      { fields: ['assigned_employee_id'] }
     ],
     hooks: {
       // ============================================
@@ -423,6 +438,8 @@ module.exports = (sequelize) => {
     NozzleReading.belongsTo(models.Station, { foreignKey: 'stationId', as: 'station' });
     NozzleReading.belongsTo(models.User, { foreignKey: 'enteredBy', as: 'enteredByUser' });
     NozzleReading.belongsTo(models.User, { foreignKey: 'approvedBy', as: 'approvedByUser' });
+    // Req #1: Reading attribution - manager/owner enters on behalf of employee
+    NozzleReading.belongsTo(models.User, { foreignKey: 'assignedEmployeeId', as: 'assignedEmployee' });
     NozzleReading.belongsTo(models.Creditor, { foreignKey: 'creditorId', as: 'creditor' });
     NozzleReading.belongsTo(models.Pump, { foreignKey: 'pumpId', as: 'pump' });
     NozzleReading.belongsTo(models.Shift, { foreignKey: 'shiftId', as: 'shift' });

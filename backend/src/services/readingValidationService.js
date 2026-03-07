@@ -20,7 +20,9 @@ exports.normalizeReadingInput = (input) => {
     totalAmount: input.totalAmount !== undefined ? input.totalAmount : input.total_amount,
     litresSold: input.litresSold !== undefined ? input.litresSold : input.litres_sold,
     previousReading: input.previousReading !== undefined ? input.previousReading : input.previous_reading,
-    isSample: input.isSample !== undefined ? input.isSample : (input.is_sample || false)
+    isSample: input.isSample !== undefined ? input.isSample : (input.is_sample || false),
+    // Req #1: Reading attribution - manager/owner enters on behalf of employee
+    assignedEmployeeId: input.assignedEmployeeId || input.assigned_employee_id || null,
   };
 };
 

@@ -82,6 +82,34 @@ exports.createReading = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Not authorized to enter readings for this station' });
     }
 
+    // --- Req #1: Employee Attribution Validation ---
+    // Only manager/owner can enter readings attributed to another employee
+    let resolvedAssignedEmployeeId = null;
+    if (normalizedInput.assignedEmployeeId) {
+      if (!['manager', 'owner', 'super_admin'].includes(user.role)) {
+        return res.status(403).json({
+          success: false,
+          error: 'Only managers and owners can assign readings to other employees'
+        });
+      }
+      // Verify the assigned employee exists and belongs to the same station
+      const assignedEmployee = await User.findOne({
+        where: {
+          id: normalizedInput.assignedEmployeeId,
+          stationId,
+          role: 'employee',
+          isActive: true
+        }
+      });
+      if (!assignedEmployee) {
+        return res.status(404).json({
+          success: false,
+          error: 'Assigned employee not found at this station or is not an active employee'
+        });
+      }
+      resolvedAssignedEmployeeId = assignedEmployee.id;
+    }
+
     // Get station settings
     const station = await Station.findByPk(stationId);
 
@@ -221,6 +249,8 @@ exports.createReading = async (req, res, next) => {
         pumpId: nozzle.pumpId || (nozzle.pump ? nozzle.pump.id : null),
         fuelType: nozzle.fuelType,
         enteredBy: userId,
+        // Req #1: attribution - null if self-entry, employee ID if entered by manager/owner on behalf
+        assignedEmployeeId: resolvedAssignedEmployeeId,
         readingDate: normalizedInput.readingDate,
         readingValue: calculations.currentValue,
         previousReading: calculations.previousReading,
@@ -260,11 +290,15 @@ exports.createReading = async (req, res, next) => {
           nozzleId: normalizedInput.nozzleId,
           litresSold: calculations.calculatedLitresSold,
           totalAmount: calculations.calculatedTotalAmount,
-          fuelType: nozzle.fuelType
+          fuelType: nozzle.fuelType,
+          assignedEmployeeId: resolvedAssignedEmployeeId,
+          enteredBy: userId
         },
         category: 'data',
         severity: 'info',
-        description: `Recorded reading: ${calculations.calculatedLitresSold}L of ${nozzle.fuelType} for ₹${calculations.calculatedTotalAmount.toFixed(2)}`
+        description: resolvedAssignedEmployeeId
+          ? `Recorded reading on behalf of employee ${resolvedAssignedEmployeeId}: ${calculations.calculatedLitresSold}L of ${nozzle.fuelType} for ₹${calculations.calculatedTotalAmount.toFixed(2)}`
+          : `Recorded reading: ${calculations.calculatedLitresSold}L of ${nozzle.fuelType} for ₹${calculations.calculatedTotalAmount.toFixed(2)}`
       });
 
       await t.commit();
@@ -363,7 +397,7 @@ exports.getPreviousReading = async (req, res, next) => {
  */
 exports.getReadings = async (req, res, next) => {
   try {
-    const { stationId, pumpId, nozzleId, startDate, endDate, page = 1, limit = 50 } = req.query;
+    const { stationId, pumpId, nozzleId, startDate, endDate, page = 1, limit = 50, employeeId } = req.query;
     const user = await User.findByPk(req.userId);
 
     // Build accessible station IDs based on user role
@@ -394,16 +428,22 @@ exports.getReadings = async (req, res, next) => {
       endDate,
       offset,
       limit,
-      accessibleStationIds
+      accessibleStationIds,
+      // Req #1: support filtering by employee (handles both self-entry and attributed readings)
+      employeeId: employeeId || null,
     });
 
-    // Add saleValue to each reading
+    // Add saleValue to each reading and enrich with attribution info
     const readingsWithSaleValue = rows.map(r => {
       const obj = r.toJSON();
       obj.saleValue = readingRepository.calculateSaleValue(obj);
       if (obj.transaction) {
         obj.transaction.paymentBreakdown = obj.transaction.paymentBreakdown || obj.transaction.payment_breakdown || {};
+        obj.transaction.paymentSubBreakdown = obj.transaction.paymentSubBreakdown || obj.transaction.payment_sub_breakdown || null;
       }
+      // Req #1: Compute effective employee (who this reading "belongs to" for reports)
+      obj.effectiveEmployee = obj.assignedEmployee || obj.enteredByUser || null;
+      obj.wasEnteredOnBehalf = !!obj.assignedEmployeeId;
       return obj;
     });
 

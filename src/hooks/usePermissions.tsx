@@ -1,5 +1,4 @@
 import { useAuth } from './useAuth';
-import { apiClient } from '@/lib/api-client';
 
 export interface PermissionCheck {
   hasPermission: boolean;
@@ -363,7 +362,7 @@ export const useDateRangeLimits = () => {
     return maxDate;
   };
 
-  const isDateRangeAllowed = (startDate: Date, endDate: Date, type: 'sales' | 'profit' | 'analytics' | 'audit' | 'transactions'): boolean => {
+  const isDateRangeAllowed = (startDate: Date, type: 'sales' | 'profit' | 'analytics' | 'audit' | 'transactions'): boolean => {
     const maxDate = getMaxDateForType(type);
     return startDate >= maxDate;
   };

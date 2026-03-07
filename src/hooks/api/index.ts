@@ -3,7 +3,10 @@
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { apiClient, ApiResponse } from '@/lib/api-client';
+import { api as apiWrapper } from '@/lib/api-wrapper';
+import { apiClient } from '@/lib/api-client';
+import type { ApiResponse } from '@/lib/api-client';
+import type { NormalizedResponse as ApiResponseType } from '@/lib/api-wrapper';
 import { useStationStore } from '@/store/stationStore';
 import { getApiErrorMessage } from '@/lib/apiErrorHandler';
 import type {
@@ -102,7 +105,12 @@ export const queryKeys = {
 export function useConfig() {
   return useQuery({
     queryKey: queryKeys.config,
-    queryFn: () => apiClient.get<ConfigResponse>('/config'),
+    queryFn: async () => {
+      const res = await apiWrapper.get<ConfigResponse>('/config');
+      // return envelope-like shape expected by callers
+      if (res.success) return { success: true, data: res.data } as unknown as ConfigResponse;
+      throw new Error(res.error.message);
+    },
     staleTime: 1000 * 60 * 60, // 1 hour - config rarely changes
   });
 }
@@ -121,11 +129,14 @@ export function useStations() {
     queryKey: queryKeys.stations,
     queryFn: async () => {
       try {
-        const response = await apiClient.get<ApiResponse<Station[]>>('/stations');
+        const response = await apiWrapper.get<Station[]>('/stations');
         if (response.success) {
-          setStations(response.data);
+          setStations(response.data as Station[]);
+          return { success: true, data: response.data } as unknown as ApiResponseType<Station[]>;
         }
-        return response;
+
+        // Normalize server side errors into thrown errors so react-query marks it errored
+        throw new Error(response.error.message);
       } catch (error) {
         // Use centralized error handler
         throw new Error(getApiErrorMessage(error));
@@ -198,11 +209,14 @@ export function usePumps(stationId: string) {
   return useQuery({
     queryKey: queryKeys.pumps(stationId),
     queryFn: async () => {
-      const response = await apiClient.get<ApiResponse<Pump[]>>(`/stations/${stationId}/pumps`);
+      const response = await apiWrapper.get<Pump[]>(`/stations/${stationId}/pumps`);
       if (response.success) {
-        setPumps(response.data);
+        setPumps(response.data as Pump[]);
+        return { success: true, data: response.data } as unknown as ApiResponseType<Pump[]>;
       }
-      return response;
+
+      // Throw to allow react-query to surface errors; caller can inspect error object
+      throw new Error(response.error.message);
     },
     enabled: !!stationId,
   });

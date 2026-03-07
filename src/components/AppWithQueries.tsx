@@ -53,6 +53,7 @@ import DailySettlement from '@/pages/owner/DailySettlement';
 import DailySalesReport from '@/pages/owner/DailySalesReport';
 import Inventory from '@/pages/owner/Inventory';
 import ProfitReports from '@/pages/ProfitReports';
+import ExpensesPage from '@/pages/Expenses';
 
 // Cash Management pages
 import ShiftManagement from '@/pages/shifts/ShiftManagement';
@@ -390,6 +391,7 @@ function AppContent() {
                     <Route path="/manager/reports" element={<OwnerReports />} />                    <Route path="/manager/sample-readings" element={<SampleReadings />} />                    <Route path="/manager/analytics" element={<OwnerAnalytics />} />
                     <Route path="/manager/income-report" element={<IncomeReport />} />
                     <Route path="/manager/profit-reports" element={<ProfitReports />} />
+                    <Route path="/manager/expenses" element={<ExpensesPage />} />
                     <Route path="/manager/shifts" element={<ShiftManagement />} />
                     <Route path="/manager/cash-report" element={<CashReconciliationReport />} />
                     <Route path="/manager/inventory" element={
@@ -428,6 +430,7 @@ function AppContent() {
                     <Route path="/owner/analytics" element={<OwnerAnalytics />} />
                     <Route path="/owner/income-report" element={<IncomeReport />} />
                     <Route path="/owner/profit-reports" element={<ProfitReports />} />
+                    <Route path="/owner/expenses" element={<ExpensesPage />} />
                     <Route path="/owner/shifts" element={<ShiftManagement />} />
                     <Route path="/owner/cash-report" element={<CashReconciliationReport />} />
                     <Route path="/owner/inventory" element={

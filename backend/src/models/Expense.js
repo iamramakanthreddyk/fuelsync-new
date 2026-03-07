@@ -1,10 +1,11 @@
 /**
  * Expense Model
- * Tracks daily expenses and monthly cost of goods
+ * Tracks daily, weekly, and monthly station operational expenses
+ * Supports approval workflow and net profit calculation
  */
 
 const { DataTypes, Op } = require('sequelize');
-const { EXPENSE_CATEGORIES } = require('../config/constants');
+const { EXPENSE_CATEGORIES, EXPENSE_FREQUENCY, EXPENSE_APPROVAL_STATUS, EXPENSE_CATEGORY_FREQUENCY_MAP } = require('../config/constants');
 
 module.exports = (sequelize) => {
   const Expense = sequelize.define('Expense', {
@@ -43,6 +44,14 @@ module.exports = (sequelize) => {
       }
     },
     
+    // Req #3: Frequency for grouping expenses by daily/monthly period
+    frequency: {
+      type: DataTypes.ENUM('daily', 'weekly', 'monthly', 'one_time'),
+      allowNull: false,
+      defaultValue: 'one_time',
+      comment: 'Recurrence: daily (cleaning, generator), monthly (salary, electricity), one_time (equipment)'
+    },
+    
     // Date
     expenseDate: {
       type: DataTypes.DATEONLY,
@@ -72,6 +81,14 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT
     },
     
+    // Custom tags for flexible categorization
+    tags: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: null,
+      comment: 'Optional JSON array of tags, e.g. ["overhead", "essential", "one-off"]'
+    },
+
     // Who entered
     enteredBy: {
       type: DataTypes.UUID,
@@ -81,6 +98,33 @@ module.exports = (sequelize) => {
         model: 'users',
         key: 'id'
       }
+    },
+
+    // Req #3: Approval workflow
+    // Manager/Owner entry = auto_approved
+    // Employee entry = pending (requires manager/owner sign-off)
+    approvalStatus: {
+      type: DataTypes.ENUM('pending', 'approved', 'rejected', 'auto_approved'),
+      allowNull: false,
+      defaultValue: 'auto_approved',
+      field: 'approval_status',
+      comment: 'Approval state. Employees submit for approval; managers/owners are auto_approved.'
+    },
+    approvedBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'approved_by',
+      references: {
+        model: 'users',
+        key: 'id'
+      },
+      comment: 'Manager or owner who approved/rejected this expense'
+    },
+    approvedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+      field: 'approved_at',
+      comment: 'Timestamp when expense was approved or rejected'
     }
 
     // Soft delete tracking for audit trail
@@ -113,7 +157,9 @@ module.exports = (sequelize) => {
       { fields: ['station_id'] },
       { fields: ['expense_date'] },
       { fields: ['expense_month'] },
-      { fields: ['category'] }
+      { fields: ['category'] },
+      { fields: ['frequency'] },
+      { fields: ['approval_status'] }
     ],
     hooks: {
       beforeValidate: (expense) => {
@@ -121,6 +167,13 @@ module.exports = (sequelize) => {
         if (expense.expenseDate) {
           const date = new Date(expense.expenseDate);
           expense.expenseMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        }
+        // Auto-set frequency from category if not provided
+        if (!expense.frequency || expense.frequency === 'one_time') {
+          const suggestedFrequency = EXPENSE_CATEGORY_FREQUENCY_MAP[expense.category];
+          if (suggestedFrequency) {
+            expense.frequency = suggestedFrequency;
+          }
         }
       }
     }
@@ -146,6 +199,7 @@ module.exports = (sequelize) => {
   Expense.associate = (models) => {
     Expense.belongsTo(models.Station, { foreignKey: 'stationId', as: 'station' });
     Expense.belongsTo(models.User, { foreignKey: 'enteredBy', as: 'enteredByUser' });
+    Expense.belongsTo(models.User, { foreignKey: 'approvedBy', as: 'approvedByUser' });
   };
 
   /**
@@ -157,7 +211,9 @@ module.exports = (sequelize) => {
         stationId,
         expenseDate: {
           [Op.between]: [startDate, endDate]
-        }
+        },
+        // Only count approved/auto_approved for net-profit calculations
+        approvalStatus: { [Op.in]: ['approved', 'auto_approved'] }
       }
     });
     return result || 0;
@@ -170,11 +226,30 @@ module.exports = (sequelize) => {
     return this.findAll({
       attributes: [
         'category',
+        'frequency',
         [sequelize.fn('SUM', sequelize.col('amount')), 'total']
       ],
-      where: { stationId, expenseMonth: month },
-      group: ['category']
+      where: {
+        stationId,
+        expenseMonth: month,
+        approvalStatus: { [Op.in]: ['approved', 'auto_approved'] }
+      },
+      group: ['category', 'frequency']
     });
+  };
+
+  /**
+   * Get daily expense total for net profit calculation
+   */
+  Expense.getDailyTotal = async function(stationId, date) {
+    const result = await this.sum('amount', {
+      where: {
+        stationId,
+        expenseDate: date,
+        approvalStatus: { [Op.in]: ['approved', 'auto_approved'] }
+      }
+    });
+    return result || 0;
   };
 
   return Expense;

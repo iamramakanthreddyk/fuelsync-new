@@ -63,7 +63,22 @@ module.exports = (sequelize) => {
       }
     },
 
-    // Credit allocations (array for multiple creditors possible)
+    // Req #2: Detailed payment sub-type breakdown
+    // If set, this is authoritative. paymentBreakdown is derived from it.
+    // Structure: {
+    //   cash: 5000,
+    //   upi: { gpay: 1200, phonepe: 800, paytm: 0, ... },
+    //   card: { debit_card: 500, credit_card: 300 },
+    //   oil_company: { hp_pay: 0, iocl_card: 0, bpcl_smartfleet: 0, ... },
+    //   credit: 0
+    // }
+    paymentSubBreakdown: {
+      type: DataTypes.JSONB,
+      allowNull: true,
+      defaultValue: null,
+      field: 'payment_sub_breakdown',
+      comment: 'Detailed sub-type breakdown: upi (gpay/phonepe/...), card (debit/credit), oil_company (hp_pay/iocl/bpcl/...)'
+    },
     // Structure: [{ creditorId: UUID, amount: 1000 }, ...]
     creditAllocations: {
       type: DataTypes.JSONB,

@@ -6,18 +6,19 @@
  * - CREATE: Expense creation is logged with category 'finance', severity 'info'
  * - UPDATE: Expense updates are logged with before/after values
  * - DELETE: Expense deletion is logged with severity 'warning'
+ * - APPROVE/REJECT: Approval decisions are logged with severity 'info'/'warning'
  * 
- * All CREATE/UPDATE/DELETE operations are tracked via logAudit() from utils/auditLog
+ * All CREATE/UPDATE/DELETE/APPROVE operations are tracked via logAudit() from utils/auditLog
  */
 
 const { Expense, CostOfGoods, NozzleReading, CreditTransaction, Station, User } = require('../models');
 const { Op, fn, col, literal } = require('sequelize');
-const { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, FUEL_TYPES } = require('../config/constants');
+const { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, EXPENSE_APPROVAL_STATUS, EXPENSE_CATEGORY_FREQUENCY_MAP, FUEL_TYPES } = require('../config/constants');
 const { logAudit } = require('../utils/auditLog');
 const expenseCategorization = require('../services/expenseCategorization');
 
 /**
- * Get expense categories (for dropdown)
+ * Get expense categories (for dropdown) with frequency hints
  */
 const getCategories = async (req, res) => {
   try {
@@ -25,7 +26,9 @@ const getCategories = async (req, res) => {
       success: true,
       data: Object.entries(EXPENSE_CATEGORY_LABELS).map(([value, label]) => ({
         value,
-        label
+        label,
+        // Req #3: suggest default frequency per category so UI can pre-fill
+        suggestedFrequency: EXPENSE_CATEGORY_FREQUENCY_MAP[value] || 'one_time'
       }))
     });
   } catch (error) {
@@ -35,16 +38,19 @@ const getCategories = async (req, res) => {
 
 /**
  * Get expenses for a station
+ * Supports filtering by category, frequency, approvalStatus, date range, month
  */
 const getExpenses = async (req, res) => {
   try {
     const { stationId } = req.params;
-    const { startDate, endDate, category, month, page = 1, limit = 50 } = req.query;
+    const { startDate, endDate, category, month, frequency, approvalStatus, page = 1, limit = 50 } = req.query;
     
     const where = { stationId };
     
     if (category) where.category = category;
     if (month) where.expenseMonth = month;
+    if (frequency) where.frequency = frequency;
+    if (approvalStatus) where.approvalStatus = approvalStatus;
     if (startDate && endDate) {
       where.expenseDate = { [Op.between]: [startDate, endDate] };
     }
@@ -53,18 +59,49 @@ const getExpenses = async (req, res) => {
     
     const { count, rows: expenses } = await Expense.findAndCountAll({
       where,
+      include: [
+        { model: User, as: 'enteredByUser', attributes: ['id', 'name', 'role'] },
+        { model: User, as: 'approvedByUser', attributes: ['id', 'name', 'role'], required: false }
+      ],
       order: [['expenseDate', 'DESC'], ['createdAt', 'DESC']],
       limit: parseInt(limit),
       offset
     });
     
-    // Get total for the query
-    const total = await Expense.sum('amount', { where });
+    // Get total for the query (only approved/auto_approved for reporting)
+    const approvedTotal = await Expense.sum('amount', {
+      where: { ...where, approvalStatus: { [Op.in]: ['approved', 'auto_approved'] } }
+    });
+    const pendingTotal = await Expense.sum('amount', {
+      where: { ...where, approvalStatus: 'pending' }
+    });
+    
+    // Breakdown by frequency for the query
+    const byFrequency = await Expense.findAll({
+      attributes: ['frequency', [fn('SUM', col('amount')), 'total'], [fn('COUNT', col('id')), 'count']],
+      where: { ...where, approvalStatus: { [Op.in]: ['approved', 'auto_approved'] } },
+      group: ['frequency'],
+      raw: true
+    });
+
+    // Breakdown by category for the query
+    const byCategory = await Expense.findAll({
+      attributes: ['category', [fn('SUM', col('amount')), 'total']],
+      where: { ...where, approvalStatus: { [Op.in]: ['approved', 'auto_approved'] } },
+      group: ['category'],
+      raw: true
+    });
     
     res.json({
       success: true,
       data: expenses,
-      summary: { total: total || 0 },
+      summary: {
+        approvedTotal: approvedTotal || 0,
+        pendingTotal: pendingTotal || 0,
+        total: approvedTotal || 0,  // backward compat
+        byFrequency,
+        byCategory
+      },
       pagination: {
         page: parseInt(page),
         limit: parseInt(limit),
@@ -80,11 +117,12 @@ const getExpenses = async (req, res) => {
 
 /**
  * Create expense
+ * Req #3: Accepts frequency and tags. Auto-sets approvalStatus based on role.
  */
 const createExpense = async (req, res) => {
   try {
     const { stationId } = req.params;
-    const { category, description, amount, expenseDate, receiptNumber, paymentMethod, notes } = req.body;
+    const { category, description, amount, expenseDate, receiptNumber, paymentMethod, notes, frequency, tags } = req.body;
     
     // Validate category
     if (!Object.values(EXPENSE_CATEGORIES).includes(category)) {
@@ -93,7 +131,15 @@ const createExpense = async (req, res) => {
         error: { message: `Invalid category. Valid: ${Object.values(EXPENSE_CATEGORIES).join(', ')}` }
       });
     }
-    
+
+    // Req #3: Auto-set approvalStatus based on role
+    // Manager/Owner entries are auto-approved (they're accountable)
+    // Employee entries need approval (prevents inflating expenses)
+    const role = req.user?.role || 'employee';
+    const approvalStatus = ['manager', 'owner', 'super_admin'].includes(role)
+      ? EXPENSE_APPROVAL_STATUS.AUTO_APPROVED
+      : EXPENSE_APPROVAL_STATUS.PENDING;
+
     const expense = await Expense.create({
       stationId,
       category,
@@ -103,7 +149,13 @@ const createExpense = async (req, res) => {
       receiptNumber,
       paymentMethod,
       notes,
-      enteredBy: req.user.id
+      frequency: frequency || EXPENSE_CATEGORY_FREQUENCY_MAP[category] || 'one_time',
+      tags: tags || null,
+      enteredBy: req.user.id,
+      approvalStatus,
+      // Auto-approve if manager/owner
+      approvedBy: approvalStatus === EXPENSE_APPROVAL_STATUS.AUTO_APPROVED ? req.user.id : null,
+      approvedAt: approvalStatus === EXPENSE_APPROVAL_STATUS.AUTO_APPROVED ? new Date() : null
     });
 
     // Get category suggestion if not already provided
@@ -179,7 +231,7 @@ const updateExpense = async (req, res) => {
     }
     
     const oldValues = expense.toJSON();
-    const allowedUpdates = ['category', 'description', 'amount', 'expenseDate', 'receiptNumber', 'paymentMethod', 'notes'];
+    const allowedUpdates = ['category', 'description', 'amount', 'expenseDate', 'receiptNumber', 'paymentMethod', 'notes', 'frequency', 'tags'];
     const newValues = {};
     
     allowedUpdates.forEach(field => {
@@ -188,6 +240,14 @@ const updateExpense = async (req, res) => {
         newValues[field] = updates[field];
       }
     });
+
+    // If a pending expense is updated by manager/owner, auto-approve it
+    if (['manager', 'owner', 'super_admin'].includes(req.user?.role) && expense.approvalStatus === 'pending') {
+      expense.approvalStatus = EXPENSE_APPROVAL_STATUS.AUTO_APPROVED;
+      expense.approvedBy = req.user.id;
+      expense.approvedAt = new Date();
+      newValues.approvalStatus = EXPENSE_APPROVAL_STATUS.AUTO_APPROVED;
+    }
     
     await expense.save();
 
@@ -254,39 +314,166 @@ const deleteExpense = async (req, res) => {
 };
 
 /**
- * Get expense summary by category for a month
+ * Approve or reject a pending expense
+ * PATCH /expenses/:id/approve  (manager/owner/super_admin only)
+ * Body: { action: 'approve' | 'reject', notes: string }
+ */
+const approveExpense = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { action, notes } = req.body;
+
+    if (!['approve', 'reject'].includes(action)) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "action must be 'approve' or 'reject'" }
+      });
+    }
+
+    const expense = await Expense.findByPk(id, {
+      include: [{ model: User, as: 'enteredByUser', attributes: ['id', 'name', 'email'] }]
+    });
+    if (!expense) {
+      return res.status(404).json({ success: false, error: { message: 'Expense not found' } });
+    }
+
+    if (expense.approvalStatus !== EXPENSE_APPROVAL_STATUS.PENDING) {
+      return res.status(400).json({
+        success: false,
+        error: { message: `Expense is already ${expense.approvalStatus}` }
+      });
+    }
+
+    const oldStatus = expense.approvalStatus;
+    expense.approvalStatus = action === 'approve'
+      ? EXPENSE_APPROVAL_STATUS.APPROVED
+      : EXPENSE_APPROVAL_STATUS.REJECTED;
+    expense.approvedBy = req.user.id;
+    expense.approvedAt = new Date();
+    if (notes) expense.notes = notes;
+
+    await expense.save();
+
+    await logAudit({
+      userId: req.user.id,
+      userEmail: req.user.email,
+      userRole: req.user.role,
+      stationId: expense.stationId,
+      action: action === 'approve' ? 'APPROVE' : 'REJECT',
+      entityType: 'Expense',
+      entityId: expense.id,
+      oldValues: { approvalStatus: oldStatus },
+      newValues: { approvalStatus: expense.approvalStatus, approvedBy: req.user.id },
+      category: 'finance',
+      severity: action === 'approve' ? 'info' : 'warning',
+      description: `${action === 'approve' ? 'Approved' : 'Rejected'} expense: ${expense.description} (₹${expense.amount}) entered by ${expense.enteredByUser?.name}`
+    });
+
+    res.json({
+      success: true,
+      data: expense,
+      message: `Expense ${action === 'approve' ? 'approved' : 'rejected'} successfully`
+    });
+  } catch (error) {
+    console.error('Approve expense error:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to process approval' } });
+  }
+};
+
+/**
+ * Get expense summary - daily and monthly breakdown
+ * GET /stations/:stationId/expense-summary?date=YYYY-MM-DD&month=YYYY-MM
+ * Req #3: Daily expenses + monthly fixed expenses + pending approvals
  */
 const getExpenseSummary = async (req, res) => {
   try {
     const { stationId } = req.params;
-    const { month } = req.query;
-    
-    // Default to current month
+    const { date, month } = req.query;
+
+    // ---------- DAILY summary ----------
+    if (date) {
+      const approvedFilter = {
+        stationId,
+        expenseDate: date,
+        approvalStatus: { [Op.in]: [EXPENSE_APPROVAL_STATUS.APPROVED, EXPENSE_APPROVAL_STATUS.AUTO_APPROVED] }
+      };
+      const pendingFilter = { stationId, expenseDate: date, approvalStatus: EXPENSE_APPROVAL_STATUS.PENDING };
+
+      const [byCategory, pendingCount, pendingAmount] = await Promise.all([
+        Expense.findAll({
+          attributes: ['category', [fn('SUM', col('amount')), 'total'], [fn('COUNT', col('id')), 'count']],
+          where: approvedFilter,
+          group: ['category'],
+          order: [[literal('"total"'), 'DESC']]
+        }),
+        Expense.count({ where: pendingFilter }),
+        Expense.sum('amount', { where: pendingFilter })
+      ]);
+
+      const approvedTotal = byCategory.reduce((s, r) => s + parseFloat(r.dataValues.total || 0), 0);
+
+      return res.json({
+        success: true,
+        data: {
+          mode: 'daily',
+          date,
+          approvedTotal,
+          pendingCount,
+          pendingAmount: pendingAmount || 0,
+          byCategory: byCategory.map(r => ({
+            category: r.category,
+            label: EXPENSE_CATEGORY_LABELS[r.category] || r.category,
+            total: parseFloat(r.dataValues.total),
+            count: parseInt(r.dataValues.count)
+          }))
+        }
+      });
+    }
+
+    // ---------- MONTHLY summary (default) ----------
     const targetMonth = month || new Date().toISOString().slice(0, 7);
-    
-    const byCategory = await Expense.findAll({
-      attributes: [
-        'category',
-        [fn('SUM', col('amount')), 'total'],
-        [fn('COUNT', col('id')), 'count']
-      ],
-      where: { stationId, expenseMonth: targetMonth },
-      group: ['category'],
-      order: [[literal('total'), 'DESC']]
-    });
-    
-    const total = byCategory.reduce((sum, item) => sum + parseFloat(item.dataValues.total || 0), 0);
-    
+    const approvedFilter = {
+      stationId,
+      expenseMonth: targetMonth,
+      approvalStatus: { [Op.in]: [EXPENSE_APPROVAL_STATUS.APPROVED, EXPENSE_APPROVAL_STATUS.AUTO_APPROVED] }
+    };
+
+    const [byCategory, byFrequency, pendingCount, pendingAmount] = await Promise.all([
+      Expense.findAll({
+        attributes: ['category', [fn('SUM', col('amount')), 'total'], [fn('COUNT', col('id')), 'count']],
+        where: approvedFilter,
+        group: ['category'],
+        order: [[literal('"total"'), 'DESC']]
+      }),
+      Expense.findAll({
+        attributes: ['frequency', [fn('SUM', col('amount')), 'total'], [fn('COUNT', col('id')), 'count']],
+        where: approvedFilter,
+        group: ['frequency']
+      }),
+      Expense.count({ where: { stationId, expenseMonth: targetMonth, approvalStatus: EXPENSE_APPROVAL_STATUS.PENDING } }),
+      Expense.sum('amount', { where: { stationId, expenseMonth: targetMonth, approvalStatus: EXPENSE_APPROVAL_STATUS.PENDING } })
+    ]);
+
+    const approvedTotal = byCategory.reduce((s, r) => s + parseFloat(r.dataValues.total || 0), 0);
+
     res.json({
       success: true,
       data: {
+        mode: 'monthly',
         month: targetMonth,
-        total,
-        byCategory: byCategory.map(item => ({
-          category: item.category,
-          label: EXPENSE_CATEGORY_LABELS[item.category] || item.category,
-          total: parseFloat(item.dataValues.total),
-          count: parseInt(item.dataValues.count)
+        approvedTotal,
+        pendingCount,
+        pendingAmount: pendingAmount || 0,
+        byCategory: byCategory.map(r => ({
+          category: r.category,
+          label: EXPENSE_CATEGORY_LABELS[r.category] || r.category,
+          total: parseFloat(r.dataValues.total),
+          count: parseInt(r.dataValues.count)
+        })),
+        byFrequency: byFrequency.map(r => ({
+          frequency: r.frequency,
+          total: parseFloat(r.dataValues.total),
+          count: parseInt(r.dataValues.count)
         }))
       }
     });
@@ -423,16 +610,24 @@ const getProfitLoss = async (req, res) => {
     });
     const costOfGoods = costOfGoodsResult || 0;
     
-    // Get expenses
+    // Get expenses (only approved/auto_approved count toward financial statements)
     const expensesResult = await Expense.sum('amount', {
-      where: { stationId, expenseMonth: targetMonth }
+      where: {
+        stationId,
+        expenseMonth: targetMonth,
+        approvalStatus: { [Op.in]: [EXPENSE_APPROVAL_STATUS.APPROVED, EXPENSE_APPROVAL_STATUS.AUTO_APPROVED] }
+      }
     });
     const expenses = expensesResult || 0;
     
-    // Get expenses by category
+    // Get expenses by category (approved only)
     const expensesByCategory = await Expense.findAll({
       attributes: ['category', [fn('SUM', col('amount')), 'total']],
-      where: { stationId, expenseMonth: targetMonth },
+      where: {
+        stationId,
+        expenseMonth: targetMonth,
+        approvalStatus: { [Op.in]: [EXPENSE_APPROVAL_STATUS.APPROVED, EXPENSE_APPROVAL_STATUS.AUTO_APPROVED] }
+      },
       group: ['category']
     });
     
@@ -491,6 +686,7 @@ module.exports = {
   createExpense,
   updateExpense,
   deleteExpense,
+  approveExpense,
   getExpenseSummary,
   getCostOfGoods,
   setCostOfGoods,

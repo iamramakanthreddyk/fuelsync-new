@@ -13,7 +13,7 @@ const { Op } = require('sequelize');
  * @returns {Object} - { rows, count }
  */
 exports.getReadingsWithFilters = async (filters) => {
-  const { stationId, pumpId, nozzleId, startDate, endDate, offset = 0, limit = 50, accessibleStationIds } = filters;
+  const { stationId, pumpId, nozzleId, startDate, endDate, offset = 0, limit = 50, accessibleStationIds, employeeId } = filters;
 
   const where = {};
 
@@ -27,6 +27,15 @@ exports.getReadingsWithFilters = async (filters) => {
   // Nozzle filter
   if (nozzleId) {
     where.nozzleId = nozzleId;
+  }
+
+  // Req #1: Filter by effective employee (assigned_employee_id if set, else entered_by)
+  // This ensures reports correctly attribute readings to the right person
+  if (employeeId) {
+    where[Op.or] = [
+      { assignedEmployeeId: employeeId },           // manager entered on behalf of this employee
+      { enteredBy: employeeId, assignedEmployeeId: null }  // employee entered themselves
+    ];
   }
 
   // Date range filter
@@ -53,7 +62,14 @@ exports.getReadingsWithFilters = async (filters) => {
     {
       model: User,
       as: 'enteredByUser',
-      attributes: ['id', 'name']
+      attributes: ['id', 'name', 'role']
+    },
+    {
+      // Req #1: Include assigned employee info in reading responses
+      model: User,
+      as: 'assignedEmployee',
+      attributes: ['id', 'name', 'role'],
+      required: false
     },
     {
       model: require('../models').Creditor,
@@ -63,7 +79,7 @@ exports.getReadingsWithFilters = async (filters) => {
     {
       model: DailyTransaction,
       as: 'transaction',
-      attributes: ['id', 'transactionDate', 'status', 'createdBy', 'paymentBreakdown'],
+      attributes: ['id', 'transactionDate', 'status', 'createdBy', 'paymentBreakdown', 'paymentSubBreakdown'],
       required: false
     }
   ];

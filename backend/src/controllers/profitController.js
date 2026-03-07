@@ -167,28 +167,58 @@ exports.getProfitSummary = async (req, res) => {
       };
     });
     
-    // Get total expenses for the month
-    const expensesResult = await Expense.sum('amount', {
-      where: {
-        stationId,
-        expenseMonth: targetMonth
-      }
-    });
+    // Human-readable labels for expense categories
+    const EXPENSE_LABELS = {
+      salary: 'Salary',
+      electricity: 'Electricity',
+      rent: 'Rent / Lease',
+      insurance: 'Insurance',
+      loan_emi: 'Loan EMI',
+      cleaning: 'Cleaning',
+      generator_fuel: 'Generator Fuel',
+      drinking_water: 'Drinking Water',
+      maintenance: 'Maintenance / Repair',
+      equipment_purchase: 'Equipment Purchase',
+      taxes: 'Taxes & Govt Fees',
+      transportation: 'Transportation',
+      supplies: 'Supplies',
+      miscellaneous: 'Miscellaneous',
+    };
+
+    // Only count approved/auto-approved expenses in the P&L — pending ones are excluded
+    const APPROVED_STATUSES = ['approved', 'auto_approved'];
+
+    const [expensesResult, pendingExpensesResult, expensesByCategory] = await Promise.all([
+      Expense.sum('amount', {
+        where: {
+          stationId,
+          expenseMonth: targetMonth,
+          approvalStatus: { [Op.in]: APPROVED_STATUSES }
+        }
+      }),
+      Expense.sum('amount', {
+        where: {
+          stationId,
+          expenseMonth: targetMonth,
+          approvalStatus: 'pending'
+        }
+      }),
+      Expense.findAll({
+        attributes: [
+          'category',
+          [fn('SUM', col('amount')), 'total']
+        ],
+        where: {
+          stationId,
+          expenseMonth: targetMonth,
+          approvalStatus: { [Op.in]: APPROVED_STATUSES }
+        },
+        group: ['category'],
+        raw: true
+      })
+    ]);
     const totalExpenses = parseFloat((expensesResult || 0).toFixed(2));
-    
-    // Get expenses by category
-    const expensesByCategory = await Expense.findAll({
-      attributes: [
-        'category',
-        [fn('SUM', col('amount')), 'total']
-      ],
-      where: {
-        stationId,
-        expenseMonth: targetMonth
-      },
-      group: ['category'],
-      raw: true
-    });
+    const pendingExpenses = parseFloat((pendingExpensesResult || 0).toFixed(2));
     
     // Calculate profits
     const grossProfit = totalRevenue - totalCostOfGoods;
@@ -222,6 +252,7 @@ exports.getProfitSummary = async (req, res) => {
           totalRevenue: parseFloat(totalRevenue.toFixed(2)),
           totalCostOfGoods: parseFloat(totalCostOfGoods.toFixed(2)),
           totalExpenses,
+          pendingExpenses,
           grossProfit: parseFloat(grossProfit.toFixed(2)),
           netProfit: parseFloat(netProfit.toFixed(2)),
           profitMargin,
@@ -232,7 +263,8 @@ exports.getProfitSummary = async (req, res) => {
           byFuelType: profitByFuelType,
           byExpenseCategory: expensesByCategory.map(item => ({
             category: item.category,
-            amount: parseFloat(item.dataValues.total || 0)
+            label: EXPENSE_LABELS[item.category] || item.category,
+            amount: parseFloat(item.total || 0)
           })),
           readingDetails: readingsDetailsByFuelType
         },
@@ -334,11 +366,12 @@ exports.getDailyProfit = async (req, res) => {
       byFuelType[reading.fuelType].cogs += costOfGoods;
     }
     
-    // Get daily expenses
+    // Get daily expenses — only approved/auto-approved
     const dailyExpenses = await Expense.sum('amount', {
       where: {
         stationId,
-        expenseDate: queryDate
+        expenseDate: queryDate,
+        approvalStatus: { [Op.in]: ['approved', 'auto_approved'] }
       }
     }) || 0;
     

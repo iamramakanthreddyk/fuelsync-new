@@ -161,6 +161,14 @@ export interface NozzleReading {
   stationId: string;
   shiftId?: number;
   userId: string;
+  /** Who physically typed this reading */
+  enteredBy?: string;
+  /** Employee this reading is attributed to (null = enterer owns it) — Req #1 */
+  assignedEmployeeId?: string | null;
+  /** Resolved effective employee (assignedEmployee ?? enteredByUser) */
+  effectiveEmployee?: { id: string; name: string; role: string } | null;
+  /** True when a manager/owner entered on behalf of another employee */
+  wasEnteredOnBehalf?: boolean;
   readingDate: string;
   previousReading: number;
   currentReading: number;
@@ -179,6 +187,7 @@ export interface NozzleReading {
   // Relations
   nozzle?: Nozzle;
   user?: User;
+  assignedEmployee?: { id: string; name: string; role: string } | null;
 }
 
 export interface Shift {
@@ -379,12 +388,25 @@ export interface Expense {
   paymentMethod: PaymentMethod;
   referenceNumber?: string;
   vendorName?: string;
-  isRecurring: boolean;
+  /** Req #3: daily | weekly | monthly | one_time */
+  frequency?: 'daily' | 'weekly' | 'monthly' | 'one_time';
+  /** Req #3: approval workflow — pending (employee) | auto_approved (manager/owner) | approved | rejected */
+  approvalStatus?: 'pending' | 'approved' | 'rejected' | 'auto_approved';
+  approvedBy?: string | null;
+  approvedAt?: string | null;
+  /** Free-form tags for search/grouping */
+  tags?: string[] | null;
+  isRecurring?: boolean;
   recurringFrequency?: string;
   notes?: string;
-  recordedBy: string;
+  /** Who typed this expense entry */
+  enteredBy?: string;
+  recordedBy?: string;
   createdAt: string;
   updatedAt: string;
+  // Relations
+  enteredByUser?: { id: string; name: string; role: string };
+  approvedByUser?: { id: string; name: string; role: string } | null;
 }
 
 // ============================================

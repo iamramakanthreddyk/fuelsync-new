@@ -17,6 +17,7 @@ import { isOwner, getDashboardUrl, getBasePath } from '@/lib/roleUtils';
 import {
   Home,
   TrendingUp,
+  TrendingDown,
   Calendar,
   Fuel,
   FileText,
@@ -167,6 +168,13 @@ export function AppSidebar() {
           color: "text-emerald-600",
           bgColor: "bg-emerald-50",
         },
+        {
+          title: "Expenses",
+          url: `${basePath}/expenses`,
+          icon: TrendingDown,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
+        },
       ]
     },
     {
@@ -242,6 +250,13 @@ export function AppSidebar() {
           icon: FileText,
           color: "text-green-600",
           bgColor: "bg-green-50",
+        },
+        {
+          title: "Expenses",
+          url: "/manager/expenses",
+          icon: TrendingDown,
+          color: "text-red-600",
+          bgColor: "bg-red-50",
         },
       ]
     }] : []),

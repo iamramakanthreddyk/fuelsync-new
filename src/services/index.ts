@@ -1,21 +1,7 @@
-/**
- * FuelSync Services Layer
- * 
- * Centralized, type-safe API services for all backend endpoints.
- * Each service is responsible for a specific domain.
- * 
- * ARCHITECTURE:
- * - Services handle all API calls
- * - Components use hooks that wrap services
- * - All responses are typed
- * - Error handling is consistent
- */
-
-// Core API client
 export { apiClient, ApiError, getToken, setToken, removeToken } from '@/lib/api-client';
+export { api as apiWrapper } from '@/lib/api-wrapper';
 export type { ApiResponse, PaginatedResponse } from '@/lib/api-client';
 
-// Domain services - Core
 export { authService } from './authService';
 export type { AuthUser, AuthStation, RegisterRequest } from './authService';
 
@@ -32,6 +18,5 @@ export { shiftService, dashboardAlertsService } from './shiftService';
 export { fuelPriceService } from './fuelPriceService';
 export { settlementsService } from './settlementsService';
 
-// Legacy exports for backward compatibility
 export { apiService } from './api';
 export { planLimitsService } from './planLimitsService';

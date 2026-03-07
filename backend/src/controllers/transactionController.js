@@ -103,14 +103,23 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
  *   stationId: UUID,
  *   transactionDate: YYYY-MM-DD,
  *   readingIds: UUID[],
- *   paymentBreakdown: { cash: number, online: number, credit?: number },
+ *   paymentBreakdown: { cash: number, online: number, credit?: number },  ← legacy (still accepted)
+ *   paymentSubBreakdown?: {                                                ← NEW: detailed sub-types
+ *     cash: number,
+ *     upi: { gpay, phonepe, paytm, amazon_pay, cred, bhim, other_upi },
+ *     card: { debit_card, credit_card },
+ *     oil_company: { hp_pay, iocl_card, bpcl_smartfleet, ... },
+ *     credit: number
+ *   },
  *   creditAllocations?: [{ creditorId: UUID, amount: number }],
  *   notes?: string
  * }
+ * 
+ * If paymentSubBreakdown is provided, paymentBreakdown will be derived from it automatically.
  */
 exports.createTransaction = async (req, res, next) => {
   try {
-    const { stationId, transactionDate, readingIds = [], paymentBreakdown = {}, creditAllocations = [], notes = '' } = req.body;
+    const { stationId, transactionDate, readingIds = [], paymentBreakdown = {}, paymentSubBreakdown = null, creditAllocations = [], notes = '' } = req.body;
     const userId = req.userId;
 
     // Input validation
@@ -160,6 +169,13 @@ exports.createTransaction = async (req, res, next) => {
 
     const normalizedBreakdown = enhancedValidation.normalizedBreakdown;
 
+    // Req #2: If paymentSubBreakdown provided, derive the legacy paymentBreakdown from it
+    const { collapsePaymentBreakdown } = require('../config/constants');
+    let effectiveBreakdown = normalizedBreakdown;
+    if (paymentSubBreakdown && typeof paymentSubBreakdown === 'object') {
+      effectiveBreakdown = collapsePaymentBreakdown(paymentSubBreakdown);
+    }
+
     // Persist atomically
     const t = await sequelize.transaction();
     try {
@@ -168,7 +184,9 @@ exports.createTransaction = async (req, res, next) => {
         transactionDate,
         totalLiters,
         totalSaleValue,
-        paymentBreakdown: normalizedBreakdown,
+        paymentBreakdown: effectiveBreakdown,
+        // Req #2: Store structured sub-type breakdown if supplied
+        paymentSubBreakdown: paymentSubBreakdown || null,
         creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
         readingIds,
         createdBy: userId,
