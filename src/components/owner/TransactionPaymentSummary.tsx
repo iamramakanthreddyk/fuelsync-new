@@ -15,8 +15,9 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { safeToFixed } from '@/lib/format-utils';
-import { IndianRupee, CreditCard, Trash2 } from 'lucide-react';
-import type { Creditor, CreditAllocation } from '@/types/finance';
+import { IndianRupee, CreditCard, Trash2, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import type { Creditor, CreditAllocation, PaymentSubBreakdown, UpiSubType, CardSubType, OilCompanySubType } from '@/types/finance';
 import { toNumber } from '@/utils/number';
 import { ReadingInput } from '@/components/ui/ReadingInput';
 
@@ -24,6 +25,8 @@ interface TransactionPaymentSummaryProps {
   totalSaleValue: number;
   paymentBreakdown: { cash: number; online: number; credit: number };
   onPaymentChange: (breakdown: { cash: number; online: number; credit: number }) => void;
+  onlineBreakdown?: PaymentSubBreakdown | null;
+  onOnlineBreakdownChange?: (breakdown: PaymentSubBreakdown | null) => void;
   creditAllocations: CreditAllocation[];
   onCreditAllocationsChange: (allocations: CreditAllocation[]) => void;
   creditors?: Creditor[];
@@ -34,6 +37,8 @@ export function TransactionPaymentSummary({
   totalSaleValue,
   paymentBreakdown,
   onPaymentChange,
+  onlineBreakdown = null,
+  onOnlineBreakdownChange,
   creditAllocations,
   onCreditAllocationsChange,
   creditors = [],
@@ -45,11 +50,41 @@ export function TransactionPaymentSummary({
   };
 
   const handleOnlineChange = (value: string | number) => {
-    onPaymentChange({ ...paymentBreakdown, online: toNumber(value) });
+    const newOnlineAmount = toNumber(value);
+    onPaymentChange({ ...paymentBreakdown, online: newOnlineAmount });
+    
+    // Initialize breakdown when online > 0
+    if (newOnlineAmount > 0 && !onlineBreakdown) {
+      onOnlineBreakdownChange?.(initializeOnlineBreakdown());
+    } else if (newOnlineAmount === 0) {
+      onOnlineBreakdownChange?.(null);
+    }
   };
 
   const handleCreditChange = (value: string | number) => {
     onPaymentChange({ ...paymentBreakdown, credit: toNumber(value) });
+  };
+
+  const initializeOnlineBreakdown = (): PaymentSubBreakdown => ({
+    cash: 0,
+    upi: {},
+    card: {},
+    oil_company: {},
+    credit: 0
+  });
+
+  const updateOnlineBreakdownField = (path: string, value: string) => {
+    if (!onlineBreakdown) return;
+    const breakdown = { ...onlineBreakdown };
+    const keys = path.split('.');
+    let current: any = breakdown;
+    for (let i = 0; i < keys.length - 1; i++) {
+      if (!current[keys[i]]) current[keys[i]] = {};
+      current = current[keys[i]];
+    }
+    const lastKey = keys[keys.length - 1];
+    current[lastKey] = parseFloat(value) || 0;
+    onOnlineBreakdownChange?.(breakdown);
   };
 
   const handleAddCreditor = () => {
@@ -123,6 +158,118 @@ export function TransactionPaymentSummary({
               placeholder="0.00"
             />
           </div>
+
+          {/* Online Payment Breakdown */}
+          {paymentBreakdown.online > 0 && (
+            <div className="border-t pt-2">
+              <Collapsible defaultOpen={!!onlineBreakdown}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="text-xs font-semibold flex items-center gap-2 p-0 h-auto text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={() => {
+                      if (!onlineBreakdown) {
+                        onOnlineBreakdownChange?.(initializeOnlineBreakdown());
+                      }
+                    }}
+                  >
+                    <ChevronDown className="w-3 h-3" />
+                    {onlineBreakdown ? 'Collapse' : 'Add'} online breakdown
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2 space-y-2">
+                  {onlineBreakdown && (
+                    <div className="bg-blue-50 p-2 rounded space-y-2">
+                  {/* UPI Methods */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-blue-700">UPI Methods</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-1">
+                      {[
+                        { key: 'gpay', label: 'GPay' },
+                        { key: 'phonepe', label: 'PhonePe' },
+                        { key: 'paytm', label: 'Paytm' },
+                        { key: 'amazon_pay', label: 'AmazonPay' },
+                        { key: 'cred', label: 'CRED' },
+                        { key: 'bhim', label: 'BHIM' },
+                        { key: 'other_upi', label: 'Other UPI' }
+                      ].map(({ key, label }) => (
+                        <div key={key}>
+                          <Label htmlFor={`upi-${key}`} className="text-xs">{label}</Label>
+                          <Input
+                            id={`upi-${key}`}
+                            type="number"
+                            step="0.01"
+                            value={onlineBreakdown.upi[key as UpiSubType] || ''}
+                            onChange={(e) => updateOnlineBreakdownField(`upi.${key}`, e.target.value)}
+                            placeholder="0"
+                            className="text-xs h-6"
+                            disabled={isLoading}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Card Methods */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-green-700">Cards</Label>
+                    <div className="grid grid-cols-2 gap-1">
+                      {[
+                        { key: 'debit_card', label: 'Debit' },
+                        { key: 'credit_card', label: 'Credit' }
+                      ].map(({ key, label }) => (
+                        <div key={key}>
+                          <Label htmlFor={`card-${key}`} className="text-xs">{label}</Label>
+                          <Input
+                            id={`card-${key}`}
+                            type="number"
+                            step="0.01"
+                            value={onlineBreakdown.card[key as CardSubType] || ''}
+                            onChange={(e) => updateOnlineBreakdownField(`card.${key}`, e.target.value)}
+                            placeholder="0"
+                            className="text-xs h-6"
+                            disabled={isLoading}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Oil Company Methods */}
+                  <div className="space-y-1">
+                    <Label className="text-xs font-semibold text-orange-700">Oil Company</Label>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-1">
+                      {[
+                        { key: 'hp_pay', label: 'HP' },
+                        { key: 'iocl_card', label: 'IOCL' },
+                        { key: 'bpcl_smartfleet', label: 'BPCL' },
+                        { key: 'essar_fleet', label: 'Essar' },
+                        { key: 'reliance_fleet', label: 'Reliance' },
+                        { key: 'other_oil_company', label: 'Other' }
+                      ].map(({ key, label }) => (
+                        <div key={key}>
+                          <Label htmlFor={`oil-${key}`} className="text-xs">{label}</Label>
+                          <Input
+                            id={`oil-${key}`}
+                            type="number"
+                            step="0.01"
+                            value={onlineBreakdown.oil_company[key as OilCompanySubType] || ''}
+                            onChange={(e) => updateOnlineBreakdownField(`oil_company.${key}`, e.target.value)}
+                            placeholder="0"
+                            className="text-xs h-6"
+                            disabled={isLoading}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            </div>
+          )}
 
           {/* Credit */}
           <div>

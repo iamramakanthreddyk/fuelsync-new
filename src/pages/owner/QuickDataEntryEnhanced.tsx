@@ -43,7 +43,6 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, usePumps } from '@/hooks/api';
-import { useDashboardData } from '@/hooks/useDashboardData';
 import { useFuelPricesForStation } from '@/hooks/useFuelPricesForStation';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { safeToFixed } from '@/lib/format-utils';
@@ -56,15 +55,24 @@ import {
   Fuel,
   AlertTriangle,
   Plus,
-  X,
-  Trash2
+  Trash2,
+  ChevronDown
 } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
+import type {
+  Station,
+  Pump,
+  Creditor
+} from '@/types/api';
 import type {
   ReadingEntry,
   CreditAllocation,
   PaymentAllocation,
-  Creditor
+  PaymentSubBreakdown,
+  UpiSubType,
+  CardSubType,
+  OilCompanySubType
 } from '@/types/finance';
 
 // Utility function to calculate litres and sale value for a nozzle
@@ -101,18 +109,44 @@ export default function QuickDataEntryEnhanced() {
   const [paymentAllocation, setPaymentAllocation] = useState<PaymentAllocation>({
     cash: '0',
     online: '0',
+    onlineBreakdown: null,
     credits: []
   });
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  // Helper functions for online breakdown
+  const initializeOnlineBreakdown = (): PaymentSubBreakdown => ({
+    cash: 0,
+    upi: {},
+    card: {},
+    oil_company: {},
+    credit: 0
+  });
+
+  const updateOnlineBreakdownField = (path: string, value: string) => {
+    setPaymentAllocation((prev: PaymentAllocation) => {
+      if (!prev.onlineBreakdown) return prev;
+      const breakdown = { ...prev.onlineBreakdown };
+      const keys = path.split('.');
+      let current: any = breakdown;
+      for (let i = 0; i < keys.length - 1; i++) {
+        if (!current[keys[i]]) current[keys[i]] = {};
+        current = current[keys[i]];
+      }
+      const lastKey = keys[keys.length - 1];
+      current[lastKey] = parseFloat(value) || 0;
+      return { ...prev, onlineBreakdown: breakdown };
+    });
+  };
+
   // Get fuel prices context
   const { setStationId } = useFuelPricesGlobal();
 
   // Fetch stations
-  const { data: stationsResponse } = useStations();
-  const stations = stationsResponse?.data;
+  const stationsResponse = useStations().data;
+  const stations: Station[] = stationsResponse?.success ? stationsResponse.data : [];
 
   // Determine if user can select stations (owners/managers) or is auto-assigned (employees)
   const canSelectStation = user?.role === 'owner' || user?.role === 'manager';
@@ -144,8 +178,10 @@ export default function QuickDataEntryEnhanced() {
   }, [selectedStation, setStationId]);
 
   // Fetch pumps for selected station
-  const { data: pumpsResponse, isLoading: pumpsLoading } = usePumps(selectedStation);
-  const pumps = pumpsResponse?.data || (Array.isArray(pumpsResponse) ? pumpsResponse : null);
+  const pumpsQuery = usePumps(selectedStation);
+  const pumpsResponse = pumpsQuery.data;
+  const pumps: Pump[] = pumpsResponse?.success ? pumpsResponse.data : [];
+  const pumpsLoading = pumpsQuery.isLoading;
 
   // Get fuel prices for selected station from global context (preloaded on app init)
   const { missingFuelTypes: missingPricesFuelTypes = [], pricesArray = [] } = useFuelPricesForStation(selectedStation);
@@ -153,11 +189,11 @@ export default function QuickDataEntryEnhanced() {
   const fuelPrices = useMemo(() => Array.isArray(pricesArray) ? pricesArray : [], [pricesArray]);
 
   // Fetch true last readings for all nozzles to use in payment allocation calculation
-  const { data: allLastReadings, isLoading: allLastReadingsIsLoading } = useQuery({
+  const { data: allLastReadings } = useQuery({
     queryKey: ['allNozzleLastReadings', selectedStation],
     queryFn: async () => {
       if (!selectedStation || !pumps) return {};
-      const nozzleIds = pumps.flatMap(p => p.nozzles || []).map((n: any) => n.id);
+      const nozzleIds = pumps.flatMap((p: any) => p.nozzles || []).map((n: any) => n.id);
       if (nozzleIds.length === 0) return {};
       try {
         const idsParam = nozzleIds.join(',');
@@ -207,16 +243,16 @@ export default function QuickDataEntryEnhanced() {
 
       // Build a set of valid nozzle IDs from the current pumps
       const validNozzleIds = new Set(
-        pumpsArray.flatMap(pump => (pump.nozzles ? pump.nozzles.map((nz: any) => nz.id) : []))
+        pumpsArray.flatMap((pump: any) => (pump.nozzles ? pump.nozzles.map((nz: any) => nz.id) : []))
       );
       // Only process readings for valid, unique nozzle IDs
-      Object.entries(readings).forEach(([nozzleId, reading]) => {
+      Object.entries(readings).forEach(([nozzleId, reading]: [string, ReadingEntry]) => {
         if (!validNozzleIds.has(nozzleId)) return;
         if (!reading || !reading.readingValue) return;
         // Skip sample readings - they don't contribute to sale value
         if (reading.is_sample) return;
         // Find the nozzle object
-        const nozzle = pumpsArray.flatMap(p => p.nozzles || []).find((nz: any) => nz.id === nozzleId);
+        const nozzle = pumpsArray.flatMap((p: any) => p.nozzles || []).find((nz: any) => nz.id === nozzleId);
         if (!nozzle) return;
         // Match UI logic for last reading (compareValue)
         const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
@@ -267,7 +303,7 @@ export default function QuickDataEntryEnhanced() {
       return { isMatched: true, allocated: 0, required: 0, difference: 0 };
     }
 
-    const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
+    const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
     const allocated = toNumber(paymentAllocation.cash) + toNumber(paymentAllocation.online) + totalCredit;
     const required = saleSummary.totalSaleValue;
     const difference = allocated - required;
@@ -285,27 +321,19 @@ export default function QuickDataEntryEnhanced() {
     return Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0 && !r.is_sample);
   }, [readings]);
 
-  // Calculate total readings with values (for submit button logic)
-  const readingsWithValues = useMemo(() => {
-    return Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0);
-  }, [readings]);
-
   // Initial payment allocation setup (only when completely empty)
   useEffect(() => {
     const totalSaleValue = saleSummary.totalSaleValue;
     const currentTotal =
       toNumber(paymentAllocation.cash) +
       toNumber(paymentAllocation.online) +
-      paymentAllocation.credits.reduce((s, c) => s + toNumber(c.amount), 0);
+      paymentAllocation.credits.reduce((s: number, c: CreditAllocation) => s + toNumber(c.amount), 0);
 
     // Only set initial allocation if everything is empty and we have sales
     if (totalSaleValue > 0 && currentTotal === 0 && paymentAllocation.cash === '0' && paymentAllocation.online === '0' && paymentAllocation.credits.length === 0) {
-      setPaymentAllocation({ cash: totalSaleValue.toString(), online: '0', credits: [] });
+      setPaymentAllocation({ cash: totalSaleValue.toString(), online: '0', onlineBreakdown: null, credits: [] });
     }
   }, [saleSummary.totalSaleValue]);
-
-  // Fetch backend stats for today's sales (reactive to selectedStation)
-  const { data: dashboardData } = useDashboardData(selectedStation);
 
   // Default payment allocation: add sale value to cash when sale increases
   const prevSaleValueRef = useRef<number>(0);
@@ -329,6 +357,22 @@ export default function QuickDataEntryEnhanced() {
     prevSaleValueRef.current = newTotalSaleValue;
   }, [saleSummary.totalSaleValue]);
 
+  // Initialize online breakdown when online > 0
+  useEffect(() => {
+    const onlineAmount = toNumber(String(paymentAllocation.online));
+    if (onlineAmount > 0 && !paymentAllocation.onlineBreakdown) {
+      setPaymentAllocation(prev => ({
+        ...prev,
+        onlineBreakdown: initializeOnlineBreakdown()
+      }));
+    } else if (onlineAmount === 0) {
+      setPaymentAllocation(prev => ({
+        ...prev,
+        onlineBreakdown: null
+      }));
+    }
+  }, [paymentAllocation.online]);
+
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
     mutationFn: async (data: ReadingEntry[]) => {
@@ -337,7 +381,7 @@ export default function QuickDataEntryEnhanced() {
 
       // Validate payment allocation for all users when there are non-sample readings
       if (nonSampleReadings.length > 0) {
-        const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
+        const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
         const totalPayment = toNumber(paymentAllocation.cash) + toNumber(paymentAllocation.online) + totalCredit;
 
         if (totalPayment === 0) {
@@ -361,7 +405,7 @@ export default function QuickDataEntryEnhanced() {
       // Build per-entry sale values so we can distribute payments proportionally
       // Note: Sample readings don't contribute to payment allocation but are still submitted
       const entriesWithSale = data.map(entry => {
-        const nozzle = pumps?.flatMap(p => p.nozzles || []).find((n: any) => n.id === entry.nozzleId);
+        const nozzle = pumps?.flatMap((p: any) => p.nozzles || []).find((n: any) => n.id === entry.nozzleId);
         const trueLastReading = allLastReadings ? allLastReadings[entry.nozzleId] : undefined;
         const lastReading = (trueLastReading !== undefined && trueLastReading !== null)
           ? trueLastReading
@@ -375,7 +419,7 @@ export default function QuickDataEntryEnhanced() {
       const totalSale = entriesWithSale.reduce((s: number, e: any) => s + e.saleValue, 0);
       const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
 
-      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
+      const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
       const cashRatio = totalSale > 0 ? (toNumber(paymentAllocation.cash) / totalSale) : 0;
       const onlineRatio = totalSale > 0 ? (toNumber(paymentAllocation.online) / totalSale) : 0;
       // For credit, distribute proportionally if multiple creditors
@@ -384,7 +428,7 @@ export default function QuickDataEntryEnhanced() {
       let allocatedCash = 0, allocatedOnline = 0;
       const readingsPayload: Array<{ nozzleId: string; readingValue: number; readingDate: string; isSample: boolean; notes: string }> = [];
 
-      entriesWithSale.forEach((item, idx) => {
+      entriesWithSale.forEach((item: any, idx: number) => {
         const isLast = idx === entriesWithSale.length - 1;
         let cashAmt = round2(item.saleValue * cashRatio);
         let onlineAmt = round2(item.saleValue * onlineRatio);
@@ -401,7 +445,7 @@ export default function QuickDataEntryEnhanced() {
         // Distribute credit among creditors proportionally for each reading
         let creditTotal = 0;
         if (totalCredit > 0) {
-          paymentAllocation.credits.forEach((creditAlloc, cidx) => {
+          paymentAllocation.credits.forEach((creditAlloc: CreditAllocation, cidx: number) => {
             const allocAmount = toNumber(creditAlloc.amount);
             let amt = round2(item.saleValue * (allocAmount / totalCredit));
             if (isLast && cidx === paymentAllocation.credits.length - 1) {
@@ -424,7 +468,7 @@ export default function QuickDataEntryEnhanced() {
         });
       });
       // Build combined quick-entry payload
-      const totalCreditTxn = nonSampleReadings.length > 0 ? paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0) : 0;
+      const totalCreditTxn = nonSampleReadings.length > 0 ? paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0) : 0;
       const stationPrices = Array.isArray(fuelPrices) ? fuelPrices.map(p => ({ fuelType: p.fuel_type, price: p.price_per_litre })) : [];
       const quickEntryPayload: any = {
         stationId: selectedStation,
@@ -454,7 +498,7 @@ export default function QuickDataEntryEnhanced() {
       });
       // Clear the form
       setReadings({});
-      setPaymentAllocation({ cash: '', online: '', credits: [] });
+      setPaymentAllocation({ cash: '', online: '', onlineBreakdown: null, credits: [] });
       // Invalidate and refetch pumps data
       queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
       queryClient.invalidateQueries({ queryKey: ['pumps-data', selectedStation] });
@@ -521,12 +565,6 @@ export default function QuickDataEntryEnhanced() {
     return fuelPrices.some(p => (p.fuel_type || '').toUpperCase() === fuelType.toUpperCase());
   };
 
-  // Get all fuel types that are in use but missing prices
-  // (Already calculated in the hook, but kept for backward compatibility with getMissingFuelTypes calls)
-  const getMissingFuelTypes = (): string[] => {
-    return missingPricesFuelTypes;
-  };
-
   const handleSubmit = () => {
     const entries = Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0);
     if (entries.length === 0) {
@@ -543,7 +581,7 @@ export default function QuickDataEntryEnhanced() {
 
     // Only validate payment allocation if there are non-sample readings
     if (nonSampleEntries.length > 0) {
-      const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
+      const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
       const allocated = toNumber(paymentAllocation.cash) + toNumber(paymentAllocation.online) + totalCredit;
 
       // Check if payment is completely missing
@@ -578,8 +616,8 @@ export default function QuickDataEntryEnhanced() {
 
     // Validate fuel prices (only for non-sample readings)
     const nozzlesWithNonSampleReadings = pumps
-      ?.flatMap(p => p.nozzles || [])
-      .filter(n => nonSampleEntries.some(e => e.nozzleId === n.id)) || [];
+      ?.flatMap((p: any) => p.nozzles || [])
+      .filter((n: any) => nonSampleEntries.some(e => e.nozzleId === n.id)) || [];
 
     const missingPrices = nozzlesWithNonSampleReadings.filter(n => !hasPriceForFuelType(n.fuelType));
     if (missingPrices.length > 0) {
@@ -596,7 +634,7 @@ export default function QuickDataEntryEnhanced() {
   };
 
   const pendingCount = Object.keys(readings).length;
-  const totalNozzles = pumps?.reduce((sum, pump) => sum + (pump.nozzles?.length || 0), 0) || 0;
+  const totalNozzles = pumps?.reduce((sum: number, pump: any) => sum + (pump.nozzles?.length || 0), 0) || 0;
 
   // Loading states
   if (pumpsLoading) {
@@ -651,7 +689,7 @@ export default function QuickDataEntryEnhanced() {
                     <SelectValue placeholder="Choose a station" />
                   </SelectTrigger>
                   <SelectContent>
-                    {stations?.map((station) => (
+                    {stations?.map((station: any) => (
                       <SelectItem key={station.id} value={station.id}>
                         <div className="flex items-center space-x-2">
                           <Building2 className="h-4 w-4" />
@@ -677,7 +715,7 @@ export default function QuickDataEntryEnhanced() {
                 <div className="flex items-center space-x-2">
                   <Building2 className="h-4 w-4" />
                   <span className="text-sm font-medium">
-                    {stations?.find(s => s.id === selectedStation)?.name || 'Station'}
+                    {stations?.find((s: any) => s.id === selectedStation)?.name || 'Station'}
                   </span>
                 </div>
               </div>
@@ -737,7 +775,7 @@ export default function QuickDataEntryEnhanced() {
 
             {/* Pumps and Nozzles */}
             <div className="grid gap-6">
-              {pumps?.map((pump) => (
+              {pumps?.map((pump: any) => (
                 <Card key={pump.id} className="shadow-lg">
                   <CardHeader className="pb-4">
                     <div className="flex items-center space-x-3">
@@ -914,7 +952,7 @@ export default function QuickDataEntryEnhanced() {
                         type="number"
                         step="0.01"
                         value={paymentAllocation.cash}
-                        onChange={(e) => setPaymentAllocation(prev => ({ ...prev, cash: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentAllocation((prev: PaymentAllocation) => ({ ...prev, cash: e.target.value }))}
                         placeholder="0.00"
                         className="w-full"
                       />
@@ -927,7 +965,7 @@ export default function QuickDataEntryEnhanced() {
                         type="number"
                         step="0.01"
                         value={paymentAllocation.online}
-                        onChange={(e) => setPaymentAllocation(prev => ({ ...prev, online: e.target.value }))}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPaymentAllocation((prev: PaymentAllocation) => ({ ...prev, online: e.target.value }))}
                         placeholder="0.00"
                         className="w-full"
                       />
@@ -937,13 +975,125 @@ export default function QuickDataEntryEnhanced() {
                     <div className="space-y-2">
                       <Label className="text-sm font-medium">Credit Payment</Label>
                       <div className="text-sm text-gray-600">
-                        Total: ₹{safeToFixed(paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0), 2)}
+                        Total: ₹{safeToFixed(paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0), 2)}
                       </div>
                     </div>
                   </div>
 
+                  {/* Online Payment Breakdown */}
+                  {toNumber(String(paymentAllocation.online)) > 0 && (
+                    <div className="border-t pt-4">
+                      <Collapsible defaultOpen={!!paymentAllocation.onlineBreakdown}>
+                        <CollapsibleTrigger asChild>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            className="text-sm font-semibold flex items-center gap-2 p-0 h-auto text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            onClick={() => {
+                              if (!paymentAllocation.onlineBreakdown) {
+                                setPaymentAllocation((prev: PaymentAllocation) => ({
+                                  ...prev,
+                                  onlineBreakdown: initializeOnlineBreakdown()
+                                }));
+                              }
+                            }}
+                          >
+                            <ChevronDown className="w-4 h-4" />
+                            {paymentAllocation.onlineBreakdown ? 'Collapse' : 'Add'} payment method breakdown
+                          </Button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-3 space-y-4">
+                          {paymentAllocation.onlineBreakdown && (
+                            <div className="bg-blue-50 p-3 rounded space-y-3">
+                          {/* UPI Methods */}
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-blue-700">UPI Methods</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                              {[
+                                { key: 'gpay', label: 'GPay' },
+                                { key: 'phonepe', label: 'PhonePe' },
+                                { key: 'paytm', label: 'Paytm' },
+                                { key: 'amazon_pay', label: 'Amazon Pay' },
+                                { key: 'cred', label: 'CRED' },
+                                { key: 'bhim', label: 'BHIM' },
+                                { key: 'other_upi', label: 'Other UPI' }
+                              ].map(({ key, label }) => (
+                                <div key={key}>
+                                  <Label htmlFor={`upi-${key}`} className="text-xs">{label}</Label>
+                                  <Input
+                                    id={`upi-${key}`}
+                                    type="number"
+                                    step="0.01"
+                                    value={paymentAllocation.onlineBreakdown?.upi[key as UpiSubType] || '0'}
+                                    onChange={(e) => updateOnlineBreakdownField(`upi.${key}`, e.target.value)}
+                                    placeholder="0.00"
+                                    className="text-xs h-8"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Card Methods */}
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-green-700">Card Methods</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                              {[
+                                { key: 'debit_card', label: 'Debit Card' },
+                                { key: 'credit_card', label: 'Credit Card' }
+                              ].map(({ key, label }) => (
+                                <div key={key}>
+                                  <Label htmlFor={`card-${key}`} className="text-xs">{label}</Label>
+                                  <Input
+                                    id={`card-${key}`}
+                                    type="number"
+                                    step="0.01"
+                                    value={paymentAllocation.onlineBreakdown?.card[key as CardSubType] || '0'}
+                                    onChange={(e) => updateOnlineBreakdownField(`card.${key}`, e.target.value)}
+                                    placeholder="0.00"
+                                    className="text-xs h-8"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Oil Company Methods */}
+                          <div className="space-y-2">
+                            <Label className="text-xs font-semibold text-orange-700">Oil Company</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                              {[
+                                { key: 'hp_pay', label: 'HP' },
+                                { key: 'iocl_card', label: 'IOCL' },
+                                { key: 'bpcl_smartfleet', label: 'BPCL' },
+                                { key: 'essar_fleet', label: 'Essar' },
+                                { key: 'reliance_fleet', label: 'Reliance' },
+                                { key: 'other_oil_company', label: 'Other Oil Co' }
+                              ].map(({ key, label }) => (
+                                <div key={key}>
+                                  <Label htmlFor={`oil-${key}`} className="text-xs">{label}</Label>
+                                  <Input
+                                    id={`oil-${key}`}
+                                    type="number"
+                                    step="0.01"
+                                    value={paymentAllocation.onlineBreakdown?.oil_company[key as OilCompanySubType] || ''}
+                                    onChange={(e) => updateOnlineBreakdownField(`oil_company.${key}`, e.target.value)}
+                                    placeholder="0.00"
+                                    className="text-xs h-8"
+                                  />
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                            </div>
+                          )}
+                        </CollapsibleContent>
+                      </Collapsible>
+                    </div>
+                  )}
+
                   {/* Credit Allocations */}
-                  {paymentAllocation.credits.map((credit, index) => {
+                  {paymentAllocation.credits.map((credit: CreditAllocation, index: number) => {
                     const selectedCreditor = creditors?.find(c => c.id === credit.creditorId);
                     const availableBalance = selectedCreditor ? selectedCreditor.creditLimit - selectedCreditor.currentBalance : 0;
                     
@@ -952,7 +1102,7 @@ export default function QuickDataEntryEnhanced() {
                         <div className="col-span-1">
                           <Select
                             value={credit.creditorId}
-                            onValueChange={(value) => {
+                            onValueChange={(value: string) => {
                               const newCredits = [...paymentAllocation.credits];
                               newCredits[index].creditorId = value;
                               setPaymentAllocation(prev => ({ ...prev, credits: newCredits }));
@@ -980,7 +1130,7 @@ export default function QuickDataEntryEnhanced() {
                             type="number"
                             step="0.01"
                             value={credit.amount}
-                            onChange={(e) => {
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                               const newCredits = [...paymentAllocation.credits];
                               newCredits[index].amount = e.target.value;
                               setPaymentAllocation(prev => ({ ...prev, credits: newCredits }));
@@ -993,8 +1143,8 @@ export default function QuickDataEntryEnhanced() {
                             size="sm"
                             className="p-1 h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
                             onClick={() => {
-                              const newCredits = paymentAllocation.credits.filter((_, i) => i !== index);
-                              setPaymentAllocation(prev => ({ ...prev, credits: newCredits }));
+                              const newCredits = paymentAllocation.credits.filter((_: any, i: number) => i !== index);
+                              setPaymentAllocation((prev: PaymentAllocation) => ({ ...prev, credits: newCredits }));
                             }}
                           >
                             <Trash2 className="h-4 w-4" />
