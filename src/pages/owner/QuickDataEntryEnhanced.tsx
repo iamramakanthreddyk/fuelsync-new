@@ -42,7 +42,7 @@ import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
-import { useStations, usePumps } from '@/hooks/api';
+import { useStations, usePumps, useStationStaff } from '@/hooks/api';
 import { useFuelPricesForStation } from '@/hooks/useFuelPricesForStation';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { safeToFixed } from '@/lib/format-utils';
@@ -63,7 +63,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import type {
   Station,
   Pump,
-  Creditor
+  Creditor,
+  User
 } from '@/types/api';
 import type {
   ReadingEntry,
@@ -104,6 +105,7 @@ export default function QuickDataEntryEnhanced() {
   const { user } = useAuth();
   const { stations: userStations } = useRoleAccess();
   const [selectedStation, setSelectedStation] = useState<string>('');
+  const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
   const [readings, setReadings] = useState<Record<string, ReadingEntry>>({});
   const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentAllocation, setPaymentAllocation] = useState<PaymentAllocation>({
@@ -153,6 +155,11 @@ export default function QuickDataEntryEnhanced() {
   const isEmployee = user?.role === 'employee';
   const isOwner = user?.role === 'owner';
   const isManager = user?.role === 'manager';
+  
+  // Fetch employees for selected station (owners/managers can assign to employees)
+  const { data: staffData } = useStationStaff(selectedStation);
+  const employees: User[] = staffData?.data || [];
+  const employeesToAssign = employees.filter((emp: User) => emp.role === 'employee');
 
   // Auto-select station based on role
   useEffect(() => {
@@ -169,6 +176,15 @@ export default function QuickDataEntryEnhanced() {
       setSelectedStation(stations[0].id);
     }
   }, [stations, selectedStation, isEmployee, canSelectStation, user?.stationId, userStations]);
+
+  // Auto-select first employee when employees list is populated (for owners/managers)
+  useEffect(() => {
+    if (isOwner || isManager) {
+      if (employeesToAssign.length > 0 && !selectedEmployeeId) {
+        setSelectedEmployeeId(employeesToAssign[0].id);
+      }
+    }
+  }, [employeesToAssign, selectedEmployeeId, isOwner, isManager]);
 
   // Update context when selected station changes (loads prices for that station)
   useEffect(() => {
@@ -322,7 +338,13 @@ export default function QuickDataEntryEnhanced() {
     }
 
     const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
-    const allocated = toNumber(paymentAllocation.cash) + toNumber(paymentAllocation.online) + totalCredit;
+    
+    // Use breakdown total if it exists and is greater than the explicit online field
+    // This ensures reconciliation works even if breakdown is entered but online field not yet synced
+    const breakdownTotal = calculateOnlineBreakdownTotal(paymentAllocation.onlineBreakdown);
+    const onlineAmount = Math.max(toNumber(paymentAllocation.online), breakdownTotal);
+    
+    const allocated = toNumber(paymentAllocation.cash) + onlineAmount + totalCredit;
     const required = saleSummary.totalSaleValue;
     const difference = allocated - required;
 
@@ -332,7 +354,7 @@ export default function QuickDataEntryEnhanced() {
       required,
       difference
     };
-  }, [readings, paymentAllocation, saleSummary.totalSaleValue]);
+  }, [readings, paymentAllocation, saleSummary.totalSaleValue, onlineBreakdownTotal]);
 
   // Calculate non-sample readings count for UI logic
   const nonSampleReadings = useMemo(() => {
@@ -390,6 +412,23 @@ export default function QuickDataEntryEnhanced() {
       }));
     }
   }, [paymentAllocation.online]);
+
+  // Auto-sync online payment with breakdown total (reconciliation)
+  useEffect(() => {
+    const breakdownTotal = calculateOnlineBreakdownTotal(paymentAllocation.onlineBreakdown);
+    const currentOnline = toNumber(paymentAllocation.online);
+    
+    // If breakdown total exists and differs from online field, sync them
+    if (breakdownTotal > 0 && Math.abs(breakdownTotal - currentOnline) > 0.01) {
+      // Update online field to match breakdown and adjust cash to compensate
+      const difference = breakdownTotal - currentOnline;
+      setPaymentAllocation(prev => ({
+        ...prev,
+        online: breakdownTotal.toString(),
+        cash: Math.max(0, toNumber(prev.cash) - difference).toString()
+      }));
+    }
+  }, [onlineBreakdownTotal]);
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
@@ -491,6 +530,11 @@ export default function QuickDataEntryEnhanced() {
       // Build combined quick-entry payload
       const totalCreditTxn = nonSampleReadings.length > 0 ? paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0) : 0;
       const stationPrices = Array.isArray(fuelPrices) ? fuelPrices.map(p => ({ fuelType: p.fuel_type, price: p.price_per_litre })) : [];
+      
+      // Determine who to associate the entry with
+      // For owners/managers: use selected employee; for employees: use current user
+      const entryAssigneeId = (isOwner || isManager) ? selectedEmployeeId : user?.id;
+      
       const quickEntryPayload: any = {
         stationId: selectedStation,
         transactionDate: readingDate,
@@ -506,8 +550,8 @@ export default function QuickDataEntryEnhanced() {
         },
         creditAllocations: nonSampleReadings.length > 0 && totalCreditTxn > 0 ? paymentAllocation.credits.map(c => ({ creditorId: c.creditorId, amount: toNumber(c.amount) })) : [],
         stationPrices,
-        // Associate entry to current employee
-        ...(user?.id ? { associatedEmployeeId: user.id } : {}),
+        // Associate entry to selected employee (for owners) or current user (for employees)
+        ...(entryAssigneeId ? { associatedEmployeeId: entryAssigneeId } : {}),
         ...(paymentAllocation.onlineBreakdown ? { paymentSubBreakdown: paymentAllocation.onlineBreakdown } : {})
       };
 
@@ -603,11 +647,15 @@ export default function QuickDataEntryEnhanced() {
     // Separate sample and non-sample readings
     const nonSampleEntries = entries.filter(e => !e.is_sample);
 
-    // Validate online breakdown if online payment > 0
-    if (toNumber(paymentAllocation.online) > 0 && onlineBreakdownMismatch) {
+    // Validate online breakdown reconciliation
+    const breakdownTotal = calculateOnlineBreakdownTotal(paymentAllocation.onlineBreakdown);
+    const onlinePayment = toNumber(paymentAllocation.online);
+    
+    // If there's a breakdown but payment doesn't match, flag it
+    if (breakdownTotal > 0 && Math.abs(breakdownTotal - onlinePayment) > 0.01) {
       toast({
-        title: 'Online Breakdown Mismatch',
-        description: `Breakdown total ₹${safeToFixed(onlineBreakdownTotal, 2)} does not match Online payment ₹${safeToFixed(toNumber(paymentAllocation.online), 2)}`,
+        title: 'Online Payment Mismatch',
+        description: `Breakdown total ₹${safeToFixed(breakdownTotal, 2)} does not match Online payment ₹${safeToFixed(onlinePayment, 2)}. Please verify your breakdown entries.`,
         variant: 'destructive'
       });
       return;
@@ -752,6 +800,33 @@ export default function QuickDataEntryEnhanced() {
                     {stations?.find((s: any) => s.id === selectedStation)?.name || 'Station'}
                   </span>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Employee Selection - Only for owners and managers */}
+        {(isOwner || isManager) && selectedStation && (
+          <Card className="shadow-lg">
+            <CardContent className="p-6">
+              <div className="flex items-center space-x-4">
+                <Label htmlFor="employee-select" className="text-sm font-medium text-gray-700">
+                  Assign Entry To:
+                </Label>
+                <Select value={selectedEmployeeId} onValueChange={setSelectedEmployeeId}>
+                  <SelectTrigger className="w-64">
+                    <SelectValue placeholder="Select an employee" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employeesToAssign.map((employee: User) => (
+                      <SelectItem key={employee.id} value={employee.id}>
+                        <div className="flex items-center space-x-2">
+                          <span>{employee.name || employee.email}</span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </CardContent>
           </Card>
