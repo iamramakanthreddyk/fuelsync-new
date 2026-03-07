@@ -52,7 +52,7 @@ export default function ReadingApprovalList() {
   const approveMutation = useMutation({
     mutationFn: async () => {
       if (!selectedReading) throw new Error('No reading selected');
-      return apiClient.post(`/api/v1/readings/${selectedReading.id}/approve`, {});
+      return apiClient.post(`/readings/${selectedReading.id}/approve`, {});
     },
     onSuccess: () => {
       toast.success('Reading approved');
@@ -70,7 +70,7 @@ export default function ReadingApprovalList() {
     mutationFn: async () => {
       if (!selectedReading) throw new Error('No reading selected');
       if (!rejectionReason) throw new Error('Rejection reason required');
-      return apiClient.post(`/api/v1/readings/${selectedReading.id}/reject`, { reason: rejectionReason });
+      return apiClient.post(`/readings/${selectedReading.id}/reject`, { reason: rejectionReason });
     },
     onSuccess: () => {
       toast.warning('Reading rejected');

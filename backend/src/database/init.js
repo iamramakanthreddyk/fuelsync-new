@@ -161,6 +161,13 @@ async function runColumnMigrations() {
       sql: isPostgres
         ? `ALTER TABLE nozzle_readings ADD COLUMN IF NOT EXISTS assigned_employee_id UUID REFERENCES users(id) ON DELETE SET NULL;`
         : `ALTER TABLE nozzle_readings ADD COLUMN IF NOT EXISTS assigned_employee_id TEXT REFERENCES users(id);`
+    },
+    {
+      table: 'daily_transactions',
+      column: 'payment_sub_breakdown',
+      sql: isPostgres
+        ? `ALTER TABLE daily_transactions ADD COLUMN IF NOT EXISTS payment_sub_breakdown JSONB DEFAULT NULL;`
+        : `ALTER TABLE daily_transactions ADD COLUMN IF NOT EXISTS payment_sub_breakdown TEXT DEFAULT NULL;`
     }
   ];
 

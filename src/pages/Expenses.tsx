@@ -126,7 +126,7 @@ function AddExpenseForm({ stationId, onSuccess }: AddExpenseFormProps) {
 
   const mutation = useMutation({
     mutationFn: (data: Record<string, unknown>) =>
-      apiClient.post(`/api/v1/stations/${stationId}/expenses`, data),
+      apiClient.post(`/stations/${stationId}/expenses`, data),
     onSuccess: () => {
       toast.success('Expense recorded successfully');
       onSuccess();
@@ -351,7 +351,7 @@ export default function ExpensesPage() {
       const params = viewMode === 'daily'
         ? `date=${selectedDate}`
         : `month=${selectedMonth}`;
-      return apiClient.get<any>(`/api/v1/stations/${stationId}/expense-summary?${params}`);
+      return apiClient.get<any>(`/stations/${stationId}/expense-summary?${params}`);
     },
     enabled: !!stationId,
   });
@@ -360,7 +360,7 @@ export default function ExpensesPage() {
   const pendingQuery = useQuery({
     queryKey: ['expenses-pending', stationId],
     queryFn: () =>
-      apiClient.get<any>(`/api/v1/stations/${stationId}/expenses?approvalStatus=pending&limit=50`),
+      apiClient.get<any>(`/stations/${stationId}/expenses?approvalStatus=pending&limit=50`),
     enabled: !!stationId && canManage,
   });
 
@@ -371,7 +371,7 @@ export default function ExpensesPage() {
       const filter = viewMode === 'daily'
         ? `startDate=${selectedDate}&endDate=${selectedDate}`
         : `month=${selectedMonth}`;
-      return apiClient.get<any>(`/api/v1/stations/${stationId}/expenses?${filter}&limit=100`);
+      return apiClient.get<any>(`/stations/${stationId}/expenses?${filter}&limit=100`);
     },
     enabled: !!stationId,
   });
@@ -379,7 +379,7 @@ export default function ExpensesPage() {
   // ── Approve mutation ──
   const approveMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' }) =>
-      apiClient.patch(`/api/v1/expenses/${id}/approve`, { action }),
+      apiClient.patch(`/expenses/${id}/approve`, { action }),
     onSuccess: (_, { action }) => {
       toast.success(`Expense ${action === 'approve' ? 'approved' : 'rejected'}`);
       queryClient.invalidateQueries({ queryKey: ['expenses-pending', stationId] });
