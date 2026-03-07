@@ -981,9 +981,8 @@ export default function QuickDataEntryEnhanced() {
                   </div>
 
                   {/* Online Payment Breakdown */}
-                  {toNumber(String(paymentAllocation.online)) > 0 && (
-                    <div className="border-t pt-4">
-                      <Collapsible defaultOpen={!!paymentAllocation.onlineBreakdown}>
+                  <div className="border-t pt-4">
+                    <Collapsible defaultOpen={!!paymentAllocation.onlineBreakdown}>
                         <CollapsibleTrigger asChild>
                           <Button
                             type="button"
@@ -1090,7 +1089,6 @@ export default function QuickDataEntryEnhanced() {
                         </CollapsibleContent>
                       </Collapsible>
                     </div>
-                  )}
 
                   {/* Credit Allocations */}
                   {paymentAllocation.credits.map((credit: CreditAllocation, index: number) => {
