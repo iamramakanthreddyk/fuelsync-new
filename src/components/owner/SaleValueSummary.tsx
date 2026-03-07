@@ -4,8 +4,10 @@ import { ReadingInput } from '@/components/ui/ReadingInput';
 import { Label } from '@/components/ui/label';
 import { safeToFixed } from '@/lib/format-utils';
 import { toNumber } from '@/utils/number';
-import { IndianRupee } from 'lucide-react';
-import type { PaymentAllocation, Creditor } from '@/types/finance';
+import { IndianRupee, ChevronDown } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Button } from '@/components/ui/button';
+import type { PaymentAllocation, Creditor, PaymentSubBreakdown, UpiSubType, CardSubType, OilCompanySubType } from '@/types/finance';
 
 interface SaleSummaryData {
   totalLiters: number;
@@ -78,6 +80,41 @@ export function PaymentSummaryCard({
     });
   };
 
+  const initializeOnlineBreakdown = () => {
+    const onlineAmount = toNumber(String(paymentAllocation.online));
+    if (!paymentAllocation.onlineBreakdown && onlineAmount > 0) {
+      onPaymentChange({
+        ...paymentAllocation,
+        onlineBreakdown: {
+          cash: 0,
+          upi: {},
+          card: {},
+          oil_company: {},
+          credit: 0
+        }
+      });
+    }
+  };
+
+  const updateOnlineBreakdown = (breakdown: PaymentSubBreakdown | null) => {
+    onPaymentChange({
+      ...paymentAllocation,
+      onlineBreakdown: breakdown
+    });
+  };
+
+  const setBreakdownField = <G extends 'upi' | 'card' | 'oil_company'>(
+    group: G,
+    key: string,
+    value: number
+  ) => {
+    if (!paymentAllocation.onlineBreakdown) return;
+    updateOnlineBreakdown({
+      ...paymentAllocation.onlineBreakdown,
+      [group]: { ...paymentAllocation.onlineBreakdown[group], [key]: value }
+    });
+  };
+
   return (
     <Card className={`border-2 brand-border ${isBalanced ? 'border-green-200 bg-green-50' : 'border-yellow-200 bg-yellow-50'}`}>
       <CardContent className="p-3 space-y-3">
@@ -108,6 +145,106 @@ export function PaymentSummaryCard({
               color="blue"
               placeholder="Online amount"
             />
+            
+            {/* Online Payment Breakdown (UPI/Card/Oil Company) */}
+            {toNumber(paymentAllocation.online) > 0 && (
+              <Collapsible defaultOpen={!!paymentAllocation.onlineBreakdown}>
+                <CollapsibleTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="w-full justify-between h-auto p-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                    onClick={() => {
+                      if (!paymentAllocation.onlineBreakdown) initializeOnlineBreakdown();
+                    }}
+                  >
+                    <span>{paymentAllocation.onlineBreakdown ? 'Collapse' : 'Add'} payment method breakdown</span>
+                    <ChevronDown className="w-3 h-3" />
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-2 space-y-2 border-t border-blue-200 mt-2">
+                  {paymentAllocation.onlineBreakdown && (
+                    <div className="bg-blue-50 p-2 rounded space-y-2">
+                      {/* UPI Section */}
+                      <div className="space-y-1">
+                        <Label className="text-xs font-semibold text-blue-700">UPI Payments</Label>
+                        {['gpay', 'phonepe', 'paytm', 'amazon_pay', 'cred', 'bhim', 'other_upi'].map((upi) => (
+                          <div key={upi} className="flex items-center gap-2">
+                            <Label className="text-xs text-muted-foreground flex-1">
+                              {upi === 'gpay' ? 'Google Pay' : upi === 'phonepe' ? 'PhonePe' : upi === 'paytm' ? 'Paytm' : upi === 'amazon_pay' ? 'Amazon Pay' : upi === 'cred' ? 'CRED' : upi === 'bhim' ? 'BHIM' : 'Other UPI'}
+                            </Label>
+                            <div className="relative w-24">
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={(paymentAllocation.onlineBreakdown?.upi?.[upi as UpiSubType]) ?? ''}
+                                onChange={(e) => setBreakdownField('upi', upi, parseFloat(e.target.value) || 0)}
+                                disabled={isLoading}
+                                className="pl-5 w-full h-6 text-xs border border-blue-300 rounded"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Card Section */}
+                      <div className="space-y-1 border-t border-blue-200 pt-2">
+                        <Label className="text-xs font-semibold text-blue-700">Card Payments</Label>
+                        {['debit_card', 'credit_card'].map((card) => (
+                          <div key={card} className="flex items-center gap-2">
+                            <Label className="text-xs text-muted-foreground flex-1">
+                              {card === 'debit_card' ? 'Debit Card' : 'Credit Card'}
+                            </Label>
+                            <div className="relative w-24">
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={(paymentAllocation.onlineBreakdown?.card?.[card as CardSubType]) ?? ''}
+                                onChange={(e) => setBreakdownField('card', card, parseFloat(e.target.value) || 0)}
+                                disabled={isLoading}
+                                className="pl-5 w-full h-6 text-xs border border-blue-300 rounded"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Oil Company Section */}
+                      <div className="space-y-1 border-t border-blue-200 pt-2">
+                        <Label className="text-xs font-semibold text-blue-700">Oil Company Payments</Label>
+                        {['hp_pay', 'iocl_card', 'bpcl_smartfleet', 'essar_fleet', 'reliance_fleet', 'other_oil_company'].map((oil) => (
+                          <div key={oil} className="flex items-center gap-2">
+                            <Label className="text-xs text-muted-foreground flex-1">
+                              {oil === 'hp_pay' ? 'HP Pay' : oil === 'iocl_card' ? 'IOCL Card' : oil === 'bpcl_smartfleet' ? 'BPCL SmartFleet' : oil === 'essar_fleet' ? 'Essar Fleet' : oil === 'reliance_fleet' ? 'Reliance Fleet' : 'Other Oil Co.'}
+                            </Label>
+                            <div className="relative w-24">
+                              <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                value={(paymentAllocation.onlineBreakdown?.oil_company?.[oil as OilCompanySubType]) ?? ''}
+                                onChange={(e) => setBreakdownField('oil_company', oil, parseFloat(e.target.value) || 0)}
+                                disabled={isLoading}
+                                className="pl-5 w-full h-6 text-xs border border-blue-300 rounded"
+                                placeholder="0.00"
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+            
             {/* Credit Allocation */}
             {multiCredit && (
               <div className="p-2.5 bg-orange-50 border border-orange-200 rounded-lg space-y-2">

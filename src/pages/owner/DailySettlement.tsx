@@ -17,10 +17,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
-import { ArrowLeft, CheckCircle2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-react';
+import type { PaymentSubBreakdown, UpiSubType, CardSubType, OilCompanySubType } from '@/types/finance';
 
 //  Types 
 
@@ -141,6 +143,7 @@ export default function DailySettlement() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [actualCash, setActualCash] = useState<number>(0);
   const [actualOnline, setActualOnline] = useState<number>(0);
+  const [onlineBreakdown, setOnlineBreakdown] = useState<PaymentSubBreakdown | null>(null);
   const [actualCredit, setActualCredit] = useState<number>(0);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -196,6 +199,7 @@ export default function DailySettlement() {
   useEffect(() => {
     setActualCash(0);
     setActualOnline(0);
+    setOnlineBreakdown(null);
     setActualCredit(0);
     setNotes('');
   }, [selectedDate]);
@@ -223,6 +227,7 @@ export default function DailySettlement() {
       toast({ title: 'Settlement saved', variant: 'success' });
       setActualCash(0);
       setActualOnline(0);
+      setOnlineBreakdown(null);
       setActualCredit(0);
       setNotes('');
       queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
@@ -255,6 +260,7 @@ export default function DailySettlement() {
         notes,
         readingIds: selectedIds,
         isFinal: true,
+        ...(onlineBreakdown ? { paymentSubBreakdown: onlineBreakdown } : {}),
       },
       { onSettled: () => setSubmitting(false) }
     );
@@ -516,6 +522,128 @@ export default function DailySettlement() {
                     />
                   </div>
                 </div>
+                
+                {/* Online Payment Breakdown */}
+                {actualOnline > 0 && (
+                  <Collapsible defaultOpen={!!onlineBreakdown} className="mt-3">
+                    <CollapsibleTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        className="w-full justify-between h-auto p-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                        onClick={() => {
+                          if (!onlineBreakdown) {
+                            setOnlineBreakdown({
+                              cash: 0,
+                              upi: {},
+                              card: {},
+                              oil_company: {},
+                              credit: 0
+                            });
+                          }
+                        }}
+                      >
+                        <span>{onlineBreakdown ? 'Collapse' : 'Add'} payment method breakdown</span>
+                        <ChevronDown className="w-3 h-3" />
+                      </Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-2 space-y-2 border-t border-blue-200 mt-2">
+                      {onlineBreakdown && (
+                        <div className="bg-blue-50 p-2 rounded space-y-2">
+                          {/* UPI Section */}
+                          <div className="space-y-1">
+                            <Label className="text-xs font-semibold text-blue-700">UPI Payments</Label>
+                            {(['gpay', 'phonepe', 'paytm', 'amazon_pay', 'cred', 'bhim', 'other_upi'] as const).map((upi) => (
+                              <div key={upi} className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground flex-1">
+                                  {upi === 'gpay' ? 'Google Pay' : upi === 'phonepe' ? 'PhonePe' : upi === 'paytm' ? 'Paytm' : upi === 'amazon_pay' ? 'Amazon Pay' : upi === 'cred' ? 'CRED' : upi === 'bhim' ? 'BHIM' : 'Other UPI'}
+                                </Label>
+                                <div className="relative w-24">
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={onlineBreakdown.upi?.[upi] || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value) || 0;
+                                      setOnlineBreakdown({
+                                        ...onlineBreakdown,
+                                        upi: { ...onlineBreakdown.upi, [upi]: val }
+                                      });
+                                    }}
+                                    className="pl-5 w-full h-6 text-xs border border-blue-300 rounded"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Card Section */}
+                          <div className="space-y-1 border-t border-blue-200 pt-2">
+                            <Label className="text-xs font-semibold text-blue-700">Card Payments</Label>
+                            {(['debit_card', 'credit_card'] as const).map((card) => (
+                              <div key={card} className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground flex-1">
+                                  {card === 'debit_card' ? 'Debit Card' : 'Credit Card'}
+                                </Label>
+                                <div className="relative w-24">
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={onlineBreakdown.card?.[card] || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value) || 0;
+                                      setOnlineBreakdown({
+                                        ...onlineBreakdown,
+                                        card: { ...onlineBreakdown.card, [card]: val }
+                                      });
+                                    }}
+                                    className="pl-5 w-full h-6 text-xs border border-blue-300 rounded"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Oil Company Section */}
+                          <div className="space-y-1 border-t border-blue-200 pt-2">
+                            <Label className="text-xs font-semibold text-blue-700">Oil Company Payments</Label>
+                            {(['hp_pay', 'iocl_card', 'bpcl_smartfleet', 'essar_fleet', 'reliance_fleet', 'other_oil_company'] as const).map((oil) => (
+                              <div key={oil} className="flex items-center gap-2">
+                                <Label className="text-xs text-muted-foreground flex-1">
+                                  {oil === 'hp_pay' ? 'HP Pay' : oil === 'iocl_card' ? 'IOCL Card' : oil === 'bpcl_smartfleet' ? 'BPCL SmartFleet' : oil === 'essar_fleet' ? 'Essar Fleet' : oil === 'reliance_fleet' ? 'Reliance Fleet' : 'Other Oil Co.'}
+                                </Label>
+                                <div className="relative w-24">
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-muted-foreground text-xs">₹</span>
+                                  <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={onlineBreakdown.oil_company?.[oil] || ''}
+                                    onChange={(e) => {
+                                      const val = parseFloat(e.target.value) || 0;
+                                      setOnlineBreakdown({
+                                        ...onlineBreakdown,
+                                        oil_company: { ...onlineBreakdown.oil_company, [oil]: val }
+                                      });
+                                    }}
+                                    className="pl-5 w-full h-6 text-xs border border-blue-300 rounded"
+                                    placeholder="0.00"
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </CollapsibleContent>
+                  </Collapsible>
+                )}
               </div>
 
               {/* Variance — compares sum of all payment types */}

@@ -19,6 +19,8 @@ export interface PaymentAllocation {
   cash: string | number;
   online: string | number;
   credits: CreditAllocation[];
+  /** Optional: detailed breakdown of online payment types (UPI, Card, Oil Company) */
+  onlineBreakdown?: PaymentSubBreakdown | null;
 }
 
 export interface Creditor {
