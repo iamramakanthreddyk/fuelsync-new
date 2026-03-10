@@ -1,9 +1,16 @@
 /**
- * Number formatting utilities
+ * Number formatting utilities — Indian (en-IN) locale with Lakhs/Crores
+ * 
+ * Formatting examples:
+ * - 23942 → "23,942" (with Indian comma grouping)
+ * - 100000 → "1,00,000" (1 Lakh)
+ * - 1000000 → "10,00,000" (10 Lakhs)
+ * - 10000000 → "1,00,00,000" (1 Crore)
  */
 
 /**
- * Format currency (INR)
+ * Format currency (INR) with Indian grouping
+ * e.g., 1234567 → "₹12,34,567.00"
  */
 export function formatCurrency(amount: number, decimals: number = 2): string {
   return new Intl.NumberFormat('en-IN', {
@@ -15,7 +22,8 @@ export function formatCurrency(amount: number, decimals: number = 2): string {
 }
 
 /**
- * Format number with commas
+ * Format number with Indian grouping (commas at 2-digit intervals after first 3 digits)
+ * e.g., 1234567 → "12,34,567"
  */
 export function formatNumber(num: number, decimals: number = 0): string {
   return new Intl.NumberFormat('en-IN', {
@@ -25,14 +33,20 @@ export function formatNumber(num: number, decimals: number = 0): string {
 }
 
 /**
- * Format volume (liters)
+ * Format volume (liters) with Indian grouping
+ * e.g., 23942.15 → "23,942.15 L"
  */
 export function formatVolume(liters: number): string {
   return `${formatNumber(liters, 2)} L`;
 }
 
 /**
- * Format compact number (1K, 1M, etc.)
+ * Format number with Lakh/Crore labels (compact Indian format)
+ * 10,000 → "10,000"
+ * 100,000 → "1,00,000" (1 Lakh)
+ * 1,000,000 → "10,00,000" (10 Lakhs)
+ * 10,000,000 → "1,00,00,000" (1 Crore)
+ * 100,000,000 → "10,00,00,000" (10 Crores)
  */
 export function formatCompactNumber(num: number): string {
   if (num >= 10000000) {
@@ -45,6 +59,25 @@ export function formatCompactNumber(num: number): string {
     return `${(num / 1000).toFixed(1)}K`;
   }
   return num.toString();
+}
+
+/**
+ * Format large number as Lakhs/Crores with label
+ * e.g., 100000 → "1.00 Lakhs", 10000000 → "1.00 Crores"
+ */
+export function formatInIndianUnits(num: number, decimals: number = 2): string {
+  if (num >= 10000000) {
+    // Crores
+    const crores = num / 10000000;
+    return `${crores.toFixed(decimals)} Crores`;
+  }
+  if (num >= 100000) {
+    // Lakhs
+    const lakhs = num / 100000;
+    return `${lakhs.toFixed(decimals)} Lakhs`;
+  }
+  // Just format as regular number with Indian grouping
+  return formatNumber(num, decimals);
 }
 
 /**

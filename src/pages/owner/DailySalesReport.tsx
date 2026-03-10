@@ -9,7 +9,7 @@ import { Tooltip as UITooltip } from '@/components/ui/tooltip';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api-client';
-import { safeToFixed } from '@/lib/format-utils';
+import { safeToFixed, formatVolume, formatNumber } from '@/lib/format-utils';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts';
 import { Download, ArrowLeft, Building2, Printer } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -256,9 +256,7 @@ export default function DailySalesReport() {
           <CardContent className="p-6">
             <div className="text-xs md:text-sm text-muted-foreground mb-1 truncate">Total Liters</div>
             <div className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-blue-600 break-words">
-              {report!.totalLiters >= 1000 
-                ? `${safeToFixed(report!.totalLiters / 1000, 1)}K L`
-                : `${safeToFixed(report!.totalLiters, 2)} L`}
+              {formatVolume(report!.totalLiters)}
             </div>
             <div className="text-xs text-muted-foreground mt-2 truncate">Fuel dispensed</div>
           </CardContent>

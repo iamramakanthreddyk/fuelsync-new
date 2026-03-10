@@ -31,7 +31,7 @@ import {
   printNozzlesReport,
   printPumpsReport,
 } from '@/lib/report-export';
-import { safeToFixed } from '@/lib/format-utils';
+import { safeToFixed, formatVolume, formatNumber, formatCurrency } from '@/lib/format-utils';
 import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import {
   BarChart3,
@@ -553,14 +553,14 @@ export default function Reports() {
         <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 w-full">
           <StatCard
             title="Total Revenue"
-            value={`₹${totals.sales.toLocaleString('en-IN')}`}
+            value={formatCurrency(totals.sales, 0)}
             trend={{ value: performanceMetrics.trend, direction: performanceMetrics.direction }}
             icon={IndianRupee}
             variant="green"
           />
           <StatCard
             title="Fuel Dispensed"
-            value={`${safeToFixed(totals.quantity, 1)}L`}
+            value={formatVolume(totals.quantity)}
             trend={{ value: 8.2, direction: 'up' }}
             icon={Droplet}
             variant="blue"
