@@ -11,12 +11,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { useStations } from '@/hooks/api';
+import { useStations, useExpenses } from '@/hooks/api';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed, formatCurrency } from '@/lib/format-utils';
 import {
   TrendingUp, IndianRupee, AlertTriangle, Download,
-  Calendar, CreditCard, DollarSign
+  Calendar, CreditCard, DollarSign, TrendingDown
 } from 'lucide-react';
 import {
   Select,
@@ -113,6 +113,33 @@ export default function IncomeReport() {
     },
     enabled: !!selectedStation
   });
+
+  // Fetch expenses for the date range
+  const { data: expensesResponse } = useExpenses(selectedStation || '', {
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate
+  });
+
+  const expenses = useMemo(() => {
+    if (expensesResponse && 'data' in expensesResponse) {
+      return expensesResponse.data || [];
+    }
+    return [];
+  }, [expensesResponse]);
+
+  const totalExpenses = useMemo(() => {
+    return expenses.reduce((sum, exp: any) => sum + (exp.amount || 0), 0);
+  }, [expenses]);
+
+  const expensesByCategory = useMemo(() => {
+    const categories: Record<string, number> = {};
+    expenses.forEach((exp: any) => {
+      if (exp.category) {
+        categories[exp.category] = (categories[exp.category] || 0) + (exp.amount || 0);
+      }
+    });
+    return Object.entries(categories).map(([category, amount]) => ({ category, amount }));
+  }, [expenses]);
 
   const handleExportCSV = () => {
     if (!reportData) return;
@@ -247,7 +274,7 @@ export default function IncomeReport() {
       </Card>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
@@ -279,6 +306,20 @@ export default function IncomeReport() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
+              <TrendingDown className="w-4 h-4 text-red-600" />
+              Total Expenses
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold text-red-600">
+              ₹{totalExpenses.toLocaleString('en-IN')}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-medium flex items-center gap-2">
               <CreditCard className="w-4 h-4 text-orange-600" />
               Outstanding
             </CardTitle>
@@ -294,12 +335,12 @@ export default function IncomeReport() {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-purple-600" />
-              Net Income
+              Net Profit
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              ₹{reportData.incomeStatement.netCashIncome.toLocaleString('en-IN')}
+              ₹{(reportData.incomeStatement.netCashIncome - totalExpenses).toLocaleString('en-IN')}
             </div>
           </CardContent>
         </Card>
@@ -308,7 +349,7 @@ export default function IncomeReport() {
       {/* Payment Breakdown */}
       <Card>
         <CardHeader>
-          <CardTitle>Payment Breakdown</CardTitle>
+          <CardTitle>Revenue Breakdown</CardTitle>
           <CardDescription>How customers paid for fuel</CardDescription>
         </CardHeader>
         <CardContent>
@@ -336,6 +377,28 @@ export default function IncomeReport() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Expenses Breakdown */}
+      {expenses.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Expense Breakdown</CardTitle>
+            <CardDescription>{expenses.length} expenses recorded</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {expensesByCategory.slice(0, 6).map((item) => (
+                <div key={item.category} className="text-center p-4 bg-red-50 rounded-lg">
+                  <div className="text-xl font-bold text-red-600 mb-1">
+                    ₹{item.amount.toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-sm text-muted-foreground capitalize">{item.category}</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Summary */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200">
