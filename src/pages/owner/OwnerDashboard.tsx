@@ -19,7 +19,7 @@ import { apiClient } from '@/lib/api-client';
 import { extractApiData } from '@/lib/api-response';
 import { useStations, usePumps, useFuelPrices } from '@/hooks/api';
 import { useVarianceSummary } from '@/hooks/useVarianceSummary';
-import { safeToFixed } from '@/lib/format-utils';
+import { safeToFixed, formatCurrency } from '@/lib/format-utils';
 import { AlertCircle } from 'lucide-react';
 import {
   StatsGrid,
@@ -222,7 +222,7 @@ export default function OwnerDashboard() {
                 'text-green-700'
               }`}>
                 {varianceSummary.totalVariance > 0 ? '-' : varianceSummary.totalVariance < 0 ? '+' : ''}
-                ₹{Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                {formatCurrency(Math.abs(varianceSummary.totalVariance), 0)}
               </div>
               <div className={`text-xs px-1.5 py-0.5 rounded-full ${
                 varianceSummary.totalVariance > 0 ? 'bg-red-100 text-red-800' :

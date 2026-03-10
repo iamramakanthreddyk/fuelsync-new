@@ -583,7 +583,7 @@ export default function StationsManagement() {
                       <span className="text-xs font-medium text-green-800">Sales</span>
                     </div>
                     <div className="text-lg font-bold text-green-700">
-                      ₹{(station.todaySales || 0).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      {formatCurrency(station.todaySales || 0, 0)}
                     </div>
                     <div className="text-xs text-green-600/70">Today</div>
                   </div>

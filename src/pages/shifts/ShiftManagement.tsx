@@ -152,7 +152,7 @@ export default function ShiftManagement() {
 
   const formatCurrency = (amount: number | null | undefined) => {
     if (amount === null || amount === undefined) return '₹0';
-    return `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    return formatCurrency(amount, 2);
   };
 
   const formatTime = (timeStr: string | null | undefined) => {

@@ -597,7 +597,7 @@ export default function Reports() {
               {insights.peakDay ? new Date(insights.peakDay.date).toLocaleDateString() : 'N/A'}
             </div>
             <p className="text-sm text-gray-600 mt-1">
-              ₹{(insights.peakDay?.totalSales || 0).toLocaleString('en-IN')} revenue
+              {formatCurrency(insights.peakDay?.totalSales || 0, 0)} revenue
             </p>
           </div>
 

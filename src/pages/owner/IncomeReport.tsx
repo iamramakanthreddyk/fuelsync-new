@@ -14,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
-import { useStations } from '@/hooks/api';
+import { formatCurrency } from '@/lib/format-utils';
 import {
   TrendingUp, IndianRupee, AlertTriangle, Download,
   Calendar, CreditCard, DollarSign

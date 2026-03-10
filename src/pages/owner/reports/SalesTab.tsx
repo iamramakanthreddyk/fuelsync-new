@@ -3,7 +3,7 @@ import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ReportSection, SalesReportCard } from '@/components/reports';
 import { FileText } from 'lucide-react';
-import { safeToFixed } from '@/lib/format-utils';
+import { safeToFixed, formatCurrency } from '@/lib/format-utils';
 import type { SalesReport } from '@/hooks/useReportData';
 import { Badge } from '@/components/ui/badge';
 import { getFuelColors } from '@/lib/fuelColors';
@@ -44,7 +44,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
         <div className="grid grid-cols-3 gap-2">
           <div className="text-center">
             <div className="text-sm text-gray-500">Sales</div>
-            <div className="font-semibold">₹{totals.sales.toLocaleString('en-IN')}</div>
+            <div className="font-semibold">{formatCurrency(totals.sales, 0)}</div>
           </div>
           <div className="text-center">
             <div className="text-sm text-gray-500">Volume</div>
@@ -68,7 +68,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
           <span className={`w-3 h-3 rounded-full ${colors.dot}`} />
           <div className="text-sm">{type}</div>
         </div>
-        <div className="text-sm font-medium">₹{sales.toLocaleString('en-IN')}</div>
+        <div className="text-sm font-medium">{formatCurrency(sales, 0)}</div>
       </div>
     );
   };
@@ -83,7 +83,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
             <div className="text-xs text-muted-foreground">{transactions} txns</div>
           </div>
           <div className="text-right">
-            <div className="font-semibold">₹{sales.toLocaleString('en-IN')}</div>
+            <div className="font-semibold">{formatCurrency(sales, 0)}</div>
             <div className="text-xs text-muted-foreground">{safeToFixed(quantity)} L</div>
           </div>
         </div>
@@ -134,7 +134,7 @@ export const SalesTab: React.FC<SalesTabProps> = ({
                     <CardDescription>All stations, selected period</CardDescription>
                   </div>
                   <div className="text-right">
-                    <div className="text-2xl font-bold text-green-600">₹{totals.sales.toLocaleString('en-IN')}</div>
+                    <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.sales, 0)}</div>
                     <div className="text-sm text-muted-foreground">{safeToFixed(totals.quantity)} L • {totals.transactions} txns</div>
                     {insights && (
                       <div className="text-sm text-muted-foreground">Avg: ₹{safeToFixed(insights.avgTransactionValue)}</div>

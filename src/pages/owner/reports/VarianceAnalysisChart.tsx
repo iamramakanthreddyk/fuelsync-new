@@ -13,6 +13,7 @@ import {
   Bar
 } from 'recharts';
 import type { Settlement } from '@/hooks/useReportData';
+import { formatCurrency as globalFormatCurrency, formatNumber } from '@/lib/format-utils';
 
 interface VarianceAnalysisChartProps {
   settlements: Settlement[] | undefined;
@@ -25,18 +26,17 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
   isLoading,
   className = '',
 }) => {
-  const formatCurrency = (v: number) => {
+  const formatCurencyDisplay = (v: number) => {
     if (!Number.isFinite(v)) return '—';
-    // Use compact for small axis, full for labels
-    return `₹${v.toLocaleString('en-IN')}`;
+    return globalFormatCurrency(v, 0);
   };
 
   const formatAxisTick = (v: number) => {
     if (!Number.isFinite(v)) return '';
     const abs = Math.abs(v);
-    if (abs >= 1_000_000) return `₹${(v / 1_000_000).toFixed(1)}M`;
-    if (abs >= 1_000) return `₹${(v / 1_000).toFixed(1)}k`;
-    return `₹${v.toLocaleString('en-IN')}`;
+    if (abs >= 100000) return `₹${(v / 100000).toFixed(1)}L`;
+    if (abs >= 1000) return `₹${(v / 1000).toFixed(1)}K`;
+    return globalFormatCurrency(v, 0);
   };
   // Transform settlement data for the chart
   const chartData = React.useMemo(() => {
@@ -145,11 +145,11 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
       <div className="grid grid-cols-3 gap-4 mb-6">
         <div className="bg-blue-50 p-3 rounded-lg">
           <div className="text-xs text-blue-600 font-medium">Expected</div>
-          <div className="text-lg font-bold text-blue-700">{Number.isFinite(totalExpected) ? `₹${totalExpected.toLocaleString('en-IN')}` : '—'}</div>
+          <div className="text-lg font-bold text-blue-700">{Number.isFinite(totalExpected) ? globalFormatCurrency(totalExpected, 0) : '—'}</div>
         </div>
         <div className="bg-green-50 p-3 rounded-lg">
           <div className="text-xs text-green-600 font-medium">Actual</div>
-          <div className="text-lg font-bold text-green-700">{Number.isFinite(totalActual) ? `₹${totalActual.toLocaleString('en-IN')}` : '—'}</div>
+          <div className="text-lg font-bold text-green-700">{Number.isFinite(totalActual) ? globalFormatCurrency(totalActual, 0) : '—'}</div>
         </div>
         <div className={`p-3 rounded-lg ${totalVariance >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
           <div className={`text-xs font-medium ${totalVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
@@ -188,15 +188,15 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
                       <div className="space-y-2 text-sm mt-2">
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 bg-blue-500 rounded" />
-                          <span>Expected: {formatCurrency(Number(data.expected || 0))}</span>
+                          <span>Expected: {formatCurencyDisplay(Number(data.expected || 0))}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-3 h-3 bg-green-500 rounded" />
-                          <span>Actual: {formatCurrency(Number(data.actual || 0))}</span>
+                          <span>Actual: {formatCurencyDisplay(Number(data.actual || 0))}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className={`w-3 h-3 rounded ${data.variance >= 0 ? 'bg-green-500' : 'bg-red-500'}`} />
-                          <span>Variance: {data.variance >= 0 ? '+' : ''}{formatCurrency(Number(data.variance || 0))}</span>
+                          <span>Variance: {data.variance >= 0 ? '+' : ''}{formatCurencyDisplay(Number(data.variance || 0))}</span>
                         </div>
 
                         {data.stationCount > 0 && (
@@ -207,7 +207,7 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
                                 <div key={`${station.name}-${idx}`} className="text-xs flex justify-between">
                                   <span className="truncate pr-2">{station.name}</span>
                                   <span className={`font-medium ${station.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {station.variance >= 0 ? '+' : ''}{formatCurrency(Number(station.variance || 0))}
+                                    {station.variance >= 0 ? '+' : ''}{formatCurencyDisplay(Number(station.variance || 0))}
                                   </span>
                                 </div>
                               ))}

@@ -158,7 +158,7 @@ export default function Settlements() {
                 {/* Total Sales */}
                 <div className="text-center p-4 bg-white rounded-lg border border-blue-200">
                   <p className="text-sm text-blue-600 font-medium">Total Sales</p>
-                  <p className="text-3xl font-bold text-blue-900">₹{summary.sales_total.toLocaleString('en-IN')}</p>
+                  <p className="text-3xl font-bold text-blue-900">{formatCurrency(summary.sales_total, 0)}</p>
                 </div>
 
                 {/* Payment Breakdown */}
@@ -171,7 +171,7 @@ export default function Settlements() {
                         <span className="text-green-600 font-bold text-sm">₹</span>
                       </div>
                       <p className="text-xs text-green-700 font-medium">Cash</p>
-                      <p className="text-lg font-bold text-green-900">₹{summary.breakdown.cash.toLocaleString('en-IN')}</p>
+                      <p className="text-lg font-bold text-green-900">{formatCurrency(summary.breakdown.cash, 0)}</p>
                     </div>
 
                     {/* Card */}
@@ -180,7 +180,7 @@ export default function Settlements() {
                         <span className="text-blue-600 font-bold text-sm">💳</span>
                       </div>
                       <p className="text-xs text-blue-700 font-medium">Card</p>
-                      <p className="text-lg font-bold text-blue-900">₹{summary.breakdown.card.toLocaleString('en-IN')}</p>
+                      <p className="text-lg font-bold text-blue-900">{formatCurrency(summary.breakdown.card, 0)}</p>
                     </div>
 
                     {/* UPI */}
@@ -189,7 +189,7 @@ export default function Settlements() {
                         <span className="text-purple-600 font-bold text-sm">📱</span>
                       </div>
                       <p className="text-xs text-purple-700 font-medium">UPI</p>
-                      <p className="text-lg font-bold text-purple-900">₹{summary.breakdown.upi.toLocaleString('en-IN')}</p>
+                      <p className="text-lg font-bold text-purple-900">{formatCurrency(summary.breakdown.upi, 0)}</p>
                     </div>
 
                     {/* Credit */}
@@ -198,7 +198,7 @@ export default function Settlements() {
                         <span className="text-orange-600 font-bold text-sm">📊</span>
                       </div>
                       <p className="text-xs text-orange-700 font-medium">Credit</p>
-                      <p className="text-lg font-bold text-orange-900">₹{summary.breakdown.credit.toLocaleString('en-IN')}</p>
+                      <p className="text-lg font-bold text-orange-900">{formatCurrency(summary.breakdown.credit, 0)}</p>
                     </div>
                   </div>
                 </div>
