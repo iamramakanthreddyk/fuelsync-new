@@ -26,6 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { DateRangeFilter } from '@/components/filters/DateRangeFilter';
 
 interface IncomeReportData {
   period: { startDate: string; endDate: string };
@@ -229,23 +230,14 @@ export default function IncomeReport() {
               </Select>
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Start Date</Label>
-              <Input
-                type="date"
-                value={dateRange.startDate}
-                onChange={(e) => setDateRange({ ...dateRange, startDate: e.target.value })}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">End Date</Label>
-              <Input
-                type="date"
-                value={dateRange.endDate}
-                onChange={(e) => setDateRange({ ...dateRange, endDate: e.target.value })}
-              />
-            </div>
+            <DateRangeFilter
+              startDate={dateRange.startDate}
+              endDate={dateRange.endDate}
+              onDateRangeChange={(start, end) =>
+                setDateRange({ startDate: start, endDate: end })
+              }
+              dataType="analytics"
+            />
           </div>
         </CardContent>
       </Card>

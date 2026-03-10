@@ -6,7 +6,6 @@
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
   Select,
@@ -17,7 +16,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Filter, RefreshCw, Download, Crown, AlertTriangle } from 'lucide-react';
-import { useDateRangeLimits } from '@/hooks/usePermissions';
+import { DateRangeFilter } from '@/components/filters/DateRangeFilter';
 
 export interface DateRange {
   startDate: string;
@@ -84,10 +83,6 @@ export const FilterBar: React.FC<FilterBarProps> = ({
   className,
 }) => {
   const [open, setOpen] = useState<boolean>(true);
-  const { getMaxDateForType } = useDateRangeLimits();
-
-  const maxAllowedDate = getMaxDateForType(dataType);
-  const maxDateString = maxAllowedDate.toISOString().split('T')[0];
 
   useEffect(() => {
     // On small screens, collapse filters by default for space
@@ -127,31 +122,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
           <div id="report-filters" className={`${open ? 'block' : 'hidden'} md:block`}>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label className="text-sm font-medium">Date Range</Label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  <Input
-                    type="date"
-                    value={dateRange.startDate}
-                    onChange={(e) =>
-                      onDateRangeChange({ ...dateRange, startDate: e.target.value })
-                    }
-                    max={maxDateString}
-                    className="w-full py-3"
-                    title={`Maximum date allowed: ${maxDateString}`}
-                  />
-                  <Input
-                    type="date"
-                    value={dateRange.endDate}
-                    onChange={(e) =>
-                      onDateRangeChange({ ...dateRange, endDate: e.target.value })
-                    }
-                    max={new Date().toISOString().split('T')[0]}
-                    min={dateRange.startDate}
-                    className="w-full py-3"
-                  />
-                </div>
-              </div>
+              <DateRangeFilter
+                startDate={dateRange.startDate}
+                endDate={dateRange.endDate}
+                onDateRangeChange={(start, end) =>
+                  onDateRangeChange({ startDate: start, endDate: end })
+                }
+                dataType={dataType}
+              />
 
               <div className="space-y-2">
                 <Label className="text-sm font-medium">Station</Label>

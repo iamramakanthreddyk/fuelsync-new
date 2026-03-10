@@ -24,6 +24,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { safeToFixed } from '@/lib/format-utils';
 import { useStations } from '@/hooks/api';
+import { DateRangeFilter } from '@/components/filters/DateRangeFilter';
 // charts are not used in this page yet
 
 // Types for table columns
@@ -224,8 +225,8 @@ export default function Reports() {
   const { toast } = useToast();
 
   // Fetch stations
-  const { data: stationsResponse } = useStations();
-  const stations = stationsResponse?.data;
+  const stationsResponse = useStations();
+  const stations = stationsResponse.data?.success ? stationsResponse.data.data : [];
 
   // Set default station when stations load
   useEffect(() => {
@@ -277,26 +278,16 @@ export default function Reports() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <div className="sm:col-span-1">
-              <Label htmlFor="startDate">Start Date</Label>
-              <Input
-                id="startDate"
-                type="date"
-                value={startDate}
-                onChange={(e) => setStartDate(e.target.value)}
-                className="w-full"
-              />
-            </div>
-            <div className="sm:col-span-1">
-              <Label htmlFor="endDate">End Date</Label>
-              <Input
-                id="endDate"
-                type="date"
-                value={endDate}
-                onChange={(e) => setEndDate(e.target.value)}
-                className="w-full"
-              />
-            </div>
+            <DateRangeFilter
+              startDate={startDate}
+              endDate={endDate}
+              onDateRangeChange={(start, end) => {
+                setStartDate(start);
+                setEndDate(end);
+              }}
+              dataType="analytics"
+              label="Date Range"
+            />
             <div className="sm:col-span-1">
               <Label htmlFor="station">Station</Label>
               <Select value={selectedStation || 'all'} onValueChange={(value) => setSelectedStation(value === 'all' ? '' : value)}>
