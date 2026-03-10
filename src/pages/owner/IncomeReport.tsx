@@ -1,20 +1,19 @@
 
-import React from 'react';
 /**
  * Income Report - Simplified
  * Clean overview of key financial metrics
  */
 
-import { useState } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { useStations } from '@/hooks/api';
 import { apiClient } from '@/lib/api-client';
-import { safeToFixed } from '@/lib/format-utils';
-import { formatCurrency } from '@/lib/format-utils';
+import { safeToFixed, formatCurrency } from '@/lib/format-utils';
 import {
   TrendingUp, IndianRupee, AlertTriangle, Download,
   Calendar, CreditCard, DollarSign
@@ -51,11 +50,16 @@ interface IncomeReportData {
 export default function IncomeReport() {
   const { toast } = useToast();
   const { data: stationsResponse } = useStations();
-  const stations = React.useMemo(() => stationsResponse?.data || [], [stationsResponse?.data]);
+  const stations = useMemo(() => {
+    if (stationsResponse && 'data' in stationsResponse) {
+      return stationsResponse.data || [];
+    }
+    return [];
+  }, [stationsResponse]);
 
   // Ensure selectedStation is always valid when stations list changes
   const [selectedStation, setSelectedStation] = useState<string>('');
-  React.useEffect(() => {
+  useEffect(() => {
     if (stations.length > 0 && !selectedStation) {
       setSelectedStation(stations[0].id);
     }
@@ -218,7 +222,7 @@ export default function IncomeReport() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label className="text-sm font-medium">Period</Label>
-              <Select value={viewType} onValueChange={(v: any) => handleViewTypeChange(v)}>
+              <Select value={viewType} onValueChange={(v) => handleViewTypeChange(v as 'daily' | 'monthly' | 'yearly')}>
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
