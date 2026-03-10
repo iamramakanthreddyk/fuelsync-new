@@ -479,14 +479,13 @@ export function useSettleCredit() {
 
 export function useExpenses(stationId: string, filters?: { startDate?: string; endDate?: string; category?: string }) {
   const searchParams = new URLSearchParams();
-  searchParams.set('stationId', stationId);
   if (filters?.startDate) searchParams.set('startDate', filters.startDate);
   if (filters?.endDate) searchParams.set('endDate', filters.endDate);
   if (filters?.category) searchParams.set('category', filters.category);
 
   return useQuery({
     queryKey: [...queryKeys.expenses(stationId), filters],
-    queryFn: () => apiClient.get<ApiResponse<Expense[]>>(`/expenses?${searchParams.toString()}`),
+    queryFn: () => apiClient.get<ApiResponse<Expense[]>>(`/stations/${stationId}/expenses?${searchParams.toString()}`),
     enabled: !!stationId,
   });
 }

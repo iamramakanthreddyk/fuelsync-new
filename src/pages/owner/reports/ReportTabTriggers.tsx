@@ -7,11 +7,12 @@ import {
   Activity,
   Users,
   TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
 
 export const ReportTabTriggers: React.FC = () => {
   return (
-    <TabsList className="grid w-full grid-cols-6 gap-1 bg-slate-100 p-1 rounded-lg h-auto md:h-auto overflow-x-auto">
+    <TabsList className="grid w-full grid-cols-7 gap-1 bg-slate-100 p-1 rounded-lg h-auto md:h-auto overflow-x-auto">
       <TabsTrigger
         value="overview"
         className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2 whitespace-nowrap"
@@ -53,6 +54,13 @@ export const ReportTabTriggers: React.FC = () => {
       >
         <TrendingUp className="w-4 h-4 text-emerald-600 data-[state=active]:text-emerald-700" />
         <span className="text-[10px] md:text-sm leading-tight">Emp. Sales</span>
+      </TabsTrigger>
+      <TabsTrigger
+        value="expenses"
+        className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2 whitespace-nowrap"
+      >
+        <TrendingDown className="w-4 h-4 text-red-600 data-[state=active]:text-red-700" />
+        <span className="text-[10px] md:text-sm leading-tight">Expenses</span>
       </TabsTrigger>
     </TabsList>
   );

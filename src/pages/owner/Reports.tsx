@@ -10,7 +10,7 @@ import { Tabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useStations } from '@/hooks/api';
+import { useStations, useExpenses } from '@/hooks/api';
 import {
   useSalesReports,
   usePumpPerformance,
@@ -55,6 +55,7 @@ import { NozzlesTab } from './reports/NozzlesTab';
 import { PumpsTab } from './reports/PumpsTab';
 import { EmployeesTab } from './reports/EmployeesTab';
 import { EmployeeSalesBreakdownTab } from './reports/EmployeeSalesBreakdownTab';
+import { ExpenseAnalysisTab } from './reports/ExpenseAnalysisTab';
 
 // ============================================
 // CONSTANTS & TYPES
@@ -236,13 +237,17 @@ export default function Reports() {
     dateRange,
     selectedStation,
   });
+  const { data: expensesResponse, isLoading: expensesLoading, error: expensesError, refetch: refetchExpenses } = useExpenses(selectedStation || '', {
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate
+  });
 
   // Refresh all data
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     setPlanLimitError(null);
     try {
-      await Promise.all([refetchSales(), refetchPumps(), refetchNozzles(), refetchSettlements()]);
+      await Promise.all([refetchSales(), refetchPumps(), refetchNozzles(), refetchSettlements(), refetchExpenses()]);
       setLastUpdated(new Date());
       toast({
         title: 'Data Refreshed',
@@ -267,7 +272,7 @@ export default function Reports() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [refetchSales, refetchPumps, refetchNozzles, refetchSettlements, toast]);
+  }, [refetchSales, refetchPumps, refetchNozzles, refetchSettlements, refetchExpenses, toast]);
 
   // Monitor date range changes and clear errors
   useEffect(() => {
@@ -317,7 +322,8 @@ export default function Reports() {
     if (checkError(pumpsError)) return;
     if (checkError(nozzlesError)) return;
     if (checkError(settlementsError)) return;
-  }, [salesError, pumpsError, nozzlesError, settlementsError, calculateDaysDifference]);
+    if (checkError(expensesError)) return;
+  }, [salesError, pumpsError, nozzlesError, settlementsError, expensesError, calculateDaysDifference]);
 
   // Aggregate raw readings into sales reports if needed
   const aggregatedSalesReports = useMemo(() => {
@@ -340,6 +346,14 @@ export default function Reports() {
 
   // Calculate totals
   const totals = calculateSalesTotals(aggregatedSalesReports);
+
+  // Extract expenses from response
+  const expenses = useMemo(() => {
+    if (expensesResponse && 'data' in expensesResponse) {
+      return expensesResponse.data || [];
+    }
+    return [];
+  }, [expensesResponse]);
 
   // Calculate performance metrics (comparing with previous period)
   const performanceMetrics = useMemo(() => {
@@ -679,6 +693,12 @@ export default function Reports() {
             <EmployeeSalesBreakdownTab
               dateRange={dateRange}
               selectedStation={selectedStation}
+            />
+            <ExpenseAnalysisTab
+              expenses={expenses}
+              isLoading={expensesLoading}
+              dateRange={dateRange}
+              totalRevenue={totals.sales}
             />
           </Tabs>
         </div>
