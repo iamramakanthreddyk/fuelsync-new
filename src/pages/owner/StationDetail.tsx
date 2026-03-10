@@ -1248,9 +1248,9 @@ export default function StationDetail() {
 
           {creditorsLoading ? (
             <div className="text-center py-6">Loading creditors...</div>
-          ) : creditors && creditors.length > 0 && creditors.filter(c => c.currentBalance > 0).length > 0 ? (
+          ) : creditors && creditors.length > 0 ? (
             <div className="grid gap-4">
-              {creditors.filter(c => c.currentBalance > 0).map((creditor) => (
+              {creditors.map((creditor) => (
                 <Card key={creditor.id} className="border-l-4 border-l-orange-500 shadow-sm hover:shadow-md transition-shadow">
                   <CardHeader className="pb-2 sm:pb-3 px-4 sm:px-6">
                     <div className="flex items-start justify-between gap-2">
