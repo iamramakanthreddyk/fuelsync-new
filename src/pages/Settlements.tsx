@@ -234,8 +234,20 @@ export default function Settlements() {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                           <h4 className="font-semibold">{new Date(settlement.date).toLocaleDateString()}</h4>
+                          {(() => {
+                            // Show responsible employees from employeeShortfalls (assigned employees)
+                            const shortfalls = settlement.employeeShortfalls as Record<string, { employeeName: string }> | null;
+                            const empNames = shortfalls
+                              ? Object.values(shortfalls).map(e => e.employeeName).filter(Boolean)
+                              : [];
+                            return empNames.length > 0 ? (
+                              <p className="text-sm font-medium text-blue-700">
+                                👤 {empNames.join(', ')}
+                              </p>
+                            ) : null;
+                          })()}
                           <p className="text-sm text-muted-foreground">
-                            Recorded by {settlement.recordedByUser?.name || 'Unknown'} at {new Date(settlement.recordedAt).toLocaleString()}
+                            Confirmed by {settlement.recordedByUser?.name || 'Unknown'} at {new Date(settlement.recordedAt).toLocaleString()}
                           </p>
                         </div>
                         <div className="text-right">

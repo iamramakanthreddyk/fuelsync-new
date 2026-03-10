@@ -40,9 +40,15 @@ exports.calculateSettlementShortfalls = async (settlement) => {
           as: 'enteredByUser', 
           attributes: ['id', 'name'],
           required: false
+        },
+        {
+          model: User,
+          as: 'assignedEmployee',
+          attributes: ['id', 'name'],
+          required: false
         }
       ],
-      attributes: ['id', 'enteredBy'],
+      attributes: ['id', 'enteredBy', 'assignedEmployeeId'],
       raw: false,
       subQuery: false
     });
@@ -51,11 +57,12 @@ exports.calculateSettlementShortfalls = async (settlement) => {
       return null;
     }
 
-    // Group readings by employee
+    // Group readings by responsible employee (assignedEmployee if set, else recorder)
     const employeeReadingCounts = {};
     readings.forEach(reading => {
-      const empId = reading.enteredBy;
-      const empName = reading.enteredByUser?.name || 'Unknown';
+      // Req #1: prefer assignedEmployeeId (who the reading is attributed to)
+      const empId = reading.assignedEmployeeId || reading.enteredBy;
+      const empName = reading.assignedEmployee?.name || reading.enteredByUser?.name || 'Unknown';
       
       if (!employeeReadingCounts[empId]) {
         employeeReadingCounts[empId] = {

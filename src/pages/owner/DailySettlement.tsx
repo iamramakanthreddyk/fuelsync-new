@@ -9,7 +9,7 @@
  * 5. Hit "Confirm Settlement"
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,6 +23,7 @@ import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
 import { ArrowLeft, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-react';
 import type { PaymentSubBreakdown, UpiSubType, CardSubType, OilCompanySubType } from '@/types/finance';
+import { useStationStaff } from '@/hooks/api';
 
 //  Types 
 
@@ -50,6 +51,8 @@ interface ReadingForSettlement {
   onlineAmount?: number;
   creditAmount?: number;
   recordedBy: { id: string; name: string } | null;
+  assignedEmployeeId?: string | null;
+  assignedEmployee?: { id: string; name: string } | null;
   recordedAt: string;
   status?: string;
   settlementId: string | null;
@@ -61,6 +64,7 @@ interface ReadingForSettlement {
     status: string;
     createdBy: string;
     paymentBreakdown: { cash: number; online: number; credit: number };
+    paymentSubBreakdown?: PaymentSubBreakdown | null;
   } | null;
 }
 
@@ -100,7 +104,8 @@ function deduplicatePayments(readings: ReadingForSettlement[]) {
         const cash = r.cashAmount || 0;
         const online = r.onlineAmount || 0;
         const credit = r.creditAmount || 0;
-        const emp = r.recordedBy?.id || 'unknown';
+        // Use assigned employee if set, otherwise fall back to recorder for dedup key
+        const emp = r.assignedEmployeeId || r.recordedBy?.id || 'unknown';
         if (cash > 0 || online > 0 || credit > 0) {
           const key = `${emp}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
           if (!seen.has(key)) {
@@ -123,6 +128,9 @@ function deduplicatePayments(readings: ReadingForSettlement[]) {
 
 const fmt = (n: number) =>
   n >= 100000 ? `${safeToFixed(n / 100000, 1)}L` : `${safeToFixed(n, 0)}`;
+
+const fmtCurrency = (n: number) =>
+  `₹${n.toLocaleString('en-IN')}`;
 
 const fuelLabel: Record<string, string> = {
   petrol: 'Petrol',
@@ -148,6 +156,33 @@ export default function DailySettlement() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+
+  // Fetch station staff to resolve employee names from associatedEmployeeId
+  const staffQuery = useStationStaff(stationId ?? '');
+  const staffList: { id: string; name: string }[] = useMemo(() => {
+    const data = staffQuery.data;
+    if (!data) return [];
+    const arr = Array.isArray(data) ? data : (data as any)?.data;
+    if (!Array.isArray(arr)) return [];
+    return arr as { id: string; name: string }[];
+  }, [staffQuery.data]);
+
+  // Name lookup: id -> name (covers both assigned and recorder)
+  const staffById = useMemo(() => {
+    const map: Record<string, string> = {};
+    staffList.forEach(e => { map[e.id] = e.name; });
+    return map;
+  }, [staffList]);
+
+  // Helper: get the responsible employee for a reading (assigned > recorder)
+  const getResponsibleEmployee = (r: ReadingForSettlement): { id: string; name: string } | null => {
+    if (r.assignedEmployee) return r.assignedEmployee;
+    if (r.assignedEmployeeId) {
+      const name = staffById[r.assignedEmployeeId] || 'Unknown';
+      return { id: r.assignedEmployeeId, name };
+    }
+    return r.recordedBy ?? null;
+  };
 
   //  Fetch daily sales summary 
   const { data: dailySales, isLoading: salesLoading } = useQuery({
@@ -191,6 +226,16 @@ export default function DailySettlement() {
         setActualOnline(t.online || 0);
         setActualCredit(t.credit || 0);
       }
+      
+      // Pre-select assigned employee if all readings have the same assigned employee
+      const associatedEmployees = readingsData.unlinked.readings
+        .map(r => r.assignedEmployeeId)
+        .filter((id): id is string => !!id)
+        .filter((id, index, arr) => arr.indexOf(id) === index); // unique
+      
+      if (associatedEmployees.length === 1) {
+        setSelectedEmployeeId(associatedEmployees[0]);
+      }
     } else {
       setSelectedIds([]);
     }
@@ -230,14 +275,35 @@ export default function DailySettlement() {
   const allUnlinkedSelected =
     unlinkedIds.length > 0 && unlinkedIds.every((id) => selectedIds.includes(id));
 
-  // Get unique employees from selected readings
-  const selectedEmployees = Array.from(
-    new Map(
-      selected
-        .filter((r) => r.recordedBy?.id)
-        .map((r) => [r.recordedBy!.id, r.recordedBy!])
-    ).values()
-  );
+  // Employees for the Association picker: station employees, deduplicated by id
+  // Prefer the list of employees that appear as responsible (assigned) in selected readings,
+  // but fall back to all station employees so the owner can always pick someone.
+  const stationEmployees = useMemo(() => {
+    if (staffList.length > 0) {
+      return staffList.filter((s: any) => s.role === 'employee' || !s.role);
+    }
+    // Fallback: derive from readings — prefer assignedEmployee over recorder
+    return Array.from(
+      new Map(
+        selected
+          .map(r => r.assignedEmployee ?? r.recordedBy)
+          .filter((e): e is { id: string; name: string } => !!e?.id)
+          .map(e => [e.id, e])
+      ).values()
+    );
+  }, [staffList, selected]);
+
+  // For the radio-button UI, show employees relevant to selected readings (assigned or recorder)
+  const selectedEmployees = useMemo(() => {
+    const seen = new Map<string, { id: string; name: string }>();
+    selected.forEach(r => {
+      const emp = getResponsibleEmployee(r);
+      if (emp) seen.set(emp.id, emp);
+    });
+    // Also include all station employees so owner can reassign
+    stationEmployees.forEach(e => seen.set(e.id, e));
+    return Array.from(seen.values());
+  }, [selected, stationEmployees, staffById]);
 
   //  Submit 
   const submitMutation = useMutation({
@@ -326,7 +392,7 @@ export default function DailySettlement() {
   if (!stationId) return null;
 
   return (
-    <div className="container mx-auto p-4 max-w-2xl space-y-5">
+    <div className="container mx-auto p-4 max-w-6xl space-y-5">
 
       {/*  Header  */}
       <div className="flex items-center gap-3">
@@ -437,11 +503,24 @@ export default function DailySettlement() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-sm font-medium">
-                          {fuelLabel[r.fuelType] ?? r.fuelType}  Nozzle #{r.nozzleNumber}
+                          {fuelLabel[r.fuelType] ?? r.fuelType} · Nozzle #{r.nozzleNumber}
                         </span>
-                        {r.recordedBy && (
-                          <span className="text-xs text-muted-foreground">
-                             {r.recordedBy.name}
+                        {(() => {
+                          const responsible = getResponsibleEmployee(r);
+                          const isAssigned = !!r.assignedEmployeeId;
+                          return responsible ? (
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
+                              isAssigned
+                                ? 'bg-blue-100 text-blue-700'
+                                : 'bg-gray-100 text-muted-foreground'
+                            }`}>
+                              {isAssigned ? '👤 ' : ''}{responsible.name}
+                            </span>
+                          ) : null;
+                        })()}
+                        {r.assignedEmployeeId && r.recordedBy && r.assignedEmployeeId !== r.recordedBy.id && (
+                          <span className="text-xs text-gray-400">
+                            (entered by {r.recordedBy.name})
                           </span>
                         )}
                       </div>
@@ -472,8 +551,13 @@ export default function DailySettlement() {
                         className="flex justify-between p-2 rounded-lg border border-gray-100 bg-gray-50 text-xs text-muted-foreground"
                       >
                         <span>
-                          {fuelLabel[r.fuelType] ?? r.fuelType}  Nozzle #{r.nozzleNumber}
-                          {r.recordedBy && `  ${r.recordedBy.name}`}
+                          {fuelLabel[r.fuelType] ?? r.fuelType} · Nozzle #{r.nozzleNumber}
+                          {(() => {
+                            const responsible = getResponsibleEmployee(r);
+                            if (!responsible) return null;
+                            const isAssigned = !!r.assignedEmployeeId;
+                            return <> · <span className={isAssigned ? 'text-blue-600' : ''}>{responsible.name}</span></>;
+                          })()}
                         </span>
                         <span>{fmt(r.saleValue)}</span>
                       </div>
@@ -508,21 +592,57 @@ export default function DailySettlement() {
                   <div className="grid grid-cols-3 gap-2 text-center">
                     <div>
                       <p className="text-xs text-muted-foreground">Cash</p>
-                      <p className="text-base font-bold text-blue-800">{fmt(expected.cash)}</p>
+                      <p className="text-base font-bold text-blue-800">{fmtCurrency(expected.cash)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Online</p>
-                      <p className="text-base font-bold text-blue-800">{fmt(expected.online)}</p>
+                      <p className="text-base font-bold text-blue-800">{fmtCurrency(expected.online)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-muted-foreground">Credit</p>
-                      <p className="text-base font-bold text-blue-800">{fmt(expected.credit)}</p>
+                      <p className="text-base font-bold text-blue-800">{fmtCurrency(expected.credit)}</p>
                     </div>
                   </div>
                   <p className="text-xs text-blue-600 text-center">
-                    Total: {fmt(expected.cash + expected.online + expected.credit)}
+                    Total: {fmtCurrency(expected.cash + expected.online + expected.credit)}
                     {expected.litres > 0 && ` · ${safeToFixed(expected.litres, 0)} L`}
                   </p>
+                </div>
+              )}
+
+              {/* Payment Sub-Breakdown from Transaction Data */}
+              {selectedIds.length > 0 && readingsData?.unlinked.readings.some(r => r.transaction?.paymentSubBreakdown) && (
+                <div className="p-3 rounded-lg border border-green-200 bg-green-50 space-y-2">
+                  <p className="text-xs font-semibold text-green-700 uppercase tracking-wide">Payment Method Details</p>
+                  <div className="space-y-2">
+                    {(() => {
+                      const subBreakdown = readingsData.unlinked.readings.find(r => r.transaction?.paymentSubBreakdown)?.transaction?.paymentSubBreakdown;
+                      if (!subBreakdown) return null;
+
+                      return (
+                        <div className="text-xs space-y-1">
+                          {Object.entries(subBreakdown.upi || {}).map(([key, value]) => 
+                            value > 0 && <div key={key} className="flex justify-between">
+                              <span>UPI ({key}):</span>
+                              <span className="font-medium">{fmtCurrency(value)}</span>
+                            </div>
+                          )}
+                          {Object.entries(subBreakdown.card || {}).map(([key, value]) => 
+                            value > 0 && <div key={key} className="flex justify-between">
+                              <span>Card ({key}):</span>
+                              <span className="font-medium">{fmtCurrency(value)}</span>
+                            </div>
+                          )}
+                          {Object.entries(subBreakdown.oil_company || {}).map(([key, value]) => 
+                            value > 0 && <div key={key} className="flex justify-between">
+                              <span>Oil Co. ({key}):</span>
+                              <span className="font-medium">{fmtCurrency(value)}</span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
               )}
 
@@ -708,7 +828,8 @@ export default function DailySettlement() {
 
               {/* Employee Association */}
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <Label className="text-sm font-semibold text-blue-900">Associate Entry to Employee</Label>
+                <Label className="text-sm font-semibold text-blue-900">Responsible Employee</Label>
+                <p className="text-xs text-blue-600 mt-0.5">This person is accountable for the settlement</p>
                 <div className="mt-2">
                   {selectedEmployees.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2">

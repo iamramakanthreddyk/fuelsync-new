@@ -49,6 +49,7 @@ export function SalesTable({
               const fuelType = s.fuelType ?? s.fuel_type;
               const sourceLabel = s.source ?? s.source_type ?? "Manual";
               const createdAt = s.createdAt ?? s.created_at;
+              const employeeName = s.effectiveEmployee?.name ?? s.enteredByUser?.name ?? s.assignedEmployee?.name ?? null;
 
               return (
                 <div key={sale.id} className="bg-white rounded-lg border p-3 md:p-4 space-y-3 shadow-sm">
@@ -79,6 +80,11 @@ export function SalesTable({
                     <Badge variant="outline" className={getSourceBadgeClasses(sourceLabel)}>
                       {sourceLabel}
                     </Badge>
+                    {employeeName && (
+                      <span className="text-xs bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded truncate max-w-[120px]">
+                        👤 {employeeName}
+                      </span>
+                    )}
                     <div className="truncate text-right">
                       {createdAt ? new Date(createdAt).toLocaleDateString() : ""}
                     </div>
@@ -101,6 +107,7 @@ export function SalesTable({
               <TableHead>Station</TableHead>
               <TableHead>Pump</TableHead>
               <TableHead>Nozzle</TableHead>
+              <TableHead>Employee</TableHead>
               <TableHead>Amount</TableHead>
               <TableHead>Fuel Type</TableHead>
               <TableHead className="min-w-[90px]">Entry Source</TableHead>
@@ -114,6 +121,7 @@ export function SalesTable({
                     <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-14" /></TableCell>
+                    <TableCell><Skeleton className="h-4 w-20" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-14" /></TableCell>
                     <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -129,6 +137,7 @@ export function SalesTable({
                   const fuelType = s.fuelType ?? s.fuel_type;
                   const sourceLabel = s.source ?? s.source_type ?? "Manual";
                   const createdAt = s.createdAt ?? s.created_at;
+                  const employeeName = s.effectiveEmployee?.name ?? s.enteredByUser?.name ?? s.assignedEmployee?.name ?? null;
 
                   return (
                     <TableRow key={sale.id}>
@@ -136,6 +145,13 @@ export function SalesTable({
                       <TableCell>{pumpLabel}</TableCell>
                       <TableCell>
                         #{nozzleLabel}
+                      </TableCell>
+                      <TableCell>
+                        {employeeName ? (
+                          <span className="text-xs text-blue-700 font-medium">👤 {employeeName}</span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">—</span>
+                        )}
                       </TableCell>
                       <TableCell className="font-semibold text-right">₹{totalAmt != null ? safeToFixed(totalAmt, 2) : "NA"}</TableCell>
                       <TableCell>
@@ -158,7 +174,7 @@ export function SalesTable({
                 })
               : (
                 <TableRow>
-                  <TableCell colSpan={7} className="text-center text-muted-foreground py-6">
+                  <TableCell colSpan={8} className="text-center text-muted-foreground py-6">
                     No sales data found.
                   </TableCell>
                 </TableRow>

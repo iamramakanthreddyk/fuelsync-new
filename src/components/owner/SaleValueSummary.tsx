@@ -1,4 +1,5 @@
 
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ReadingInput } from '@/components/ui/ReadingInput';
 import { Label } from '@/components/ui/label';
@@ -60,6 +61,9 @@ export function PaymentSummaryCard({
   isLoading = false,
   multiCredit = false
 }: PaymentSummaryCardProps) {
+  // State for controlling collapsible open/close
+  const [showOnlineBreakdown, setShowOnlineBreakdown] = useState(!!paymentAllocation.onlineBreakdown);
+  
   // Always treat cash, online, and credit.amount as strings for input, and only use toNumber for calculations
   const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(String(c.amount)), 0);
   const allocated = toNumber(String(paymentAllocation.cash)) + toNumber(String(paymentAllocation.online)) + totalCredit;
@@ -148,18 +152,20 @@ export function PaymentSummaryCard({
             
             {/* Online Payment Breakdown (UPI/Card/Oil Company) */}
             {toNumber(paymentAllocation.online) > 0 && (
-              <Collapsible defaultOpen={!!paymentAllocation.onlineBreakdown}>
+              <Collapsible open={showOnlineBreakdown} onOpenChange={(isOpen) => {
+                setShowOnlineBreakdown(isOpen);
+                if (isOpen && !paymentAllocation.onlineBreakdown) {
+                  initializeOnlineBreakdown();
+                }
+              }}>
                 <CollapsibleTrigger asChild>
                   <Button
                     type="button"
                     variant="ghost"
                     className="w-full justify-between h-auto p-2 text-xs text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                    onClick={() => {
-                      if (!paymentAllocation.onlineBreakdown) initializeOnlineBreakdown();
-                    }}
                   >
-                    <span>{paymentAllocation.onlineBreakdown ? 'Collapse' : 'Add'} payment method breakdown</span>
-                    <ChevronDown className="w-3 h-3" />
+                    <span>{showOnlineBreakdown ? 'Collapse' : 'Add'} payment method breakdown</span>
+                    <ChevronDown className={`w-3 h-3 transition-transform ${showOnlineBreakdown ? 'rotate-180' : ''}`} />
                   </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent className="pt-2 space-y-2 border-t border-blue-200 mt-2">

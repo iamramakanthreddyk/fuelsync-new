@@ -631,6 +631,12 @@ exports.getSampleReadingsReport = async (req, res, next) => {
           model: User,
           as: 'enteredByUser',
           attributes: ['id', 'name', 'email']
+        },
+        {
+          model: User,
+          as: 'assignedEmployee',
+          attributes: ['id', 'name'],
+          required: false
         }
       ],
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
@@ -666,7 +672,7 @@ exports.getSampleReadingsReport = async (req, res, next) => {
         nozzleNumber: reading.nozzle?.nozzleNumber,
         fuelType: reading.nozzle?.fuelType,
         pumpName: reading.nozzle?.pump?.name,
-        enteredBy: reading.enteredByUser?.name || 'Unknown',
+          enteredBy: reading.assignedEmployee?.name || reading.enteredByUser?.name || 'Unknown',
         enteredAt: reading.createdAt,
         notes: reading.notes
       });

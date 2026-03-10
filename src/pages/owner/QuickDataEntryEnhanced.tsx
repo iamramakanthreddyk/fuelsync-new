@@ -580,7 +580,7 @@ export default function QuickDataEntryEnhanced() {
         creditAllocations: nonSampleReadings.length > 0 && totalCreditTxn > 0 ? paymentAllocation.credits.map(c => ({ creditorId: c.creditorId, amount: toNumber(c.amount) })) : [],
         stationPrices,
         // Associate entry to selected employee (for owners) or current user (for employees)
-        ...(entryAssigneeId ? { associatedEmployeeId: entryAssigneeId } : {}),
+        ...(entryAssigneeId ? { assignedEmployeeId: entryAssigneeId } : {}),
         ...(paymentAllocation.onlineBreakdown ? { paymentSubBreakdown: paymentAllocation.onlineBreakdown } : {})
       };
 

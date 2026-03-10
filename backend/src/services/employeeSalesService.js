@@ -63,6 +63,12 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
           model: User,
           as: 'enteredByUser',
           attributes: ['id', 'name', 'email']
+        },
+        {
+          model: User,
+          as: 'assignedEmployee',
+          attributes: ['id', 'name'],
+          required: false
         }
       ],
       attributes: [
@@ -70,6 +76,7 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
         'stationId',
         'nozzleId',
         'enteredBy',
+        'assignedEmployeeId',
         'readingDate',
         'litresSold',
         'totalAmount',
@@ -111,8 +118,9 @@ async function getEmployeeSalesBreakdown({ stationId, startDate, endDate }) {
     console.log(`[EmployeeSalesService] Starting aggregation of ${readings.length} readings...`);
     
     readings.forEach((reading, idx) => {
-      const employeeId = reading.enteredBy;
-      const employeeName = reading.enteredByUser?.name || 'Unknown';
+      // Req #1: Use assignedEmployeeId (responsible employee) if set, fall back to enteredBy (recorder)
+      const employeeId = reading.assignedEmployeeId || reading.enteredBy;
+      const employeeName = reading.assignedEmployee?.name || reading.enteredByUser?.name || 'Unknown';
       const fuelType = reading.nozzle?.fuelType || 'Unknown';
       const litres = parseFloat(reading.litresSold) || 0;
       const saleValue = parseFloat(reading.totalAmount) || 0;

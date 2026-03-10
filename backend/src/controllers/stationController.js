@@ -99,7 +99,8 @@ const calcDeduplicatedTotals = (items) => {
       (r.creditAmount ?? r.credit ?? (r.transaction && r.transaction.paymentBreakdown && r.transaction.paymentBreakdown.credit) ?? 0) || 0
     );
 
-    const employeeId = (r.recordedBy && r.recordedBy.id) || r.enteredBy || (r.enteredByUser && r.enteredByUser.id) || r.createdBy || 'unknown';
+    // Req #1: prefer assignedEmployeeId (responsible employee) for dedup key
+    const employeeId = r.assignedEmployeeId || (r.recordedBy && r.recordedBy.id) || r.enteredBy || (r.enteredByUser && r.enteredByUser.id) || r.createdBy || 'unknown';
 
     if (cash > 0 || online > 0 || credit > 0) {
       const key = `${employeeId}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
@@ -1516,6 +1517,12 @@ exports.getReadingsForSettlement = async (req, res, next) => {
           attributes: ['id', 'name', 'email'] 
         },
         {
+          model: User,
+          as: 'assignedEmployee',
+          attributes: ['id', 'name'],
+          required: false
+        },
+        {
           model: Settlement,
           as: 'settlement',
           attributes: ['id', 'date', 'isFinal', 'recordedAt'],
@@ -1578,6 +1585,11 @@ exports.getReadingsForSettlement = async (req, res, next) => {
         recordedBy: reading.enteredByUser ? {
           id: reading.enteredByUser.id,
           name: reading.enteredByUser.name
+        } : null,
+        assignedEmployeeId: reading.assignedEmployeeId || null,
+        assignedEmployee: reading.assignedEmployee ? {
+          id: reading.assignedEmployee.id,
+          name: reading.assignedEmployee.name
         } : null,
         recordedAt: reading.createdAt,
         status: reading.status || (reading.settlementId ? 'settled' : 'unsettled'),

@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { apiClient } from '@/lib/api-client';
-import type { NozzleReading } from '@/services/readingService';
+import type { NozzleReading } from '@/types/api';
 import { FuelBadge } from '@/components/FuelBadge';
 import { Clock, User, TrendingUp } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
@@ -97,7 +97,12 @@ export function TodayReadings() {
                     </div>
                     <div className="text-xs text-muted-foreground flex items-center gap-2">
                       <User className="w-3 h-3" />
-                      {reading.user?.name || reading.enteredBy || 'Unknown'}
+                      {(reading as any).effectiveEmployee?.name
+                        || (reading as any).assignedEmployee?.name
+                        || (reading as any).user?.name
+                        || (reading as any).enteredByUser?.name
+                        || reading.enteredBy
+                        || 'Unknown'}
                       <span>•</span>
                       {new Date(reading.createdAt).toLocaleTimeString('en-IN', {
                         hour: '2-digit',

@@ -148,7 +148,7 @@ export default function ReadingApprovalList() {
                     </TableCell>
                     <TableCell>{reading.station?.name || '--'}</TableCell>
                     <TableCell>{reading.nozzle?.name || '--'}</TableCell>
-                    <TableCell>{reading.employee?.name || '--'}</TableCell>
+                    <TableCell>{reading.effectiveEmployee?.name || reading.employee?.name || reading.enteredByUser?.name || '--'}</TableCell>
                     <TableCell>{reading.saleValue?.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) || '--'}</TableCell>
                     <TableCell>{reading.paymentBreakdown?.cash?.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) || '--'}</TableCell>
                     <TableCell>{reading.paymentBreakdown?.online?.toLocaleString('en-IN', { style: 'currency', currency: 'INR' }) || '--'}</TableCell>
@@ -189,7 +189,7 @@ export default function ReadingApprovalList() {
                 </div>
                 <div>
                   <p className="text-xs text-muted-foreground">Employee</p>
-                  <p className="font-medium">{selectedReading.employee?.name || '--'}</p>
+                  <p className="font-medium">{selectedReading.effectiveEmployee?.name || selectedReading.employee?.name || selectedReading.enteredByUser?.name || '--'}</p>
                 </div>
               </div>
               <div className="flex gap-4">

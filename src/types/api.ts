@@ -142,6 +142,8 @@ export interface Nozzle {
   notes?: string;
   createdAt: string;
   updatedAt: string;
+  // Relations
+  pump?: Pump;
 }
 
 export interface FuelPrice {
@@ -178,6 +180,7 @@ export interface NozzleReading {
   pricePerLitre: number;
   totalAmount: number;
   isManualEntry: boolean;
+  isInitialReading?: boolean;
   // Per-reading tender fields deprecated — use `transaction.paymentBreakdown` instead
   // cashAmount: number;
   // onlineAmount: number;

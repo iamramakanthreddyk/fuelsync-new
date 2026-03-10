@@ -17,7 +17,7 @@ const creditAllocationService = require('../services/creditAllocationService');
 const { VALIDATION_ERRORS, TRANSACTION_STATUS } = require('../config/transactionConstants');
 const { Op } = require('sequelize');
 // Minimal helper to compute litresSold and totalAmount similar to readingController
-async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap, isSample = false, forceNotInitial = false }) {
+async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap, isSample = false, forceNotInitial = false, assignedEmployeeId = null }) {
   // Find previous (last) reading for nozzle before or on date
   const lastReading = await NozzleReading.findOne({
     where: {
@@ -85,7 +85,8 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
     readingDate,
     notes: notes || '',
     enteredBy: userId,
-    isSample: !!isSample
+    isSample: !!isSample,
+    ...(assignedEmployeeId ? { assignedEmployeeId } : {})
   };
 
   // Preserve isInitialReading flag when creating
@@ -274,6 +275,8 @@ exports.createTransaction = async (req, res, next) => {
 exports.createQuickEntry = async (req, res, next) => {
   try {
     const { stationId, transactionDate, readings = [], paymentBreakdown, creditAllocations = [], notes = '' } = req.body;
+    // Accept both field names: assignedEmployeeId (canonical) or associatedEmployeeId (legacy frontend)
+    const assignedEmployeeId = req.body.assignedEmployeeId || req.body.associatedEmployeeId || null;
     const userId = req.userId;
 
     if (!stationId) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.STATION_REQUIRED });
@@ -313,7 +316,8 @@ exports.createQuickEntry = async (req, res, next) => {
           transaction: t,
           stationPricesMap,
           isSample: isSampleVal,
-          forceNotInitial: true
+          forceNotInitial: true,
+          assignedEmployeeId
         });
         createdReadings.push(created);
       }
