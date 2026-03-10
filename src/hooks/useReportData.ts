@@ -139,7 +139,7 @@ export function aggregateRawReadingsToSalesReports(readings: any[]): SalesReport
     if (!grouped.has(key)) {
       grouped.set(key, []);
     }
-    grouped.get(key)!.push(reading);
+    grouped.get(key)?.push(reading);
   });
 
   // Convert to SalesReport format
@@ -149,14 +149,14 @@ export function aggregateRawReadingsToSalesReports(readings: any[]): SalesReport
     // Handle camelCase field names from apiClient conversion
     const totalSales = readingsGroup.reduce((sum, r) => {
       const val = r.totalAmount ?? 0;
-      const num = typeof val === 'string' ? parseFloat(val) : Number(val);
-      return sum + (isNaN(num) ? 0 : num);
+      const num = typeof val === 'string' ? Number.parseFloat(val) : Number(val);
+      return sum + (Number.isNaN(num) ? 0 : num);
     }, 0);
     
     const totalQuantity = readingsGroup.reduce((sum, r) => {
       const val = r.deltaVolumeL ?? 0;
-      const num = typeof val === 'string' ? parseFloat(val) : Number(val);
-      return sum + (isNaN(num) ? 0 : num);
+      const num = typeof val === 'string' ? Number.parseFloat(val) : Number(val);
+      return sum + (Number.isNaN(num) ? 0 : num);
     }, 0);
 
     // Group by fuel type for breakdown
@@ -168,12 +168,12 @@ export function aggregateRawReadingsToSalesReports(readings: any[]): SalesReport
       }
       const fuel = fuelMap.get(fuelType)!;
       const salesVal = reading.totalAmount ?? 0;
-      const salesNum = typeof salesVal === 'string' ? parseFloat(salesVal) : Number(salesVal);
-      fuel.sales += isNaN(salesNum) ? 0 : salesNum;
+      const salesNum = typeof salesVal === 'string' ? Number.parseFloat(salesVal) : Number(salesVal);
+      fuel.sales += Number.isNaN(salesNum) ? 0 : salesNum;
       
       const qtyVal = reading.deltaVolumeL ?? 0;
-      const qtyNum = typeof qtyVal === 'string' ? parseFloat(qtyVal) : Number(qtyVal);
-      fuel.quantity += isNaN(qtyNum) ? 0 : qtyNum;
+      const qtyNum = typeof qtyVal === 'string' ? Number.parseFloat(qtyVal) : Number(qtyVal);
+      fuel.quantity += Number.isNaN(qtyNum) ? 0 : qtyNum;
       fuel.transactions += 1;
     });
 
@@ -383,7 +383,7 @@ export const useSettlements = ({ dateRange, selectedStation }: ReportQueryParams
       if (selectedStation === 'all') {
         // Fetch settlements from all accessible stations
         const stationsResponse = await apiClient.get('/stations');
-        const stations = extractApiArray(stationsResponse);
+        const stations = unwrapDataOrArray(stationsResponse, []);
 
         if (!stations || stations.length === 0) {
           return [];
@@ -397,7 +397,7 @@ export const useSettlements = ({ dateRange, selectedStation }: ReportQueryParams
               const response = await apiClient.get<{ success: boolean; data: Settlement[] }>(
                 `/stations/${station.id}/settlements?${params}`
               );
-              const stationSettlements = extractApiArray(response);
+              const stationSettlements = unwrapDataOrArray(response, []);
               // Add station info to each settlement
               return stationSettlements.map((settlement: Settlement) => ({
                 ...settlement,
@@ -419,7 +419,7 @@ export const useSettlements = ({ dateRange, selectedStation }: ReportQueryParams
         const response = await apiClient.get<{ success: boolean; data: Settlement[] }>(
           `/stations/${selectedStation}/settlements?${params}`
         );
-        return extractApiArray(response);
+        return unwrapDataOrArray(response, []);
       }
     },
     enabled: !!selectedStation,
