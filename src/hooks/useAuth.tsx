@@ -58,6 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const t = getToken();
     return t ? { access_token: t } : null;
   }, []);
+  const token = getToken();
   const isLoggedIn = !!user && !!token;
 
   // Verify token with backend
