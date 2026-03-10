@@ -8,11 +8,8 @@ import { apiClient } from '@/lib/api-client';
 import { extractApiArray } from '@/lib/api-response';
 import { EquipmentStatusEnum, EquipmentStatus, FuelType, FuelTypeEnum } from '@/core/enums';
 import { Pump, Nozzle } from '@/types/api';
-import AddPumpDialog from './dialogs/AddPumpDialog';
-import EditPumpDialog from './dialogs/EditPumpDialog';
-import AddNozzleDialog from './dialogs/AddNozzleDialog';
-import EditNozzleDialog from './dialogs/EditNozzleDialog';
-import PumpCard from './cards/PumpCard';
+import { AddPumpDialog, EditPumpDialog, AddNozzleDialog, EditNozzleDialog } from './dialogs';
+import { PumpCard } from './cards';
 import { PermissionGuard } from '@/hooks/usePermissions';
 
 interface PumpsTabProps {

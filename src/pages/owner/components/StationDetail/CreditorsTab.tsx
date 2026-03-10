@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Link } from 'react-router-dom';
 import { apiClient } from '@/lib/api-client';
 import { extractApiArray } from '@/lib/api-response';
-import CreditorCard from './cards/CreditorCard';
+import { CreditorCard } from './cards';
 import { PermissionGuard } from '@/hooks/usePermissions';
 
 interface Creditor {

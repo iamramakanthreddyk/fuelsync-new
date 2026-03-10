@@ -8,8 +8,8 @@ interface FuelPrice {
   id: string;
   fuelType: string;
   price: number | string;
-  cost_price?: number | string;
-  costPrice?: number | string;
+  cost_price?: number | null;
+  costPrice?: number | null;
   effectiveFrom: string;
 }
 
