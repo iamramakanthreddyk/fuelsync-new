@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { unwrapDataOrArray, unwrapDataOrObject } from '@/lib/api-utils';
 import { User, Station } from '@/types/api';
 
 export interface AdminStats {
@@ -19,8 +20,8 @@ export function useAdminDashboard() {
         apiClient.get<Station[]>('/stations')
       ]);
 
-      const users = Array.isArray(usersRes) ? usersRes : ((usersRes as any)?.data || []);
-      const stations = Array.isArray(stationsRes) ? stationsRes : ((stationsRes as any)?.data || []);
+      const users = unwrapDataOrArray(usersRes, []);
+      const stations = unwrapDataOrArray(stationsRes, []);
 
       const stats: AdminStats = {
         totalUsers: users.length,
@@ -55,8 +56,8 @@ export function useOwnerDashboard(stationId?: string) {
       ]);
 
       return {
-        employees: Array.isArray(employeesRes) ? employeesRes : ((employeesRes as any)?.data || []),
-        pumps: Array.isArray(pumpsRes) ? pumpsRes : ((pumpsRes as any)?.data || []),
+        employees: unwrapDataOrArray(employeesRes, []),
+        pumps: unwrapDataOrArray(pumpsRes, []),
         stationId
       };
     },
@@ -77,9 +78,10 @@ export function useEmployeeDashboard(stationId?: string) {
         apiClient.get(`/readings/today?stationId=${stationId}`)
       ]);
 
+      const shiftObj = unwrapDataOrObject(shiftRes, null) as any;
       return {
-        activeShift: (shiftRes as any)?.data?.shift || (shiftRes as any)?.shift || null,
-        todayReadings: Array.isArray(readingsRes) ? readingsRes : ((readingsRes as any)?.data || []),
+        activeShift: shiftObj?.shift ?? (shiftRes as any)?.shift ?? null,
+        todayReadings: unwrapDataOrArray(readingsRes, []),
         stationId
       };
     },

@@ -10,6 +10,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 
 export interface EmployeeSalesByFuel {
   fuelType: string;
@@ -76,11 +77,8 @@ export function useEmployeeSalesBreakdown(
           `/stations/${stationId}/employee-sales?startDate=${startDate}&endDate=${endDate}`
         );
 
-        if (!response?.data || response.data.length === 0) {
-          return null;
-        }
-
-        const records = response.data;
+        const records = unwrapDataOrArray(response, []);
+        if (!records || records.length === 0) return null;
         const totalSales = records.reduce((sum: number, r: EmployeeSalesRecord) => sum + r.totalSales, 0);
         const totalQuantity = records.reduce((sum: number, r: EmployeeSalesRecord) => sum + r.totalQuantity, 0);
         const totalCash = records.reduce((sum: number, r: EmployeeSalesRecord) => sum + r.totalCash, 0);

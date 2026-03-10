@@ -605,139 +605,32 @@ GET /dashboard/summary?stationId=uuid&startDate=2025-11-01&endDate=2025-11-27
 
 ## Models Reference
 
-### User
-```typescript
-interface User {
-  id: string;           // UUID
-  email: string;
-  name: string;
-  phone?: string;
-  role: 'super_admin' | 'owner' | 'manager' | 'employee';
-  stationId?: string;   // UUID - assigned station
-  planId?: string;      // UUID - subscription plan (owners)
-  isActive: boolean;
-  lastLoginAt?: string; // ISO datetime
-  createdAt: string;    // ISO datetime
-  updatedAt: string;    // ISO datetime
-}
+The canonical TypeScript interfaces for the backend database models are maintained in `backend/src/types/db.ts` (plans, stations, users, pumps, nozzles, fuel_prices, nozzle_readings, creditors, credit_transactions, shifts, cash_handovers).
+
+If you need model shapes for documentation or frontend usage, import or copy the specific interfaces you require from that file (for example: `User`, `Station`, `NozzleReading`, `Shift`). This avoids duplication and keeps the schema authoritative.
+
+Example (backend):
+```ts
+import { User, Station, NozzleReading, Shift } from '../src/types/db';
 ```
 
-### Station
-```typescript
-interface Station {
-  id: string;           // UUID
-  ownerId: string;      // UUID
-  name: string;
-  code?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  phone?: string;
-  gstNumber?: string;
-  oilCompany?: string;
-  isActive: boolean;
-  requireShiftForReadings: boolean;
-  alertOnMissedReadings: boolean;
-  missedReadingThresholdDays: number;
-  createdAt: string;
-  updatedAt: string;
-}
-```
-
-### NozzleReading
-```typescript
-interface NozzleReading {
-  id: string;           // UUID
-  nozzleId: string;     // UUID
-  stationId: string;    // UUID
-  shiftId?: number;     // Integer (optional)
-  userId: string;       // UUID
-  readingDate: string;  // YYYY-MM-DD
-  previousReading: number;
-  currentReading: number;
-  litresSold: number;
-  fuelType: string;
-  pricePerLitre: number;
-  totalAmount: number;
-  cashAmount: number;
-  onlineAmount: number;
-  creditAmount: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-```
-
-### Shift
-```typescript
-interface Shift {
-  id: number;           // Integer (auto-increment)
-  employeeId: string;   // UUID
-  stationId: string;    // UUID
-  shiftDate: string;    // YYYY-MM-DD
-  startTime: string;    // HH:mm
-  endTime?: string;     // HH:mm
-  shiftType: 'morning' | 'evening' | 'night' | 'full_day' | 'custom';
-  status: 'active' | 'completed' | 'cancelled';
-  cashCollected?: number;
-  onlineCollected?: number;
-  totalSales?: number;
-  discrepancy?: number;
-  notes?: string;
-  createdAt: string;
-  updatedAt: string;
-}
-```
 
 ---
 
 ## Frontend TypeScript Types
 
 ```typescript
-// api-types.ts - Copy this to your frontend
+// For canonical DB-aligned types, prefer the TypeScript definitions in
+// `backend/src/types/db.ts`. That file contains interfaces and enums
+// generated from the database schema (plans, stations, users, pumps,
+// nozzles, fuel_prices, nozzle_readings, creditors, credit_transactions,
+// shifts, cash_handovers) and is the single source of truth for backend
+// types. If you need a copy for frontend use, export the subset you need
+// from the backend types or copy the relevant interfaces into your
+// frontend `src/types/` folder.
 
-// Date format helpers
-type DateString = string;  // YYYY-MM-DD format
-type DateTimeString = string;  // ISO 8601 format
-type TimeString = string;  // HH:mm format
-type UUID = string;  // UUIDv4 format
-
-// API Response types
-interface ApiResponse<T> {
-  success: boolean;
-  data: T;
-  message?: string;
-}
-
-interface ApiError {
-  success: false;
-  error: {
-    message: string;
-    code?: string;
-    details?: { field: string; message: string }[];
-  };
-}
-
-interface PaginatedResponse<T> {
-  success: true;
-  data: T[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasMore: boolean;
-  };
-}
-
-// Enum types
-type FuelType = 'petrol' | 'diesel' | 'premium_petrol' | 'premium_diesel' | 'cng' | 'lpg';
-type PaymentMethod = 'cash' | 'upi' | 'card' | 'credit' | 'fleet_card' | 'wallet';
-type UserRole = 'super_admin' | 'owner' | 'manager' | 'employee';
-type PumpStatus = 'active' | 'inactive' | 'maintenance';
-type ShiftType = 'morning' | 'evening' | 'night' | 'full_day' | 'custom';
-type ShiftStatus = 'active' | 'completed' | 'cancelled';
+// Example: import or copy `FuelType`, `UserRole`, `NozzleReading` etc.
+// from `backend/src/types/db.ts`.
 ```
 
 ---

@@ -52,6 +52,7 @@ class ExpensesService {
       receiptNumber,
       tags: tags || null,
       notes,
+      createdBy: userId,
       enteredBy: userId,
       approvalStatus,
       approvedBy: approvalStatus === 'auto_approved' ? userId : null,

@@ -13,7 +13,7 @@ import { useMemo } from 'react';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { usePumps } from './api';
 import { useFuelPricesData } from './useFuelPricesData';
-import { unwrapDataOrArray, isApiSuccess } from '@/lib/api-utils';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 
 export interface StationFuelPricesStatus {
   prices: Record<string, number>; // { PETROL: 105.50, DIESEL: 95.75 }
@@ -92,5 +92,5 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
       missingFuelTypes,
       pricesArray
     };
-  }, [stationId, pricesByStation, pumpsResponse?.data, fuelPricesData]);
+  }, [stationId, pricesByStation, pumpsResponse, fuelPricesData]);
 }

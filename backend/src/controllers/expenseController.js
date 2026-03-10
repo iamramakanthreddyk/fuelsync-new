@@ -151,6 +151,7 @@ const createExpense = async (req, res) => {
       notes,
       frequency: frequency || EXPENSE_CATEGORY_FREQUENCY_MAP[category] || 'one_time',
       tags: tags || null,
+      createdBy: req.user.id,
       enteredBy: req.user.id,
       approvalStatus,
       // Auto-approve if manager/owner

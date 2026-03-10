@@ -89,10 +89,21 @@ module.exports = (sequelize) => {
       comment: 'Optional JSON array of tags, e.g. ["overhead", "essential", "one-off"]'
     },
 
-    // Who entered
-    enteredBy: {
+    // Who entered (maps to created_by in DB for legacy compatibility)
+    createdBy: {
       type: DataTypes.UUID,
       allowNull: false,
+      field: 'created_by',
+      references: {
+        model: 'users',
+        key: 'id'
+      }
+    },
+
+    // Who entered (canonical field)
+    enteredBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
       field: 'entered_by',
       references: {
         model: 'users',

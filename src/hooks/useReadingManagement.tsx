@@ -1,6 +1,7 @@
 
 import { useState } from 'react';
 import { apiClient } from '@/lib/api-client';
+import { unwrapDataOrObject, unwrapDataOrArray } from '@/lib/api-utils';
 import type { NozzleReading } from '@/types/api';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
@@ -71,10 +72,11 @@ export const useReadingManagement = () => {
       formData.append("user_id", user.id.toString());
 
       const res = await apiClient.post<ReceiptUploadResult>('/readings/upload', formData);
+      const dataObj = unwrapDataOrObject(res, null) as any;
 
-      const inserted = res?.data?.readings_inserted ?? 0;
-      const parsed = res?.data?.parsed_preview ?? null;
-      const readings = Array.isArray(res?.data?.readings) ? res.data.readings : [];
+      const inserted = dataObj?.readings_inserted ?? 0;
+      const parsed = dataObj?.parsed_preview ?? null;
+      const readings = unwrapDataOrArray(dataObj?.readings, []);
 
       toast({
         title: "Receipt Processing Complete",
@@ -135,10 +137,9 @@ export const useReadingManagement = () => {
       };
 
       const response = await apiClient.post<{ success: boolean; data: NozzleReading }>('/readings/manual', payload);
-      if (!response || typeof response !== 'object' || response.success !== true) {
-        throw new Error('Failed to save reading');
-      }
-      const data = response.data;
+      const saved = unwrapDataOrObject(response, null) as NozzleReading | null;
+      if (!saved) throw new Error('Failed to save reading');
+      const data = saved;
       toast({
         title: "Reading Saved",
         description: "Manual reading recorded successfully",

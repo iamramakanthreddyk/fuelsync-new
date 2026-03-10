@@ -2,6 +2,7 @@
 import { useNavigate } from "react-router-dom";
 import { useFuelPricesData } from "@/hooks/useFuelPricesData";
 import { useFuelPrices } from '@/hooks/api';
+import { unwrapDataOrObject, unwrapDataOrArray } from '@/lib/api-utils';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { useDashboardData } from "@/hooks/useDashboardData";
@@ -17,6 +18,7 @@ export function useSetupChecklist() {
   const { data: fuelPrices } = useFuelPricesData(stationId);
   // Also check the direct API hook to read the `current` wrapper (ApiResponse.data.current)
   const fuelPricesQuery = useFuelPrices(stationId || '');
+  const apiPricesCurrent = unwrapDataOrObject(fuelPricesQuery.data, null)?.current ?? [];
   const { data } = useDashboardData();
 
   // Check if user has any stations
@@ -38,7 +40,7 @@ export function useSetupChecklist() {
   // Only show these items if user has a station
   if (hasStations) {
     // Fuel prices are always needed
-    const hasPricesFromApi = !!(fuelPrices && fuelPrices.length > 0) || !!(fuelPricesQuery.data && fuelPricesQuery.data.data && Array.isArray(fuelPricesQuery.data.data.current) && fuelPricesQuery.data.data.current.length > 0);
+    const hasPricesFromApi = !!(fuelPrices && fuelPrices.length > 0) || (Array.isArray(apiPricesCurrent) && apiPricesCurrent.length > 0);
     const hasPricesFromGlobal = !!(stationId && pricesByStation && pricesByStation[stationId] && Object.keys(pricesByStation[stationId]).length > 0);
     const hasPricesArray = !!(Array.isArray(pricesArray) && pricesArray.length > 0);
 

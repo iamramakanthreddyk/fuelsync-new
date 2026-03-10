@@ -5,7 +5,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { extractApiArray } from '@/lib/api-response';
+import { unwrapDataOrArray, unwrapDataOrObject } from '@/lib/api-utils';
 import type { DateRange } from '@/components/reports';
 
 // ============================================
@@ -208,7 +208,7 @@ export function useSalesReports({ dateRange, selectedStation }: ReportQueryParam
       const response = await apiClient.get<{ success: boolean; data: any[] }>(
         `/analytics/sales?${params}`
       );
-      const rawReadings = extractApiArray(response, []);
+      const rawReadings = unwrapDataOrArray(response, []);
       
       // Aggregate raw readings into SalesReport format
       return aggregateRawReadingsToSalesReports(rawReadings);
@@ -227,7 +227,7 @@ export function useShiftReports({ dateRange, selectedStation }: ReportQueryParam
       const response = await apiClient.get<{ success: boolean; data: ShiftReport[] }>(
         `/reports/shifts?${params}`
       );
-      return extractApiArray(response, []);
+      return unwrapDataOrArray(response, []);
     },
   });
 }
@@ -244,19 +244,11 @@ export function usePumpPerformance({ dateRange, selectedStation }: ReportQueryPa
         `/analytics/pump-performance?${params}`
       );
       
-      // Extract data object directly (not as array)
-      const dataObj = (response as any)?.data;
-      
-      // If data is an object with pumps property, return pumps
-      if (dataObj && typeof dataObj === 'object' && Array.isArray(dataObj.pumps)) {
-        return dataObj.pumps;
-      }
-      
-      // If data is already an array, return it
-      if (Array.isArray(dataObj)) {
-        return dataObj;
-      }
-      
+      // Normalize response to object and extract `pumps` property if present
+      const dataObj = unwrapDataOrObject(response, null) as any;
+      if (!dataObj) return [];
+      if (Array.isArray(dataObj.pumps)) return dataObj.pumps;
+      if (Array.isArray(dataObj)) return dataObj;
       return [];
     },
   });
@@ -297,20 +289,14 @@ export function useNozzleBreakdown({ dateRange, selectedStation }: ReportQueryPa
         };
       }>(`/analytics/nozzle-breakdown?${params}`);
 
-      // Handle both old and new backend response formats
-      let backendNozzles = [];
-      
-      // New format: { nozzles: { summary, items } }
-      if ((response as any)?.data?.nozzles?.items) {
-        backendNozzles = (response as any).data.nozzles.items;
-      } 
-      // Old format: { nozzles: [...] }
-      else if (Array.isArray((response as any)?.data?.nozzles)) {
-        backendNozzles = (response as any).data.nozzles;
-      } 
-      // Fallback
-      else {
-        backendNozzles = [];
+      // Handle both old and new backend response formats using unwrap helpers
+      const dataObj2 = unwrapDataOrObject(response, null) as any;
+      let backendNozzles: any[] = [];
+      if (dataObj2) {
+        if (dataObj2.nozzles) {
+          if (Array.isArray(dataObj2.nozzles.items)) backendNozzles = dataObj2.nozzles.items;
+          else if (Array.isArray(dataObj2.nozzles)) backendNozzles = dataObj2.nozzles;
+        }
       }
 
       // Map backend shape to UI shape
