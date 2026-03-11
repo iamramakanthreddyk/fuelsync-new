@@ -8,8 +8,8 @@
  * - Quick expense overview
  */
 
-import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
 import { useGlobalFilter } from '@/context/GlobalFilterContext';
@@ -42,6 +42,16 @@ const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigi
 export default function ManagerReports() {
   const { startDate, endDate } = useGlobalFilter();
   const [selectedTab, setSelectedTab] = useState('overview');
+  const queryClient = useQueryClient();
+
+  // Invalidate queries when dates change to force refetch
+  useEffect(() => {
+    if (startDate && endDate) {
+      queryClient.invalidateQueries({ queryKey: ['manager-sales'] });
+      queryClient.invalidateQueries({ queryKey: ['manager-pumps'] });
+      queryClient.invalidateQueries({ queryKey: ['manager-expenses'] });
+    }
+  }, [startDate, endDate, queryClient]);
 
   // Get manager's station
   const stationsResponse = useStations().data;

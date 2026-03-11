@@ -457,7 +457,7 @@ export default function ExpensesPage() {
   return (
     <>
       <DateRangeFilterToolbar />
-      <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6 pt-24">
+      <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6 pt-32">
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
