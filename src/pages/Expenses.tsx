@@ -16,12 +16,11 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStations } from '@/hooks/api';
+import { useGlobalFilter } from '@/context/GlobalFilterContext';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatCurrency } from '@/lib/format-utils';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -56,10 +55,9 @@ import {
   Receipt,
   TrendingDown,
   IndianRupee,
-  CalendarDays,
-  CalendarRange,
 } from 'lucide-react';
 
+import { ExpenseSimpleFilter } from '@/components/filters/ExpenseSimpleFilter';
 import type { Expense, Station } from '@/types/api';
 import type { ExpenseFrequency, ExpenseApprovalStatus } from '@/types/finance';
 import { FREQUENCY_LABELS, APPROVAL_STATUS_LABELS } from '@/types/finance';
@@ -324,15 +322,20 @@ function PendingApprovalRow({ expense, onApprove, approving }: PendingRowProps) 
 
 export default function ExpensesPage() {
   const { user } = useAuth();
+  const { startDate: globalStartDate, endDate: globalEndDate } = useGlobalFilter();
+  
   // useStations returns a NormalizedResponse<Station[]> union (success | failure).
   // Narrow to the success branch before accessing `.data` to satisfy TS typings.
   const stationsResponse = useStations().data;
   const stations: Station[] = stationsResponse?.success ? stationsResponse.data : [];
   const [selectedStationId, setSelectedStationId] = useState<string>('');
-  const [viewMode, setViewMode] = useState<'daily' | 'monthly'>('monthly');
-  const [selectedDate, setSelectedDate] = useState(format(new Date(), 'yyyy-MM-dd'));
-  const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [addOpen, setAddOpen] = useState(false);
+  
+  // Simplified filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterType, setFilterType] = useState<'category' | 'station'>('category');
+  const [selectedFilter, setSelectedFilter] = useState('');
+  
   const queryClient = useQueryClient();
 
   // Resolve stationId
@@ -345,14 +348,13 @@ export default function ExpensesPage() {
 
   const canManage = ['manager', 'owner', 'super_admin'].includes(user?.role ?? '');
 
-  // ── Expense summary query ──
+  // ── Expense summary query (using global date filter) ──
   const summaryQuery = useQuery({
-    queryKey: ['expense-summary', stationId, viewMode, viewMode === 'daily' ? selectedDate : selectedMonth],
+    queryKey: ['expense-summary', stationId, globalStartDate, globalEndDate],
     queryFn: () => {
-      const params = viewMode === 'daily'
-        ? `date=${selectedDate}`
-        : `month=${selectedMonth}`;
-      return apiClient.get<any>(`/stations/${stationId}/expense-summary?${params}`);
+      return apiClient.get<any>(
+        `/stations/${stationId}/expense-summary?startDate=${globalStartDate}&endDate=${globalEndDate}`
+      );
     },
     enabled: !!stationId,
   });
@@ -365,14 +367,13 @@ export default function ExpensesPage() {
     enabled: !!stationId && canManage,
   });
 
-  // ── All expenses for the period ──
+  // ── All expenses for the period (using global date filter) ──
   const expensesQuery = useQuery({
-    queryKey: ['expenses-list', stationId, viewMode === 'daily' ? selectedDate : selectedMonth],
+    queryKey: ['expenses-list', stationId, globalStartDate, globalEndDate],
     queryFn: () => {
-      const filter = viewMode === 'daily'
-        ? `startDate=${selectedDate}&endDate=${selectedDate}`
-        : `month=${selectedMonth}`;
-      return apiClient.get<any>(`/stations/${stationId}/expenses?${filter}&limit=100`);
+      return apiClient.get<any>(
+        `/stations/${stationId}/expenses?startDate=${globalStartDate}&endDate=${globalEndDate}&limit=100`
+      );
     },
     enabled: !!stationId,
   });
@@ -415,7 +416,35 @@ export default function ExpensesPage() {
 
   const summary = (summaryQuery.data as any)?.data;
   const pending: Expense[] = (pendingQuery.data as any)?.data?.expenses ?? [];
-  const expenses: Expense[] = (expensesQuery.data as any)?.data?.expenses ?? [];
+  const allExpenses: Expense[] = (expensesQuery.data as any)?.data?.expenses ?? [];
+
+  // Filter expenses by search and single filter
+  const filteredExpenses = allExpenses.filter((exp) => {
+    // Search filter (description, amount, date)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      const matchesDescription = (exp.description || '').toLowerCase().includes(query);
+      const matchesAmount = exp.amount.toString().includes(query);
+      const matchesDate = (exp.expenseDate || '').includes(query);
+      if (!matchesDescription && !matchesAmount && !matchesDate) {
+        return false;
+      }
+    }
+
+    // Single filter (category or station)
+    if (selectedFilter) {
+      if (filterType === 'category' && exp.category !== selectedFilter) {
+        return false;
+      }
+      if (filterType === 'station' && exp.stationId !== selectedFilter) {
+        return false;
+      }
+    }
+
+    return true;
+  });
+
+  const expenses = filteredExpenses;
 
   const invalidateAll = () => {
     queryClient.invalidateQueries({ queryKey: ['expense-summary', stationId] });
@@ -498,7 +527,25 @@ export default function ExpensesPage() {
         </CardContent>
       </Card>
 
-      {/* Pending Approvals (manager/owner only) */}
+      {/* Simple Filter: Search + Category/Station */}
+      <ExpenseSimpleFilter
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        filterType={filterType}
+        onFilterTypeChange={setFilterType}
+        selectedFilter={selectedFilter}
+        onFilterChange={setSelectedFilter}
+        categoryOptions={Object.entries(EXPENSE_CATEGORIES).map(([v, l]) => ({
+          value: v,
+          label: l,
+        }))}
+        stationOptions={stations.map((s) => ({
+          value: s.id,
+          label: s.name,
+        }))}
+      />
+
+      {/* Expense List */}
       {canManage && pending.length > 0 && (
         <Card className="border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20">
           <CardHeader className="pb-3">
@@ -565,68 +612,40 @@ export default function ExpensesPage() {
         </Card>
       )}
 
-      {/* Daily / Monthly Toggle */}
-      <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'daily' | 'monthly')}>
-        <div className="flex items-center gap-4 flex-wrap">
-          <TabsList>
-            <TabsTrigger value="daily" className="flex items-center gap-1">
-              <CalendarDays className="w-4 h-4" />Daily
-            </TabsTrigger>
-            <TabsTrigger value="monthly" className="flex items-center gap-1">
-              <CalendarRange className="w-4 h-4" />Monthly
-            </TabsTrigger>
-          </TabsList>
-          {viewMode === 'daily' ? (
-            <Input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-40"
-            />
-          ) : (
-            <Input
-              type="month"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="w-36"
-            />
-          )}
-        </div>
-
-        {/* Summary Cards */}
-        {summary && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
-            <Card>
+      {/* Summary Cards (using global date filter) */}
+      {summary && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+          <Card>
+            <CardContent className="pt-4 pb-3">
+              <p className="text-xs text-muted-foreground">Approved Total</p>
+              <p className="text-xl font-bold text-green-600">{fmt(summary.approvedTotal || 0)}</p>
+            </CardContent>
+          </Card>
+          {(summary.pendingCount ?? 0) > 0 && (
+            <Card className="border-yellow-200">
               <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground">Approved Total</p>
-                <p className="text-xl font-bold text-green-600">{fmt(summary.approvedTotal || 0)}</p>
+                <p className="text-xs text-muted-foreground">⏳ Awaiting Review</p>
+                <p className="text-xl font-bold text-yellow-600">{fmt(summary.pendingAmount || 0)}</p>
+                <p className="text-xs text-yellow-600">{summary.pendingCount} pending</p>
+                <p className="text-xs text-muted-foreground mt-1">Entered by staff • Not counted yet</p>
               </CardContent>
             </Card>
-            {(summary.pendingCount ?? 0) > 0 && (
-              <Card className="border-yellow-200">
-                <CardContent className="pt-4 pb-3">
-                  <p className="text-xs text-muted-foreground">⏳ Awaiting Review</p>
-                  <p className="text-xl font-bold text-yellow-600">{fmt(summary.pendingAmount || 0)}</p>
-                  <p className="text-xs text-yellow-600">{summary.pendingCount} pending</p>
-                  <p className="text-xs text-muted-foreground mt-1">Entered by staff • Not counted yet</p>
-                </CardContent>
-              </Card>
-            )}
-            {summary.byFrequency?.map((f: any) => (
-              <Card key={f.frequency}>
-                <CardContent className="pt-4 pb-3">
-                  <p className="text-xs text-muted-foreground">{FREQUENCY_LABELS[f.frequency as ExpenseFrequency] ?? f.frequency}</p>
-                  <p className="text-lg font-bold">{fmt(f.total)}</p>
-                  <p className="text-xs text-muted-foreground">{f.count} entries</p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+          )}
+          {summary.byFrequency?.map((f: any) => (
+            <Card key={f.frequency}>
+              <CardContent className="pt-4 pb-3">
+                <p className="text-xs text-muted-foreground">{FREQUENCY_LABELS[f.frequency as ExpenseFrequency] ?? f.frequency}</p>
+                <p className="text-lg font-bold">{fmt(f.total)}</p>
+                <p className="text-xs text-muted-foreground">{f.count} entries</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
-        {/* Category Breakdown */}
-        {summary?.byCategory?.length > 0 && (
-          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Category Breakdown */}
+      {summary?.byCategory?.length > 0 && (
+        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
             {summary.byCategory.map((c: any) => (
               <div key={c.category} className="flex items-center justify-between p-3 rounded-lg border bg-card">
                 <div>
@@ -639,15 +658,12 @@ export default function ExpensesPage() {
           </div>
         )}
 
-        <TabsContent value="daily" className="mt-4">
+        {/* Expense List */}
+        <div className="mt-4">
           <ExpenseTable expenses={expenses} loading={expensesQuery.isLoading} />
-        </TabsContent>
-        <TabsContent value="monthly" className="mt-4">
-          <ExpenseTable expenses={expenses} loading={expensesQuery.isLoading} />
-        </TabsContent>
-      </Tabs>
-    </div>
-  );
+        </div>
+      </div>
+    );
 }
 
 // ── Expense Table ─────────────────────────────────────────────────────────────
