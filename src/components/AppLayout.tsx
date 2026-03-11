@@ -5,7 +5,7 @@ import { SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/AppSidebar";
 import { AppHeader } from "@/components/AppHeader";
 import { MobileBottomNav } from "@/components/MobileBottomNav";
-import { DateRangeFilterToolbar } from './DateRangeFilterToolbar';
+
 import FuelSyncLogo from './FuelSyncLogo';
 import { useAuth } from '@/hooks/useAuth';
 import { Bell } from 'lucide-react';
@@ -100,7 +100,6 @@ export default function AppLayout({ children }: AppLayoutProps) {
             </div>
             <div className="flex-1 flex flex-col">
               <AppHeader />
-              <DateRangeFilterToolbar />
               <main className="flex-1 overflow-auto pt-12 md:pt-10 pb-24 md:pb-6">
                 <div className="w-full px-3 md:px-6 lg:px-8 xl:px-12 pt-0 md:pt-2">
                   {children}

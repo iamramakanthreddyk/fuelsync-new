@@ -6,6 +6,7 @@
  */
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Tabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,6 +21,8 @@ import {
   aggregateRawReadingsToSalesReports,
 } from '@/hooks/useReportData';
 import { useToast } from '@/hooks/use-toast';
+import { apiClient } from '@/lib/api-client';
+import { extractApiData } from '@/lib/api-response';
 import {
   ReportHeader,
   FilterBar,
@@ -50,6 +53,7 @@ import {
 // Import tab components
 import { ReportTabTriggers } from './reports/ReportTabTriggers';
 import { OverviewTab } from './reports/OverviewTab';
+import { AnalyticsTab } from './reports/AnalyticsTab';
 import { SalesTab } from './reports/SalesTab';
 import { NozzlesTab } from './reports/NozzlesTab';
 import { PumpsTab } from './reports/PumpsTab';
@@ -242,12 +246,28 @@ export default function Reports() {
     endDate: dateRange.endDate
   });
 
+  // Fetch analytics data
+  const { data: analyticsData, isLoading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } = useQuery({
+    queryKey: ['analytics-reports', dateRange, selectedStation],
+    queryFn: async () => {
+      const params = new URLSearchParams({
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate
+      });
+      if (selectedStation !== 'all') {
+        params.append('stationId', selectedStation);
+      }
+      const response = await apiClient.get(`/analytics/owner/analytics?${params.toString()}`);
+      return extractApiData(response, null);
+    }
+  });
+
   // Refresh all data
   const handleRefresh = useCallback(async () => {
     setIsRefreshing(true);
     setPlanLimitError(null);
     try {
-      await Promise.all([refetchSales(), refetchPumps(), refetchNozzles(), refetchSettlements(), refetchExpenses()]);
+      await Promise.all([refetchSales(), refetchPumps(), refetchNozzles(), refetchSettlements(), refetchExpenses(), refetchAnalytics()]);
       setLastUpdated(new Date());
       toast({
         title: 'Data Refreshed',
@@ -272,7 +292,7 @@ export default function Reports() {
     } finally {
       setIsRefreshing(false);
     }
-  }, [refetchSales, refetchPumps, refetchNozzles, refetchSettlements, refetchExpenses, toast]);
+  }, [refetchSales, refetchPumps, refetchNozzles, refetchSettlements, refetchExpenses, refetchAnalytics, toast]);
 
   // Monitor date range changes and clear errors
   useEffect(() => {
@@ -643,6 +663,12 @@ export default function Reports() {
               expenses={expenses}
               expensesLoading={expensesLoading}
               insights={insights}
+            />
+            <AnalyticsTab
+              analyticsData={analyticsData}
+              isLoading={analyticsLoading}
+              dateRange={dateRange}
+              selectedStation={selectedStation}
             />
             <SalesTab
               aggregatedSalesReports={aggregatedSalesReports}

@@ -8,17 +8,25 @@ import {
   Users,
   TrendingUp,
   TrendingDown,
+  LineChart,
 } from 'lucide-react';
 
 export const ReportTabTriggers: React.FC = () => {
   return (
-    <TabsList className="grid w-full grid-cols-7 gap-1 bg-slate-100 p-1 rounded-lg h-auto md:h-auto overflow-x-auto">
+    <TabsList className="grid w-full grid-cols-8 gap-1 bg-slate-100 p-1 rounded-lg h-auto md:h-auto overflow-x-auto">
       <TabsTrigger
         value="overview"
         className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2 whitespace-nowrap"
       >
         <PieChart className="w-4 h-4 text-purple-600 data-[state=active]:text-purple-700" />
         <span className="text-[10px] md:text-sm leading-tight">Overview</span>
+      </TabsTrigger>
+      <TabsTrigger
+        value="analytics"
+        className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2 whitespace-nowrap"
+      >
+        <LineChart className="w-4 h-4 text-indigo-600 data-[state=active]:text-indigo-700" />
+        <span className="text-[10px] md:text-sm leading-tight">Analytics</span>
       </TabsTrigger>
       <TabsTrigger
         value="sales"

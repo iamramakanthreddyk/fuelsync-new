@@ -45,7 +45,6 @@ import AddStation from '@/pages/owner/AddStation';
 import StationDetail from '@/pages/owner/StationDetail';
 import EmployeesManagement from '@/pages/owner/EmployeesManagement';
 import OwnerReports from '@/pages/owner/Reports';
-import OwnerAnalytics from '@/pages/owner/Analytics';
 import IncomeReport from '@/pages/owner/IncomeReport';
 import QuickDataEntry from '@/pages/owner/QuickDataEntryEnhanced';
 import SettlementStationSelector from '@/pages/owner/SettlementStationSelector';
@@ -388,7 +387,7 @@ function AppContent() {
                     <Route path="/manager/stations/:id/add-creditor" element={<AddCreditor />} />
                     <Route path="/manager/stations/:id/prices" element={<Prices />} />
                     <Route path="/manager/employees" element={<EmployeesManagement />} />
-                    <Route path="/manager/reports" element={<OwnerReports />} />                    <Route path="/manager/sample-readings" element={<SampleReadings />} />                    <Route path="/manager/analytics" element={<OwnerAnalytics />} />
+                    <Route path="/manager/reports" element={<OwnerReports />} />                    <Route path="/manager/sample-readings" element={<SampleReadings />} />
                     <Route path="/manager/income-report" element={<IncomeReport />} />
                     <Route path="/manager/profit-reports" element={<ProfitReports />} />
                     <Route path="/manager/expenses" element={<ExpensesPage />} />
@@ -427,7 +426,6 @@ function AppContent() {
                     <Route path="/owner/employees" element={<EmployeesManagement />} />
                     <Route path="/owner/reports" element={<OwnerReports />} />
                     <Route path="/owner/sample-readings" element={<SampleReadings />} />
-                    <Route path="/owner/analytics" element={<OwnerAnalytics />} />
                     <Route path="/owner/income-report" element={<IncomeReport />} />
                     <Route path="/owner/profit-reports" element={<ProfitReports />} />
                     <Route path="/owner/expenses" element={<ExpensesPage />} />

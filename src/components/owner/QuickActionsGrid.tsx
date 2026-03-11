@@ -29,7 +29,7 @@ export function QuickActionsGrid({ navigate }: QuickActionsGridProps) {
     {
       title: "Analytics",
       icon: BarChart3,
-      href: "/owner/analytics",
+      href: "/owner/reports",
       color: "bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 hover:from-indigo-700 hover:via-purple-700 hover:to-pink-700 text-white shadow-lg hover:shadow-xl"
     }
   ];

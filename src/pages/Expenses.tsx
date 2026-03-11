@@ -17,6 +17,7 @@ import { apiClient } from '@/lib/api-client';
 import { useAuth } from '@/hooks/useAuth';
 import { useStations } from '@/hooks/api';
 import { useGlobalFilter } from '@/context/GlobalFilterContext';
+import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -454,7 +455,9 @@ export default function ExpensesPage() {
   };
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+    <>
+      <DateRangeFilterToolbar />
+      <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -663,6 +666,7 @@ export default function ExpensesPage() {
           <ExpenseTable expenses={expenses} loading={expensesQuery.isLoading} />
         </div>
       </div>
+    </>
     );
 }
 
