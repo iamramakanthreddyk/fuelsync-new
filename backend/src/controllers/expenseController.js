@@ -18,6 +18,19 @@ const { logAudit } = require('../utils/auditLog');
 const expenseCategorization = require('../services/expenseCategorization');
 
 /**
+ * Utility: Fix data inconsistencies in expenses
+ * If approvedBy is set but approvalStatus is PENDING, correct it to AUTO_APPROVED
+ * This handles legacy data created before auto-approval logic was added
+ */
+const fixExpenseDataConsistency = async (expense) => {
+  if (expense && expense.approvedBy && expense.approvalStatus === EXPENSE_APPROVAL_STATUS.PENDING) {
+    expense.approvalStatus = EXPENSE_APPROVAL_STATUS.AUTO_APPROVED;
+    await expense.save();
+  }
+  return expense;
+};
+
+/**
  * Get expense categories (for dropdown) with frequency hints
  */
 const getCategories = async (req, res) => {
@@ -67,6 +80,11 @@ const getExpenses = async (req, res) => {
       limit: parseInt(limit),
       offset
     });
+    
+    // Fix any data inconsistencies where approvedBy is set but status is still pending
+    for (const expense of expenses) {
+      await fixExpenseDataConsistency(expense);
+    }
     
     // Get total for the query (only approved/auto_approved for reporting)
     const approvedTotal = await Expense.sum('amount', {
@@ -287,6 +305,9 @@ const deleteExpense = async (req, res) => {
       return res.status(404).json({ success: false, error: { message: 'Expense not found' } });
     }
 
+    // Fix any data inconsistencies
+    await fixExpenseDataConsistency(expense);
+
     const stationId = expense.stationId;
     const expenseData = expense.toJSON();
     
@@ -337,6 +358,9 @@ const approveExpense = async (req, res) => {
     if (!expense) {
       return res.status(404).json({ success: false, error: { message: 'Expense not found' } });
     }
+
+    // Fix any data inconsistencies first
+    await fixExpenseDataConsistency(expense);
 
     if (expense.approvalStatus !== EXPENSE_APPROVAL_STATUS.PENDING) {
       return res.status(400).json({
