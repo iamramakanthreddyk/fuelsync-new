@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
-import { BarChart3, Droplet, IndianRupee, TrendingUp, Clock } from 'lucide-react';
+import { BarChart3, Droplet, IndianRupee, TrendingUp, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
 
 interface SalesData {
   date: string;
@@ -112,7 +112,11 @@ export default function ManagerReports() {
 
   // Calculate totals from summary if available, fallback to calculated
   const totals = useMemo(() => {
-    const expenseTotal = expensesList.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    // Parse expense amounts from strings to numbers and sum them
+    const expenseTotal = expensesList.reduce((sum, exp) => {
+      const amount = typeof exp.amount === 'string' ? parseFloat(exp.amount) : (exp.amount || 0);
+      return sum + amount;
+    }, 0);
     
     // Use summary breakdown if available (from API response)
     if (salesResponse?.data?.summary) {
@@ -143,6 +147,28 @@ export default function ManagerReports() {
 
   const activePumps = pumps.filter(p => p.status === 'active').length;
   const totalPumpSales = pumps.reduce((sum, p) => sum + (p.todaySales ?? 0), 0);
+
+  // Group expenses by category
+  const expensesByCategory = useMemo(() => {
+    const grouped: Record<string, { total: number; items: any[] }> = {};
+    expensesList.forEach(exp => {
+      const category = exp.category || 'uncategorized';
+      const amount = typeof exp.amount === 'string' ? parseFloat(exp.amount) : (exp.amount || 0);
+      if (!grouped[category]) {
+        grouped[category] = { total: 0, items: [] };
+      }
+      grouped[category].total += amount;
+      grouped[category].items.push(exp);
+    });
+    return grouped;
+  }, [expensesList]);
+
+  // Get expense stats
+  const expenseStats = useMemo(() => {
+    const approved = expensesList.filter(e => e.approvalStatus === 'auto_approved' || e.approvalStatus === 'approved').length;
+    const pending = expensesList.filter(e => e.approvalStatus === 'pending').length;
+    return { approved, pending, total: expensesList.length };
+  }, [expensesList]);
 
   return (
     <>
@@ -184,10 +210,11 @@ export default function ManagerReports() {
         {/* Tabs */}
         {!salesLoading && !pumpsLoading && !expensesLoading && (
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
             <TabsTrigger value="sales">Sales</TabsTrigger>
             <TabsTrigger value="pumps">Pumps</TabsTrigger>
+            <TabsTrigger value="expenses">Expenses</TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
@@ -348,6 +375,122 @@ export default function ManagerReports() {
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          {/* Expenses Tab */}
+          <TabsContent value="expenses" className="space-y-4">
+            {expensesList.length > 0 ? (
+              <>
+                {/* Expense Summary Stats */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4 text-green-600" />
+                        Approved
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-green-600">{expenseStats.approved}</div>
+                      <p className="text-xs text-muted-foreground mt-1">Expenses</p>
+                    </CardContent>
+                  </Card>
+
+                  {expenseStats.pending > 0 && (
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <AlertCircle className="w-4 h-4 text-yellow-600" />
+                          Pending
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="text-2xl font-bold text-yellow-600">{expenseStats.pending}</div>
+                        <p className="text-xs text-muted-foreground mt-1">Awaiting approval</p>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Droplet className="w-4 h-4 text-red-600" />
+                        Total
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold text-red-600">{fmt(totals.expenses)}</div>
+                      <p className="text-xs text-muted-foreground mt-1">{expenseStats.total} items</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Expenses by Category */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">Breakdown by Category</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-3">
+                      {Object.entries(expensesByCategory).map(([category, data]) => (
+                        <div key={category} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
+                          <div className="flex-1">
+                            <p className="text-sm font-semibold capitalize">{category.replace(/_/g, ' ')}</p>
+                            <p className="text-xs text-muted-foreground mt-1">{data.items.length} item{data.items.length !== 1 ? 's' : ''}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-bold">{fmt(data.total)}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* Detailed Expenses List */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle className="text-sm">All Expenses</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="space-y-2 max-h-96 overflow-y-auto">
+                      {expensesList.map((expense) => {
+                        const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount;
+                        return (
+                          <div key={expense.id} className="flex items-start justify-between p-3 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-900/20 rounded">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2">
+                                <p className="text-sm font-semibold">{expense.description}</p>
+                                <Badge variant="outline" className="text-xs capitalize">
+                                  {expense.category.replace(/_/g, ' ')}
+                                </Badge>
+                              </div>
+                              <p className="text-xs text-muted-foreground mt-1">{expense.expenseDate} • {expense.enteredByUser?.name}</p>
+                              {expense.notes && <p className="text-xs text-muted-foreground italic mt-1">{expense.notes}</p>}
+                            </div>
+                            <div className="text-right ml-2">
+                              <p className="text-sm font-bold">{fmt(amount)}</p>
+                              <Badge 
+                                variant="secondary" 
+                                className={`text-xs mt-1 ${expense.approvalStatus === 'approved' || expense.approvalStatus === 'auto_approved' ? 'bg-green-100 text-green-700 dark:bg-green-900/30' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30'}`}
+                              >
+                                {expense.approvalStatus === 'auto_approved' ? 'Auto Approved' : expense.approvalStatus}
+                              </Badge>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <Card>
+                <CardContent className="py-8">
+                  <p className="text-sm text-muted-foreground text-center">No expenses recorded for this period</p>
+                </CardContent>
+              </Card>
+            )}
           </TabsContent>
         </Tabs>
         )}
