@@ -2,7 +2,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
-import { LogOut, User, Building2, Shield, Lock } from "lucide-react";
+import { LogOut, User, Building2, Shield, Lock, Zap, Users, TrendingDown } from "lucide-react";
 import { useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -105,6 +105,49 @@ export default function Settings() {
           Manage your account and application preferences
         </p>
       </div>
+
+      {/* Enterprise Information Card */}
+      <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950/20">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Building2 className="h-5 w-5 text-blue-600" />
+            Enterprise Plan
+          </CardTitle>
+          <CardDescription>
+            Your subscription and utilization details
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="text-center">
+              <div className="text-xs text-muted-foreground mb-1">Stations</div>
+              <div className="text-2xl font-bold text-blue-600">2/4</div>
+              <div className="text-xs text-muted-foreground mt-1">Active</div>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
+                <Zap className="h-3 w-3" /> Pumps/Station
+              </div>
+              <div className="text-2xl font-bold text-blue-600">10</div>
+              <div className="text-xs text-muted-foreground mt-1">Capacity</div>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
+                <Users className="h-3 w-3" /> Employees
+              </div>
+              <div className="text-2xl font-bold text-blue-600">0</div>
+              <div className="text-xs text-muted-foreground mt-1">Total</div>
+            </div>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-1">
+                <TrendingDown className="h-3 w-3 text-red-500" /> Utilization
+              </div>
+              <div className="text-2xl font-bold text-red-500">-50.0%</div>
+              <div className="text-xs text-muted-foreground mt-1">Usage Rate</div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
         <Card>

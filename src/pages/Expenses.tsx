@@ -458,95 +458,97 @@ export default function ExpensesPage() {
     <>
       <DateRangeFilterToolbar />
       <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <TrendingDown className="w-7 h-7 text-red-500" />
-            Expenses
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Track and manage your station expenses
-          </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Station picker */}
-          {stations.length > 1 && (
-            <Select value={selectedStationId} onValueChange={setSelectedStationId}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Station" />
-              </SelectTrigger>
-              <SelectContent>
-                {stations.map(s => (
-                  <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          )}
-          {/* Add expense */}
-          <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm">
-                <Plus className="w-4 h-4 mr-1" />Add Expense
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Receipt className="w-5 h-5" />Record New Expense
-                </DialogTitle>
-              </DialogHeader>
-              {stationId && (
-                <AddExpenseForm stationId={stationId} onSuccess={invalidateAll} />
-              )}
-            </DialogContent>
-          </Dialog>
-        </div>
-      </div>
-
-      {/* Workflow Info Card */}
-      <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950/20">
-        <CardContent className="pt-4 pb-3">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-            <div>
-              <p className="font-semibold text-blue-900 flex items-center gap-2">
-                <span>👤</span> Who Can Enter Expenses?
-              </p>
-              <p className="text-muted-foreground text-xs mt-1">Anyone in your team can record expenses</p>
-            </div>
-            <div>
-              <p className="font-semibold text-blue-900 flex items-center gap-2">
-                <span>⚡</span> Auto-Approved Entries
-              </p>
-              <p className="text-muted-foreground text-xs mt-1">Manager/Owner entries auto-approve instantly</p>
-            </div>
-            <div>
-              <p className="font-semibold text-blue-900 flex items-center gap-2">
-                <span>✅</span> Employee Entries Need Approval
-              </p>
-              <p className="text-muted-foreground text-xs mt-1">Staff entries wait for manager review</p>
-            </div>
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+              <TrendingDown className="w-7 h-7 text-red-500" />
+              Expenses
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Track and manage your station expenses
+            </p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2 flex-wrap">
+            {/* Station picker */}
+            {stations.length > 1 && (
+              <Select value={selectedStationId} onValueChange={setSelectedStationId}>
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="Station" />
+                </SelectTrigger>
+                <SelectContent>
+                  {stations.map(s => (
+                    <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+            {/* Add expense */}
+            <Dialog open={addOpen} onOpenChange={setAddOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm">
+                  <Plus className="w-4 h-4 mr-1" />Add Expense
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md">
+                <DialogHeader>
+                  <DialogTitle className="flex items-center gap-2">
+                    <Receipt className="w-5 h-5" />Record New Expense
+                  </DialogTitle>
+                </DialogHeader>
+                {stationId && (
+                  <AddExpenseForm stationId={stationId} onSuccess={invalidateAll} />
+                )}
+              </DialogContent>
+            </Dialog>
+          </div>
+        </div>
 
-      {/* Simple Filter: Search + Category/Station */}
-      <ExpenseSimpleFilter
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        filterType={filterType}
-        onFilterTypeChange={setFilterType}
-        selectedFilter={selectedFilter}
-        onFilterChange={setSelectedFilter}
-        categoryOptions={Object.entries(EXPENSE_CATEGORIES).map(([v, l]) => ({
-          value: v,
-          label: l,
-        }))}
-        stationOptions={stations.map((s) => ({
-          value: s.id,
-          label: s.name,
-        }))}
-      />
+        {/* Combined Summary Card */}
+        <Card className="bg-white border-blue-200 dark:bg-blue-950/20 shadow-sm">
+          <CardContent className="py-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+              <div>
+                <div className="text-xs text-muted-foreground">Stations</div>
+                <div className="text-xl font-bold">{stations.length}</div>
+                <div className="text-xs text-muted-foreground">{stations.filter(s => s.isActive).length} active</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Employees</div>
+                <div className="text-xl font-bold">{summary?.employeeCount ?? '—'}</div>
+                <div className="text-xs text-muted-foreground">Across all stations</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Today's Sales</div>
+                <div className="text-xl font-bold">{summary?.todaySales ? fmt(summary.todaySales) : '—'}</div>
+                <div className="text-xs text-muted-foreground">Combined total</div>
+              </div>
+              <div>
+                <div className="text-xs text-muted-foreground">Month Sales</div>
+                <div className="text-xl font-bold">{summary?.monthSales ? fmt(summary.monthSales) : '—'}</div>
+                <div className="text-xs text-muted-foreground">Current month</div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Simple Filter: Search + Category/Station */}
+        <ExpenseSimpleFilter
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          filterType={filterType}
+          onFilterTypeChange={setFilterType}
+          selectedFilter={selectedFilter}
+          onFilterChange={setSelectedFilter}
+          categoryOptions={Object.entries(EXPENSE_CATEGORIES).map(([v, l]) => ({
+            value: v,
+            label: l,
+          }))}
+          stationOptions={stations.map((s) => ({
+            value: s.id,
+            label: s.name,
+          }))}
+        />
 
       {/* Expense List */}
       {canManage && pending.length > 0 && (

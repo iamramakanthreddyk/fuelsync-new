@@ -23,7 +23,6 @@ import { safeToFixed, formatCurrency } from '@/lib/format-utils';
 import { AlertCircle } from 'lucide-react';
 import {
   StatsGrid,
-  PlanInfoAlert,
   StationsCard,
   PendingActionsAlert,
   QuickActionsGrid,
@@ -172,9 +171,6 @@ export default function OwnerDashboard() {
         </div>
         <QuickActionsGrid navigate={navigate} />
       </div>
-
-      {/* Plan Info Alert */}
-      <PlanInfoAlert user={user} stats={{ totalStations: stations.length, totalEmployees: safeStats.totalEmployees }} />
 
       {/* Setup Warnings - Chain: Stations → Prices → Pumps → Nozzles */}
       <SetupWarningsAlert 
