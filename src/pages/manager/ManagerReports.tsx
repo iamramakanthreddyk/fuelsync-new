@@ -59,7 +59,7 @@ export default function ManagerReports() {
   const currentStation = stations[0];
 
   // Fetch sales data using consolidated analytics endpoint
-  const { data: salesResponse } = useQuery({
+  const { data: salesResponse, isLoading: salesLoading, error: salesError } = useQuery({
     queryKey: ['manager-sales', startDate, endDate],
     queryFn: () =>
       apiClient.get<any>(
@@ -69,7 +69,7 @@ export default function ManagerReports() {
   });
 
   // Fetch pump performance using consolidated analytics endpoint
-  const { data: pumpsResponse } = useQuery({
+  const { data: pumpsResponse, isLoading: pumpsLoading, error: pumpsError } = useQuery({
     queryKey: ['manager-pumps', startDate, endDate],
     queryFn: () =>
       apiClient.get<any>(
@@ -78,18 +78,18 @@ export default function ManagerReports() {
     enabled: !!startDate && !!endDate,
   });
 
-  // Fetch expenses summary - use global station or first station
-  const { data: expensesResponse } = useQuery({
+  // Fetch expenses list using date range - use expenses endpoint which supports startDate/endDate
+  const { data: expensesResponse, isLoading: expensesLoading, error: expensesError } = useQuery({
     queryKey: ['manager-expenses', currentStation?.id, startDate, endDate],
     queryFn: () =>
       apiClient.get<any>(
-        `/expenses/stations/${currentStation?.id}/expense-summary?startDate=${startDate}&endDate=${endDate}`
+        `/stations/${currentStation?.id}/expenses?startDate=${startDate}&endDate=${endDate}&limit=100`
       ),
     enabled: !!currentStation?.id && !!startDate && !!endDate,
   });
 
-  const sales: SalesData[] = Array.isArray(salesResponse?.data) 
-    ? salesResponse.data.map((item: any) => ({
+  const sales: SalesData[] = Array.isArray(salesResponse?.data?.data) 
+    ? salesResponse.data.data.map((item: any) => ({
         date: item.readingDate || item.date || '',
         litres: item.litres || 0,
         amount: item.amount || 0,
@@ -98,12 +98,13 @@ export default function ManagerReports() {
         readings: item.count || 0
       }))
     : [];
-  const pumps: PumpPerformance[] = Array.isArray(pumpsResponse?.data) ? pumpsResponse.data : [];
-  const expenses = (expensesResponse as any)?.data;
+  const pumps: PumpPerformance[] = Array.isArray(pumpsResponse?.data?.data) ? pumpsResponse.data.data : [];
+  const expensesList: any[] = (expensesResponse as any)?.data?.expenses ?? [];
 
   // Calculate totals
   const totals = useMemo(() => {
-    return sales.reduce(
+    const expenseTotal = expensesList.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    const salesTotals = sales.reduce(
       (acc, day) => ({
         litres: acc.litres + (day.litres ?? 0),
         amount: acc.amount + (day.amount ?? 0),
@@ -113,15 +114,28 @@ export default function ManagerReports() {
       }),
       { litres: 0, amount: 0, cash: 0, online: 0, readings: 0 }
     );
-  }, [sales]);
+    return { ...salesTotals, expenses: expenseTotal };
+  }, [sales, expensesList]);
 
   const activePumps = pumps.filter(p => p.status === 'active').length;
   const totalPumpSales = pumps.reduce((sum, p) => sum + (p.todaySales ?? 0), 0);
 
+  // Debug logging
+  console.log('ManagerReports Debug:', {
+    startDate, endDate,
+    currentStation: currentStation?.id,
+    salesResponse: salesResponse?.data,
+    pumpsResponse: pumpsResponse?.data,
+    expensesResponse: expensesResponse?.data,
+    salesLoading, pumpsLoading, expensesLoading,
+    errors: { salesError, pumpsError, expensesError },
+    totals,
+  });
+
   return (
     <>
-      <DateRangeFilterToolbar />
-      <div className="container mx-auto p-4 sm:p-6 space-y-6 pt-24">
+      <div className="container mx-auto p-4 sm:p-6 space-y-6">
+        <DateRangeFilterToolbar />
         {/* Header */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
@@ -133,7 +147,30 @@ export default function ManagerReports() {
           </p>
         </div>
 
+        {/* Loading State */}
+        {(salesLoading || pumpsLoading || expensesLoading) && (
+          <Card>
+            <CardContent className="py-8">
+              <div className="text-center text-muted-foreground">
+                <p>Loading station data...</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Error State */}
+        {(salesError || pumpsError || expensesError) && (
+          <Card className="border-red-200 bg-red-50">
+            <CardContent className="py-4">
+              <p className="text-sm text-red-700">
+                {salesError?.message || pumpsError?.message || expensesError?.message || 'Error loading data'}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Tabs */}
+        {!salesLoading && !pumpsLoading && !expensesLoading && (
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -195,7 +232,7 @@ export default function ManagerReports() {
               </Card>
 
               {/* Expenses */}
-              {expenses && (
+              {expensesList.length > 0 && (
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm flex items-center gap-2">
@@ -204,7 +241,7 @@ export default function ManagerReports() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{fmt(expenses.totalExpenses ?? 0)}</div>
+                    <div className="text-2xl font-bold text-red-600">{fmt(totals.expenses ?? 0)}</div>
                     <p className="text-xs text-muted-foreground mt-1">Total recorded</p>
                   </CardContent>
                 </Card>
@@ -301,6 +338,7 @@ export default function ManagerReports() {
             </Card>
           </TabsContent>
         </Tabs>
+        )}
       </div>
     </>
   );
