@@ -98,12 +98,36 @@ export default function ManagerReports() {
         readings: item.count || 0
       }))
     : [];
-  const pumps: PumpPerformance[] = Array.isArray(pumpsResponse?.data?.items) ? pumpsResponse.data.items : [];
+  const pumps: PumpPerformance[] = Array.isArray(pumpsResponse?.data?.pumps) 
+    ? pumpsResponse.data.pumps.map((pump: any) => ({
+        id: pump.pumpId || '',
+        name: pump.pumpName || pump.pumpNumber || '',
+        status: pump.totalSales > 0 ? 'active' : 'inactive',
+        todaySales: pump.totalSales || 0,
+        todayLitres: pump.totalQuantity || 0,
+        nozzleCount: pump.nozzles?.length || 0
+      }))
+    : [];
   const expensesList: any[] = (expensesResponse as any)?.data?.expenses ?? [];
 
-  // Calculate totals
+  // Calculate totals from summary if available, fallback to calculated
   const totals = useMemo(() => {
     const expenseTotal = expensesList.reduce((sum, exp) => sum + (exp.amount || 0), 0);
+    
+    // Use summary breakdown if available (from API response)
+    if (salesResponse?.data?.summary) {
+      const summary = salesResponse.data.summary;
+      return {
+        litres: summary.totalLitres || 0,
+        amount: summary.totalAmount || 0,
+        cash: summary.breakdown?.cash || 0,
+        online: summary.breakdown?.online || 0,
+        readings: summary.itemCount || 0,
+        expenses: expenseTotal
+      };
+    }
+    
+    // Fallback: calculate from items
     const salesTotals = sales.reduce(
       (acc, day) => ({
         litres: acc.litres + (day.litres ?? 0),
@@ -115,7 +139,7 @@ export default function ManagerReports() {
       { litres: 0, amount: 0, cash: 0, online: 0, readings: 0 }
     );
     return { ...salesTotals, expenses: expenseTotal };
-  }, [sales, expensesList]);
+  }, [sales, salesResponse?.data?.summary, expensesList]);
 
   const activePumps = pumps.filter(p => p.status === 'active').length;
   const totalPumpSales = pumps.reduce((sum, p) => sum + (p.todaySales ?? 0), 0);
