@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
-import { IndianRupee, TrendingUp, Clock, AlertTriangle, Lock } from "lucide-react";
+import { IndianRupee, TrendingUp, Clock, AlertTriangle, Lock, Plus, BarChart3, Box, TrendingDown } from "lucide-react";
 import { TrendsChart } from "@/components/dashboard/TrendsChart";
 import { FuelPriceCard } from "@/components/dashboard/FuelPriceCard";
 import { AlertBadges } from "@/components/dashboard/AlertBadges";
@@ -20,9 +20,11 @@ import { ReadingSummary } from "@/components/dashboard/ReadingSummary";
 import { safeToFixed } from '@/lib/format-utils';
 import { DashboardHeader, MetricCard, DashboardGrid, COMMON_METRICS } from "@/components/dashboard/shared";
 import { RoleBadge } from "@/components/ui/RoleBadge";
+import { useNavigate } from "react-router-dom";
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data, isLoading } = useDashboardData();
   
   // Provide default data structure to prevent crashes
@@ -254,7 +256,118 @@ export default function Dashboard() {
     );
   }
 
+  // Minimal manager dashboard - single station focus
+  function ManagerDashboard() {
+    const d: any = dashboardData as any;
+    const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    
+    const metrics = [
+      {
+        title: "Sales",
+        icon: <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5" />,
+        color: 'blue' as const,
+        value: fmt(d.todaySales ?? 0),
+        description: "Today's total"
+      },
+      {
+        title: "Litres",
+        icon: <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5" />,
+        color: 'green' as const,
+        value: (d.today?.litres ?? 0).toString(),
+        description: "Fuel dispensed"
+      },
+      {
+        title: "Readings",
+        icon: <Clock className="h-4 w-4 sm:h-5 sm:w-5" />,
+        color: 'blue' as const,
+        value: (d.today?.readings ?? 0).toString(),
+        description: "Nozzles recorded"
+      },
+      {
+        title: "Outstanding",
+        icon: <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5" />,
+        color: d.creditOutstanding > 0 ? 'danger' : 'success',
+        value: fmt(d.creditOutstanding ?? 0),
+        description: "Credit pending"
+      }
+    ];
+
+    return (
+      <div className="space-y-4">
+        <DashboardGrid metrics={metrics} />
+        
+        {/* Quick Action Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <Card className="bg-gradient-to-br from-red-50 to-transparent dark:from-red-950/20 border-red-200 hover:shadow-md transition-shadow cursor-pointer" 
+            onClick={() => navigate('/expenses')}>
+            <CardContent className="pt-4 pb-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 bg-red-100 dark:bg-red-900/30 rounded-lg">
+                <TrendingDown className="w-5 h-5 text-red-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Expenses</h3>
+                <p className="text-xs text-muted-foreground">Record expenses</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-50 to-transparent dark:from-blue-950/20 border-blue-200 hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => navigate('/reports')}>
+            <CardContent className="pt-4 pb-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
+                <BarChart3 className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Reports</h3>
+                <p className="text-xs text-muted-foreground">View analytics</p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-transparent dark:from-purple-950/20 border-purple-200 hover:shadow-md transition-shadow cursor-pointer"
+            onClick={() => navigate('/manager/inventory')}>
+            <CardContent className="pt-4 pb-4 flex flex-col items-center text-center gap-2">
+              <div className="p-2 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
+                <Box className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-sm">Inventory</h3>
+                <p className="text-xs text-muted-foreground">Fuel & stock</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Pumps Status */}
+        {Array.isArray(d.pumps) && d.pumps.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Pump Status</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {d.pumps.map((pump: any) => (
+                  <div key={pump.id} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900/20 rounded">
+                    <div className="text-sm font-medium">{pump.name}</div>
+                    <div className={`px-2 py-1 text-xs font-semibold rounded ${
+                      pump.status === 'active' 
+                        ? 'bg-green-100 text-green-700 dark:bg-green-900/30' 
+                        : 'bg-red-100 text-red-700 dark:bg-red-900/30'
+                    }`}>
+                      {pump.status === 'active' ? 'Active' : 'Inactive'}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
   function TrendsChartPremiumPromo() {
+
     return (
       <Card className="h-full min-h-[200px] sm:min-h-[240px] flex flex-col items-center justify-center bg-gradient-to-br from-yellow-50 to-amber-50 border-2 border-dashed border-yellow-400 card-mobile">
         <CardHeader className="items-center text-center px-4">
@@ -308,9 +421,11 @@ export default function Dashboard() {
       {/* Alerts - Full width mobile */}
       <AlertBadges alerts={dashboardData.alerts ?? []} />
 
-      {/* Key Metrics - Render simplified view for employees */}
+      {/* Key Metrics - Render role-specific dashboard */}
       {isEmployee ? (
         <EmployeeDashboard />
+      ) : user?.role === 'manager' ? (
+        <ManagerDashboard />
       ) : (
         (premiumRequired ? (
           <div className="space-y-3 sm:space-y-4">
@@ -348,8 +463,8 @@ export default function Dashboard() {
       )}
 
       {/* Charts and Actions - Stack on mobile, side by side on desktop
-          Hidden for employees because EmployeeDashboard already shows a compact trends + quick actions */}
-      {!isEmployee && (
+          Hidden for employees and managers because they have their own dashboard views */}
+      {!isEmployee && user?.role !== 'manager' && (
         <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-3">
           {/* Trends Chart - Full width on mobile, 2 cols on desktop */}
           <div className="lg:col-span-2 relative animate-slide-up">

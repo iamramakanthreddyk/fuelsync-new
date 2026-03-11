@@ -38,6 +38,9 @@ import { safeLower } from '@/lib/stringUtils';
 import type { Station } from '@/types/api';
 import { CreditLedger } from '@/pages/credit';
 
+// Manager pages
+import ManagerReports from '@/pages/manager/ManagerReports';
+
 // Owner pages
 import OwnerDashboard from '@/pages/owner/OwnerDashboard';
 import StationsManagement from '@/pages/owner/StationsManagement';
@@ -368,7 +371,7 @@ function AppContent() {
                     <Route path="/dashboard" element={<RoleBasedDashboard />} />
                     
                     {/* Manager Routes - Standardized manager paths */}
-                    <Route path="/manager/dashboard" element={<OwnerDashboard />} />
+                    <Route path="/manager/dashboard" element={<RoleBasedDashboard />} />
                     <Route path="/manager/quick-entry" element={<QuickDataEntryEnhanced />} />
                     <Route path="/manager/daily-settlement" element={
                       <ManagerOrOwnerRoute>
@@ -387,7 +390,7 @@ function AppContent() {
                     <Route path="/manager/stations/:id/add-creditor" element={<AddCreditor />} />
                     <Route path="/manager/stations/:id/prices" element={<Prices />} />
                     <Route path="/manager/employees" element={<EmployeesManagement />} />
-                    <Route path="/manager/reports" element={<OwnerReports />} />                    <Route path="/manager/sample-readings" element={<SampleReadings />} />
+                    <Route path="/manager/reports" element={<ManagerReports />} />                    <Route path="/manager/sample-readings" element={<SampleReadings />} />
                     <Route path="/manager/income-report" element={<IncomeReport />} />
                     <Route path="/manager/profit-reports" element={<ProfitReports />} />
                     <Route path="/manager/expenses" element={<ExpensesPage />} />

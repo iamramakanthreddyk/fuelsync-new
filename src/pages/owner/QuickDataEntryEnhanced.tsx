@@ -21,7 +21,7 @@ import { toNumber } from '@/utils/number';
  * - saleValue = totalAmount (calculated sale revenue)
  */
 
-import { useState, useMemo, useEffect, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -114,6 +114,7 @@ export default function QuickDataEntryEnhanced() {
     onlineBreakdown: null,
     credits: []
   });
+  const [isPaymentBreakdownOpen, setIsPaymentBreakdownOpen] = useState(false);
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -441,6 +442,14 @@ export default function QuickDataEntryEnhanced() {
       }));
     }
   }, [online, onlineBreakdown]);
+
+  // Auto-open payment breakdown when online payment is entered
+  useEffect(() => {
+    const onlineAmount = toNumber(String(online));
+    if (onlineAmount > 0) {
+      setIsPaymentBreakdownOpen(true);
+    }
+  }, [online]);
 
   // Auto-sync online payment with breakdown total (reconciliation)
   useEffect(() => {
@@ -1135,31 +1144,24 @@ export default function QuickDataEntryEnhanced() {
 
                   {/* Online Payment Breakdown */}
                   <div className="border-t pt-4">
-                    <Collapsible defaultOpen={!!paymentAllocation.onlineBreakdown}>
+                    <Collapsible open={isPaymentBreakdownOpen} onOpenChange={setIsPaymentBreakdownOpen}>
                         <CollapsibleTrigger asChild>
                           <Button
                             type="button"
                             variant="ghost"
                             className="text-sm font-semibold flex items-center gap-2 p-0 h-auto text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                            onClick={() => {
-                              if (!paymentAllocation.onlineBreakdown) {
-                                setPaymentAllocation((prev: PaymentAllocation) => ({
-                                  ...prev,
-                                  onlineBreakdown: initializeOnlineBreakdown()
-                                }));
-                              }
-                            }}
                           >
-                            <ChevronDown className="w-4 h-4" />
-                            {paymentAllocation.onlineBreakdown ? 'Collapse' : 'Add'} payment method breakdown
+                            <ChevronDown className={`w-4 h-4 transition-transform ${isPaymentBreakdownOpen ? 'rotate-180' : ''}`} />
+                            Payment Method Breakdown
                           </Button>
                         </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-3 space-y-4">
+                        <CollapsibleContent className="mt-4 space-y-4">
                           {paymentAllocation.onlineBreakdown && (
-                            <div className="bg-blue-50 p-3 rounded space-y-3">
+                            <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-4">
+                              <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide">Breakdown online payment by method</p>
                           {/* UPI Methods */}
                           <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-blue-700">UPI Methods</Label>
+                            <Label className="text-xs font-semibold text-blue-700">☎️ UPI Methods</Label>
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                               {[
                                 { key: 'gpay', label: 'GPay' },
@@ -1188,7 +1190,7 @@ export default function QuickDataEntryEnhanced() {
 
                           {/* Card Methods */}
                           <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-green-700">Card Methods</Label>
+                            <Label className="text-xs font-semibold text-green-700">💳 Card Methods</Label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                               {[
                                 { key: 'debit_card', label: 'Debit Card' },
@@ -1212,7 +1214,7 @@ export default function QuickDataEntryEnhanced() {
 
                           {/* Oil Company Methods */}
                           <div className="space-y-2">
-                            <Label className="text-xs font-semibold text-orange-700">Oil Company</Label>
+                            <Label className="text-xs font-semibold text-orange-700">⛽ Oil Company Cards</Label>
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                               {[
                                 { key: 'hp_pay', label: 'HP' },
