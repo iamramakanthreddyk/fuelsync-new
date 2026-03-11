@@ -35,25 +35,41 @@ describe('Reading -> Credit Atomicity', () => {
   });
 
   test('creates CreditTransaction and updates creditor balance on reading with credit', async () => {
-    const response = await request(app)
+    // First create a reading (NEW architecture: readings don't include payment breakdown)
+    const readingResponse = await request(app)
       .post('/api/v1/readings')
       .set('Authorization', `Bearer ${managerToken}`)
       .send({
         nozzleId: nozzle.id,
-        stationId: station.id,
         readingDate: new Date().toISOString().split('T')[0],
-        readingValue: 1500,
-        previousReading: 1000,
-        litresSold: 500,
-        pricePerLitre: 100,
-        totalAmount: 50000,
-        cashAmount: 45000,
-        creditAmount: 5000,
-        creditorId: creditor.id
+        readingValue: 1500
       });
 
-    expect([201, 200]).toContain(response.status);
+    expect([201, 200]).toContain(readingResponse.status);
+    const readingId = readingResponse.body.data.id;
 
+    // Then create a transaction with credit allocation
+    const txnResponse = await request(app)
+      .post('/api/v1/transactions')
+      .set('Authorization', `Bearer ${managerToken}`)
+      .send({
+        stationId: station.id,
+        transactionDate: new Date().toISOString().split('T')[0],
+        readingIds: [readingId],
+        paymentBreakdown: {
+          cash: 45000,
+          online: 0,
+          credit: 5000
+        },
+        creditAllocations: [
+          {
+            creditorId: creditor.id,
+            amount: 5000
+          }
+        ]
+      });
+
+    expect([201, 200]).toContain(txnResponse.status);
     // verify credit transaction created
     const transactions = await CreditTransaction.findAll({ where: { creditorId: creditor.id } });
     expect(transactions.length).toBeGreaterThan(0);
@@ -64,110 +80,196 @@ describe('Reading -> Credit Atomicity', () => {
   });
 
     test('fails with invalid creditor', async () => {
-      const response = await request(app)
+      // Create a reading first
+      const readingResponse = await request(app)
         .post('/api/v1/readings')
         .set('Authorization', `Bearer ${managerToken}`)
         .send({
           nozzleId: nozzle.id,
-          stationId: station.id,
           readingDate: new Date().toISOString().split('T')[0],
-          readingValue: 1600,
-          previousReading: 1500,
-          litresSold: 100,
-          pricePerLitre: 100,
-          totalAmount: 10000,
-          cashAmount: 5000,
-          creditAmount: 5000,
-          creditorId: 'invalid-id'
+          readingValue: 1600
+        });
+      
+      const readingId = readingResponse.body.data.id;
+
+      // Try to create transaction with invalid creditor ID
+      const response = await request(app)
+        .post('/api/v1/transactions')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          stationId: station.id,
+          transactionDate: new Date().toISOString().split('T')[0],
+          readingIds: [readingId],
+          paymentBreakdown: {
+            cash: 5000,
+            online: 0,
+            credit: 5000
+          },
+          creditAllocations: [
+            {
+              creditorId: 'invalid-creditor-id',
+              amount: 5000
+            }
+          ]
         });
       expect([400, 404]).toContain(response.status);
     });
 
     test('blocks over-crediting beyond limit', async () => {
-      const response = await request(app)
+      // Create a reading with large amount
+      const readingResponse = await request(app)
         .post('/api/v1/readings')
         .set('Authorization', `Bearer ${managerToken}`)
         .send({
           nozzleId: nozzle.id,
-          stationId: station.id,
           readingDate: new Date().toISOString().split('T')[0],
-          readingValue: 1700,
-          previousReading: 1600,
-          litresSold: 100,
-          pricePerLitre: 100,
-          totalAmount: 10000,
-          cashAmount: 0,
-          creditAmount: 20000, // exceeds limit
-          creditorId: creditor.id
+          readingValue: 1700
+        });
+      
+      const readingId = readingResponse.body.data.id;
+      const totalAmount = readingResponse.body.data.totalAmount;
+
+      // Try to create transaction with credit exceeding limit
+      const response = await request(app)
+        .post('/api/v1/transactions')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          stationId: station.id,
+          transactionDate: new Date().toISOString().split('T')[0],
+          readingIds: [readingId],
+          paymentBreakdown: {
+            cash: 0,
+            online: 0,
+            credit: 20000 // exceeds creditor limit
+          },
+          creditAllocations: [
+            {
+              creditorId: creditor.id,
+              amount: 20000 // exceeds limit
+            }
+          ]
         });
       expect([400, 403]).toContain(response.status);
     });
 
     test('blocks credit to inactive creditor', async () => {
       await creditor.update({ isActive: false });
-      const response = await request(app)
+      
+      // Create a reading
+      const readingResponse = await request(app)
         .post('/api/v1/readings')
         .set('Authorization', `Bearer ${managerToken}`)
         .send({
           nozzleId: nozzle.id,
-          stationId: station.id,
           readingDate: new Date().toISOString().split('T')[0],
-          readingValue: 1800,
-          previousReading: 1700,
-          litresSold: 100,
-          pricePerLitre: 100,
-          totalAmount: 10000,
-          cashAmount: 0,
-          creditAmount: 10000,
-          creditorId: creditor.id
+          readingValue: 1800
+        });
+      
+      const readingId = readingResponse.body.data.id;
+
+      // Try to create transaction with credit to inactive creditor
+      const response = await request(app)
+        .post('/api/v1/transactions')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          stationId: station.id,
+          transactionDate: new Date().toISOString().split('T')[0],
+          readingIds: [readingId],
+          paymentBreakdown: {
+            cash: 0,
+            online: 0,
+            credit: 10000
+          },
+          creditAllocations: [
+            {
+              creditorId: creditor.id,
+              amount: 10000
+            }
+          ]
         });
       expect([400, 403]).toContain(response.status);
       await creditor.update({ isActive: true }); // restore for other tests
     });
 
     test('blocks negative credit amount', async () => {
-      const response = await request(app)
+      // Create a reading
+      const readingResponse = await request(app)
         .post('/api/v1/readings')
         .set('Authorization', `Bearer ${managerToken}`)
         .send({
           nozzleId: nozzle.id,
-          stationId: station.id,
           readingDate: new Date().toISOString().split('T')[0],
-          readingValue: 1900,
-          previousReading: 1800,
-          litresSold: 100,
-          pricePerLitre: 100,
-          totalAmount: 10000,
-          cashAmount: 10000,
-          creditAmount: -500,
-          creditorId: creditor.id
+          readingValue: 1900
+        });
+      
+      const readingId = readingResponse.body.data.id;
+
+      // Try to create transaction with negative credit
+      const response = await request(app)
+        .post('/api/v1/transactions')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          stationId: station.id,
+          transactionDate: new Date().toISOString().split('T')[0],
+          readingIds: [readingId],
+          paymentBreakdown: {
+            cash: 10000,
+            online: 0,
+            credit: -500 // negative credit
+          },
+          creditAllocations: [
+            {
+              creditorId: creditor.id,
+              amount: -500 // negative amount
+            }
+          ]
         });
       expect([400, 403]).toContain(response.status);
     });
 
     test('atomicity: reading and credit transaction must both succeed or both fail', async () => {
-      // Try to create reading with invalid credit (should fail, no reading or transaction created)
-      const response = await request(app)
+      // Create a reading first
+      const readingResponse = await request(app)
         .post('/api/v1/readings')
         .set('Authorization', `Bearer ${managerToken}`)
         .send({
           nozzleId: nozzle.id,
-          stationId: station.id,
           readingDate: new Date().toISOString().split('T')[0],
-          readingValue: 2000,
-          previousReading: 1900,
-          litresSold: 100,
-          pricePerLitre: 100,
-          totalAmount: 10000,
-          cashAmount: 0,
-          creditAmount: 20000, // exceeds limit
-          creditorId: creditor.id
+          readingValue: 2000
+        });
+
+      expect([201, 200]).toContain(readingResponse.status);
+      const readingId = readingResponse.body.data.id;
+
+      // Try to create transaction with invalid credit (should fail, no transaction created)
+      const response = await request(app)
+        .post('/api/v1/transactions')
+        .set('Authorization', `Bearer ${managerToken}`)
+        .send({
+          stationId: station.id,
+          transactionDate: new Date().toISOString().split('T')[0],
+          readingIds: [readingId],
+          paymentBreakdown: {
+            cash: 0,
+            online: 0,
+            credit: 20000 // exceeds limit
+          },
+          creditAllocations: [
+            {
+              creditorId: creditor.id,
+              amount: 20000 // exceeds limit
+            }
+          ]
         });
       expect([400, 403]).toContain(response.status);
-      // Confirm no reading or credit transaction created for this readingValue
-      const reading = await sequelize.models.NozzleReading.findOne({ where: { readingValue: 2000 } });
-      expect(reading).toBeNull();
-      const transactions = await CreditTransaction.findAll({ where: { creditorId: creditor.id, amount: 20000 } });
+      
+      // Confirm no credit transaction created with this amount
+      const transactions = await CreditTransaction.findAll({
+        where: {
+          creditorId: creditor.id,
+          amount: 20000
+        }
+      });
       expect(transactions.length).toBe(0);
     });
 });

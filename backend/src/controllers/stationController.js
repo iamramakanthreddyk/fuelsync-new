@@ -2901,7 +2901,7 @@ exports.getAllExpenses = async (req, res, next) => {
       include: [
         { model: UserModel, as: 'enteredByUser', attributes: ['id', 'name', 'role'] },
         { model: UserModel, as: 'approvedByUser', attributes: ['id', 'name', 'role'], required: false },
-        { model: Station, attributes: ['id', 'name'], required: false }
+        { model: Station, as: 'station', attributes: ['id', 'name'], required: false }
       ],
       order: [['expenseDate', 'DESC'], ['createdAt', 'DESC']],
       limit: parseInt(limit),

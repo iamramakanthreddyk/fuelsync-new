@@ -253,6 +253,18 @@ exports.createTransaction = async (req, res, next) => {
     } catch (err) {
       await t.rollback();
       console.error('[ERROR] createTransaction:', err);
+      
+      // Map validation errors to appropriate HTTP status codes
+      if (err.message && err.message.includes(VALIDATION_ERRORS.CREDIT_LIMIT_EXCEEDED)) {
+        return res.status(403).json({ success: false, error: err.message });
+      }
+      if (err.message && (err.message.includes(VALIDATION_ERRORS.CREDITOR_NOT_FOUND) || err.message.includes(VALIDATION_ERRORS.CREDITOR_NOT_FOUND_FOR_ALLOCATION))) {
+        return res.status(404).json({ success: false, error: err.message });
+      }
+      if (err.message && err.message.includes('isActive')) {
+        return res.status(403).json({ success: false, error: err.message });
+      }
+      
       return res.status(500).json({ success: false, error: err.message });
     }
   } catch (error) {

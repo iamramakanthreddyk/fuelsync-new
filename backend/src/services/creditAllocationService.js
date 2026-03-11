@@ -66,7 +66,12 @@ exports.processCreditAllocations = async (params) => {
     const creditorId = alloc.creditorId;
     const allocAmount = parseFloat(alloc.amount || 0);
 
-    if (!creditorId || !allocAmount || allocAmount <= 0) continue;
+    if (!creditorId) continue;
+
+    // Validate amount is positive
+    if (allocAmount <= 0) {
+      throw new Error('Credit allocation amount must be positive');
+    }
 
     const creditor = creditorMap[creditorId];
     if (!creditor) {
@@ -76,6 +81,11 @@ exports.processCreditAllocations = async (params) => {
     // Verify creditor belongs to station
     if (String(creditor.stationId) !== String(stationId)) {
       throw new Error(VALIDATION_ERRORS.CREDITOR_NOT_FOUND_FOR_ALLOCATION);
+    }
+
+    // Verify creditor is active
+    if (!creditor.isActive) {
+      throw new Error(`Creditor ${creditor.name} is inactive and cannot take credit`);
     }
 
     // Verify credit limit
