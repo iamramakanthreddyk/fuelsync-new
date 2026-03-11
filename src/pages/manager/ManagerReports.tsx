@@ -10,7 +10,6 @@
 
 import { useState, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
 import { useGlobalFilter } from '@/context/GlobalFilterContext';
@@ -41,7 +40,6 @@ interface PumpPerformance {
 const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 export default function ManagerReports() {
-  const { user } = useAuth();
   const { startDate, endDate } = useGlobalFilter();
   const [selectedTab, setSelectedTab] = useState('overview');
 
@@ -50,38 +48,47 @@ export default function ManagerReports() {
   const stations = stationsResponse?.success ? stationsResponse.data : [];
   const currentStation = stations[0];
 
-  // Fetch sales data
+  // Fetch sales data using consolidated analytics endpoint
   const { data: salesResponse } = useQuery({
-    queryKey: ['manager-sales', currentStation?.id, startDate, endDate],
+    queryKey: ['manager-sales', startDate, endDate],
     queryFn: () =>
       apiClient.get<any>(
-        `/stations/${currentStation?.id}/sales?startDate=${startDate}&endDate=${endDate}`
+        `/analytics/daily?startDate=${startDate}&endDate=${endDate}`
       ),
-    enabled: !!currentStation?.id,
+    enabled: !!startDate && !!endDate,
   });
 
-  // Fetch pump performance
+  // Fetch pump performance using consolidated analytics endpoint
   const { data: pumpsResponse } = useQuery({
-    queryKey: ['manager-pumps', currentStation?.id, startDate, endDate],
+    queryKey: ['manager-pumps', startDate, endDate],
     queryFn: () =>
       apiClient.get<any>(
-        `/stations/${currentStation?.id}/pumps?startDate=${startDate}&endDate=${endDate}`
+        `/analytics/pump-performance?startDate=${startDate}&endDate=${endDate}`
       ),
-    enabled: !!currentStation?.id,
+    enabled: !!startDate && !!endDate,
   });
 
-  // Fetch expenses summary
+  // Fetch expenses summary - use global station or first station
   const { data: expensesResponse } = useQuery({
     queryKey: ['manager-expenses', currentStation?.id, startDate, endDate],
     queryFn: () =>
       apiClient.get<any>(
-        `/stations/${currentStation?.id}/expense-summary?startDate=${startDate}&endDate=${endDate}`
+        `/expenses/stations/${currentStation?.id}/expense-summary?startDate=${startDate}&endDate=${endDate}`
       ),
-    enabled: !!currentStation?.id,
+    enabled: !!currentStation?.id && !!startDate && !!endDate,
   });
 
-  const sales: SalesData[] = (salesResponse as any)?.data?.sales ?? [];
-  const pumps: PumpPerformance[] = (pumpsResponse as any)?.data?.pumps ?? [];
+  const sales: SalesData[] = Array.isArray(salesResponse?.data) 
+    ? salesResponse.data.map((item: any) => ({
+        date: item.readingDate || item.date || '',
+        litres: item.litres || 0,
+        amount: item.amount || 0,
+        cash: item.cash || 0,
+        online: item.online || 0,
+        readings: item.count || 0
+      }))
+    : [];
+  const pumps: PumpPerformance[] = Array.isArray(pumpsResponse?.data) ? pumpsResponse.data : [];
   const expenses = (expensesResponse as any)?.data;
 
   // Calculate totals
@@ -104,7 +111,7 @@ export default function ManagerReports() {
   return (
     <>
       <DateRangeFilterToolbar />
-      <div className="container mx-auto p-4 sm:p-6 space-y-6 pt-16">
+      <div className="container mx-auto p-4 sm:p-6 space-y-6 pt-24">
         {/* Header */}
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
