@@ -20,7 +20,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
-import { BarChart3, Droplet, IndianRupee, TrendingUp, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { BarChart3, Droplet, IndianRupee, TrendingUp, Clock, AlertCircle, CheckCircle2, LayoutDashboard, ShoppingCart, Gauge } from 'lucide-react';
 
 interface SalesData {
   date: string;
@@ -194,17 +194,19 @@ export default function ManagerReports() {
 
   return (
     <>
-      <div className="container mx-auto p-4 sm:p-6 space-y-4">
+      <div className="w-full max-w-screen-xl mx-auto px-3 sm:px-6 py-4 sm:py-6 space-y-4">
         <DateRangeFilterToolbar />
         {/* Header */}
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-            <BarChart3 className="w-7 h-7 text-blue-600" />
-            Station Reports
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {currentStation?.name || 'Your Station'} • {startDate} to {endDate}
-          </p>
+        <div className="flex items-start gap-3">
+          <BarChart3 className="w-6 h-6 sm:w-7 sm:h-7 text-blue-600 mt-0.5 shrink-0" />
+          <div className="min-w-0">
+            <h1 className="text-xl sm:text-2xl font-bold leading-tight">
+              Station Reports
+            </h1>
+            <p className="text-muted-foreground text-xs sm:text-sm mt-0.5 truncate">
+              {currentStation?.name || 'Your Station'} • {startDate} to {endDate}
+            </p>
+          </div>
         </div>
 
         {/* Loading State */}
@@ -232,46 +234,58 @@ export default function ManagerReports() {
         {/* Tabs */}
         {!salesLoading && !pumpsLoading && !expensesLoading && !settlementsLoading && (
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="sales">Sales</TabsTrigger>
-            <TabsTrigger value="pumps">Pumps</TabsTrigger>
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 h-auto">
+            <TabsTrigger value="overview" className="flex flex-col sm:flex-row items-center gap-1 py-2 text-[10px] sm:text-sm">
+              <LayoutDashboard className="w-4 h-4 shrink-0" />
+              <span>Overview</span>
+            </TabsTrigger>
+            <TabsTrigger value="sales" className="flex flex-col sm:flex-row items-center gap-1 py-2 text-[10px] sm:text-sm">
+              <ShoppingCart className="w-4 h-4 shrink-0" />
+              <span>Sales</span>
+            </TabsTrigger>
+            <TabsTrigger value="pumps" className="flex flex-col sm:flex-row items-center gap-1 py-2 text-[10px] sm:text-sm">
+              <Gauge className="w-4 h-4 shrink-0" />
+              <span>Pumps</span>
+            </TabsTrigger>
+            <TabsTrigger value="expenses" className="flex flex-col sm:flex-row items-center gap-1 py-2 text-[10px] sm:text-sm">
+              <Droplet className="w-4 h-4 shrink-0" />
+              <span>Expenses</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Overview Tab */}
           <TabsContent value="overview" className="space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
               {/* Total Sales */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <IndianRupee className="w-4 h-4 text-blue-600" />
+                <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+                  <CardTitle className="text-xs sm:text-sm flex items-center gap-1.5">
+                    <IndianRupee className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-blue-600 shrink-0" />
                     Total Sales
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-blue-600">{fmt(totals.amount)}</div>
-                  <p className="text-xs text-muted-foreground mt-1">{totals.litres}L dispensed</p>
+                <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
+                  <div className="text-lg sm:text-2xl font-bold text-blue-600 truncate">{fmt(totals.amount)}</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">{totals.litres}L dispensed</p>
                 </CardContent>
               </Card>
 
               {/* Cash vs Online */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <TrendingUp className="w-4 h-4 text-green-600" />
-                    Cash vs Online
+                <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+                  <CardTitle className="text-xs sm:text-sm flex items-center gap-1.5">
+                    <TrendingUp className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-green-600 shrink-0" />
+                    Cash / Online
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="space-y-1">
+                <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
+                  <div className="space-y-0.5">
                     <div className="text-xs">
-                      <span className="font-semibold text-green-600">{fmt(totals.cash)}</span>
+                      <span className="font-semibold text-green-600 text-sm sm:text-base">{fmt(totals.cash)}</span>
                       <span className="text-muted-foreground ml-1">cash</span>
                     </div>
                     <div className="text-xs">
-                      <span className="font-semibold text-blue-600">{fmt(totals.online)}</span>
+                      <span className="font-semibold text-blue-600 text-sm sm:text-base">{fmt(totals.online)}</span>
                       <span className="text-muted-foreground ml-1">online</span>
                     </div>
                   </div>
@@ -280,30 +294,30 @@ export default function ManagerReports() {
 
               {/* Readings */}
               <Card>
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm flex items-center gap-2">
-                    <Clock className="w-4 h-4 text-purple-600" />
+                <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+                  <CardTitle className="text-xs sm:text-sm flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-purple-600 shrink-0" />
                     Readings
                   </CardTitle>
                 </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold text-purple-600">{totals.readings}</div>
-                  <p className="text-xs text-muted-foreground mt-1">Nozzle readings recorded</p>
+                <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
+                  <div className="text-lg sm:text-2xl font-bold text-purple-600">{totals.readings}</div>
+                  <p className="text-xs text-muted-foreground mt-0.5">Nozzle entries</p>
                 </CardContent>
               </Card>
 
               {/* Expenses */}
               {expensesList.length > 0 && (
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Droplet className="w-4 h-4 text-red-600" />
+                  <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+                    <CardTitle className="text-xs sm:text-sm flex items-center gap-1.5">
+                      <Droplet className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-red-600 shrink-0" />
                       Expenses
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-red-600">{fmt(totals.expenses ?? 0)}</div>
-                    <p className="text-xs text-muted-foreground mt-1">Total recorded</p>
+                  <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
+                    <div className="text-lg sm:text-2xl font-bold text-red-600 truncate">{fmt(totals.expenses ?? 0)}</div>
+                    <p className="text-xs text-muted-foreground mt-0.5">Total recorded</p>
                   </CardContent>
                 </Card>
               )}
@@ -311,15 +325,15 @@ export default function ManagerReports() {
               {/* Shortfall / Cash Variance */}
               {shortfallInfo.settlementCount > 0 && (
                 <Card>
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <AlertCircle className="w-4 h-4 text-orange-600" />
+                  <CardHeader className="pb-1 pt-3 px-3 sm:pb-2 sm:pt-4 sm:px-6">
+                    <CardTitle className="text-xs sm:text-sm flex items-center gap-1.5">
+                      <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-600 shrink-0" />
                       Shortfall
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
-                    <div className="text-2xl font-bold text-orange-600">{fmt(shortfallInfo.totalShortfall)}</div>
-                    <p className="text-xs text-muted-foreground mt-1">{shortfallInfo.settlementCount} settlement{shortfallInfo.settlementCount !== 1 ? 's' : ''}</p>
+                  <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
+                    <div className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{fmt(shortfallInfo.totalShortfall)}</div>
+                    <p className="text-xs text-muted-foreground mt-0.5">{shortfallInfo.settlementCount} settlement{shortfallInfo.settlementCount !== 1 ? 's' : ''}</p>
                   </CardContent>
                 </Card>
               )}
@@ -327,25 +341,26 @@ export default function ManagerReports() {
 
             {/* Active Pumps Status */}
             <Card>
-              <CardHeader>
+              <CardHeader className="pb-2">
                 <CardTitle className="text-sm">Pump Status Overview</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{activePumps}</div>
-                    <p className="text-xs text-muted-foreground">Active pumps</p>
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-2 sm:p-3">
+                    <div className="text-xl sm:text-2xl font-bold text-green-600">{activePumps}</div>
+                    <p className="text-xs text-muted-foreground mt-0.5">Active</p>
                   </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{fmt(totalPumpSales)}</div>
-                    <p className="text-xs text-muted-foreground">Total pump sales</p>
+                  <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 sm:p-3">
+                    <div className="text-base sm:text-2xl font-bold text-blue-600 truncate">{fmt(totalPumpSales)}</div>
+                    <p className="text-xs text-muted-foreground mt-0.5">Total sales</p>
                   </div>
-                  <div className="text-center flex-1">
-                    <div className="text-sm text-muted-foreground">
+                  <div className="bg-gray-50 dark:bg-gray-900/20 rounded-lg p-2 sm:p-3">
+                    <div className="text-base sm:text-xl font-semibold text-gray-700 dark:text-gray-300 truncate">
                       {activePumps > 0 
-                        ? `${(totalPumpSales / activePumps).toFixed(0)} avg per pump`
-                        : 'No active pumps'}
+                        ? fmt(Math.round(totalPumpSales / activePumps))
+                        : '—'}
                     </div>
+                    <p className="text-xs text-muted-foreground mt-0.5">Avg/pump</p>
                   </div>
                 </div>
               </CardContent>
@@ -360,30 +375,30 @@ export default function ManagerReports() {
                 <div className="space-y-2 text-sm">
                   {/* Revenue */}
                   <div className="flex justify-between py-2 border-b">
-                    <span className="font-semibold">Total Revenue</span>
-                    <span className="font-bold">{fmt(totals.amount)}</span>
+                    <span className="font-semibold text-sm sm:text-base">Total Revenue</span>
+                    <span className="font-bold text-sm sm:text-base whitespace-nowrap ml-2">{fmt(totals.amount)}</span>
                   </div>
 
                   {/* Shortfall */}
                   {shortfallInfo.totalShortfall > 0 && (
-                    <div className="flex justify-between py-2 pl-4 text-muted-foreground">
-                      <span>Less: Shortfall (Cash Variance)</span>
-                      <span className="text-red-600 font-semibold">- {fmt(shortfallInfo.totalShortfall)}</span>
+                    <div className="flex justify-between py-2 text-muted-foreground">
+                      <span className="text-xs sm:text-sm sm:pl-4">Less: Shortfall</span>
+                      <span className="text-red-600 font-semibold text-xs sm:text-sm whitespace-nowrap ml-2">- {fmt(shortfallInfo.totalShortfall)}</span>
                     </div>
                   )}
 
                   {/* Expenses */}
                   {totals.expenses > 0 && (
-                    <div className="flex justify-between py-2 pl-4 text-muted-foreground">
-                      <span>Less: Operating Expenses</span>
-                      <span className="text-red-600 font-semibold">- {fmt(totals.expenses)}</span>
+                    <div className="flex justify-between py-2 text-muted-foreground">
+                      <span className="text-xs sm:text-sm sm:pl-4">Less: Operating Expenses</span>
+                      <span className="text-red-600 font-semibold text-xs sm:text-sm whitespace-nowrap ml-2">- {fmt(totals.expenses)}</span>
                     </div>
                   )}
 
                   {/* Net Summary */}
                   <div className="flex justify-between py-2 border-t border-b font-bold">
-                    <span>Net Amount</span>
-                    <span className={totals.amount - shortfallInfo.totalShortfall - totals.expenses >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    <span className="text-sm sm:text-base">Net Amount</span>
+                    <span className={`text-sm sm:text-base whitespace-nowrap ml-2 ${totals.amount - shortfallInfo.totalShortfall - totals.expenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                       {fmt(Math.max(0, totals.amount - shortfallInfo.totalShortfall - totals.expenses))}
                     </span>
                   </div>
@@ -408,12 +423,12 @@ export default function ManagerReports() {
                 <div className="space-y-2 max-h-96 overflow-y-auto">
                   {sales.length > 0 ? (
                     sales.map((day, idx) => (
-                      <div key={idx} className="flex items-center justify-between p-2 border-b last:border-b-0">
-                        <div>
-                          <p className="text-sm font-semibold">{day.date}</p>
-                          <p className="text-xs text-muted-foreground">{day.litres}L • {day.readings} readings</p>
+                      <div key={idx} className="flex items-center justify-between py-2.5 px-1 border-b last:border-b-0 gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-semibold truncate">{day.date}</p>
+                          <p className="text-xs text-muted-foreground">{day.litres}L • {day.readings} rdgs</p>
                         </div>
-                        <div className="text-right">
+                        <div className="text-right shrink-0">
                           <p className="text-sm font-bold">{fmt(day.amount)}</p>
                           <p className="text-xs text-muted-foreground">{fmt(day.cash)} cash</p>
                         </div>
@@ -437,18 +452,18 @@ export default function ManagerReports() {
                 <div className="space-y-3">
                   {pumps.length > 0 ? (
                     pumps.map(pump => (
-                      <div key={pump.id} className="flex items-start justify-between p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg">
-                        <div>
-                          <p className="text-sm font-semibold">{pump.name}</p>
-                          <p className="text-xs text-muted-foreground">{pump.nozzleCount} nozzles</p>
-                        </div>
-                        <div className="text-right">
-                          <div className="flex items-center gap-2">
-                            <Badge variant={pump.status === 'active' ? 'default' : 'secondary'} className="text-xs">
+                      <div key={pump.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/20 rounded-lg gap-3">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-sm font-semibold">{pump.name}</p>
+                            <Badge variant={pump.status === 'active' ? 'default' : 'secondary'} className="text-xs shrink-0">
                               {pump.status === 'active' ? 'Active' : 'Inactive'}
                             </Badge>
                           </div>
-                          <p className="text-sm font-bold mt-1">{fmt(pump.todaySales)}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{pump.nozzleCount} nozzles</p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-bold">{fmt(pump.todaySales)}</p>
                           <p className="text-xs text-muted-foreground">{pump.todayLitres}L</p>
                         </div>
                       </div>
@@ -466,7 +481,7 @@ export default function ManagerReports() {
             {expensesList.length > 0 ? (
               <>
                 {/* Expense Summary Stats */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                   <Card>
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm flex items-center gap-2">
@@ -541,24 +556,24 @@ export default function ManagerReports() {
                       {expensesList.map((expense) => {
                         const amount = parseExpenseAmount(expense.amount);
                         return (
-                          <div key={expense.id} className="flex items-start justify-between p-3 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-900/20 rounded">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-2">
+                          <div key={expense.id} className="flex items-start justify-between py-3 px-2 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-900/20 rounded gap-2">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                                 <p className="text-sm font-semibold">{expense.description}</p>
-                                <Badge variant="outline" className="text-xs capitalize">
+                                <Badge variant="outline" className="text-xs capitalize shrink-0">
                                   {expense.category.replace(/_/g, ' ')}
                                 </Badge>
                               </div>
-                              <p className="text-xs text-muted-foreground mt-1">{expense.expenseDate} • {expense.enteredByUser?.name}</p>
-                              {expense.notes && <p className="text-xs text-muted-foreground italic mt-1">{expense.notes}</p>}
+                              <p className="text-xs text-muted-foreground mt-1">{expense.expenseDate}{expense.enteredByUser?.name ? ` • ${expense.enteredByUser.name}` : ''}</p>
+                              {expense.notes && <p className="text-xs text-muted-foreground italic mt-1 line-clamp-2">{expense.notes}</p>}
                             </div>
-                            <div className="text-right ml-2">
+                            <div className="text-right shrink-0">
                               <p className="text-sm font-bold">{fmt(amount)}</p>
                               <Badge 
                                 variant="secondary" 
                                 className={`text-xs mt-1 ${expense.approvalStatus === 'approved' || expense.approvalStatus === 'auto_approved' ? 'bg-green-100 text-green-700 dark:bg-green-900/30' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30'}`}
                               >
-                                {expense.approvalStatus === 'auto_approved' ? 'Auto Approved' : expense.approvalStatus}
+                                {expense.approvalStatus === 'auto_approved' ? 'Auto' : expense.approvalStatus}
                               </Badge>
                             </div>
                           </div>
