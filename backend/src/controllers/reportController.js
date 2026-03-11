@@ -115,6 +115,8 @@ exports.getSalesReports = async (req, res, next) => {
 
     // Fetch fuel prices for each station and fuel type to calculate COGS
     const fuelPriceMap = new Map(); // Key: "stationId-fuelType-date", Value: { price, costPrice }
+    const fuelAverageCostPriceMap = new Map(); // Key: "stationId-fuelType", Value: average cost price
+    
     for (const stationId of stationIds) {
       const fuelTypes = [...new Set(fuelBreakdown.filter(f => f.stationId === stationId).map(f => f.fuelType))];
       for (const fuelType of fuelTypes) {
@@ -130,10 +132,23 @@ exports.getSalesReports = async (req, res, next) => {
         
         // Create a map of dates to prices for quick lookup
         const dateMap = {};
+        const costPrices = []; // Collect all cost prices to calculate average
+        
         for (const price of prices) {
-          dateMap[price.effectiveFrom] = { price: parseFloat(price.price || 0), costPrice: parseFloat(price.costPrice || 0) };
+          const costPrice = parseFloat(price.costPrice || 0);
+          dateMap[price.effectiveFrom] = { price: parseFloat(price.price || 0), costPrice };
+          if (costPrice > 0) {
+            costPrices.push(costPrice);
+          }
         }
+        
         fuelPriceMap.set(`${stationId}-${fuelType}`, dateMap);
+        
+        // Calculate and store average cost price for this fuel type at this station
+        if (costPrices.length > 0) {
+          const avgCostPrice = costPrices.reduce((sum, p) => sum + p, 0) / costPrices.length;
+          fuelAverageCostPriceMap.set(`${stationId}-${fuelType}`, avgCostPrice);
+        }
       }
     }
 
@@ -158,11 +173,25 @@ exports.getSalesReports = async (req, res, next) => {
           }
           
           const quantity = parseFloat(f.quantity || 0);
+          const saleValue = parseFloat(f.sales || 0);
+          
+          // If cost price not found, try using monthly average for this fuel type
+          if (costPrice === 0 && quantity > 0) {
+            const avgCostPrice = fuelAverageCostPriceMap.get(`${f.stationId}-${f.fuelType}`);
+            if (avgCostPrice && avgCostPrice > 0) {
+              costPrice = avgCostPrice; // Use monthly average
+            } else if (saleValue > 0) {
+              // If no average available, assume 2% profit margin (98% cost)
+              const pricePerLitre = saleValue / quantity;
+              costPrice = pricePerLitre * 0.98;
+            }
+          }
+          
           const cogs = quantity * costPrice;
           
           return {
             fuelType: f.fuelType,
-            sales: parseFloat(f.sales || 0),
+            sales: saleValue,
             quantity: quantity,
             transactions: parseInt(f.transactions || 0),
             costPrice: costPrice,

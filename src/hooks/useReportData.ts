@@ -24,6 +24,8 @@ export interface SalesReport {
     sales: number;
     quantity: number;
     transactions: number;
+    costPrice?: number;
+    cogs?: number;
   }[];
 }
 
@@ -123,6 +125,10 @@ const buildReportParams = ({ dateRange, selectedStation }: ReportQueryParams) =>
  * Aggregate raw reading data into SalesReport format
  * Groups by station and date, aggregates sales and fuel type breakdown
  * NOTE: API response uses snake_case but apiClient converts to camelCase
+ * NOTE: COGS calculation strategy:
+ *   1. If cost price available for that day → Use exact cost price
+ *   2. If missing for that day but available for other days in month → Use monthly average cost price
+ *   3. If no cost prices in month → Assume 2% profit margin (98% cost) for realistic estimates
  */
 export function aggregateRawReadingsToSalesReports(readings: any[]): SalesReport[] {
   if (!readings || readings.length === 0) return [];
@@ -164,7 +170,7 @@ export function aggregateRawReadingsToSalesReports(readings: any[]): SalesReport
     readingsGroup.forEach(reading => {
       const fuelType = reading.fuelType || 'unknown';
       if (!fuelMap.has(fuelType)) {
-        fuelMap.set(fuelType, { fuelType, sales: 0, quantity: 0, transactions: 0 });
+        fuelMap.set(fuelType, { fuelType, sales: 0, quantity: 0, transactions: 0, costPrice: 0, cogs: 0 });
       }
       const fuel = fuelMap.get(fuelType)!;
       const salesVal = reading.totalAmount ?? 0;
@@ -175,6 +181,16 @@ export function aggregateRawReadingsToSalesReports(readings: any[]): SalesReport
       const qtyNum = typeof qtyVal === 'string' ? Number.parseFloat(qtyVal) : Number(qtyVal);
       fuel.quantity += Number.isNaN(qtyNum) ? 0 : qtyNum;
       fuel.transactions += 1;
+      
+      // Preserve COGS if present in reading
+      if (reading.cogs !== undefined && reading.cogs !== null) {
+        const cogsVal = reading.cogs;
+        const cogsNum = typeof cogsVal === 'string' ? Number.parseFloat(cogsVal) : Number(cogsVal);
+        fuel.cogs += Number.isNaN(cogsNum) ? 0 : cogsNum;
+      }
+      if (reading.costPrice !== undefined && reading.costPrice !== null) {
+        fuel.costPrice = reading.costPrice;
+      }
     });
 
     const report: SalesReport = {
