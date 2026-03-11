@@ -379,8 +379,6 @@ export default function Reports() {
           avgTransactionValue: 0,
           peakDay: null,
           fuelTypeBreakdown: [],
-          efficiency: 0,
-          litersPerTxn: 0,
         };
       }
 
@@ -412,18 +410,10 @@ export default function Reports() {
       percentage: (data.sales / totals.sales) * 100,
     }));
 
-    // Efficiency metric (transactions per liter) and its inverse (liters per transaction)
-    const safeQuantity = Number.isFinite(Number(totals.quantity)) ? Number(totals.quantity) : 0;
-    const safeTransactions = Number.isFinite(Number(totals.transactions)) ? Number(totals.transactions) : 0;
-    const efficiency = safeQuantity > 0 ? safeTransactions / safeQuantity : 0; // txn per L
-    const litersPerTxn = safeTransactions > 0 ? safeQuantity / safeTransactions : 0; // L per txn
-
     return {
       avgTransactionValue,
       peakDay,
       fuelTypeBreakdown,
-      efficiency,
-      litersPerTxn,
     };
   }, [aggregatedSalesReports, totals]);
 
@@ -615,23 +605,6 @@ export default function Reports() {
             </p>
           </div>
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-blue-100 rounded-lg">
-                <Zap className="w-5 h-5 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Efficiency</h3>
-                <p className="text-sm text-gray-500">Transactions per liter</p>
-              </div>
-            </div>
-            <div className="text-2xl font-bold text-blue-600">
-              {typeof insights.efficiency === 'number' ? insights.efficiency.toFixed(3) : '0.000'} <span className="text-sm font-normal">txn/L</span>
-            </div>
-            <p className="text-sm text-gray-600 mt-1">
-              ≈ {(typeof insights.litersPerTxn === 'number' && insights.litersPerTxn > 0) ? insights.litersPerTxn.toFixed(1) : '—'} L/txn • Higher txn/L is better
-            </p>
-          </div>
 
           <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200 sm:col-span-2 lg:col-span-1">
             <div className="flex items-center gap-3 mb-3">

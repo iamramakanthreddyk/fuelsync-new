@@ -146,12 +146,18 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
       include: [
         { 
           model: User, 
+          as: 'assignedEmployee', 
+          attributes: ['id', 'name'],
+          required: false
+        },
+        { 
+          model: User, 
           as: 'enteredByUser', 
           attributes: ['id', 'name'],
           required: false
         }
       ],
-      attributes: ['id', 'readingDate', 'enteredBy', 'settlementId'],
+      attributes: ['id', 'readingDate', 'enteredBy', 'assignedEmployeeId', 'settlementId'],
       raw: false,
       subQuery: false
     });
@@ -171,8 +177,9 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
     const employeeData = {};
 
     readings.forEach(reading => {
-      const empId = reading.enteredBy;
-      const empName = reading.enteredByUser?.name || 'Unknown';
+      // Use assignedEmployee (who was accountable) instead of enteredByUser (who recorded data)
+      const empId = reading.assignedEmployeeId || reading.enteredBy;
+      const empName = (reading.assignedEmployee?.name || reading.enteredByUser?.name || 'Unknown');
       const readingDate = reading.readingDate;
 
       if (!employeeData[empId]) {
@@ -248,7 +255,8 @@ exports.getEmployeeShortfallsForDateRange = async (options) => {
       const settlementDates = new Set();
       
       settlementReadings.forEach(reading => {
-        const empId = reading.enteredBy;
+        // Use assignedEmployee (who was accountable) instead of enteredByUser (who recorded data)
+        const empId = reading.assignedEmployeeId || reading.enteredBy;
         const readingDate = reading.readingDate;
         
         if (!empReadingCounts[empId]) {

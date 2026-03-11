@@ -22,7 +22,6 @@ interface SalesTabProps {
       quantity: number;
       percentage: number;
     }>;
-    efficiency: number;
   };
 }
 

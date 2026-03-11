@@ -18,7 +18,6 @@ interface OverviewTabProps {
       quantity: number;
       percentage: number;
     }>;
-    efficiency: number;
   };
 }
 
