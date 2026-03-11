@@ -6,7 +6,7 @@ import { TrendingDown, AlertCircle } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import type { Expense } from '@/types/api';
 import type { DateRange } from '@/components/reports/FilterBar';
-import { safeToFixed, formatCurrency } from '@/lib/format-utils';
+import { safeToFixed } from '@/lib/format-utils';
 
 interface ExpenseAnalysisTabProps {
   expenses: Expense[];
@@ -211,7 +211,7 @@ export const ExpenseAnalysisTab: React.FC<ExpenseAnalysisTabProps> = ({
                     fill="#8884d8"
                     dataKey="value"
                   >
-                    {pieData.map((entry, index) => (
+                    {pieData.map((_entry, index) => (
                       <Cell key={`cell-${index}`} fill={EXPENSE_COLORS[index % EXPENSE_COLORS.length]} />
                     ))}
                   </Pie>

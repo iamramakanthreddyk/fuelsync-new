@@ -64,14 +64,14 @@ export default function DailySalesReport() {
   });
 
   // Fetch shortfall/variance data
+  // NOTE: /settlements endpoint returns 404 - disabled until correct endpoint found
   const { data: shortfallData, isLoading: shortfallLoading } = useQuery({
     queryKey: ['daily-shortfall', selectedDate, selectedStationId],
     queryFn: async () => {
-      if (!selectedStationId) return null;
-      const response = await apiClient.get(`/settlements?startDate=${selectedDate}&endDate=${selectedDate}&stationId=${selectedStationId}`);
-      return (response as any)?.data ?? response;
+      // Placeholder: return empty settlements array
+      return { settlements: [] };
     },
-    enabled: !!selectedStationId
+    enabled: false // Disabled - endpoint not available
   });
 
   // Helper to extract rows array from various API shapes
@@ -150,7 +150,7 @@ export default function DailySalesReport() {
   }, {});
 
   // Extract shortfall data
-  const shortfalls = Array.isArray(shortfallData?.data) ? shortfallData.data : (shortfallData?.settlements ? shortfallData.settlements : []);
+  const shortfalls = Array.isArray(shortfallData?.settlements) ? shortfallData.settlements : [];
   const totalShortfall = shortfalls.reduce((sum: number, s: any) => sum + Math.max(0, s.variance || 0), 0);
 
   // Calculate financial summary

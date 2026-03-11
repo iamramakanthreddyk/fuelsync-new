@@ -7,6 +7,7 @@
  */
 
 import { useStations } from '@/hooks/api';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Fuel, ChevronRight, AlertTriangle } from 'lucide-react';
@@ -32,6 +33,7 @@ interface TankSnapshot {
 }
 
 export function TankLevelsSnapshot() {
+  const navigate = useNavigate();
   const { data: stationsResponse } = useStations();
   const stations = useMemo(() => stationsResponse?.data || [], [stationsResponse?.data]);
 
@@ -173,7 +175,10 @@ export function TankLevelsSnapshot() {
           </div>
         )}
 
-        <button className="w-full mt-3 p-2 text-sm text-primary hover:bg-gray-50 rounded flex items-center justify-center gap-1 border border-gray-200">
+        <button 
+          onClick={() => navigate('/owner/inventory')}
+          className="w-full mt-3 p-2 text-sm text-primary hover:bg-gray-50 rounded flex items-center justify-center gap-1 border border-gray-200"
+        >
           View Full Inventory
           <ChevronRight className="w-4 h-4" />
         </button>

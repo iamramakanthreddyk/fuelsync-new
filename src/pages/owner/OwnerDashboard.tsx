@@ -239,10 +239,10 @@ export default function OwnerDashboard() {
       )}
 
       {/* Employee Shortfalls Card - Time-based tracking */}
-      <EmployeeShortfallsCard 
+      {false && <EmployeeShortfallsCard 
         stationId={primaryStation?.id} 
         onViewDetails={() => navigate('/owner/reports', { state: { tab: 'employees' } })}
-      />
+      />}
 
       {/* Stations Card with List */}
       <StationsCard 

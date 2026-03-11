@@ -34,7 +34,7 @@ import {
   printNozzlesReport,
   printPumpsReport,
 } from '@/lib/report-export';
-import { safeToFixed, formatVolume, formatNumber, formatCurrency } from '@/lib/format-utils';
+import { safeToFixed, formatVolume, formatCurrency } from '@/lib/format-utils';
 import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import {
   BarChart3,
@@ -247,7 +247,7 @@ export default function Reports() {
   });
 
   // Fetch analytics data
-  const { data: analyticsData, isLoading: analyticsLoading, error: analyticsError, refetch: refetchAnalytics } = useQuery({
+  const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery({
     queryKey: ['analytics-reports', dateRange, selectedStation],
     queryFn: async () => {
       const params = new URLSearchParams({
