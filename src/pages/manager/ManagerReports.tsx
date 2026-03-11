@@ -15,6 +15,7 @@ import { getAllExpenses, groupExpensesByCategory, getExpenseStats, parseExpenseA
 import type { Expense } from '@/lib/expenses-api';
 import { useStations } from '@/hooks/api';
 import { useGlobalFilter } from '@/context/GlobalFilterContext';
+import { useSettlements } from '@/hooks/useReportData';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -52,6 +53,7 @@ export default function ManagerReports() {
       queryClient.invalidateQueries({ queryKey: ['manager-sales'] });
       queryClient.invalidateQueries({ queryKey: ['manager-pumps'] });
       queryClient.invalidateQueries({ queryKey: ['manager-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
     }
   }, [startDate, endDate, queryClient]);
 
@@ -87,6 +89,12 @@ export default function ManagerReports() {
     enabled: !!startDate && !!endDate,
   });
 
+  // Fetch settlements to get shortfall/variance data
+  const { data: settlementsData = [], isLoading: settlementsLoading } = useSettlements({
+    dateRange: { startDate, endDate },
+    selectedStation: currentStation?.id || '',
+  });
+
   const sales: SalesData[] = Array.isArray(salesResponse?.data?.items) 
     ? salesResponse.data.items.map((item: any) => ({
         date: item.readingDate || item.date || '',
@@ -108,6 +116,18 @@ export default function ManagerReports() {
       }))
     : [];
   const expensesList: Expense[] = expensesResponse?.data || [];
+
+  // Calculate shortfall from settlements (sum of positive variances) - MUST be before totals calculation
+  const shortfallInfo = useMemo(() => {
+    if (!settlementsData || settlementsData.length === 0) {
+      return { totalShortfall: 0, settlementCount: 0 };
+    }
+    const totalShortfall = settlementsData.reduce((sum, settlement: any) => {
+      // Variance represents the difference: positive = shortfall (cash collected < expected)
+      return sum + Math.max(0, settlement.variance || 0);
+    }, 0);
+    return { totalShortfall, settlementCount: settlementsData.length };
+  }, [settlementsData]);
 
   // Calculate totals from summary if available, fallback to calculated
   const totals = useMemo(() => {
@@ -140,7 +160,8 @@ export default function ManagerReports() {
         cash: salesSummary.breakdown?.cash || 0,
         online: salesSummary.breakdown?.online || 0,
         readings: salesSummary.itemCount || 0,
-        expenses: expenseTotal
+        expenses: expenseTotal,
+        shortfall: shortfallInfo.totalShortfall
       };
     }
 
@@ -155,8 +176,8 @@ export default function ManagerReports() {
       }),
       { litres: 0, amount: 0, cash: 0, online: 0, readings: 0 }
     );
-    return { ...salesTotals, expenses: expenseTotal };
-  }, [sales, salesResponse?.data?.summary, expensesList, expensesResponse?.summary]);
+    return { ...salesTotals, expenses: expenseTotal, shortfall: shortfallInfo.totalShortfall };
+  }, [sales, salesResponse?.data?.summary, expensesList, expensesResponse?.summary, shortfallInfo.totalShortfall]);
 
   const activePumps = pumps.filter(p => p.status === 'active').length;
   const totalPumpSales = pumps.reduce((sum, p) => sum + (p.todaySales ?? 0), 0);
@@ -187,7 +208,7 @@ export default function ManagerReports() {
         </div>
 
         {/* Loading State */}
-        {(salesLoading || pumpsLoading || expensesLoading) && (
+        {(salesLoading || pumpsLoading || expensesLoading || settlementsLoading) && (
           <Card>
             <CardContent className="py-8">
               <div className="text-center text-muted-foreground">
@@ -209,7 +230,7 @@ export default function ManagerReports() {
         )}
 
         {/* Tabs */}
-        {!salesLoading && !pumpsLoading && !expensesLoading && (
+        {!salesLoading && !pumpsLoading && !expensesLoading && !settlementsLoading && (
         <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -286,6 +307,22 @@ export default function ManagerReports() {
                   </CardContent>
                 </Card>
               )}
+
+              {/* Shortfall / Cash Variance */}
+              {shortfallInfo.settlementCount > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 text-orange-600" />
+                      Shortfall
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-orange-600">{fmt(shortfallInfo.totalShortfall)}</div>
+                    <p className="text-xs text-muted-foreground mt-1">{shortfallInfo.settlementCount} settlement{shortfallInfo.settlementCount !== 1 ? 's' : ''}</p>
+                  </CardContent>
+                </Card>
+              )}
             </div>
 
             {/* Active Pumps Status */}
@@ -309,6 +346,52 @@ export default function ManagerReports() {
                         ? `${(totalPumpSales / activePumps).toFixed(0)} avg per pump`
                         : 'No active pumps'}
                     </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Daily Financial Summary P&L */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base">Daily Financial Summary</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-2 text-sm">
+                  {/* Revenue */}
+                  <div className="flex justify-between py-2 border-b">
+                    <span className="font-semibold">Total Revenue</span>
+                    <span className="font-bold">{fmt(totals.amount)}</span>
+                  </div>
+
+                  {/* Shortfall */}
+                  {shortfallInfo.totalShortfall > 0 && (
+                    <div className="flex justify-between py-2 pl-4 text-muted-foreground">
+                      <span>Less: Shortfall (Cash Variance)</span>
+                      <span className="text-red-600 font-semibold">- {fmt(shortfallInfo.totalShortfall)}</span>
+                    </div>
+                  )}
+
+                  {/* Expenses */}
+                  {totals.expenses > 0 && (
+                    <div className="flex justify-between py-2 pl-4 text-muted-foreground">
+                      <span>Less: Operating Expenses</span>
+                      <span className="text-red-600 font-semibold">- {fmt(totals.expenses)}</span>
+                    </div>
+                  )}
+
+                  {/* Net Summary */}
+                  <div className="flex justify-between py-2 border-t border-b font-bold">
+                    <span>Net Amount</span>
+                    <span className={totals.amount - shortfallInfo.totalShortfall - totals.expenses >= 0 ? 'text-green-600' : 'text-red-600'}>
+                      {fmt(Math.max(0, totals.amount - shortfallInfo.totalShortfall - totals.expenses))}
+                    </span>
+                  </div>
+
+                  {/* Transactions and Litres Summary */}
+                  <div className="flex justify-between text-xs text-muted-foreground mt-2">
+                    <span>{totals.readings} transactions</span>
+                    <span>{totals.litres}L dispensed</span>
                   </div>
                 </div>
               </CardContent>

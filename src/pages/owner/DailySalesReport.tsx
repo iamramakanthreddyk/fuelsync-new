@@ -11,9 +11,10 @@ import { apiClient } from '@/lib/api-client';
 import { getExpenseSummary, type ExpenseSummary } from '@/lib/expenses-api';
 import { safeToFixed, formatVolume } from '@/lib/format-utils';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
-import { ArrowLeft, Printer, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Printer, TrendingUp, TrendingDown, AlertCircle, Download } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
+import { useSettlements } from '@/hooks/useReportData';
 import { calculateCOGS, calculateProfit, calculateProfitMargin } from '@/lib/profit-utils';
 // aggregation is done inline from API rows below
 
@@ -64,15 +65,10 @@ export default function DailySalesReport() {
     enabled: !!selectedStationId
   });
 
-  // Fetch shortfall/variance data
-  // NOTE: /settlements endpoint returns 404 - disabled until correct endpoint found
-  const { data: shortfallData, isLoading: shortfallLoading } = useQuery({
-    queryKey: ['daily-shortfall', selectedDate, selectedStationId],
-    queryFn: async () => {
-      // Placeholder: return empty settlements array
-      return { settlements: [] };
-    },
-    enabled: false // Disabled - endpoint not available
+  // Fetch settlements for shortfall/variance data
+  const { data: settlementsData = [], isLoading: shortfallLoading } = useSettlements({
+    dateRange: { startDate: selectedDate, endDate: selectedDate },
+    selectedStation: selectedStationId
   });
 
   // Helper to extract rows array from various API shapes
@@ -170,7 +166,7 @@ export default function DailySalesReport() {
   })) || [];
 
   // Extract shortfall data
-  const shortfalls = Array.isArray(shortfallData?.settlements) ? shortfallData.settlements : [];
+  const shortfalls = settlementsData || [];
   const totalShortfall = shortfalls.reduce((sum: number, s: any) => sum + Math.max(0, s.variance || 0), 0);
 
   // Calculate financial summary
@@ -198,6 +194,93 @@ export default function DailySalesReport() {
 
   const handleExportPDF = () => {
     window.print();
+  };
+
+  const handleExportCSV = () => {
+    if (!report) return;
+    const rows: string[] = [];
+
+    const esc = (val: any) => {
+      const str = String(val ?? '');
+      return str.includes(',') || str.includes('"') || str.includes('\n')
+        ? `"${str.replace(/"/g, '""')}"`
+        : str;
+    };
+    const line = (...cols: any[]) => rows.push(cols.map(esc).join(','));
+    const blank = () => rows.push('');
+    const section = (title: string) => { blank(); line(title); };
+
+    // Header
+    line('DAILY FINANCIAL REPORT');
+    line('Station', report.stationName);
+    line('Date', new Date(report.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }));
+    line('Generated', new Date().toLocaleString('en-IN'));
+
+    // Financial Summary
+    section('--- FINANCIAL SUMMARY ---');
+    line('Revenue (Rs)', 'Fuel Dispensed (L)', 'Transactions', 'Avg Transaction (Rs)', 'Expenses (Rs)', 'Shortfall (Rs)', 'Net Profit (Rs)', 'Profit Margin (%)');
+    line(
+      safeToFixed(report.totalSaleValue, 2),
+      safeToFixed(report.totalLiters, 2),
+      report.readingsCount,
+      safeToFixed(avgTransaction, 2),
+      safeToFixed(totalExpenses, 2),
+      safeToFixed(totalShortfall, 2),
+      safeToFixed(profit, 2),
+      safeToFixed(profitMargin, 1)
+    );
+
+    // P&L Statement
+    section('--- PROFIT & LOSS STATEMENT ---');
+    line('Item', 'Amount (Rs)');
+    line('Revenue', safeToFixed(report.totalSaleValue, 2));
+    line('Less: COGS (Cost of Goods Sold)', safeToFixed(-cogs, 2));
+    line('Less: Shortfall/Variance', safeToFixed(-totalShortfall, 2));
+    line('Less: Expenses', safeToFixed(-totalExpenses, 2));
+    line('Net Profit / Loss', safeToFixed(profit, 2));
+    line('Profit Margin (%)', safeToFixed(profitMargin, 1));
+
+    // Sales by Fuel Type
+    if (fuelTypeArray.length > 0) {
+      section('--- SALES BY FUEL TYPE ---');
+      line('Fuel Type', 'Liters', 'Revenue (Rs)', 'Transactions', 'Percentage (%)');
+      fuelTypeArray.forEach(f => {
+        line(f.name, safeToFixed(f.liters, 2), safeToFixed(f.value, 2), f.count, safeToFixed(f.percentage, 1));
+      });
+    }
+
+    // Expenses
+    if (dailyExpenses.length > 0) {
+      section('--- EXPENSES ---');
+      line('Category', 'Amount (Rs)');
+      dailyExpenses.forEach((exp: any) => {
+        line(exp.category || 'Other', safeToFixed(exp.amount || 0, 2));
+      });
+      line('TOTAL EXPENSES', safeToFixed(totalExpenses, 2));
+    }
+
+    // Shortfalls
+    if (shortfalls.length > 0) {
+      section('--- SHORTFALLS & VARIANCE ---');
+      line('Settlement Type', 'Date', 'Variance (Rs)');
+      shortfalls.forEach((s: any) => {
+        line(
+          s.settlementType || 'Settlement',
+          s.settlementDate ? new Date(s.settlementDate).toLocaleDateString('en-IN') : '',
+          safeToFixed(s.variance || 0, 2)
+        );
+      });
+      line('TOTAL SHORTFALL', safeToFixed(totalShortfall, 2));
+    }
+
+    const csvContent = rows.join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `daily-report-${report.stationName.replace(/\s+/g, '-')}-${report.date}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
   };
 
   const isLoading = salesLoading || expensesLoading || shortfallLoading;
@@ -240,16 +323,28 @@ export default function DailySalesReport() {
             </Button>
             <h1 className="text-2xl sm:text-3xl font-bold">Daily Financial Report</h1>
           </div>
-          {canAccessFeature('pdf_export') && (
+          <div className="flex items-center gap-2 print:hidden">
             <Button
-              onClick={handleExportPDF}
-              className="print:hidden"
+              onClick={handleExportCSV}
               variant="outline"
-              size="icon"
+              size="sm"
+              className="flex items-center gap-2"
+              title="Export all data as CSV"
             >
-              <Printer className="w-4 h-4" />
+              <Download className="w-4 h-4" />
+              Export CSV
             </Button>
-          )}
+            {canAccessFeature('pdf_export') && (
+              <Button
+                onClick={handleExportPDF}
+                variant="outline"
+                size="icon"
+                title="Print report"
+              >
+                <Printer className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0">
