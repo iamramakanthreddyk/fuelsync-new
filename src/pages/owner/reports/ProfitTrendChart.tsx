@@ -319,6 +319,7 @@ export const ProfitTrendChart: React.FC<ProfitTrendChartProps> = ({
       <Card className={isProfitable ? 'border-green-200 bg-green-50/50' : 'border-red-200 bg-red-50/50'}>
         <CardHeader>
           <CardTitle className="text-sm">Profit Summary</CardTitle>
+          <CardDescription className="text-xs">Revenue - COGS - Shortfall - Expenses = Profit</CardDescription>
         </CardHeader>
         <CardContent>
           <div className="space-y-2 text-sm">
@@ -326,24 +327,18 @@ export const ProfitTrendChart: React.FC<ProfitTrendChartProps> = ({
               <span className="text-muted-foreground">Revenue:</span>
               <span className="font-semibold text-green-600">{formatCurrency(totals.revenue, 0)}</span>
             </div>
-            {totals.cogs > 0 && (
-              <div className="flex justify-between items-center pb-2 border-b">
-                <span className="text-muted-foreground">- COGS:</span>
-                <span className="font-semibold text-amber-600">({formatCurrency(totals.cogs, 0)})</span>
-              </div>
-            )}
-            {totals.shortfall > 0 && (
-              <div className="flex justify-between items-center pb-2 border-b">
-                <span className="text-muted-foreground">- Shortfall:</span>
-                <span className="font-semibold text-orange-600">({formatCurrency(totals.shortfall, 0)})</span>
-              </div>
-            )}
-            {totals.expenses > 0 && (
-              <div className="flex justify-between items-center pb-2 border-b">
-                <span className="text-muted-foreground">- Expenses:</span>
-                <span className="font-semibold text-red-600">({formatCurrency(totals.expenses, 0)})</span>
-              </div>
-            )}
+            <div className="flex justify-between items-center pb-2 border-b">
+              <span className="text-muted-foreground">- COGS:</span>
+              <span className="font-semibold text-amber-600">({formatCurrency(totals.cogs, 0)})</span>
+            </div>
+            <div className="flex justify-between items-center pb-2 border-b">
+              <span className="text-muted-foreground">- Shortfall:</span>
+              <span className="font-semibold text-orange-600">({formatCurrency(totals.shortfall, 0)})</span>
+            </div>
+            <div className="flex justify-between items-center pb-2 border-b">
+              <span className="text-muted-foreground">- Expenses:</span>
+              <span className="font-semibold text-red-600">({formatCurrency(totals.expenses, 0)})</span>
+            </div>
             <div className="flex justify-between items-center pt-2 font-bold">
               <span>= Profit:</span>
               <span className={isProfitable ? 'text-green-600' : 'text-red-600'}>

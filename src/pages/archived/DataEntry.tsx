@@ -595,8 +595,8 @@ export default function DataEntry() {
                   </div>
                 </div>
                 
-                {/* Sale Calculation Display */}
-                {manualNozzle && currentFuelPrice > 0 && (
+                {/* Sale Calculation Display - Hidden for sample readings */}
+                {!watchManual('is_sample') && manualNozzle && currentFuelPrice > 0 && (
                   <SaleCalculation
                     previousReading={saleCalculation.previousReading}
                     currentReading={saleCalculation.currentReading}
@@ -606,8 +606,8 @@ export default function DataEntry() {
                   />
                 )}
                 
-                {/* Optional Payment Split */}
-                {saleCalculation.isValid && saleCalculation.saleValue > 0 && (
+                {/* Optional Payment Split - Hidden for sample readings */}
+                {!watchManual('is_sample') && saleCalculation.isValid && saleCalculation.saleValue > 0 && (
                   <div className="space-y-3 mt-4">
                     <div className="flex items-center gap-2">
                       <Checkbox
