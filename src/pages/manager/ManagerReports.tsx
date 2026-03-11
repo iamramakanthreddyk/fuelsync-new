@@ -88,8 +88,8 @@ export default function ManagerReports() {
     enabled: !!currentStation?.id && !!startDate && !!endDate,
   });
 
-  const sales: SalesData[] = Array.isArray(salesResponse?.data?.data) 
-    ? salesResponse.data.data.map((item: any) => ({
+  const sales: SalesData[] = Array.isArray(salesResponse?.data) 
+    ? salesResponse.data.map((item: any) => ({
         date: item.readingDate || item.date || '',
         litres: item.litres || 0,
         amount: item.amount || 0,
@@ -98,7 +98,7 @@ export default function ManagerReports() {
         readings: item.count || 0
       }))
     : [];
-  const pumps: PumpPerformance[] = Array.isArray(pumpsResponse?.data?.data) ? pumpsResponse.data.data : [];
+  const pumps: PumpPerformance[] = Array.isArray(pumpsResponse?.data) ? pumpsResponse.data : [];
   const expensesList: any[] = (expensesResponse as any)?.data?.expenses ?? [];
 
   // Calculate totals
