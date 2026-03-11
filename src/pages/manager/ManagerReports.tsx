@@ -108,7 +108,7 @@ export default function ManagerReports() {
         nozzleCount: pump.nozzles?.length || 0
       }))
     : [];
-  const expensesList: any[] = (expensesResponse as any)?.data?.expenses ?? [];
+  const expensesList: any[] = Array.isArray(expensesResponse?.data) ? expensesResponse.data : [];
 
   // Calculate totals from summary if available, fallback to calculated
   const totals = useMemo(() => {

@@ -3,10 +3,10 @@
  * 
  * Minimal view for station managers focused on:
  * - Today's operations (sales, fuel, readings)
- * - Quick expense entry
- * - Reports and Inventory links
+ * - Pump status overview
  * 
  * Manager manages single station only
+ * Additional features (expenses, reports, inventory) available in sidebar navigation
  */
 
 import { useEffect } from 'react';
@@ -16,8 +16,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Plus, BarChart3, Box, TrendingDown, AlertCircle } from 'lucide-react';
+import { TrendingDown, AlertCircle } from 'lucide-react';
 import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
 
 interface ManagerStats {
@@ -93,20 +92,14 @@ export default function ManagerDashboard() {
       <div className="container mx-auto p-4 sm:p-6 space-y-4">
         <DateRangeFilterToolbar />
         {/* Header */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
-              <TrendingDown className="w-7 h-7 text-blue-600" />
-              Station Operations
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              {currentStation?.name || 'Your Station'} - {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
-            </p>
-          </div>
-          <Button onClick={() => navigate('/expenses')} size="sm" variant="default">
-            <Plus className="w-4 h-4 mr-1" />
-            Add Expense
-          </Button>
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-bold flex items-center gap-2">
+            <TrendingDown className="w-7 h-7 text-blue-600" />
+            Station Operations
+          </h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            {currentStation?.name || 'Your Station'} - {new Date().toLocaleDateString('en-IN', { weekday: 'long', year: 'numeric', month: 'short', day: 'numeric' })}
+          </p>
         </div>
 
         {/* Today's Summary Card */}
@@ -159,51 +152,6 @@ export default function ManagerDashboard() {
             </CardContent>
           </Card>
         )}
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {/* Enter Expenses */}
-          <Card className="bg-gradient-to-br from-red-50 to-transparent dark:from-red-950/20 border-red-200 hover:shadow-md transition-shadow cursor-pointer" 
-            onClick={() => navigate('/expenses')}>
-            <CardContent className="pt-6 pb-6 flex flex-col items-center text-center gap-3">
-              <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-                <TrendingDown className="w-6 h-6 text-red-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Enter Expenses</h3>
-                <p className="text-xs text-muted-foreground mt-1">Record station expenses</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Reports */}
-          <Card className="bg-gradient-to-br from-blue-50 to-transparent dark:from-blue-950/20 border-blue-200 hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => navigate('/reports')}>
-            <CardContent className="pt-6 pb-6 flex flex-col items-center text-center gap-3">
-              <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
-                <BarChart3 className="w-6 h-6 text-blue-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Reports</h3>
-                <p className="text-xs text-muted-foreground mt-1">View sales & analytics</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Inventory */}
-          <Card className="bg-gradient-to-br from-purple-50 to-transparent dark:from-purple-950/20 border-purple-200 hover:shadow-md transition-shadow cursor-pointer"
-            onClick={() => navigate('/manager/inventory')}>
-            <CardContent className="pt-6 pb-6 flex flex-col items-center text-center gap-3">
-              <div className="p-3 bg-purple-100 dark:bg-purple-900/30 rounded-lg">
-                <Box className="w-6 h-6 text-purple-600" />
-              </div>
-              <div>
-                <h3 className="font-semibold">Inventory</h3>
-                <p className="text-xs text-muted-foreground mt-1">Fuel & equipment</p>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Pumps Status Card */}
         {!statsLoading && stats && stats.pumps && (
