@@ -349,17 +349,6 @@ export default function ExpensesPage() {
 
   const canManage = ['manager', 'owner', 'super_admin'].includes(user?.role ?? '');
 
-  // ── Expense summary query (using global date filter) ──
-  const summaryQuery = useQuery({
-    queryKey: ['expense-summary', stationId, globalStartDate, globalEndDate],
-    queryFn: () => {
-      return apiClient.get<any>(
-        `/stations/${stationId}/expense-summary?startDate=${globalStartDate}&endDate=${globalEndDate}`
-      );
-    },
-    enabled: !!stationId,
-  });
-
   // ── Expense list query (pending approvals) ──
   const pendingQuery = useQuery({
     queryKey: ['expenses-pending', stationId],
@@ -415,7 +404,6 @@ export default function ExpensesPage() {
     },
   });
 
-  const summary = (summaryQuery.data as any)?.data;
   const pending: Expense[] = (pendingQuery.data as any)?.data?.expenses ?? [];
   const allExpenses: Expense[] = (expensesQuery.data as any)?.data?.expenses ?? [];
 
@@ -456,7 +444,7 @@ export default function ExpensesPage() {
 
   return (
     <>
-      <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="container mx-auto p-4 sm:p-6 space-y-4">
         <DateRangeFilterToolbar />
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -507,26 +495,21 @@ export default function ExpensesPage() {
         {/* Combined Summary Card */}
         <Card className="bg-white border-blue-200 dark:bg-blue-950/20 shadow-sm">
           <CardContent className="py-4">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-center">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center">
               <div>
                 <div className="text-xs text-muted-foreground">Stations</div>
                 <div className="text-xl font-bold">{stations.length}</div>
                 <div className="text-xs text-muted-foreground">{stations.filter(s => s.isActive).length} active</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Employees</div>
-                <div className="text-xl font-bold">{summary?.employeeCount ?? '—'}</div>
-                <div className="text-xs text-muted-foreground">Across all stations</div>
+                <div className="text-xs text-muted-foreground">Pending</div>
+                <div className="text-xl font-bold">{pending.length}</div>
+                <div className="text-xs text-muted-foreground">Awaiting approval</div>
               </div>
               <div>
-                <div className="text-xs text-muted-foreground">Today's Sales</div>
-                <div className="text-xl font-bold">{summary?.todaySales ? fmt(summary.todaySales) : '—'}</div>
-                <div className="text-xs text-muted-foreground">Combined total</div>
-              </div>
-              <div>
-                <div className="text-xs text-muted-foreground">Month Sales</div>
-                <div className="text-xl font-bold">{summary?.monthSales ? fmt(summary.monthSales) : '—'}</div>
-                <div className="text-xs text-muted-foreground">Current month</div>
+                <div className="text-xs text-muted-foreground">Period Total</div>
+                <div className="text-xl font-bold">{fmt(allExpenses.reduce((sum, e) => sum + (e.amount || 0), 0))}</div>
+                <div className="text-xs text-muted-foreground">{globalStartDate} to {globalEndDate}</div>
               </div>
             </div>
           </CardContent>
@@ -618,50 +601,54 @@ export default function ExpensesPage() {
       )}
 
       {/* Summary Cards (using global date filter) */}
-      {summary && (
+      {allExpenses.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           <Card>
             <CardContent className="pt-4 pb-3">
-              <p className="text-xs text-muted-foreground">Approved Total</p>
-              <p className="text-xl font-bold text-green-600">{fmt(summary.approvedTotal || 0)}</p>
+              <p className="text-xs text-muted-foreground">Total Expenses</p>
+              <p className="text-xl font-bold text-blue-600">{fmt(allExpenses.reduce((sum, e) => sum + (e.amount || 0), 0))}</p>
             </CardContent>
           </Card>
-          {(summary.pendingCount ?? 0) > 0 && (
+          {pending.length > 0 && (
             <Card className="border-yellow-200">
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">⏳ Awaiting Review</p>
-                <p className="text-xl font-bold text-yellow-600">{fmt(summary.pendingAmount || 0)}</p>
-                <p className="text-xs text-yellow-600">{summary.pendingCount} pending</p>
+                <p className="text-xl font-bold text-yellow-600">{fmt(pending.reduce((sum, e) => sum + (e.amount || 0), 0))}</p>
+                <p className="text-xs text-yellow-600">{pending.length} pending</p>
                 <p className="text-xs text-muted-foreground mt-1">Entered by staff • Not counted yet</p>
               </CardContent>
             </Card>
           )}
-          {summary.byFrequency?.map((f: any) => (
-            <Card key={f.frequency}>
-              <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground">{FREQUENCY_LABELS[f.frequency as ExpenseFrequency] ?? f.frequency}</p>
-                <p className="text-lg font-bold">{fmt(f.total)}</p>
-                <p className="text-xs text-muted-foreground">{f.count} entries</p>
-              </CardContent>
-            </Card>
-          ))}
         </div>
       )}
 
-      {/* Category Breakdown */}
-      {summary?.byCategory?.length > 0 && (
-        <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {summary.byCategory.map((c: any) => (
+      {/* Category Breakdown - computed from allExpenses */}
+      {(() => {
+        const byCategory = allExpenses.reduce((acc: any, exp) => {
+          const cat = exp.category || 'miscellaneous';
+          if (!acc[cat]) {
+            acc[cat] = { category: cat, total: 0, count: 0 };
+          }
+          acc[cat].total += exp.amount || 0;
+          acc[cat].count += 1;
+          return acc;
+        }, {});
+        const categories = Object.values(byCategory);
+        
+        return categories.length > 0 ? (
+          <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {(categories as any).map((c: any) => (
               <div key={c.category} className="flex items-center justify-between p-3 rounded-lg border bg-card">
                 <div>
-                  <p className="text-sm font-medium">{c.label ?? EXPENSE_CATEGORIES[c.category] ?? c.category}</p>
+                  <p className="text-sm font-medium">{EXPENSE_CATEGORIES[c.category] ?? c.category}</p>
                   <p className="text-xs text-muted-foreground">{c.count} entries</p>
                 </div>
                 <p className="font-semibold text-red-600">{fmt(c.total)}</p>
               </div>
             ))}
           </div>
-        )}
+        ) : null;
+      })()}
 
         {/* Expense List */}
         <div className="mt-4">

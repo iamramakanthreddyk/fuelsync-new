@@ -90,7 +90,7 @@ export default function ManagerDashboard() {
 
   return (
     <>
-      <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+      <div className="container mx-auto p-4 sm:p-6 space-y-4">
         <DateRangeFilterToolbar />
         {/* Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">

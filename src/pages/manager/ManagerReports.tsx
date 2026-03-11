@@ -120,21 +120,9 @@ export default function ManagerReports() {
   const activePumps = pumps.filter(p => p.status === 'active').length;
   const totalPumpSales = pumps.reduce((sum, p) => sum + (p.todaySales ?? 0), 0);
 
-  // Debug logging
-  console.log('ManagerReports Debug:', {
-    startDate, endDate,
-    currentStation: currentStation?.id,
-    salesResponse: salesResponse?.data,
-    pumpsResponse: pumpsResponse?.data,
-    expensesResponse: expensesResponse?.data,
-    salesLoading, pumpsLoading, expensesLoading,
-    errors: { salesError, pumpsError, expensesError },
-    totals,
-  });
-
   return (
     <>
-      <div className="container mx-auto p-4 sm:p-6 space-y-6">
+      <div className="container mx-auto p-4 sm:p-6 space-y-4">
         <DateRangeFilterToolbar />
         {/* Header */}
         <div>
