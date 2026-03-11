@@ -598,7 +598,7 @@ export default function DailySalesReport() {
                       </div>
                     </div>
                     <div className={`text-right font-semibold ${isNegative ? 'text-red-600' : 'text-green-600'}`}>
-                      {variance < 0 ? '-' : '+'}₹{safeToFixed(Math.abs(variance), 2)}
+                      {isNegative ? '-' : ''}₹{safeToFixed(Math.abs(variance), 2)}
                     </div>
                   </div>
                 );
