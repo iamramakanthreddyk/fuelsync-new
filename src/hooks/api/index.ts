@@ -1,11 +1,28 @@
 /**
  * API Hooks - React Query hooks for all backend endpoints
+ *
+ * All API calls go through @/api (the single source of truth).
+ * This file must NOT import from @/lib/api-client or @/lib/api-wrapper directly.
  */
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import {
+  stationApi,
+  pumpApi,
+  nozzleApi,
+  fuelPriceApi,
+  readingApi,
+  shiftApi,
+  creditApi,
+  expenseApi,
+  analyticsApi,
+  tankApi,
+  userApi,
+  salesApi,
+  authApi,
+} from '@/api';
+// api-wrapper is kept only for the hooks that normalise response and update stores
 import { api as apiWrapper } from '@/lib/api-wrapper';
-import { apiClient } from '@/lib/api-client';
-import type { ApiResponse } from '@/lib/api-client';
 import type { NormalizedResponse as ApiResponseType } from '@/lib/api-wrapper';
 import { useStationStore } from '@/store/stationStore';
 import { getApiErrorMessage } from '@/lib/apiErrorHandler';
@@ -13,18 +30,13 @@ import type {
   Station,
   Pump,
   Nozzle,
-  FuelPrice,
-  NozzleReading,
-  Shift,
   Creditor,
   CreditTransaction,
   Expense,
   Tank,
   TankRefill,
   User,
-  DashboardSummary,
   ConfigResponse,
-  PreviousReadingResponse,
   SubmitReadingRequest,
   StartShiftRequest,
   EndShiftRequest,
@@ -149,7 +161,7 @@ export function useStations() {
 export function useStation(id: string) {
   return useQuery({
     queryKey: queryKeys.station(id),
-    queryFn: () => apiClient.get<ApiResponse<Station>>(`/stations/${id}`),
+    queryFn: () => stationApi.get(id),
     enabled: !!id,
   });
 }
@@ -157,7 +169,7 @@ export function useStation(id: string) {
 export function useStationSettings(stationId: string) {
   return useQuery({
     queryKey: queryKeys.stationSettings(stationId),
-    queryFn: () => apiClient.get<ApiResponse<{ settings: Station }>>(`/stations/${stationId}/settings`),
+    queryFn: () => stationApi.getSettings(stationId),
     enabled: !!stationId,
   });
 }
@@ -166,8 +178,7 @@ export function useCreateStation() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: Partial<Station>) => 
-      apiClient.post<ApiResponse<Station>>('/stations', data),
+    mutationFn: (data: Partial<Station>) => stationApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.stations });
     },
@@ -178,8 +189,7 @@ export function useUpdateStation() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Station> }) => 
-      apiClient.put<ApiResponse<Station>>(`/stations/${id}`, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<Station> }) => stationApi.update(id, data),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.stations });
       queryClient.invalidateQueries({ queryKey: queryKeys.station(id) });
@@ -191,8 +201,7 @@ export function useUpdateStationSettings() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, settings }: { id: string; settings: Partial<Station> }) => 
-      apiClient.put<ApiResponse<Station>>(`/stations/${id}/settings`, settings),
+    mutationFn: ({ id, settings }: { id: string; settings: Partial<Station> }) => stationApi.updateSettings(id, settings),
     onSuccess: (_, { id }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.stationSettings(id) });
     },
@@ -226,8 +235,7 @@ export function useCreatePump() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ stationId, data }: { stationId: string; data: Partial<Pump> }) => 
-      apiClient.post<ApiResponse<Pump>>(`/stations/${stationId}/pumps`, data),
+    mutationFn: ({ stationId, data }: { stationId: string; data: Partial<Pump> }) => pumpApi.create(stationId, data),
     onSuccess: (_, { stationId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pumps(stationId) });
       queryClient.invalidateQueries({ queryKey: ['pumps-data', stationId] });
@@ -242,8 +250,7 @@ export function useUpdatePump() {
   const stationId = useStationStore(state => state.selectedStationId);
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Pump> }) => 
-      apiClient.put<ApiResponse<Pump>>(`/stations/pumps/${id}`, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<Pump> }) => pumpApi.update(id, data),
     onSuccess: () => {
       if (stationId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.pumps(stationId) });
@@ -262,7 +269,7 @@ export function useUpdatePump() {
 export function useNozzles(pumpId: string) {
   return useQuery({
     queryKey: queryKeys.nozzles(pumpId),
-    queryFn: () => apiClient.get<ApiResponse<Nozzle[]>>(`/stations/pumps/${pumpId}/nozzles`),
+    queryFn: () => nozzleApi.getAll(pumpId),
     enabled: !!pumpId,
   });
 }
@@ -271,8 +278,7 @@ export function useCreateNozzle() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ pumpId, data }: { pumpId: string; data: Partial<Nozzle> }) => 
-      apiClient.post<ApiResponse<Nozzle>>(`/stations/pumps/${pumpId}/nozzles`, data),
+    mutationFn: ({ pumpId, data }: { pumpId: string; data: Partial<Nozzle> }) => nozzleApi.create(pumpId, data),
     onSuccess: (_, { pumpId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.nozzles(pumpId) });
     },
@@ -283,8 +289,7 @@ export function useUpdateNozzle() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Nozzle> }) => 
-      apiClient.put<ApiResponse<Nozzle>>(`/stations/nozzles/${id}`, data),
+    mutationFn: ({ id, data }: { id: string; data: Partial<Nozzle> }) => nozzleApi.update(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['nozzles'] });
       queryClient.invalidateQueries({ queryKey: ['pumps'] });
@@ -299,7 +304,7 @@ export function useUpdateNozzle() {
 export function useFuelPrices(stationId: string) {
   return useQuery({
     queryKey: queryKeys.prices(stationId),
-    queryFn: () => apiClient.get<ApiResponse<{ current: FuelPrice[]; history: FuelPrice[] }>>(`/stations/${stationId}/prices`),
+    queryFn: () => fuelPriceApi.getAll(stationId),
     enabled: !!stationId,
   });
 }
@@ -309,7 +314,7 @@ export function usePriceCheck(stationId: string, fuelType: string, date?: string
   
   return useQuery({
     queryKey: queryKeys.priceCheck(stationId, fuelType, checkDate),
-    queryFn: () => apiClient.get<ApiResponse<{ priceSet: boolean; price: number | null }>>(`/stations/${stationId}/prices/check?fuelType=${fuelType}&date=${checkDate}`),
+    queryFn: () => fuelPriceApi.check(stationId, fuelType, checkDate),
     enabled: !!stationId && !!fuelType,
   });
 }
@@ -318,8 +323,7 @@ export function useSetFuelPrice() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ stationId, data }: { stationId: string; data: { fuelType: string; price: number; effectiveFrom?: string } }) => 
-      apiClient.post<ApiResponse<FuelPrice>>(`/stations/${stationId}/prices`, data),
+    mutationFn: ({ stationId, data }: { stationId: string; data: { fuelType: string; price: number; effectiveFrom?: string } }) => fuelPriceApi.set(stationId, data),
     onSuccess: (_, { stationId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.prices(stationId) });
       queryClient.invalidateQueries({ queryKey: ['prices', 'check'] });
@@ -336,12 +340,7 @@ export function useSetFuelPrice() {
 export function usePreviousReading(nozzleId: string, date?: string) {
   return useQuery({
     queryKey: queryKeys.previousReading(nozzleId, date),
-    queryFn: () => {
-      const url = date 
-        ? `/readings/nozzles/${nozzleId}/previous?date=${date}`
-        : `/readings/nozzles/${nozzleId}/previous`;
-      return apiClient.get<PreviousReadingResponse>(url);
-    },
+    queryFn: () => readingApi.getPrevious(nozzleId, date),
     enabled: !!nozzleId,
   });
 }
@@ -349,7 +348,7 @@ export function usePreviousReading(nozzleId: string, date?: string) {
 export function useDailyReadings(stationId: string, date: string) {
   return useQuery({
     queryKey: queryKeys.dailyReadings(stationId, date),
-    queryFn: () => apiClient.get<ApiResponse<NozzleReading[]>>(`/readings/daily?stationId=${stationId}&date=${date}`),
+    queryFn: () => readingApi.getDaily(stationId, date),
     enabled: !!stationId && !!date,
   });
 }
@@ -359,8 +358,7 @@ export function useSubmitReading() {
   const stationId = useStationStore(state => state.selectedStationId);
   
   return useMutation({
-    mutationFn: (data: SubmitReadingRequest) => 
-      apiClient.post<ApiResponse<NozzleReading>>('/readings', data),
+    mutationFn: (data: SubmitReadingRequest) => readingApi.submit(data),
     onSuccess: (_, { nozzleId }) => {
       queryClient.invalidateQueries({ queryKey: ['readings'] });
       queryClient.invalidateQueries({ queryKey: queryKeys.previousReading(nozzleId) });
@@ -378,7 +376,7 @@ export function useSubmitReading() {
 export function useActiveShift() {
   return useQuery({
     queryKey: queryKeys.activeShift,
-    queryFn: () => apiClient.get<ApiResponse<Shift | null>>('/shifts/my/active'),
+    queryFn: () => shiftApi.getActive(),
   });
 }
 
@@ -386,8 +384,7 @@ export function useStartShift() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: StartShiftRequest) => 
-      apiClient.post<ApiResponse<Shift>>('/shifts', data),
+    mutationFn: (data: StartShiftRequest) => shiftApi.start(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.activeShift });
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
@@ -399,8 +396,7 @@ export function useEndShift() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ id, data }: { id: number; data: EndShiftRequest }) => 
-      apiClient.put<ApiResponse<Shift>>(`/shifts/${id}/end`, data),
+    mutationFn: ({ id, data }: { id: number; data: EndShiftRequest }) => shiftApi.end(id, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.activeShift });
       queryClient.invalidateQueries({ queryKey: ['shifts'] });
@@ -412,7 +408,7 @@ export function useEndShift() {
 export function useStationShifts(stationId: string) {
   return useQuery({
     queryKey: queryKeys.shifts(stationId),
-    queryFn: () => apiClient.get<ApiResponse<Shift[]>>(`/stations/${stationId}/shifts`),
+    queryFn: () => shiftApi.getForStation(stationId),
     enabled: !!stationId,
   });
 }
@@ -424,7 +420,7 @@ export function useStationShifts(stationId: string) {
 export function useCreditors(stationId: string) {
   return useQuery({
     queryKey: queryKeys.creditors(stationId),
-    queryFn: () => apiClient.get<ApiResponse<Creditor[]>>(`/credits/creditors?stationId=${stationId}`),
+    queryFn: () => creditApi.getCreditors(stationId),
     enabled: !!stationId,
   });
 }
@@ -432,7 +428,7 @@ export function useCreditors(stationId: string) {
 export function useCreditor(id: string) {
   return useQuery({
     queryKey: queryKeys.creditor(id),
-    queryFn: () => apiClient.get<ApiResponse<Creditor>>(`/credits/creditors/${id}`),
+    queryFn: () => creditApi.getCreditor(id),
     enabled: !!id,
   });
 }
@@ -441,8 +437,7 @@ export function useCreateCreditor() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: Partial<Creditor>) => 
-      apiClient.post<ApiResponse<Creditor>>('/credits/creditors', data),
+    mutationFn: (data: Partial<Creditor>) => creditApi.createCreditor(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditors'] });
     },
@@ -453,8 +448,7 @@ export function useAddCreditSale() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ creditorId, data }: { creditorId: string; data: Partial<CreditTransaction> }) => 
-      apiClient.post<ApiResponse<CreditTransaction>>(`/credits/creditors/${creditorId}/sales`, data),
+    mutationFn: ({ creditorId, data }: { creditorId: string; data: Partial<CreditTransaction> }) => creditApi.addSale(creditorId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditors'] });
     },
@@ -465,8 +459,7 @@ export function useSettleCredit() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ creditorId, data }: { creditorId: string; data: { amount?: number; referenceNumber?: string; notes?: string; invoiceNumber?: string; allocations?: Array<{ creditTransactionId: string; amount: number }> } }) => 
-      apiClient.post<ApiResponse<CreditTransaction>>(`/credits/creditors/${creditorId}/settle`, data),
+    mutationFn: ({ creditorId, data }: { creditorId: string; data: { amount?: number; referenceNumber?: string; notes?: string; invoiceNumber?: string; allocations?: Array<{ creditTransactionId: string; amount: number }> } }) => creditApi.settle(creditorId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['creditors'] });
     },
@@ -478,14 +471,9 @@ export function useSettleCredit() {
 // ============================================
 
 export function useExpenses(stationId: string, filters?: { startDate?: string; endDate?: string; category?: string }) {
-  const searchParams = new URLSearchParams();
-  if (filters?.startDate) searchParams.set('startDate', filters.startDate);
-  if (filters?.endDate) searchParams.set('endDate', filters.endDate);
-  if (filters?.category) searchParams.set('category', filters.category);
-
   return useQuery({
     queryKey: [...queryKeys.expenses(stationId), filters],
-    queryFn: () => apiClient.get<ApiResponse<Expense[]>>(`/stations/${stationId}/expenses?${searchParams.toString()}`),
+    queryFn: () => expenseApi.getForStation(stationId, { startDate: filters?.startDate, endDate: filters?.endDate, category: filters?.category }),
     enabled: !!stationId,
   });
 }
@@ -494,8 +482,7 @@ export function useCreateExpense() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: Partial<Expense>) => 
-      apiClient.post<ApiResponse<Expense>>('/expenses', data),
+    mutationFn: (data: Partial<Expense>) => expenseApi.createDirect(data as Record<string, unknown>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['expenses'] });
       queryClient.invalidateQueries({ queryKey: ['dashboard'] });
@@ -508,22 +495,9 @@ export function useCreateExpense() {
 // ============================================
 
 export function useSales(stationId?: string, date?: string, startDate?: string, endDate?: string) {
-  const searchParams = new URLSearchParams();
-  
-  if (stationId) searchParams.set('station_id', stationId);
-  if (startDate && endDate) {
-    searchParams.set('start_date', startDate);
-    searchParams.set('end_date', endDate);
-  } else if (date) {
-    searchParams.set('date', date);
-  }
-
-  const queryString = searchParams.toString();
-  const url = queryString ? `/sales?${queryString}` : '/sales';
-
   return useQuery({
     queryKey: queryKeys.sales(stationId, date, startDate, endDate),
-    queryFn: () => apiClient.get<ApiResponse<Sale[]>>(url),
+    queryFn: () => salesApi.get({ stationId, date, startDate, endDate }),
     enabled: !!stationId || !!date || (!!startDate && !!endDate),
   });
 }
@@ -540,7 +514,7 @@ export function useSales(stationId?: string, date?: string, startDate?: string, 
 export function useTanks(stationId: string) {
   return useQuery({
     queryKey: queryKeys.tanks(stationId),
-    queryFn: () => apiClient.get<ApiResponse<Tank[]>>(`/stations/${stationId}/tanks`),
+    queryFn: () => tankApi.getAll(stationId),
     enabled: !!stationId,
   });
 }
@@ -551,7 +525,7 @@ export function useTanks(stationId: string) {
 export function useTank(tankId: string) {
   return useQuery({
     queryKey: queryKeys.tank(tankId),
-    queryFn: () => apiClient.get<ApiResponse<Tank>>(`/tanks/${tankId}`),
+    queryFn: () => tankApi.get(tankId),
     enabled: !!tankId,
   });
 }
@@ -562,7 +536,7 @@ export function useTank(tankId: string) {
 export function useTankWarnings() {
   return useQuery({
     queryKey: ['tanks', 'warnings'],
-    queryFn: () => apiClient.get<ApiResponse<Tank[]>>('/tanks/warnings'),
+    queryFn: () => tankApi.getWarnings(),
   });
 }
 
@@ -573,8 +547,7 @@ export function useCreateTank() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ stationId, data }: { stationId: string; data: Partial<Tank> }) => 
-      apiClient.post<ApiResponse<Tank>>(`/stations/${stationId}/tanks`, data),
+    mutationFn: ({ stationId, data }: { stationId: string; data: Partial<Tank> }) => tankApi.create(stationId, data),
     onSuccess: (_, { stationId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.tanks(stationId) });
       queryClient.invalidateQueries({ queryKey: ['tanks', 'warnings'] });
@@ -589,8 +562,7 @@ export function useUpdateTank() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ tankId, data }: { tankId: string; data: Partial<Tank> }) => 
-      apiClient.put<ApiResponse<Tank>>(`/tanks/${tankId}`, data),
+    mutationFn: ({ tankId, data }: { tankId: string; data: Partial<Tank> }) => tankApi.update(tankId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tanks'] });
     },
@@ -604,8 +576,7 @@ export function useRecordRefill() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ tankId, data }: { tankId: string; data: Partial<TankRefill> }) => 
-      apiClient.post<ApiResponse<TankRefill>>(`/tanks/${tankId}/refill`, data),
+    mutationFn: ({ tankId, data }: { tankId: string; data: Partial<TankRefill> }) => tankApi.recordRefill(tankId, data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tanks'] });
     },
@@ -619,13 +590,7 @@ export function useCalibrateTank() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ tankId, dipReading, date, notes }: { 
-      tankId: string; 
-      dipReading: number; 
-      date?: string;
-      notes?: string;
-    }) => 
-      apiClient.post<ApiResponse<Tank>>(`/tanks/${tankId}/calibrate`, { dipReading, date, notes }),
+    mutationFn: ({ tankId, dipReading, date, notes }: { tankId: string; dipReading: number; date?: string; notes?: string; }) => tankApi.calibrate(tankId, { dipReading, date, notes }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['tanks'] });
     },
@@ -636,18 +601,9 @@ export function useCalibrateTank() {
  * Fetch tank refill history
  */
 export function useTankRefills(tankId: string, filters?: { startDate?: string; endDate?: string; page?: number; limit?: number }) {
-  const params = new URLSearchParams();
-  if (filters?.startDate) params.set('startDate', filters.startDate);
-  if (filters?.endDate) params.set('endDate', filters.endDate);
-  if (filters?.page) params.set('page', filters.page.toString());
-  if (filters?.limit) params.set('limit', filters.limit.toString());
-  
-  const queryString = params.toString();
-  const url = queryString ? `/tanks/${tankId}/refills?${queryString}` : `/tanks/${tankId}/refills`;
-  
   return useQuery({
     queryKey: ['tanks', tankId, 'refills', filters],
-    queryFn: () => apiClient.get<ApiResponse<TankRefill[]>>(url),
+    queryFn: () => tankApi.getRefills(tankId, { startDate: filters?.startDate, endDate: filters?.endDate, page: filters?.page, limit: filters?.limit }),
     enabled: !!tankId,
   });
 }
@@ -661,14 +617,9 @@ export function useTankRefills(tankId: string, filters?: { startDate?: string; e
 // ============================================
 
 export function useDashboardSummary(stationId: string, startDate?: string, endDate?: string) {
-  const params = new URLSearchParams();
-  params.set('stationId', stationId);
-  if (startDate) params.set('startDate', startDate);
-  if (endDate) params.set('endDate', endDate);
-  
   return useQuery({
     queryKey: queryKeys.dashboard(stationId, startDate, endDate),
-    queryFn: () => apiClient.get<ApiResponse<DashboardSummary>>(`/analytics/summary?${params.toString()}`),
+    queryFn: () => analyticsApi.getSummary(stationId, startDate, endDate),
     enabled: !!stationId,
   });
 }
@@ -680,14 +631,14 @@ export function useDashboardSummary(stationId: string, startDate?: string, endDa
 export function useCurrentUser() {
   return useQuery({
     queryKey: queryKeys.me,
-    queryFn: () => apiClient.get<ApiResponse<User>>('/auth/me'),
+    queryFn: () => authApi.me(),
   });
 }
 
 export function useStationStaff(stationId: string) {
   return useQuery({
     queryKey: queryKeys.stationStaff(stationId),
-    queryFn: () => apiClient.get<ApiResponse<User[]>>(`/stations/${stationId}/staff`),
+    queryFn: () => stationApi.getStaff(stationId),
     enabled: !!stationId,
   });
 }
@@ -696,8 +647,7 @@ export function useCreateUser() {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: (data: Partial<User> & { password: string }) => 
-      apiClient.post<ApiResponse<User>>('/users', data),
+    mutationFn: (data: Partial<User> & { password: string }) => userApi.create(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.users });
       queryClient.invalidateQueries({ queryKey: ['users', 'staff'] });

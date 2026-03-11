@@ -2908,7 +2908,16 @@ exports.getAllExpenses = async (req, res, next) => {
       offset
     });
 
-    // Calculate totals
+    // Fix any data inconsistencies where approvedBy is set but status is still pending
+    // (legacy records created before auto-approval logic was added)
+    for (const expense of expenses) {
+      if (expense && expense.approvedBy && expense.approvalStatus === 'pending') {
+        expense.approvalStatus = 'auto_approved';
+        await expense.save();
+      }
+    }
+
+    // Calculate totals (run AFTER the fix loop so corrected statuses are reflected)
     const approvedTotal = await ExpenseModel.sum('amount', {
       where: {
         ...expenseWhere,
