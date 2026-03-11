@@ -18,7 +18,6 @@ import {
   Home,
   TrendingUp,
   TrendingDown,
-  Calendar,
   Fuel,
   FileText,
   Users,
@@ -238,15 +237,8 @@ export function AppSidebar() {
       label: "Management",
       items: [
         {
-          title: "Settlements",
-          url: "/settlements",
-          icon: Calendar,
-          color: "text-cyan-600",
-          bgColor: "bg-cyan-50",
-        },
-        {
           title: "Reports",
-          url: "/reports",
+          url: "/manager/reports",
           icon: FileText,
           color: "text-green-600",
           bgColor: "bg-green-50",

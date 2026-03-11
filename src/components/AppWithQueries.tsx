@@ -2,7 +2,6 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { useQuery } from "@tanstack/react-query";
 import { Toaster } from '@/components/ui/toaster';
 import { AuthProvider, useAuth } from '@/hooks/useAuth';
-import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useStations } from '@/hooks/api';
 import { SuperAdminLayout } from '@/layouts/SuperAdminLayout';
 import { 
@@ -20,9 +19,7 @@ import EmployeeDashboard from '@/pages/EmployeeDashboard';
 import Settings from '@/pages/Settings';
 import AdminUsers from '@/pages/AdminUsers';
 import AdminStations from '@/pages/AdminStations';
-import MyStations from '@/pages/MyStations';
 import Staff from '@/pages/Staff';
-import DataEntry from '@/pages/DataEntry';
 import QuickDataEntryEnhanced from '@/pages/owner/QuickDataEntryEnhanced';
 import EmployeeSalesView from '@/pages/EmployeeSalesView';
 import EmployeePumpsView from '@/pages/EmployeePumpsView';
@@ -30,7 +27,7 @@ import Sales from '@/pages/Sales';
 import Settlements from '@/pages/Settlements';
 import Pumps from '@/pages/Pumps';
 import Prices from '@/pages/Prices';
-import Reports from '@/pages/Reports';
+
 import SampleReadings from '@/pages/SampleReadings';
 import AppLayout from '@/components/AppLayout';
 import { apiClient } from '@/lib/api-client';
@@ -202,8 +199,6 @@ function ManagerOrOwnerRoute({ children }: { children: React.ReactNode }) {
 }
 
 function RoleBasedDataEntry() {
-  const { user } = useAuth();
-
   // All users get the enhanced Quick Entry system (single-step)
   // Station selection is controlled by role within the component
   return <QuickDataEntry />;
@@ -252,11 +247,11 @@ function AppContent() {
   // This prevents multiple API calls when components mount/unmount
   const { user } = useAuth();
   const { data: stationsResponse } = useStations();
-  const stations = stationsResponse?.data || [];
+  const stations = (stationsResponse && 'data' in stationsResponse && Array.isArray(stationsResponse.data)) ? stationsResponse.data : [];
 
   // Pre-fetch all fuel prices for all user's stations
   useQuery({
-    queryKey: ['all-fuel-prices', stations?.map(s => s.id).sort().join(',')],
+    queryKey: ['all-fuel-prices', stations?.map((s: any) => s.id).sort().join(',')],
     queryFn: async () => {
       if (!stations || stations.length === 0) {
         return {};
@@ -266,7 +261,7 @@ function AppContent() {
 
       // Fetch prices for all stations in parallel
       await Promise.all(
-        stations.map(async (station) => {
+        stations.map(async (station: any) => {
           try {
             const url = `/stations/${station.id}/prices`;
             const response = await apiClient.get(url);
@@ -344,7 +339,7 @@ function AppContent() {
                               <div className="flex items-center justify-center min-h-screen">Loading stations…</div>
                             )
                           : (
-                              <UsersPage stations={stationsQuery.data || []} />
+                              <UsersPage />
                             )
                       }
                     />
@@ -471,11 +466,7 @@ function AppContent() {
                         <Prices />
                       </ManagerOrOwnerRoute>
                     } />
-                    <Route path="/reports" element={
-                      <ManagerOrOwnerRoute>
-                        <Reports />
-                      </ManagerOrOwnerRoute>
-                    } />
+
                     <Route path="/sample-readings" element={
                       <ManagerOrOwnerRoute>
                         <SampleReadings />

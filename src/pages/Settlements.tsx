@@ -9,8 +9,7 @@ import { apiClient, ApiResponse } from "@/lib/api-client";
 import { ClipboardCheck } from "lucide-react";
 import { useDailySummary } from "@/hooks/useDailySummary";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
-
-// formatting and badge helper imports removed (not used in this simplified view)
+import { formatCurrency } from "@/lib/format-utils";
 
 export default function Settlements() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
