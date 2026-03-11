@@ -6,7 +6,8 @@
 const express = require('express');
 const router = express.Router();
 const expenseController = require('../controllers/expenseController');
-const { authenticate, requireRole } = require('../middleware/auth');
+const stationController = require('../controllers/stationController');
+const { authenticate, requireRole, requireMinRole } = require('../middleware/auth');
 
 // All routes require authentication
 router.use(authenticate);
@@ -56,13 +57,28 @@ router.post('/expenses', async (req, res, next) => {
 	return expenseController.createExpense(req, res, next);
 });
 
-// Expense routes - manager and above can manage expenses
+// Route for /stations/all/expenses - MUST come BEFORE /stations/:stationId/expenses
+router.get('/stations/all/expenses', requireMinRole('manager'), stationController.getAllExpenses);
+
+// Expense routes
+// Anyone can view expenses for their station
 router.get('/stations/:stationId/expenses', expenseController.getExpenses);
-router.post('/stations/:stationId/expenses', requireRole('manager', 'owner', 'super_admin'), expenseController.createExpense);
+
+// Req #3: Anyone can CREATE expenses, but:
+//   - Manager/Owner/Super_Admin entries are auto-approved
+//   - Employee entries go to "pending" requiring manager approval
+router.post('/stations/:stationId/expenses', expenseController.createExpense);
+
+// Update/Delete - manager and above only
 router.put('/expenses/:id', requireRole('manager', 'owner', 'super_admin'), expenseController.updateExpense);
 router.delete('/expenses/:id', requireRole('manager', 'owner', 'super_admin'), expenseController.deleteExpense);
-// Req #3: Approve / reject employee-entered expenses
+
+// Req #3: Approve / reject employee-entered expenses - manager and above only
 router.patch('/expenses/:id/approve', requireRole('manager', 'owner', 'super_admin'), expenseController.approveExpense);
+
+// Bulk approve pending expenses - manager and above only
+router.patch('/stations/:stationId/expenses/bulk-approve', requireRole('manager', 'owner', 'super_admin'), expenseController.bulkApproveExpenses);
+
 router.get('/stations/:stationId/expense-summary', expenseController.getExpenseSummary);
 
 // Cost of goods - owner only

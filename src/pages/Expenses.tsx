@@ -392,6 +392,27 @@ export default function ExpensesPage() {
     },
   });
 
+  // ── Bulk approve mutation ──
+  const bulkApproveMutation = useMutation({
+    mutationFn: ({ mode }: { mode: 'safe' | 'all' }) =>
+      apiClient.patch(`/stations/${stationId}/expenses/bulk-approve`, {
+        approvalMode: mode,
+        skipExpenseIds: []
+      }),
+    onSuccess: (data: any) => {
+      toast.success(data?.data?.message || `Approved ${data?.data?.approved} expense(s)`);
+      if (data?.data?.skipped > 0) {
+        toast.info(`${data.data.skipped} expense(s) skipped for manual review`);
+      }
+      queryClient.invalidateQueries({ queryKey: ['expenses-pending', stationId] });
+      queryClient.invalidateQueries({ queryKey: ['expense-summary', stationId] });
+      queryClient.invalidateQueries({ queryKey: ['expenses-list', stationId] });
+    },
+    onError: (err: unknown) => {
+      toast.error((err as Error)?.message || 'Failed to bulk approve expenses');
+    },
+  });
+
   const summary = (summaryQuery.data as any)?.data;
   const pending: Expense[] = (pendingQuery.data as any)?.data?.expenses ?? [];
   const expenses: Expense[] = (expensesQuery.data as any)?.data?.expenses ?? [];
@@ -451,14 +472,71 @@ export default function ExpensesPage() {
         </div>
       </div>
 
+      {/* Workflow Info Card */}
+      <Card className="bg-blue-50 border-blue-200 dark:bg-blue-950/20">
+        <CardContent className="pt-4 pb-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+            <div>
+              <p className="font-semibold text-blue-900 flex items-center gap-2">
+                <span>👤</span> Who Can Enter Expenses?
+              </p>
+              <p className="text-muted-foreground text-xs mt-1">Anyone in your team can record expenses</p>
+            </div>
+            <div>
+              <p className="font-semibold text-blue-900 flex items-center gap-2">
+                <span>⚡</span> Auto-Approved Entries
+              </p>
+              <p className="text-muted-foreground text-xs mt-1">Manager/Owner entries auto-approve instantly</p>
+            </div>
+            <div>
+              <p className="font-semibold text-blue-900 flex items-center gap-2">
+                <span>✅</span> Employee Entries Need Approval
+              </p>
+              <p className="text-muted-foreground text-xs mt-1">Staff entries wait for manager review</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Pending Approvals (manager/owner only) */}
       {canManage && pending.length > 0 && (
         <Card className="border-yellow-300 bg-yellow-50 dark:bg-yellow-950/20">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base flex items-center gap-2 text-yellow-700">
-              <Clock className="w-4 h-4" />
-              Pending Approvals ({pending.length})
-            </CardTitle>
+          <CardHeader className="pb-3">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+              <CardTitle className="text-base flex items-center gap-2 text-yellow-700">
+                <Clock className="w-4 h-4" />
+                Pending Approvals ({pending.length})
+              </CardTitle>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-xs h-7 text-green-700 border-green-300 hover:bg-green-50"
+                  disabled={bulkApproveMutation.isPending}
+                  onClick={() => bulkApproveMutation.mutate({ mode: 'safe' })}
+                  title="Auto-approve low-risk expenses (₹0-₹10k)"
+                >
+                  {bulkApproveMutation.isPending ? 'Approving…' : 'Safe Auto-Approve'}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="text-xs h-7"
+                  disabled={bulkApproveMutation.isPending}
+                  onClick={() => {
+                    if (confirm(`Approve all ${pending.length} pending expense(s)? This action cannot be undone.`)) {
+                      bulkApproveMutation.mutate({ mode: 'all' });
+                    }
+                  }}
+                >
+                  {bulkApproveMutation.isPending ? 'Approving…' : 'Approve All'}
+                </Button>
+              </div>
+            </div>
+            <p className="text-xs text-yellow-600 mt-2">
+              💡 <strong>Safe Auto-Approve</strong> will approve expenses ≤₹10,000 or common categories (Cleaning, Supplies, Maintenance). 
+              Review high-value expenses manually.
+            </p>
           </CardHeader>
           <CardContent className="p-0">
             <Table>
@@ -521,15 +599,16 @@ export default function ExpensesPage() {
             <Card>
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">Approved Total</p>
-                <p className="text-xl font-bold text-red-600">{fmt(summary.approvedTotal || 0)}</p>
+                <p className="text-xl font-bold text-green-600">{fmt(summary.approvedTotal || 0)}</p>
               </CardContent>
             </Card>
             {(summary.pendingCount ?? 0) > 0 && (
               <Card className="border-yellow-200">
                 <CardContent className="pt-4 pb-3">
-                  <p className="text-xs text-muted-foreground">Pending Amount</p>
+                  <p className="text-xs text-muted-foreground">⏳ Awaiting Review</p>
                   <p className="text-xl font-bold text-yellow-600">{fmt(summary.pendingAmount || 0)}</p>
-                  <p className="text-xs text-muted-foreground">{summary.pendingCount} pending</p>
+                  <p className="text-xs text-yellow-600">{summary.pendingCount} pending</p>
+                  <p className="text-xs text-muted-foreground mt-1">Entered by staff • Not counted yet</p>
                 </CardContent>
               </Card>
             )}

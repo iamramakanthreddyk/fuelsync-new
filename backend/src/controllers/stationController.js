@@ -2802,3 +2802,171 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
     next(error);
   }
 };
+
+/**
+ * Get all expenses across all accessible stations
+ * GET /api/v1/stations/all/expenses?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+ * 
+ * Returns expenses from all stations accessible to the user based on their role:
+ * - super_admin: All stations
+ * - owner: Stations they own
+ * - manager/employee: Only their assigned station
+ */
+exports.getAllExpenses = async (req, res, next) => {
+  try {
+    const { startDate, endDate, category, frequency, approvalStatus, page = 1, limit = 50 } = req.query;
+    const user = req.user;
+
+    // Validate dates
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        error: 'startDate and endDate are required',
+        example: 'GET /api/v1/stations/all/expenses?startDate=2026-02-01&endDate=2026-02-28'
+      });
+    }
+
+    const { Station, Expense: ExpenseModel, User: UserModel, sequelize } = require('../models');
+
+    // Determine which stations user can access
+    let stationIds = [];
+    let whereClause = { isActive: true };
+
+    if (user.role === 'super_admin') {
+      // Super admin can see all stations
+      console.log('[getAllExpenses] Super admin - querying all stations');
+    } else if (user.role === 'owner') {
+      // Owner can only see stations they own
+      whereClause.ownerId = user.id;
+      console.log(`[getAllExpenses] Owner ${user.id} - filtering by ownerId`);
+    } else if (user.role === 'manager' || user.role === 'employee') {
+      // Manager/Employee can only see their assigned station
+      if (!user.stationId) {
+        console.warn(`[getAllExpenses] ${user.role} without stationId assignment`);
+        return res.json({
+          success: true,
+          data: [],
+          summary: {
+            totalExpenses: 0,
+            approvedTotal: 0,
+            pendingTotal: 0,
+            dateRange: { startDate, endDate }
+          }
+        });
+      }
+      whereClause.id = user.stationId;
+      console.log(`[getAllExpenses] ${user.role} - assigned to station ${user.stationId}`);
+    } else {
+      return res.status(403).json({ success: false, error: 'Invalid user role' });
+    }
+
+    // Get all accessible stations
+    const stations = await Station.findAll({
+      where: whereClause,
+      attributes: ['id', 'name'],
+      raw: true
+    });
+
+    stationIds = stations.map(s => s.id);
+    console.log(`[getAllExpenses] Found ${stationIds.length} accessible stations`);
+
+    if (stationIds.length === 0) {
+      return res.json({
+        success: true,
+        data: [],
+        summary: {
+          totalExpenses: 0,
+          approvedTotal: 0,
+          pendingTotal: 0,
+          dateRange: { startDate, endDate }
+        }
+      });
+    }
+
+    // Build expense query where clause
+    const expenseWhere = {
+      stationId: { [Op.in]: stationIds },
+      expenseDate: { [Op.between]: [startDate, endDate] }
+    };
+
+    if (category) expenseWhere.category = category;
+    if (frequency) expenseWhere.frequency = frequency;
+    if (approvalStatus) expenseWhere.approvalStatus = approvalStatus;
+
+    const offset = (page - 1) * limit;
+
+    // Fetch expenses with pagination
+    const { count, rows: expenses } = await ExpenseModel.findAndCountAll({
+      where: expenseWhere,
+      include: [
+        { model: UserModel, as: 'enteredByUser', attributes: ['id', 'name', 'role'] },
+        { model: UserModel, as: 'approvedByUser', attributes: ['id', 'name', 'role'], required: false },
+        { model: Station, attributes: ['id', 'name'], required: false }
+      ],
+      order: [['expenseDate', 'DESC'], ['createdAt', 'DESC']],
+      limit: parseInt(limit),
+      offset
+    });
+
+    // Calculate totals
+    const approvedTotal = await ExpenseModel.sum('amount', {
+      where: {
+        ...expenseWhere,
+        approvalStatus: { [Op.in]: ['approved', 'auto_approved'] }
+      }
+    });
+    const pendingTotal = await ExpenseModel.sum('amount', {
+      where: {
+        ...expenseWhere,
+        approvalStatus: 'pending'
+      }
+    });
+
+    // Breakdown by category
+    const byCategory = await ExpenseModel.findAll({
+      attributes: ['category', [sequelize.fn('SUM', sequelize.col('amount')), 'total']],
+      where: {
+        ...expenseWhere,
+        approvalStatus: { [Op.in]: ['approved', 'auto_approved'] }
+      },
+      group: ['category'],
+      raw: true
+    });
+
+    // Breakdown by frequency
+    const byFrequency = await ExpenseModel.findAll({
+      attributes: ['frequency', [sequelize.fn('SUM', sequelize.col('amount')), 'total'], [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
+      where: {
+        ...expenseWhere,
+        approvalStatus: { [Op.in]: ['approved', 'auto_approved'] }
+      },
+      group: ['frequency'],
+      raw: true
+    });
+
+    res.json({
+      success: true,
+      data: expenses,
+      summary: {
+        totalExpenses: count,
+        approvedTotal: approvedTotal || 0,
+        pendingTotal: pendingTotal || 0,
+        total: approvedTotal || 0,
+        byCategory,
+        byFrequency,
+        dateRange: { startDate, endDate },
+        stationsIncluded: stationIds.length
+      },
+      pagination: {
+        page: parseInt(page),
+        limit: parseInt(limit),
+        total: count,
+        pages: Math.ceil(count / limit)
+      }
+    });
+
+  } catch (error) {
+    console.error('[getAllExpenses] Error:', error);
+    next(error);
+  }
+};

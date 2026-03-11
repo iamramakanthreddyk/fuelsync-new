@@ -681,6 +681,113 @@ const getProfitLoss = async (req, res) => {
   }
 };
 
+/**
+ * Bulk approve pending expenses
+ * PUT /stations/:stationId/expenses/bulk-approve
+ * Body: { approvalMode: 'all' | 'safe'; skipExpenseIds?: string[] }
+ * 
+ * Req #3: Managers can bulk-approve pending expenses with two modes:
+ * - 'all': Approve all pending expenses for the station (⚠️ Use with caution)
+ * - 'safe': Approve only reasonable expenses (small amounts, common categories)
+ */
+const bulkApproveExpenses = async (req, res) => {
+  try {
+    const { stationId } = req.params;
+    const { approvalMode = 'safe', skipExpenseIds = [] } = req.body;
+
+    if (!['all', 'safe'].includes(approvalMode)) {
+      return res.status(400).json({
+        success: false,
+        error: { message: "approvalMode must be 'all' or 'safe'" }
+      });
+    }
+
+    // Get all pending expenses for this station
+    const pendingExpenses = await Expense.findAll({
+      where: {
+        stationId,
+        approvalStatus: EXPENSE_APPROVAL_STATUS.PENDING,
+        id: { [Op.notIn]: skipExpenseIds }
+      },
+      include: [{ model: User, as: 'enteredByUser', attributes: ['id', 'name', 'email'] }]
+    });
+
+    if (!pendingExpenses.length) {
+      return res.json({
+        success: true,
+        data: { approved: 0, skipped: 0, total: 0 },
+        message: 'No pending expenses to approve'
+      });
+    }
+
+    let approved = [];
+    let skipped = [];
+
+    // Safe mode: Only approve low-risk expenses (amount < ₹10,000 + common categories)
+    if (approvalMode === 'safe') {
+      const SAFE_CATEGORIES = ['cleaning', 'supplies', 'maintenance'];
+      const SAFE_LIMIT = 10000;
+
+      for (const expense of pendingExpenses) {
+        const isSafeAmount = expense.amount <= SAFE_LIMIT;
+        const isSafeCategory = SAFE_CATEGORIES.includes(expense.category);
+
+        if (isSafeAmount || isSafeCategory) {
+          approved.push(expense);
+        } else {
+          skipped.push({
+            id: expense.id,
+            reason: `High-risk: ₹${expense.amount} (${expense.category})`,
+            amount: expense.amount,
+            category: expense.category
+          });
+        }
+      }
+    } else {
+      // Approve all
+      approved = pendingExpenses;
+    }
+
+    // UPDATE all approved expenses
+    await Promise.all(approved.map(async (expense) => {
+      expense.approvalStatus = EXPENSE_APPROVAL_STATUS.APPROVED;
+      expense.approvedBy = req.user.id;
+      expense.approvedAt = new Date();
+      await expense.save();
+
+      // Log approval
+      await logAudit({
+        userId: req.user.id,
+        userEmail: req.user.email,
+        userRole: req.user.role,
+        stationId: expense.stationId,
+        action: 'BULK_APPROVE',
+        entityType: 'Expense',
+        entityId: expense.id,
+        newValues: { approvalStatus: EXPENSE_APPROVAL_STATUS.APPROVED, approvedBy: req.user.id },
+        category: 'finance',
+        severity: 'info',
+        description: `Bulk approved: ${expense.description} (₹${expense.amount}) entered by ${expense.enteredByUser?.name}`
+      });
+    }));
+
+    res.json({
+      success: true,
+      data: {
+        approved: approved.length,
+        skipped: skipped.length,
+        total: pendingExpenses.length,
+        approvalMode,
+        skippedDetails: skipped
+      },
+      message: `Bulk approved ${approved.length} expense(s)${skipped.length > 0 ? `. ${skipped.length} skipped for manual review.` : ''}`
+    });
+  } catch (error) {
+    console.error('Bulk approve error:', error);
+    res.status(500).json({ success: false, error: { message: 'Failed to bulk approve expenses' } });
+  }
+};
+
 module.exports = {
   getCategories,
   getExpenses,
@@ -688,6 +795,7 @@ module.exports = {
   updateExpense,
   deleteExpense,
   approveExpense,
+  bulkApproveExpenses,
   getExpenseSummary,
   getCostOfGoods,
   setCostOfGoods,
