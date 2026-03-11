@@ -39,7 +39,7 @@ export const ReportTabTriggers: React.FC = () => {
         className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2 whitespace-nowrap"
       >
         <Activity className="w-4 h-4 text-orange-600 data-[state=active]:text-orange-700" />
-        <span className="text-[10px] md:text-sm leading-tight">Pumps</span>
+        <span className="text-[10px] md:text-sm leading-tight">Dispensers</span>
       </TabsTrigger>
       <TabsTrigger
         value="employees"

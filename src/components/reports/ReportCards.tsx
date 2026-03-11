@@ -170,7 +170,7 @@ export const NozzleCard: React.FC<NozzleCardProps> = ({ nozzle, className }) => 
           <div>
             <CardTitle className="text-base">
               Nozzle {nozzle.nozzleNumber}
-              {nozzle.pumpName && ` - ${nozzle.pumpName}`}
+              {nozzle.pumpName && ` - Dispenser ${nozzle.pumpName}`}
             </CardTitle>
             {nozzle.stationName && (
               <CardDescription className="text-xs">
@@ -277,50 +277,62 @@ export interface PumpCardProps {
 export const PumpCard: React.FC<PumpCardProps> = ({ pump, className }) => (
   <Card className={cn("w-full", className)}>
     <CardHeader className="pb-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-3">
         <div className="min-w-0 flex-1">
           <CardTitle className="text-base md:text-lg truncate">
-            Pump {pump.pumpNumber} - {pump.pumpName}
+            Fuel Dispenser {pump.pumpNumber} - {pump.pumpName}
           </CardTitle>
           <CardDescription className="text-xs md:text-sm truncate">{pump.stationName}</CardDescription>
         </div>
-        <div className="text-right ml-2">
+        <div className="text-right flex-shrink-0">
           <div className="text-lg md:text-xl font-bold text-green-600">
             ₹{pump.totalSales.toLocaleString('en-IN')}
           </div>
           <p className="text-xs md:text-sm text-muted-foreground">
-            {safeToFixed(pump.totalQuantity)} L • {pump.transactions} txns
+            {safeToFixed(pump.totalQuantity)} L
           </p>
         </div>
       </div>
     </CardHeader>
     <CardContent className="pt-0">
-      <div className="space-y-2">
-        <div className="text-xs md:text-sm font-medium text-muted-foreground">Nozzle Performance</div>
-        <div className="space-y-2">
-          {pump.nozzles.map((nozzle) => (
-            <div
-              key={nozzle.nozzleId || `${nozzle.nozzleNumber}-${pump.pumpId}`}
-              className="flex items-center justify-between p-2 md:p-3 bg-muted/30 rounded-md border"
-            >
-              <div className="flex items-center gap-2 min-w-0 flex-1">
-                <Badge variant="outline" className="text-xs px-1.5 py-0.5 shrink-0">
-                  #{nozzle.nozzleNumber}
-                </Badge>
-                <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs px-1.5 py-0.5 shrink-0`}>
-                  {nozzle.fuelType}
-                </Badge>
-              </div>
-              <div className="text-right ml-2 shrink-0">
-                <div className="text-sm md:text-base font-semibold">
-                  ₹{nozzle.sales.toLocaleString('en-IN')}
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
+          <div className="bg-blue-50 rounded-lg p-2.5 border border-blue-100">
+            <p className="text-xs text-blue-600 font-semibold mb-1">Transactions</p>
+            <p className="text-lg font-bold text-blue-700">{pump.transactions}</p>
+          </div>
+          <div className="bg-orange-50 rounded-lg p-2.5 border border-orange-100">
+            <p className="text-xs text-orange-600 font-semibold mb-1">Avg/Sale</p>
+            <p className="text-lg font-bold text-orange-700">₹{pump.transactions > 0 ? Math.round(pump.totalSales / pump.transactions).toLocaleString('en-IN') : '—'}</p>
+          </div>
+        </div>
+        <div>
+          <div className="text-xs font-semibold text-muted-foreground mb-2">Nozzles ({pump.nozzles?.length || 0})</div>
+          <div className="space-y-2">
+            {pump.nozzles.map((nozzle) => (
+              <div
+                key={nozzle.nozzleId || `${nozzle.nozzleNumber}-${pump.pumpId}`}
+                className="flex items-center justify-between p-2.5 bg-muted/40 rounded border text-sm"
+              >
+                <div className="flex items-center gap-1.5 min-w-0 flex-1">
+                  <Badge variant="outline" className="text-xs px-1.5 py-0.5 shrink-0 font-semibold">
+                    Nozzle {nozzle.nozzleNumber}
+                  </Badge>
+                  <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs px-1.5 py-0.5 shrink-0`}>
+                    {nozzle.fuelType}
+                  </Badge>
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {safeToFixed(nozzle.quantity)} L
+                <div className="text-right ml-2 shrink-0">
+                  <div className="font-semibold text-green-600">
+                    ₹{nozzle.sales.toLocaleString('en-IN')}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {safeToFixed(nozzle.quantity)} L
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </CardContent>

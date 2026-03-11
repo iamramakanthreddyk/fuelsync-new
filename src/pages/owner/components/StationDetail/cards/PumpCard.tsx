@@ -33,13 +33,13 @@ export default function PumpCard({ pump, onEdit, onEditNozzle, onAddNozzle }: Pu
         <div className="flex items-center justify-between gap-3">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 mb-2">
-              <h3 className="text-lg font-semibold truncate">{pump.name}</h3>
+              <h3 className="text-lg font-semibold truncate">Fuel Dispenser {pump.pumpNumber} - {pump.name}</h3>
               <Badge variant={isActive ? 'default' : isMaintenance ? 'secondary' : 'outline'}>
                 {pump.status}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground mb-2">
-              {activeNozzles}/{totalNozzles} nozzles active • {fuelTypes.join(', ')}
+              {activeNozzles}/{totalNozzles} nozzles • {fuelTypes.join(', ')}
             </p>
           </div>
           <div className="flex gap-2 flex-shrink-0">
@@ -73,10 +73,12 @@ export default function PumpCard({ pump, onEdit, onEditNozzle, onAddNozzle }: Pu
               {pump.nozzles && pump.nozzles.length > 0 ? (
                 <div className="space-y-2">
                   {pump.nozzles.map((nozzle: any) => (
-                    <div key={nozzle.id} className="flex items-center justify-between p-2 bg-white rounded border">
-                      <div className="flex-1">
-                        <div className="font-medium">Nozzle {nozzle.nozzleNumber}</div>
-                        <div className="text-sm text-muted-foreground">{nozzle.fuelType}</div>
+                    <div key={nozzle.id} className="flex items-center justify-between p-2.5 bg-white rounded border">
+                      <div className="flex-1 flex items-center gap-2">
+                        <Badge variant="outline" className="text-xs py-0.5 font-semibold shrink-0">
+                          Nozzle {nozzle.nozzleNumber}
+                        </Badge>
+                        <span className="text-sm text-muted-foreground">{nozzle.fuelType}</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <Badge variant={nozzle.status === 'active' ? 'default' : 'outline'}>

@@ -17,15 +17,15 @@ export const PumpsTab: React.FC<PumpsTabProps> = ({
   return (
     <TabsContent value="pumps" className="space-y-4">
       <ReportSection
-        title="Pumps"
-        description="Performance by pump & nozzle"
+        title="Fuel Dispensers"
+        description="Performance by fuel dispenser & nozzle"
         isLoading={pumpsLoading}
         loadingText="Loading pump performance..."
         isEmpty={!pumpPerformance || pumpPerformance.length === 0}
         emptyState={{
           icon: Activity,
-          title: 'No Pump Data',
-          description: 'No pump performance data found for the selected filters',
+          title: 'No Fuel Dispenser Data',
+          description: 'No fuel dispenser performance data found for the selected filters',
         }}
         onPrintPdf={onPrintPdf}
       >

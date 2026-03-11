@@ -29,7 +29,7 @@ export default function PricesTab({ id }: PricesTabProps) {
     effectiveFrom: formatDateISO(new Date())
   });
 
-  const { data: fuelPrices, isLoading: fuelPricesLoading } = useFuelPricesData(id);
+  const { data: fuelPrices, isLoading: fuelPricesLoading, refetch } = useFuelPricesData(id);
 
   const setPriceMutation = useMutation({
     mutationFn: async (data: { fuelType: string; price: string; costPrice?: string; effectiveFrom: string }) => {
@@ -38,6 +38,7 @@ export default function PricesTab({ id }: PricesTabProps) {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['fuel-prices', id] });
       queryClient.invalidateQueries({ queryKey: ['all-fuel-prices'] });
+      refetch();
       toast({ title: 'Success', description: 'Price updated successfully', variant: 'success' });
       setIsPriceDialogOpen(false);
       setPriceForm({ fuelType: FuelTypeEnum.PETROL, price: '', costPrice: '', effectiveFrom: formatDateISO(new Date()) });
@@ -83,6 +84,7 @@ export default function PricesTab({ id }: PricesTabProps) {
             onClick={() => {
               queryClient.invalidateQueries({ queryKey: ['fuel-prices', id] });
               queryClient.invalidateQueries({ queryKey: ['all-fuel-prices'] });
+              refetch();
             }}
             size="sm"
           >

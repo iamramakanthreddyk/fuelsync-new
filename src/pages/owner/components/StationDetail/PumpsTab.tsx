@@ -50,7 +50,7 @@ export default function PumpsTab({ id }: PumpsTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
-      toast({ title: 'Success', description: 'Pump created successfully', variant: 'success' });
+      toast({ title: 'Success', description: 'Fuel Dispenser created successfully', variant: 'success' });
       setIsPumpDialogOpen(false);
       setPumpForm({ pumpNumber: '', name: '', status: EquipmentStatusEnum.ACTIVE });
     },
@@ -83,7 +83,7 @@ export default function PumpsTab({ id }: PumpsTabProps) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['station-pumps', id] });
-      toast({ title: 'Success', description: 'Pump updated successfully', variant: 'success' });
+      toast({ title: 'Success', description: 'Fuel Dispenser updated successfully', variant: 'success' });
       setIsEditPumpDialogOpen(false);
       setSelectedPump(null);
     },
@@ -111,7 +111,7 @@ export default function PumpsTab({ id }: PumpsTabProps) {
 
   const handleCreatePump = () => {
     if (!pumpForm.name) {
-      toast({ title: 'Missing Information', description: 'Please fill in pump name', variant: 'destructive' });
+      toast({ title: 'Missing Information', description: 'Please fill in dispenser name', variant: 'destructive' });
       return;
     }
     createPumpMutation.mutate({ name: pumpForm.name, status: pumpForm.status });
@@ -159,8 +159,8 @@ export default function PumpsTab({ id }: PumpsTabProps) {
       <div className="flex flex-col gap-4">
         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
           <div className="flex flex-col gap-2 text-center sm:text-left">
-            <h2 className="text-xl sm:text-2xl font-bold">Pumps & Nozzles</h2>
-            <p className="text-sm sm:text-base text-muted-foreground">Manage fuel pumps and their nozzles</p>
+            <h2 className="text-xl sm:text-2xl font-bold">Fuel Dispensers & Nozzles</h2>
+            <p className="text-sm sm:text-base text-muted-foreground">Manage fuel dispensers and their nozzles</p>
           </div>
           <div className="flex gap-2 flex-shrink-0 justify-center sm:justify-end">
             <Button
@@ -172,10 +172,10 @@ export default function PumpsTab({ id }: PumpsTabProps) {
               <RefreshCw className="w-4 h-4 mr-2" />
               Refresh
             </Button>
-            <PermissionGuard permission="manage_stations" roles={["owner","super_admin"]} fallback={<Button size="sm" className="w-full" disabled><Plus className="w-4 h-4 mr-2"/>Add Pump</Button>}>
+            <PermissionGuard permission="manage_stations" roles={["owner","super_admin"]} fallback={<Button size="sm" className="w-full" disabled><Plus className="w-4 h-4 mr-2"/>Add Dispenser</Button>}>
               <Button size="sm" className="w-full" onClick={() => setIsPumpDialogOpen(true)}>
                 <Plus className="w-4 h-4 mr-2" />
-                Add Pump
+                Add Dispenser
               </Button>
             </PermissionGuard>
           </div>
@@ -191,7 +191,7 @@ export default function PumpsTab({ id }: PumpsTabProps) {
                 </div>
                 <div className="min-w-0">
                   <div className="text-lg sm:text-xl font-bold text-blue-600">{pumps?.length || 0}</div>
-                  <div className="text-xs text-muted-foreground">Total Pumps</div>
+                  <div className="text-xs text-muted-foreground">Total Dispensers</div>
                 </div>
               </div>
               <div className="flex items-center gap-2 sm:gap-3 flex-1">
