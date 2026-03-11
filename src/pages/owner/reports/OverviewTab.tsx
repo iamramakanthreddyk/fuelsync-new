@@ -2,13 +2,17 @@ import React from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { RevenueTrendChart } from './RevenueTrendChart';
 import { VarianceAnalysisChart } from './VarianceAnalysisChart';
+import { ProfitTrendChart } from './ProfitTrendChart';
 import type { SalesReport, Settlement } from '@/hooks/useReportData';
+import type { Expense } from '@/types/api';
 
 interface OverviewTabProps {
   aggregatedSalesReports: SalesReport[] | undefined;
   salesLoading: boolean;
   settlements: Settlement[] | undefined;
   settlementsLoading: boolean;
+  expenses?: Expense[];
+  expensesLoading?: boolean;
   insights?: {
     avgTransactionValue: number;
     peakDay: SalesReport | null;
@@ -26,6 +30,8 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   salesLoading,
   settlements,
   settlementsLoading,
+  expenses = [],
+  expensesLoading = false,
   insights,
 }) => {
   // Consistent branded color map for fuel types (extend as needed)
@@ -41,7 +47,16 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
     .slice()
     .sort((a, b) => (b.sales || 0) - (a.sales || 0));
   return (
-    <TabsContent value="overview" className="space-y-2 md:space-y-3">
+    <TabsContent value="overview" className="space-y-4 md:space-y-6">
+      {/* Profit Trend - New Primary Focus */}
+      <ProfitTrendChart
+        salesReports={aggregatedSalesReports}
+        settlements={settlements}
+        expenses={expenses}
+        isLoading={salesLoading || settlementsLoading || expensesLoading}
+        className="w-full"
+      />
+
       <div className="grid gap-3 md:gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         <RevenueTrendChart
           salesReports={aggregatedSalesReports}

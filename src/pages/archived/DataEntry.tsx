@@ -6,7 +6,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
 
-import { FuelType, FuelTypeEnum, PaymentMethod, PaymentMethodEnum } from '@/core/enums';
+import { FuelType, FuelTypeEnum } from '@/core/enums';
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -14,8 +14,7 @@ import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { CurrencyInput } from '@/components/inputs/CurrencyInput';
-import { IndianRupee, Fuel, Gauge } from 'lucide-react';
+import { Fuel, Gauge } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { FuelTypeSelect } from '@/components/FuelTypeSelect';
@@ -24,7 +23,6 @@ import { useFuelPricesData } from '@/hooks/useFuelPricesData';
 import { getFuelColors } from '@/lib/fuelColors';
 import { PaymentSplit, SaleCalculation } from '@/components/readings';
 import type { PaymentSplitData } from '@/components/readings';
-import { useCreateReading } from '@/hooks/useDataQueries';
 import { Checkbox } from '@/components/ui/checkbox';
 import { UserCheck } from 'lucide-react';
 
@@ -148,7 +146,7 @@ export default function DataEntry() {
       const nf = (selectedNozzleData.fuelType || '').toString().toUpperCase();
       return ft === nf;
     });
-    return priceRecord?.price_per_litre || 0;
+    return priceRecord?.price || 0;
   }, [selectedNozzleData, fuelPrices]);
   
   // Calculate sale values
@@ -185,7 +183,7 @@ export default function DataEntry() {
     formState: { errors: manualErrors },
     reset: resetManual,
     setValue: setManualValue,
-    // watch: watchManual
+    watch: watchManual
   } = useForm<ManualEntryData>({
     defaultValues: {
       station_id: availableStations[0]?.id || '',
@@ -442,7 +440,7 @@ export default function DataEntry() {
           <TabsContent value="manual">
             <div className="rounded-xl p-6 mb-6 shadow-sm bg-orange-50 border border-border/30">
               <h3 className="text-fuel-orange text-xl font-semibold mb-4 flex items-center gap-2">
-                <span className="inline-block w-6 h-6 bg-fuel-orange rounded-full flex items-center justify-center text-white text-sm font-bold">M</span>
+                <span className="w-6 h-6 bg-fuel-orange rounded-full flex items-center justify-center text-white text-sm font-bold">M</span>
                 Manual Reading
               </h3>
               <form onSubmit={handleSubmitManual(onSubmitManual)} className="space-y-6">
@@ -487,7 +485,7 @@ export default function DataEntry() {
                             <SelectItem key={nz.id} value={nz.id}>
                               <div className="flex items-center gap-2">
                                 <div className={`w-2 h-2 rounded-full ${colors.dot}`} />
-                                <span>Pump {nz.pump?.pumpNumber || nz.pumpNumber || '?'} - Nozzle {nz.nozzleNumber} - {FUEL_TYPE_LABELS[nz.fuelType] || nz.fuelType}</span>
+                                <span>Pump {nz.pump?.pumpNumber || nz.pumpNumber || '?'} - Nozzle {nz.nozzleNumber} - {FUEL_TYPE_LABELS[nz.fuelType as keyof typeof FUEL_TYPE_LABELS] || nz.fuelType}</span>
                               </div>
                             </SelectItem>
                           );
@@ -505,12 +503,12 @@ export default function DataEntry() {
                       Entered on behalf of
                       <span className="text-xs text-muted-foreground font-normal">(optional — leave blank to record as yourself)</span>
                     </Label>
-                    <Select value={assignedEmployeeId} onValueChange={setAssignedEmployeeId}>
+                    <Select value={assignedEmployeeId || 'self'} onValueChange={(v) => setAssignedEmployeeId(v === 'self' ? '' : v)}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select employee (optional)" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="">— Self (you) —</SelectItem>
+                        <SelectItem value="self">— Self (you) —</SelectItem>
                         {stationEmployees.map((emp: any) => (
                           <SelectItem key={emp.id} value={emp.id}>
                             {emp.name}

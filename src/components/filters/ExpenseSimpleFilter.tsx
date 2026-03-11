@@ -94,12 +94,12 @@ export const ExpenseSimpleFilter: React.FC<ExpenseSimpleFilterProps> = ({
             <Label className="text-sm font-medium">
               {filterType === 'category' ? 'Category' : 'Station'}
             </Label>
-            <Select value={selectedFilter} onValueChange={onFilterChange}>
+            <Select value={selectedFilter || 'all'} onValueChange={(v) => onFilterChange(v === 'all' ? '' : v)}>
               <SelectTrigger className="w-full py-2">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All {filterType === 'category' ? 'Categories' : 'Stations'}</SelectItem>
+                <SelectItem value="all">All {filterType === 'category' ? 'Categories' : 'Stations'}</SelectItem>
                 {filterOptions.map((opt) => (
                   <SelectItem key={opt.value} value={opt.value}>
                     {opt.label}

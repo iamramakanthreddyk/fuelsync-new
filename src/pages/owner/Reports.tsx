@@ -640,6 +640,8 @@ export default function Reports() {
               salesLoading={salesLoading}
               settlements={settlements}
               settlementsLoading={settlementsLoading}
+              expenses={expenses}
+              expensesLoading={expensesLoading}
               insights={insights}
             />
             <SalesTab
