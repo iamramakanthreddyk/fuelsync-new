@@ -4,60 +4,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { IndianRupee, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
-import { apiClient } from '@/lib/api-client';
+import { getProfitSummary, type ProfitSummary } from '@/lib/financial-reporting-api';
 import { safeToFixed } from '@/lib/format-utils';
-
-interface ProfitSummary {
-  month: string;
-  summary: {
-    totalRevenue: number;
-    totalCostOfGoods: number;
-    totalShortfall: number;
-    totalExpenses: number;
-    pendingExpenses?: number;
-    grossProfit: number;
-    netProfit: number;
-    profitMargin: number;
-    totalLitres: number;
-    profitPerLitre: number;
-  };
-  breakdown: {
-    byFuelType: Record<string, {
-      revenue: number;
-      costOfGoods: number;
-      litres: number;
-      profitPerLitre: number | null;
-      profitMargin: number | null;
-      hasCompleteData?: boolean;
-    }>;
-    byExpenseCategory: Array<{ category: string; label?: string; amount: number }>;
-    readingDetails?: Record<string, {
-      withCostPrice: Array<{
-        date: string;
-        litres: number;
-        salePrice: number;
-        costPrice: number;
-        revenue: number;
-        cogs: number;
-        profit: number;
-      }>;
-      withoutCostPrice: Array<{
-        date: string;
-        litres: number;
-        salePrice: number;
-        revenue: number;
-        note: string;
-      }>;
-    }>;
-  };
-  dataCompleteness: {
-    totalReadings: number;
-    readingsUsedForCalculation: number;
-    readingsExcluded: number;
-    completenessPercentage: number;
-    note: string;
-  };
-}
 
 interface ProfitDashboardProps {
   stationId: string;
@@ -80,10 +28,8 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
   const { data: profitData, isLoading, error } = useQuery({
     queryKey: ['profit-summary', stationId, selectedMonth],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: ProfitSummary }>(
-        `/stations/${stationId}/profit-summary?month=${selectedMonth}`
-      );
-      return response.data as ProfitSummary;
+      const response = await getProfitSummary(stationId, selectedMonth);
+      return response?.data as ProfitSummary;
     },
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -135,7 +81,7 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
         <>
           {/* Data Completeness Alert - Simplified */}
           {profitData.dataCompleteness.completenessPercentage < 100 && (
-            <Alert className="bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-800">
+            <Alert className="bg-amber-950 border-amber-200 dark:border-amber-800">
               <AlertCircle className="h-4 w-4 text-amber-600" />
               <AlertDescription className="text-amber-800 dark:text-amber-200">
                 <strong>Incomplete data:</strong> Profit calculated from {profitData.dataCompleteness.completenessPercentage}% of readings. Set fuel purchase prices for accurate calculations.

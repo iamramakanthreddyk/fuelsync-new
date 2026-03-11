@@ -12,7 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useStations, useExpenses } from '@/hooks/api';
-import { apiClient } from '@/lib/api-client';
+import { getIncomeReceivablesReport, parseSalesAmount } from '@/lib/financial-reporting-api';
 import { safeToFixed, formatCurrency } from '@/lib/format-utils';
 import {
   TrendingUp, IndianRupee, AlertTriangle, Download,
@@ -101,13 +101,10 @@ export default function IncomeReport() {
     queryKey: ['income-report', selectedStation, dateRange],
     queryFn: async () => {
       if (!selectedStation) return null;
-      const params = new URLSearchParams({
-        stationId: selectedStation,
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      });
-      const response = await apiClient.get<{ success: boolean; data: IncomeReportData }>(
-        `/analytics/income-receivables?${params.toString()}`
+      const response = await getIncomeReceivablesReport(
+        selectedStation,
+        dateRange.startDate,
+        dateRange.endDate
       );
       return response?.data;
     },
@@ -128,7 +125,7 @@ export default function IncomeReport() {
   }, [expensesResponse]);
 
   const totalExpenses = useMemo(() => {
-    return expenses.reduce((sum, exp: any) => sum + (exp.amount || 0), 0);
+    return expenses.reduce((sum, exp: any) => sum + parseSalesAmount(exp.amount), 0);
   }, [expenses]);
 
   const expensesByCategory = useMemo(() => {

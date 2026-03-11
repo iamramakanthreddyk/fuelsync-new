@@ -18,8 +18,7 @@ import {
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { FuelBadge } from '@/components/FuelBadge';
-import { apiClient } from '@/lib/api-client';
-import { extractApiData } from '@/lib/api-response';
+import { getOwnerAnalytics } from '@/lib/financial-reporting-api';
 import { useStations } from '@/hooks/api';
 import { useVarianceSummary } from '@/hooks/useVarianceSummary';
 import { getFuelChartColor } from '@/core/fuel/fuelConfig';
@@ -140,15 +139,12 @@ export default function Analytics() {
   const { data: analytics, isLoading } = useQuery({
     queryKey: ['analytics', dateRange, selectedStation],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      });
-      if (selectedStation !== 'all') {
-        params.append('stationId', selectedStation);
-      }
-      const response = await apiClient.get(`/analytics/owner/analytics?${params.toString()}`);
-      return extractApiData(response, null);
+      const response = await getOwnerAnalytics(
+        dateRange.startDate,
+        dateRange.endDate,
+        selectedStation !== 'all' ? selectedStation : undefined
+      );
+      return response?.data ?? null;
     }
   });
 

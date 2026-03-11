@@ -8,7 +8,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { apiClient } from '@/lib/api-client';
+import { getSalesAnalysis } from '@/lib/financial-reporting-api';
 import { useStations } from '@/hooks/api';
 import {
   Scale3d,
@@ -28,10 +28,10 @@ export default function SettlementStationSelector() {
     queryFn: async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const response = await apiClient.get(`/analytics/sales?startDate=${today}&endDate=${today}`);
+        const response = await getSalesAnalysis(today, today);
         
-        if (response && typeof response === 'object' && 'data' in response) {
-          return Array.isArray(response.data) ? response.data : [];
+        if (response?.data && Array.isArray(response.data)) {
+          return response.data;
         }
         return [];
       } catch (error) {

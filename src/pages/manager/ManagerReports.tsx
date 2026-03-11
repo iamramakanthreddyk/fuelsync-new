@@ -11,6 +11,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
+import { getAllExpenses, groupExpensesByCategory, getExpenseStats, parseExpenseAmount } from '@/lib/expenses-api';
+import type { Expense } from '@/lib/expenses-api';
 import { useStations } from '@/hooks/api';
 import { useGlobalFilter } from '@/context/GlobalFilterContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,12 +82,9 @@ export default function ManagerReports() {
 
   // Fetch expenses list using date range - use expenses endpoint which supports startDate/endDate
   const { data: expensesResponse, isLoading: expensesLoading, error: expensesError } = useQuery({
-    queryKey: ['manager-expenses', currentStation?.id, startDate, endDate],
-    queryFn: () =>
-      apiClient.get<any>(
-        `/stations/${currentStation?.id}/expenses?startDate=${startDate}&endDate=${endDate}&limit=100`
-      ),
-    enabled: !!currentStation?.id && !!startDate && !!endDate,
+    queryKey: ['manager-expenses', startDate, endDate],
+    queryFn: () => getAllExpenses(startDate, endDate, 100),
+    enabled: !!startDate && !!endDate,
   });
 
   const sales: SalesData[] = Array.isArray(salesResponse?.data?.items) 
@@ -108,30 +107,44 @@ export default function ManagerReports() {
         nozzleCount: pump.nozzles?.length || 0
       }))
     : [];
-  const expensesList: any[] = Array.isArray(expensesResponse?.data) ? expensesResponse.data : [];
+  const expensesList: Expense[] = expensesResponse?.data || [];
 
   // Calculate totals from summary if available, fallback to calculated
   const totals = useMemo(() => {
-    // Parse expense amounts from strings to numbers and sum them
-    const expenseTotal = expensesList.reduce((sum, exp) => {
-      const amount = typeof exp.amount === 'string' ? parseFloat(exp.amount) : (exp.amount || 0);
-      return sum + amount;
-    }, 0);
-    
-    // Use summary breakdown if available (from API response)
-    if (salesResponse?.data?.summary) {
-      const summary = salesResponse.data.summary;
+    // Use API summary if available, fallback to calculation
+    if (expensesResponse?.summary) {
+      const summary = expensesResponse.summary;
+      const salesSummary = salesResponse?.data?.summary;
+      
       return {
-        litres: summary.totalLitres || 0,
-        amount: summary.totalAmount || 0,
-        cash: summary.breakdown?.cash || 0,
-        online: summary.breakdown?.online || 0,
-        readings: summary.itemCount || 0,
-        expenses: expenseTotal
+        litres: salesSummary?.totalLitres || 0,
+        amount: salesSummary?.totalAmount || 0,
+        cash: salesSummary?.breakdown?.cash || 0,
+        online: salesSummary?.breakdown?.online || 0,
+        readings: salesSummary?.itemCount || 0,
+        expenses: summary.pendingTotal + summary.approvedTotal
       };
     }
     
     // Fallback: calculate from items
+    let expenseTotal = 0;
+    expensesList.forEach(exp => {
+      expenseTotal += parseExpenseAmount(exp.amount);
+    });
+
+    const salesSummary = salesResponse?.data?.summary;
+    if (salesSummary) {
+      return {
+        litres: salesSummary.totalLitres || 0,
+        amount: salesSummary.totalAmount || 0,
+        cash: salesSummary.breakdown?.cash || 0,
+        online: salesSummary.breakdown?.online || 0,
+        readings: salesSummary.itemCount || 0,
+        expenses: expenseTotal
+      };
+    }
+
+    // Final fallback: calculate from sales
     const salesTotals = sales.reduce(
       (acc, day) => ({
         litres: acc.litres + (day.litres ?? 0),
@@ -143,31 +156,19 @@ export default function ManagerReports() {
       { litres: 0, amount: 0, cash: 0, online: 0, readings: 0 }
     );
     return { ...salesTotals, expenses: expenseTotal };
-  }, [sales, salesResponse?.data?.summary, expensesList]);
+  }, [sales, salesResponse?.data?.summary, expensesList, expensesResponse?.summary]);
 
   const activePumps = pumps.filter(p => p.status === 'active').length;
   const totalPumpSales = pumps.reduce((sum, p) => sum + (p.todaySales ?? 0), 0);
 
   // Group expenses by category
   const expensesByCategory = useMemo(() => {
-    const grouped: Record<string, { total: number; items: any[] }> = {};
-    expensesList.forEach(exp => {
-      const category = exp.category || 'uncategorized';
-      const amount = typeof exp.amount === 'string' ? parseFloat(exp.amount) : (exp.amount || 0);
-      if (!grouped[category]) {
-        grouped[category] = { total: 0, items: [] };
-      }
-      grouped[category].total += amount;
-      grouped[category].items.push(exp);
-    });
-    return grouped;
+    return groupExpensesByCategory(expensesList);
   }, [expensesList]);
 
   // Get expense stats
   const expenseStats = useMemo(() => {
-    const approved = expensesList.filter(e => e.approvalStatus === 'auto_approved' || e.approvalStatus === 'approved').length;
-    const pending = expensesList.filter(e => e.approvalStatus === 'pending').length;
-    return { approved, pending, total: expensesList.length };
+    return getExpenseStats(expensesList);
   }, [expensesList]);
 
   return (
@@ -392,7 +393,7 @@ export default function ManagerReports() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold text-green-600">{expenseStats.approved}</div>
-                      <p className="text-xs text-muted-foreground mt-1">Expenses</p>
+                      <p className="text-xs text-muted-foreground mt-1">{fmt(expenseStats.approvedTotal)}</p>
                     </CardContent>
                   </Card>
 
@@ -406,7 +407,7 @@ export default function ManagerReports() {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold text-yellow-600">{expenseStats.pending}</div>
-                        <p className="text-xs text-muted-foreground mt-1">Awaiting approval</p>
+                        <p className="text-xs text-muted-foreground mt-1">{fmt(expenseStats.pendingTotal)}</p>
                       </CardContent>
                     </Card>
                   )}
@@ -419,7 +420,7 @@ export default function ManagerReports() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-red-600">{fmt(totals.expenses)}</div>
+                      <div className="text-2xl font-bold text-red-600">{fmt(expenseStats.totalAmount)}</div>
                       <p className="text-xs text-muted-foreground mt-1">{expenseStats.total} items</p>
                     </CardContent>
                   </Card>
@@ -455,7 +456,7 @@ export default function ManagerReports() {
                   <CardContent>
                     <div className="space-y-2 max-h-96 overflow-y-auto">
                       {expensesList.map((expense) => {
-                        const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount;
+                        const amount = parseExpenseAmount(expense.amount);
                         return (
                           <div key={expense.id} className="flex items-start justify-between p-3 border-b last:border-b-0 hover:bg-gray-50 dark:hover:bg-gray-900/20 rounded">
                             <div className="flex-1">

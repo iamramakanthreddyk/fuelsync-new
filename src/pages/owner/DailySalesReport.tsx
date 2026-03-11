@@ -8,6 +8,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api-client';
+import { getExpenseSummary, type ExpenseSummary } from '@/lib/expenses-api';
 import { safeToFixed, formatVolume } from '@/lib/format-utils';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { ArrowLeft, Printer, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
@@ -57,8 +58,8 @@ export default function DailySalesReport() {
     queryKey: ['daily-expenses', selectedDate, selectedStationId],
     queryFn: async () => {
       if (!selectedStationId) return null;
-      const response = await apiClient.get(`/stations/${selectedStationId}/expense-summary?startDate=${selectedDate}&endDate=${selectedDate}`);
-      return (response as any)?.data ?? response;
+      const response = await getExpenseSummary(selectedStationId, selectedDate, selectedDate);
+      return response?.data ?? response;
     },
     enabled: !!selectedStationId
   });
@@ -141,13 +142,32 @@ export default function DailySalesReport() {
     ? normalizedReports.find(r => String(r.stationId) === String(selectedStationId)) || normalizedReports[0]
     : undefined;
 
-  // Extract expenses data
-  const dailyExpenses = expensesData?.expenses ?? [];
-  const totalExpenses = dailyExpenses.reduce((sum: number, exp: any) => sum + (exp.amount || 0), 0);
-  const expensesByCategory = dailyExpenses.reduce((acc: any, exp: any) => {
-    acc[exp.category] = (acc[exp.category] || 0) + exp.amount;
-    return acc;
-  }, {});
+  // Extract expenses data from summary
+  const expensesSummary: ExpenseSummary = expensesData || {
+    mode: 'monthly',
+    approvedTotal: 0,
+    pendingCount: 0,
+    pendingAmount: 0,
+    byCategory: [],
+    byFrequency: [],
+  };
+  
+  const totalExpenses = (expensesSummary.approvedTotal || 0) + (expensesSummary.pendingAmount || 0);
+  const expensesByCategory: Record<string, number> = {};
+  
+  // Use byCategory from summary if available
+  if (expensesSummary.byCategory && Array.isArray(expensesSummary.byCategory)) {
+    expensesSummary.byCategory.forEach((cat: any) => {
+      expensesByCategory[cat.category] = cat.total || 0;
+    });
+  }
+  
+  // For display purposes, create a dailyExpenses array for UI rendering
+  const dailyExpenses = expensesSummary.byCategory?.map((cat: any, idx: number) => ({
+    id: `${cat.category}-${idx}`,
+    category: cat.category,
+    amount: cat.total || 0,
+  })) || [];
 
   // Extract shortfall data
   const shortfalls = Array.isArray(shortfallData?.settlements) ? shortfallData.settlements : [];

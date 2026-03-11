@@ -15,8 +15,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
-import { apiClient } from '@/lib/api-client';
-import { extractApiData } from '@/lib/api-response';
+import { getOwnerStats } from '@/lib/financial-reporting-api';
 import { useStations, usePumps, useFuelPrices } from '@/hooks/api';
 import { useVarianceSummary } from '@/hooks/useVarianceSummary';
 import { safeToFixed, formatCurrency } from '@/lib/format-utils';
@@ -43,16 +42,6 @@ interface DashboardStats {
   pendingActions?: number;
 }
 
-interface Station {
-  id: string;
-  name: string;
-  code?: string;
-  pumpCount?: number;
-  activePumps?: number;
-  todaySales?: number;
-  lastReading?: string;
-}
-
 export default function OwnerDashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -72,12 +61,7 @@ export default function OwnerDashboard() {
     queryKey: ['owner-dashboard-stats', user?.id],
     queryFn: async () => {
       try {
-        // Include user ID as query parameter for logging/debugging
-        // (Backend always uses authenticated user's ID for security)
-        const response = await apiClient.get<{
-          success: boolean;
-          data: DashboardStats;
-        }>(`/analytics/owner/stats${user?.id ? `?ownerId=${user.id}` : ''}`);
+        const response = await getOwnerStats(user?.id);
         return response ?? null;
       } catch (error) {
         return null;
@@ -93,7 +77,7 @@ export default function OwnerDashboard() {
   const { data: stationsResponse, isLoading: stationsLoading } = useStations();
 
   // Unwrap stations if needed
-  const stations: Station[] = stationsResponse?.data ?? extractApiData(stationsResponse, []);
+  const stations: any[] = stationsResponse && 'data' in stationsResponse ? stationsResponse.data || [] : [];
 
   // Setup Warnings Chain:
   // 1. Check if stations exist
@@ -115,7 +99,9 @@ export default function OwnerDashboard() {
   );
 
   // Extract fuel prices data (same pattern as stations)
-  const fuelPricesData = fuelPricesResponse?.data ?? extractApiData(fuelPricesResponse, { current: [], history: [] });
+  const fuelPricesData = fuelPricesResponse && 'data' in fuelPricesResponse 
+    ? fuelPricesResponse.data 
+    : { current: [], history: [] };
 
   const hasFuelPrices = (fuelPricesData?.current?.length ?? 0) > 0;
 
@@ -125,13 +111,15 @@ export default function OwnerDashboard() {
   // This is more accurate than checking the stations response which may not include nozzle details
   const { data: pumpsResponse } = usePumps(primaryStation?.id ?? '');
   
-  const hasPumps = (pumpsResponse?.data?.length ?? 0) > 0;
+  const hasPumps = pumpsResponse && 'data' in pumpsResponse && Array.isArray(pumpsResponse.data) 
+    ? pumpsResponse.data.length > 0 
+    : false;
 
   // 4. Check if any pump has nozzles
   // Nozzles are returned nested within each pump in the pumps response
-  const hasNozzles = hasPumps && (pumpsResponse?.data?.some((pump: any) => 
-    Array.isArray(pump.nozzles) && pump.nozzles.length > 0
-  ) ?? false);
+  const hasNozzles = hasPumps && pumpsResponse && 'data' in pumpsResponse && Array.isArray(pumpsResponse.data)
+    ? pumpsResponse.data.some((pump: any) => Array.isArray(pump.nozzles) && pump.nozzles.length > 0)
+    : false;
 
   // Ensure fuel prices are being detected correctly
   // Runtime warnings removed from UI

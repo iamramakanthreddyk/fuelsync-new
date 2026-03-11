@@ -21,8 +21,7 @@ import {
   aggregateRawReadingsToSalesReports,
 } from '@/hooks/useReportData';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api-client';
-import { extractApiData } from '@/lib/api-response';
+import { getOwnerAnalytics } from '@/lib/financial-reporting-api';
 import {
   ReportHeader,
   FilterBar,
@@ -43,7 +42,6 @@ import {
   IndianRupee,
   TrendingUp,
   RefreshCw,
-  Zap,
   Target,
   Clock,
   AlertCircle,
@@ -250,15 +248,12 @@ export default function Reports() {
   const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery({
     queryKey: ['analytics-reports', dateRange, selectedStation],
     queryFn: async () => {
-      const params = new URLSearchParams({
-        startDate: dateRange.startDate,
-        endDate: dateRange.endDate
-      });
-      if (selectedStation !== 'all') {
-        params.append('stationId', selectedStation);
-      }
-      const response = await apiClient.get(`/analytics/owner/analytics?${params.toString()}`);
-      return extractApiData(response, null);
+      const response = await getOwnerAnalytics(
+        dateRange.startDate,
+        dateRange.endDate,
+        selectedStation !== 'all' ? selectedStation : undefined
+      );
+      return response?.data ?? null;
     }
   });
 
