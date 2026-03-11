@@ -3,7 +3,7 @@
  * Generate comprehensive reports for owners and managers
  */
 
-const { NozzleReading, Nozzle, Pump, Station, User, Shift, sequelize } = require('../models');
+const { NozzleReading, Nozzle, Pump, Station, User, Shift, FuelPrice, sequelize } = require('../models');
 const { Op, fn, col } = require('sequelize');
 
 // Filter to exclude sample readings from all reports
@@ -113,18 +113,62 @@ exports.getSalesReports = async (req, res, next) => {
     const reports = [];
     const stationMap = new Map(stations.map(s => [s.id, s]));
 
+    // Fetch fuel prices for each station and fuel type to calculate COGS
+    const fuelPriceMap = new Map(); // Key: "stationId-fuelType-date", Value: { price, costPrice }
+    for (const stationId of stationIds) {
+      const fuelTypes = [...new Set(fuelBreakdown.filter(f => f.stationId === stationId).map(f => f.fuelType))];
+      for (const fuelType of fuelTypes) {
+        const prices = await FuelPrice.findAll({
+          where: {
+            stationId,
+            fuelType,
+            effectiveFrom: { [Op.lte]: endDate }
+          },
+          order: [['effectiveFrom', 'DESC']],
+          raw: true
+        });
+        
+        // Create a map of dates to prices for quick lookup
+        const dateMap = {};
+        for (const price of prices) {
+          dateMap[price.effectiveFrom] = { price: parseFloat(price.price || 0), costPrice: parseFloat(price.costPrice || 0) };
+        }
+        fuelPriceMap.set(`${stationId}-${fuelType}`, dateMap);
+      }
+    }
+
     salesData.forEach(sale => {
       const station = stationMap.get(sale.stationId);
       if (!station) return;
 
       const fuelSales = fuelBreakdown
         .filter(f => f.date === sale.date && f.stationId === sale.stationId)
-        .map(f => ({
-          fuelType: f.fuelType,
-          sales: parseFloat(f.sales || 0),
-          quantity: parseFloat(f.quantity || 0),
-          transactions: parseInt(f.transactions || 0)
-        }));
+        .map(f => {
+          // Get cost price for this fuel type on this date
+          const priceMap = fuelPriceMap.get(`${f.stationId}-${f.fuelType}`) || {};
+          let costPrice = 0;
+          
+          // Find the most recent price on or before this date
+          const effectiveDates = Object.keys(priceMap).sort().reverse();
+          for (const effectiveDate of effectiveDates) {
+            if (effectiveDate <= f.date) {
+              costPrice = priceMap[effectiveDate].costPrice;
+              break;
+            }
+          }
+          
+          const quantity = parseFloat(f.quantity || 0);
+          const cogs = quantity * costPrice;
+          
+          return {
+            fuelType: f.fuelType,
+            sales: parseFloat(f.sales || 0),
+            quantity: quantity,
+            transactions: parseInt(f.transactions || 0),
+            costPrice: costPrice,
+            cogs: cogs
+          };
+        });
 
       reports.push({
         stationId: sale.stationId,

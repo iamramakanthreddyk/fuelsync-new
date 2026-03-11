@@ -8,7 +8,8 @@ const {
   NozzleReading, 
   FuelPrice, 
   Expense, 
-  Station 
+  Station,
+  Settlement
 } = require('../models');
 const { Op, fn, col } = require('sequelize');
 const { logAudit } = require('../utils/auditLog');
@@ -188,7 +189,7 @@ exports.getProfitSummary = async (req, res) => {
     // Only count approved/auto-approved expenses in the P&L — pending ones are excluded
     const APPROVED_STATUSES = ['approved', 'auto_approved'];
 
-    const [expensesResult, pendingExpensesResult, expensesByCategory] = await Promise.all([
+    const [expensesResult, pendingExpensesResult, expensesByCategory, shortfallResult] = await Promise.all([
       Expense.sum('amount', {
         where: {
           stationId,
@@ -215,14 +216,25 @@ exports.getProfitSummary = async (req, res) => {
         },
         group: ['category'],
         raw: true
+      }),
+      // Fetch total shortfall (positive variance) for the month from settlements
+      Settlement.sum('variance', {
+        where: {
+          stationId,
+          date: {
+            [Op.gte]: new Date(`${targetMonth}-01`),
+            [Op.lte]: new Date(new Date(`${targetMonth}-01`).getFullYear(), new Date(`${targetMonth}-01`).getMonth() + 1, 0)
+          }
+        }
       })
     ]);
     const totalExpenses = parseFloat((expensesResult || 0).toFixed(2));
     const pendingExpenses = parseFloat((pendingExpensesResult || 0).toFixed(2));
+    const totalShortfall = parseFloat(Math.max(0, shortfallResult || 0).toFixed(2)); // Only count positive (loss) variances
     
     // Calculate profits
     const grossProfit = totalRevenue - totalCostOfGoods;
-    const netProfit = grossProfit - totalExpenses;
+    const netProfit = grossProfit - totalShortfall - totalExpenses;
     const profitMargin = totalRevenue > 0 
       ? parseFloat(((netProfit / totalRevenue) * 100).toFixed(2))
       : 0;
@@ -251,6 +263,7 @@ exports.getProfitSummary = async (req, res) => {
         summary: {
           totalRevenue: parseFloat(totalRevenue.toFixed(2)),
           totalCostOfGoods: parseFloat(totalCostOfGoods.toFixed(2)),
+          totalShortfall: totalShortfall,
           totalExpenses,
           pendingExpenses,
           grossProfit: parseFloat(grossProfit.toFixed(2)),

@@ -12,6 +12,7 @@ interface ProfitSummary {
   summary: {
     totalRevenue: number;
     totalCostOfGoods: number;
+    totalShortfall: number;
     totalExpenses: number;
     pendingExpenses?: number;
     grossProfit: number;
@@ -188,12 +189,13 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm font-medium text-muted-foreground">Total Costs</p>
-                    <p className="text-xl font-bold">₹{safeToFixed(profitData.summary.totalCostOfGoods + profitData.summary.totalExpenses, 0)}</p>
+                    <p className="text-xl font-bold">₹{safeToFixed(profitData.summary.totalCostOfGoods + profitData.summary.totalShortfall + profitData.summary.totalExpenses, 0)}</p>
                   </div>
                   <AlertCircle className="w-5 h-5 text-muted-foreground" />
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Fuel: ₹{safeToFixed(profitData.summary.totalCostOfGoods, 0)}
+                  {profitData.summary.totalShortfall > 0 && ` · Shortfall: ₹${safeToFixed(profitData.summary.totalShortfall, 0)}`}
                   {profitData.summary.totalExpenses > 0 && ` · Expenses: ₹${safeToFixed(profitData.summary.totalExpenses, 0)}`}
                 </p>
               </CardContent>
@@ -234,6 +236,13 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
                   <span>− Fuel Cost (COGS)</span>
                   <span className="text-red-600">₹{safeToFixed(profitData.summary.totalCostOfGoods, 0)}</span>
                 </div>
+                {/* Shortfall */}
+                {profitData.summary.totalShortfall > 0 && (
+                  <div className="flex justify-between py-1.5 pl-4 text-muted-foreground">
+                    <span>− Shortfall (Cash Variance)</span>
+                    <span className="text-red-600">₹{safeToFixed(profitData.summary.totalShortfall, 0)}</span>
+                  </div>
+                )}
                 {/* Gross profit */}
                 <div className={`flex justify-between py-2 border-t border-b font-semibold ${
                   profitData.summary.grossProfit >= 0 ? 'text-green-700' : 'text-red-700'

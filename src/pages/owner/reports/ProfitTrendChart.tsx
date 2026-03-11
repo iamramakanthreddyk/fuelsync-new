@@ -33,11 +33,12 @@ interface DailyMetrics {
   profit: number;
 }
 
-const calculateCOGS = (): number => {
-  // If costPrice is available in fuelTypeSales, calculate COGS
-  // For now, returning 0 as it needs backend support
-  // This will be: sum of (quantity * costPrice) for each fuel type
-  return 0;
+const calculateCOGS = (salesReport: any): number => {
+  // Sum up COGS from all fuel types
+  // fuelTypeSales now includes { cogs } from backend calculation
+  return (salesReport.fuelTypeSales || []).reduce((total: number, fuel: any) => {
+    return total + (fuel.cogs || 0);
+  }, 0);
 };
 
 export const ProfitTrendChart: React.FC<ProfitTrendChartProps> = ({
@@ -51,12 +52,12 @@ export const ProfitTrendChart: React.FC<ProfitTrendChartProps> = ({
   const chartData = useMemo(() => {
     const dataMap = new Map<string, DailyMetrics>();
 
-    // Process sales reports (revenue)
+    // Process sales reports (revenue and COGS)
     salesReports.forEach((report) => {
       const date = report.date;
       const existing = dataMap.get(date) || { date, revenue: 0, cogs: 0, shortfall: 0, expenses: 0, profit: 0 };
       existing.revenue += report.totalSales || 0;
-      existing.cogs += calculateCOGS();
+      existing.cogs += calculateCOGS(report);
       dataMap.set(date, existing);
     });
 
