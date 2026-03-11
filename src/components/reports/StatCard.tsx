@@ -107,7 +107,7 @@ export const StatCard: React.FC<StatCardProps> = ({
             <p className={cn('text-xs sm:text-sm font-medium opacity-90', styles.text)}>
               {title}
             </p>
-            <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white truncate">
+            <p className="text-base sm:text-lg md:text-xl lg:text-2xl font-bold text-white leading-tight break-all">
               {value}
             </p>
             {trend && (
@@ -115,7 +115,7 @@ export const StatCard: React.FC<StatCardProps> = ({
                 <TrendIcon direction={trend.direction} />
                 <span className={cn('text-xs sm:text-sm', styles.trendText)}>
                   {trend.value >= 0 ? '+' : ''}
-                  {trend.value}%
+                  {Number(trend.value).toFixed(1)}%
                 </span>
               </div>
             )}

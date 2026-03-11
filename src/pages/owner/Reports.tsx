@@ -33,7 +33,7 @@ import {
   printNozzlesReport,
   printPumpsReport,
 } from '@/lib/report-export';
-import { safeToFixed, formatVolume, formatCurrency } from '@/lib/format-utils';
+import { formatVolume, formatCurrency } from '@/lib/format-utils';
 import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import {
   BarChart3,
@@ -42,7 +42,6 @@ import {
   IndianRupee,
   TrendingUp,
   RefreshCw,
-  Target,
   Clock,
   AlertCircle,
   X,
@@ -460,21 +459,152 @@ export default function Reports() {
     }
   };
 
-  // Export all reports
+  // Export all reports as CSV
   const handleExportAll = useCallback(() => {
-    toast({
-      title: 'Export Started',
-      description: 'Preparing comprehensive report export...',
-    });
+    const rows: string[] = [];
 
-    // In a real implementation, this would generate a combined PDF/Excel
-    setTimeout(() => {
-      toast({
-        title: 'Export Complete',
-        description: 'Comprehensive report has been downloaded.',
+    const esc = (val: any) => {
+      const str = String(val ?? '');
+      return str.includes(',') || str.includes('"') || str.includes('\n')
+        ? `"${str.replace(/"/g, '""')}"`
+        : str;
+    };
+    const line = (...cols: any[]) => rows.push(cols.map(esc).join(','));
+    const blank = () => rows.push('');
+    const section = (title: string) => { blank(); line(title); };
+
+    // ── Report Header ──
+    line('REPORTS & ANALYTICS EXPORT');
+    const stationLabel = selectedStation === 'all'
+      ? 'All Stations'
+      : (stations.find((s: any) => String(s.id) === String(selectedStation))?.name ?? selectedStation);
+    line('Station', stationLabel);
+    line('Period', `${dateRange.startDate}  to  ${dateRange.endDate}`);
+    line('Generated', new Date().toLocaleString('en-IN'));
+
+    // ── Summary ──
+    section('--- SUMMARY ---');
+    line('Total Revenue (Rs)', 'Fuel Dispensed (L)', 'Total Transactions', 'Avg Transaction (Rs)');
+    line(
+      totals.sales.toFixed(2),
+      totals.quantity.toFixed(2),
+      totals.transactions,
+      totals.transactions > 0 ? (totals.sales / totals.transactions).toFixed(2) : '0.00'
+    );
+
+    // ── Sales by Day ──
+    if (aggregatedSalesReports && aggregatedSalesReports.length > 0) {
+      section('--- DAILY SALES ---');
+      line('Date', 'Station', 'Revenue (Rs)', 'Volume (L)', 'Transactions');
+      aggregatedSalesReports.forEach((r: any) => {
+        line(
+          r.date ?? r.readingDate ?? '',
+          r.stationName ?? r.stationId ?? '',
+          Number(r.sales ?? r.totalSales ?? 0).toFixed(2),
+          Number(r.quantity ?? r.litres ?? r.totalQuantity ?? 0).toFixed(2),
+          r.transactions ?? r.totalTransactions ?? 0
+        );
       });
-    }, 2000);
-  }, [toast]);
+      // Totals row
+      line('TOTAL', '', totals.sales.toFixed(2), totals.quantity.toFixed(2), totals.transactions);
+    }
+
+    // ── Fuel Type Breakdown ──
+    if (insights.fuelTypeBreakdown.length > 0) {
+      section('--- FUEL TYPE BREAKDOWN ---');
+      line('Fuel Type', 'Revenue (Rs)', 'Volume (L)', 'Share (%)');
+      insights.fuelTypeBreakdown.forEach(f => {
+        line(
+          FUEL_TYPE_LABELS[f.type as keyof typeof FUEL_TYPE_LABELS] || f.type,
+          f.sales.toFixed(2),
+          f.quantity.toFixed(2),
+          f.percentage.toFixed(1)
+        );
+      });
+    }
+
+    // ── Nozzle Breakdown ──
+    if (nozzleBreakdown && nozzleBreakdown.length > 0) {
+      section('--- NOZZLE PERFORMANCE ---');
+      line('Nozzle', 'Pump', 'Fuel Type', 'Station', 'Revenue (Rs)', 'Volume (L)', 'Transactions');
+      nozzleBreakdown.forEach((n: any) => {
+        line(
+          n.nozzleName ?? n.nozzleNumber ?? n.nozzleId ?? '',
+          n.pumpName ?? n.pumpNumber ?? '',
+          n.fuelType ?? '',
+          n.stationName ?? '',
+          Number(n.totalSales ?? n.sales ?? 0).toFixed(2),
+          Number(n.totalQuantity ?? n.quantity ?? n.litres ?? 0).toFixed(2),
+          n.totalTransactions ?? n.transactions ?? 0
+        );
+      });
+    }
+
+    // ── Pump Performance ──
+    if (pumpPerformance && pumpPerformance.length > 0) {
+      section('--- PUMP / DISPENSER PERFORMANCE ---');
+      line('Pump', 'Station', 'Revenue (Rs)', 'Volume (L)', 'Transactions', 'Efficiency (%)');
+      pumpPerformance.forEach((p: any) => {
+        line(
+          p.pumpName ?? p.pumpNumber ?? p.pumpId ?? '',
+          p.stationName ?? '',
+          Number(p.totalSales ?? p.sales ?? 0).toFixed(2),
+          Number(p.totalQuantity ?? p.quantity ?? p.litres ?? 0).toFixed(2),
+          p.totalTransactions ?? p.transactions ?? 0,
+          Number(p.efficiency ?? p.utilizationRate ?? 0).toFixed(1)
+        );
+      });
+    }
+
+    // ── Settlements / Shortfalls ──
+    if (settlements && settlements.length > 0) {
+      section('--- SETTLEMENTS & SHORTFALLS ---');
+      line('Date', 'Type', 'Station', 'Amount (Rs)', 'Variance (Rs)', 'Status');
+      settlements.forEach((s: any) => {
+        line(
+          s.settlementDate ?? s.date ?? '',
+          s.settlementType ?? s.type ?? '',
+          s.stationName ?? '',
+          Number(s.totalAmount ?? s.amount ?? 0).toFixed(2),
+          Number(s.variance ?? 0).toFixed(2),
+          s.status ?? ''
+        );
+      });
+    }
+
+    // ── Expenses ──
+    if (expenses && expenses.length > 0) {
+      section('--- EXPENSES ---');
+      line('Date', 'Category', 'Description', 'Amount (Rs)', 'Status');
+      let expTotal = 0;
+      expenses.forEach((e: any) => {
+        const amt = Number(e.amount ?? 0);
+        expTotal += amt;
+        line(
+          e.date ?? e.expenseDate ?? '',
+          e.category ?? '',
+          e.description ?? e.notes ?? '',
+          amt.toFixed(2),
+          e.status ?? e.approvalStatus ?? ''
+        );
+      });
+      line('TOTAL', '', '', expTotal.toFixed(2), '');
+    }
+
+    const csv = rows.join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `reports-analytics-${dateRange.startDate}-to-${dateRange.endDate}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+
+    toast({
+      title: 'Export Complete',
+      description: 'Reports & Analytics exported as CSV.',
+    });
+  }, [aggregatedSalesReports, nozzleBreakdown, pumpPerformance, settlements, expenses, insights, totals, dateRange, selectedStation, stations, toast]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
@@ -569,7 +699,7 @@ export default function Reports() {
         </div>
 
         {/* Enhanced Key Metrics */}
-        <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 w-full">
+        <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 w-full">
           <StatCard
             title="Total Revenue"
             value={formatCurrency(totals.sales, 0)}
@@ -590,13 +720,6 @@ export default function Reports() {
             trend={{ value: 15.3, direction: 'up' }}
             icon={Activity}
             variant="purple"
-          />
-          <StatCard
-            title="Avg Transaction"
-            value={`₹${safeToFixed(insights.avgTransactionValue, 0)}`}
-            trend={{ value: 5.7, direction: 'up' }}
-            icon={Target}
-            variant="orange"
           />
         </div>
 
