@@ -4,12 +4,11 @@
  */
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api-client';
 import { expenseApi } from '@/api/expenses';
-import type { ExpenseSummary } from '@/api/expenses';
 import { safeToFixed, formatVolume } from '@/lib/format-utils';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { ArrowLeft, Printer, TrendingUp, TrendingDown, AlertCircle, Download } from 'lucide-react';
@@ -70,12 +69,12 @@ export default function DailySalesReport() {
     enabled: !!startDate && !!endDate
   });
 
-  // Fetch expenses for the date range
+  // Fetch expenses for today
   const { data: expensesData, isLoading: expensesLoading } = useQuery({
     queryKey: ['daily-expenses', startDate, endDate, selectedStationId],
     queryFn: async () => {
       if (!selectedStationId) return null;
-      const response = await expenseApi.getSummary(selectedStationId, startDate, endDate);
+      const response = await expenseApi.getForStation(selectedStationId, { startDate, endDate });
       return response?.data ?? response;
     },
     enabled: !!selectedStationId && !!startDate && !!endDate
@@ -154,59 +153,54 @@ export default function DailySalesReport() {
     ? normalizedReports.find(r => String(r.stationId) === String(selectedStationId)) || normalizedReports[0]
     : undefined;
 
-  // Extract expenses data from summary
-  const expensesSummary: ExpenseSummary = expensesData || {
-    mode: 'monthly',
-    approvedTotal: 0,
-    pendingCount: 0,
-    pendingAmount: 0,
-    byCategory: [],
-    byFrequency: [],
-  };
+  // Extract expenses from response (from getForStation)
+  const expensesList = (expensesData as any)?.data || expensesData || [];
+  const expenses: any[] = Array.isArray(expensesList) ? expensesList : [];
   
-  const totalExpenses = (expensesSummary.approvedTotal || 0) + (expensesSummary.pendingAmount || 0);
-  const expensesByCategory: Record<string, number> = {};
-  
-  // Use byCategory from summary if available
-  if (expensesSummary.byCategory && Array.isArray(expensesSummary.byCategory)) {
-    expensesSummary.byCategory.forEach((cat: any) => {
-      expensesByCategory[cat.category] = cat.total || 0;
+  // Memoize expense calculations
+  const { totalExpenses, expensesByCategory } = useMemo(() => {
+    const total = expenses.reduce((sum, e: any) => sum + (Number(e.amount) || 0), 0);
+    
+    const byCategory: Record<string, number> = {};
+    expenses.forEach((e: any) => {
+      const cat = e.category || 'uncategorized';
+      byCategory[cat] = (byCategory[cat] || 0) + (Number(e.amount) || 0);
     });
-  }
-  
-  // For display purposes, create a dailyExpenses array for UI rendering
-  const dailyExpenses = expensesSummary.byCategory?.map((cat: any, idx: number) => ({
-    id: `${cat.category}-${idx}`,
-    category: cat.category,
-    amount: cat.total || 0,
-  })) || [];
+    
+    return { totalExpenses: total, expensesByCategory: byCategory };
+  }, [expenses]);
 
   // Extract shortfall data
   const shortfalls = settlementsData || [];
-  const totalShortfall = shortfalls.reduce((sum: number, s: any) => sum + Math.max(0, s.variance || 0), 0);
+  const totalShortfall = useMemo(
+    () => shortfalls.reduce((sum: number, s: any) => sum + Math.max(0, s.variance || 0), 0),
+    [shortfalls]
+  );
 
-  // Calculate financial summary
-  const avgTransaction = report?.readingsCount ? report.totalSaleValue / report.readingsCount : 0;
-  
-  // Calculate COGS and Profit using utility functions
-  // If cost price not defined, assumes 2% profit margin (98% COGS)
-  const cogs = report ? calculateCOGS(report.totalSaleValue) : 0;
-  const profit = report ? calculateProfit(report.totalSaleValue, totalExpenses, totalShortfall) : 0;
-  const profitMargin = report ? calculateProfitMargin(report.totalSaleValue, profit) : 0;
-
-  // Convert byFuelType object to array for charts
-  const fuelTypeArray = report && report.byFuelType
-    ? Object.entries(report.byFuelType).map(([name, data]) => {
-        const total = report.totalSaleValue;
-        return {
-          name: name.charAt(0).toUpperCase() + name.slice(1),
-          liters: data.liters,
-          value: data.value,
-          count: data.count,
-          percentage: total > 0 ? (data.value / total) * 100 : 0
-        };
-      })
-    : [];
+  // Memoize financial calculations
+  const financialSummary = useMemo(() => {
+    if (!report) return { avgTransaction: 0, cogs: 0, profit: 0, profitMargin: 0, fuelTypeArray: [] };
+    
+    const avg = report.readingsCount ? report.totalSaleValue / report.readingsCount : 0;
+    const cogsValue = calculateCOGS(report.totalSaleValue);
+    const profitValue = calculateProfit(report.totalSaleValue, totalExpenses, totalShortfall);
+    const margin = calculateProfitMargin(report.totalSaleValue, profitValue);
+    
+    const fuels = report && report.byFuelType
+      ? Object.entries(report.byFuelType).map(([name, data]: [string, any]) => {
+          const total = report.totalSaleValue || 1;
+          return {
+            name: name.charAt(0).toUpperCase() + name.slice(1),
+            liters: data.liters || 0,
+            value: data.value || 0,
+            count: data.count || 0,
+            percentage: total > 0 ? (data.value / total) * 100 : 0
+          };
+        })
+      : [];
+    
+    return { avgTransaction: avg, cogs: cogsValue, profit: profitValue, profitMargin: margin, fuelTypeArray: fuels };
+  }, [report, totalExpenses, totalShortfall]);
 
   const handleExportPDF = () => {
     window.print();
@@ -239,38 +233,38 @@ export default function DailySalesReport() {
       safeToFixed(report.totalSaleValue, 2),
       safeToFixed(report.totalLiters, 2),
       report.readingsCount,
-      safeToFixed(avgTransaction, 2),
+      safeToFixed(financialSummary.avgTransaction, 2),
       safeToFixed(totalExpenses, 2),
       safeToFixed(totalShortfall, 2),
-      safeToFixed(profit, 2),
-      safeToFixed(profitMargin, 1)
+      safeToFixed(financialSummary.profit, 2),
+      safeToFixed(financialSummary.profitMargin, 1)
     );
 
     // P&L Statement
     section('--- PROFIT & LOSS STATEMENT ---');
     line('Item', 'Amount (Rs)');
     line('Revenue', safeToFixed(report.totalSaleValue, 2));
-    line('Less: COGS (Cost of Goods Sold)', safeToFixed(-cogs, 2));
+    line('Less: COGS (Cost of Goods Sold)', safeToFixed(-financialSummary.cogs, 2));
     line('Less: Shortfall/Variance', safeToFixed(-totalShortfall, 2));
     line('Less: Expenses', safeToFixed(-totalExpenses, 2));
-    line('Net Profit / Loss', safeToFixed(profit, 2));
-    line('Profit Margin (%)', safeToFixed(profitMargin, 1));
+    line('Net Profit / Loss', safeToFixed(financialSummary.profit, 2));
+    line('Profit Margin (%)', safeToFixed(financialSummary.profitMargin, 1));
 
     // Sales by Fuel Type
-    if (fuelTypeArray.length > 0) {
+    if (financialSummary.fuelTypeArray.length > 0) {
       section('--- SALES BY FUEL TYPE ---');
       line('Fuel Type', 'Liters', 'Revenue (Rs)', 'Transactions', 'Percentage (%)');
-      fuelTypeArray.forEach(f => {
+      financialSummary.fuelTypeArray.forEach(f => {
         line(f.name, safeToFixed(f.liters, 2), safeToFixed(f.value, 2), f.count, safeToFixed(f.percentage, 1));
       });
     }
 
     // Expenses
-    if (dailyExpenses.length > 0) {
+    if (expenses.length > 0) {
       section('--- EXPENSES ---');
       line('Category', 'Amount (Rs)');
-      dailyExpenses.forEach((exp: any) => {
-        line(exp.category || 'Other', safeToFixed(exp.amount || 0, 2));
+      Object.entries(expensesByCategory).forEach(([category, amount]) => {
+        line(category || 'Other', safeToFixed(amount || 0, 2));
       });
       line('TOTAL EXPENSES', safeToFixed(totalExpenses, 2));
     }
@@ -402,7 +396,7 @@ export default function DailySalesReport() {
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground mb-1">Fuel Dispensed</div>
             <div className="text-2xl font-bold text-blue-600">{formatVolume(report.totalLiters)}</div>
-            <div className="text-xs text-muted-foreground mt-1">Avg: ₹{safeToFixed(avgTransaction, 0)}/txn</div>
+            <div className="text-xs text-muted-foreground mt-1">Avg: ₹{safeToFixed(financialSummary.avgTransaction, 0)}/txn</div>
           </CardContent>
         </Card>
 
@@ -410,7 +404,7 @@ export default function DailySalesReport() {
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground mb-1">Expenses</div>
             <div className="text-2xl font-bold text-orange-600">₹{safeToFixed(totalExpenses, 0)}</div>
-            <div className="text-xs text-muted-foreground mt-1">{dailyExpenses.length} items</div>
+            <div className="text-xs text-muted-foreground mt-1">{expenses.length} items</div>
           </CardContent>
         </Card>
 
@@ -427,14 +421,14 @@ export default function DailySalesReport() {
           </CardContent>
         </Card>
 
-        <Card className={`border-2 ${profit >= 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
+        <Card className={`border-2 ${financialSummary.profit >= 0 ? 'border-green-200 bg-green-50' : 'border-red-200 bg-red-50'}`}>
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground mb-1 font-semibold">Net Profit</div>
-            <div className={`text-2xl font-bold flex items-center gap-1 ${profit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-              {profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
-              ₹{safeToFixed(Math.abs(profit), 0)}
+            <div className={`text-2xl font-bold flex items-center gap-1 ${financialSummary.profit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+              {financialSummary.profit >= 0 ? <TrendingUp className="w-4 h-4" /> : <TrendingDown className="w-4 h-4" />}
+              ₹{safeToFixed(Math.abs(financialSummary.profit), 0)}
             </div>
-            <div className={`text-xs mt-1 ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{safeToFixed(profitMargin, 1)}% margin</div>
+            <div className={`text-xs mt-1 ${financialSummary.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>{safeToFixed(financialSummary.profitMargin, 1)}% margin</div>
           </CardContent>
         </Card>
       </div>
@@ -452,7 +446,7 @@ export default function DailySalesReport() {
             </div>
             <div className="flex justify-between pb-2 border-b text-yellow-600">
               <span>Less: COGS (Cost of Goods Sold)</span>
-              <span className="font-semibold">- ₹{safeToFixed(cogs, 0)}</span>
+              <span className="font-semibold">- ₹{safeToFixed(financialSummary.cogs, 0)}</span>
             </div>
             <div className="flex justify-between pb-2 border-b text-red-600">
               <span>Less: Shortfall/Variance</span>
@@ -462,20 +456,20 @@ export default function DailySalesReport() {
               <span>Less: Expenses</span>
               <span className="font-semibold">- ₹{safeToFixed(totalExpenses, 0)}</span>
             </div>
-            <div className={`flex justify-between pt-2 text-lg font-bold ${profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+            <div className={`flex justify-between pt-2 text-lg font-bold ${financialSummary.profit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
               <span>= Net Profit / Loss</span>
-              <span>₹{safeToFixed(profit, 0)}</span>
+              <span>₹{safeToFixed(financialSummary.profit, 0)}</span>
             </div>
             <div className="flex justify-between pt-2 text-xs text-muted-foreground">
               <span>Profit Margin</span>
-              <span>{safeToFixed(profitMargin, 1)}%</span>
+              <span>{safeToFixed(financialSummary.profitMargin, 1)}%</span>
             </div>
           </div>
         </CardContent>
       </Card>
 
       {/* Sales & Expenses Grid */}
-      {fuelTypeArray && fuelTypeArray.length > 0 && (
+      {financialSummary.fuelTypeArray && financialSummary.fuelTypeArray.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <Card>
             <CardHeader>
@@ -486,7 +480,7 @@ export default function DailySalesReport() {
                 <ResponsiveContainer width="100%" height={300}>
                   <PieChart>
                     <Pie
-                      data={fuelTypeArray}
+                      data={financialSummary.fuelTypeArray}
                       dataKey="value"
                       nameKey="name"
                       cx="50%"
@@ -495,7 +489,7 @@ export default function DailySalesReport() {
                       outerRadius={70}
                       paddingAngle={3}
                     >
-                      {fuelTypeArray.map((_entry, idx) => (
+                      {financialSummary.fuelTypeArray.map((_entry, idx) => (
                         <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
                       ))}
                     </Pie>
@@ -513,7 +507,7 @@ export default function DailySalesReport() {
             </CardHeader>
             <CardContent className="p-4">
               <div className="space-y-3">
-                {fuelTypeArray.map((f, i) => (
+                {financialSummary.fuelTypeArray.map((f, i) => (
                   <div key={i} className="flex items-center justify-between gap-4 pb-3 border-b last:pb-0 last:border-0">
                     <div className="flex items-center gap-3">
                       <span className="w-3 h-3 rounded" style={{ background: COLORS[i % COLORS.length] }} />
@@ -535,7 +529,7 @@ export default function DailySalesReport() {
       )}
 
       {/* Expenses Section */}
-      {dailyExpenses.length > 0 && (
+      {expenses.length > 0 && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -568,7 +562,7 @@ export default function DailySalesReport() {
               <div className="space-y-2">
                 <h4 className="text-sm font-semibold">Expense Details</h4>
                 <div className="space-y-2 max-h-96 overflow-y-auto">
-                  {dailyExpenses.map((expense: any, idx: number) => (
+                  {expenses.map((expense: any, idx: number) => (
                     <div key={idx} className="flex items-center justify-between gap-4 pb-2 border-b last:border-0 text-sm">
                       <div>
                         <div className="font-medium">{expense.category || 'Other'}</div>
