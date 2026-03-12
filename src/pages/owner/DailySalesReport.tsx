@@ -16,8 +16,6 @@ import { ArrowLeft, Printer, TrendingUp, TrendingDown, AlertCircle, Download } f
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSettlements } from '@/hooks/useReportData';
-import { useGlobalFilter } from '@/context/GlobalFilterContext';
-import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
 import { calculateCOGS, calculateProfit, calculateProfitMargin } from '@/lib/profit-utils';
 // aggregation is done inline from API rows below
 
@@ -43,9 +41,13 @@ const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
 export default function DailySalesReport() {
   const navigate = useNavigate();
   const { canAccessFeature } = usePermissions();
-  const { startDate, endDate } = useGlobalFilter();
   const queryClient = useQueryClient();
   const [selectedStationId, setSelectedStationId] = useState<string>('');
+  
+  // Always show today's data only - not affected by global filter
+  const today = new Date().toISOString().split('T')[0];
+  const startDate = today;
+  const endDate = today;
 
   // Invalidate queries when dates change to force refetch
   useEffect(() => {
@@ -323,9 +325,6 @@ export default function DailySalesReport() {
 
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-7xl print:p-4">
-      {/* Date Filter */}
-      <DateRangeFilterToolbar />
-
       {/* Header */}
       <div className="flex flex-col gap-4 print:mb-4">
         <div className="flex items-center justify-between">

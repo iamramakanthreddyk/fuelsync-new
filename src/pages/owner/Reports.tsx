@@ -24,7 +24,6 @@ import { useToast } from '@/hooks/use-toast';
 import { analyticsApi } from '@/api/analytics';
 import {
   ReportHeader,
-  FilterBar,
   StatCard,
   DateRange,
 } from '@/components/reports';
@@ -45,6 +44,7 @@ import {
   Clock,
   AlertCircle,
   X,
+  Download,
 } from 'lucide-react';
 
 // Import tab components
@@ -189,9 +189,10 @@ interface PlanLimitError {
 
 export default function Reports() {
   const { toast } = useToast();
-  const [dateRange, setDateRange] = useState<DateRange>(getDefaultDateRange());
+  // Always show today's data only
+  const today = new Date().toISOString().split('T')[0];
+  const [dateRange] = useState<DateRange>({ startDate: today, endDate: today });
   const [selectedStation, setSelectedStation] = useState<string>('all');
-  const [datePreset, setDatePreset] = useState<string>('thisMonth');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [planLimitError, setPlanLimitError] = useState<PlanLimitError | null>(null);
@@ -206,20 +207,6 @@ export default function Reports() {
       setSelectedStation(stations[0].id);
     }
   }, [stations, selectedStation]);
-
-  // Handle date preset changes
-  const handleDatePresetChange = useCallback((preset: string) => {
-    setDatePreset(preset);
-    if (preset !== 'custom') {
-      setDateRange(calculateDateRange(preset));
-    }
-  }, []);
-
-  // Handle manual date range changes
-  const handleDateRangeChange = useCallback((range: DateRange) => {
-    setDateRange(range);
-    setDatePreset('custom');
-  }, []);
 
   // Fetch report data using custom hooks
   const { data: salesReports, isLoading: salesLoading, error: salesError, refetch: refetchSales } = useSalesReports({
@@ -667,36 +654,35 @@ export default function Reports() {
           </Alert>
         )}
 
-        {/* Enhanced Filters */}
+        {/* Controls - Station & Refresh */}
         <div className="space-y-4">
-          <FilterBar
-            dateRange={dateRange}
-            onDateRangeChange={handleDateRangeChange}
-            selectedStation={selectedStation}
-            onStationChange={setSelectedStation}
-            stations={Array.isArray(stations) ? stations : []}
-            onRefresh={handleRefresh}
-            onExportAll={handleExportAll}
-            showRefresh={false} // We have our own refresh button
-            dataType="analytics"
-          />
-
-          {/* Date Presets */}
-          <div className="space-y-2">
-            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quick Select</span>
-            <div className="flex flex-wrap gap-1.5">
-              {DATE_PRESETS.map((preset) => (
-                <Button
-                  key={preset.value}
-                  variant={datePreset === preset.value ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => handleDatePresetChange(preset.value)}
-                  className="text-xs h-7 px-2.5"
-                >
-                  {preset.label}
-                </Button>
-              ))}
+          <div className="flex flex-wrap gap-2 items-center">
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold text-gray-500 uppercase">Station:</label>
+              <select
+                value={selectedStation}
+                onChange={(e) => setSelectedStation(e.target.value)}
+                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md"
+              >
+                <option value="all">All Stations</option>
+                {Array.isArray(stations) && stations.map((s: any) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
             </div>
+            <Button
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              size="sm"
+              className="gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+            <Button onClick={handleExportAll} size="sm" className="gap-2">
+              <Download className="h-4 w-4" />
+              Export all
+            </Button>
           </div>
         </div>
 
