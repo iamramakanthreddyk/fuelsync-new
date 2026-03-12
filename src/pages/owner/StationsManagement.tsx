@@ -33,7 +33,7 @@ import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useStations, queryKeys } from '@/hooks/api';
-import { safeToFixed } from '@/lib/format-utils';
+import { safeToFixed, formatCurrency } from '@/lib/format-utils';
 import { Station } from '@/types/api';
 import { 
   Plus, 
