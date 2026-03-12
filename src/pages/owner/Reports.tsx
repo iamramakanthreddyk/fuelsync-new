@@ -21,9 +21,11 @@ import {
   aggregateRawReadingsToSalesReports,
 } from '@/hooks/useReportData';
 import { useToast } from '@/hooks/use-toast';
+import { useGlobalFilter } from '@/context/GlobalFilterContext';
 import { analyticsApi } from '@/api/analytics';
 import {
   ReportHeader,
+  FilterBar,
   StatCard,
   DateRange,
 } from '@/components/reports';
@@ -44,7 +46,6 @@ import {
   Clock,
   AlertCircle,
   X,
-  Download,
 } from 'lucide-react';
 
 // Import tab components
@@ -58,103 +59,14 @@ import { EmployeesTab } from './reports/EmployeesTab';
 import { EmployeeSalesBreakdownTab } from './reports/EmployeeSalesBreakdownTab';
 import { ExpenseAnalysisTab } from './reports/ExpenseAnalysisTab';
 
+
 // ============================================
 // CONSTANTS & TYPES
 // ============================================
 
-const getDefaultDateRange = (): DateRange => {
-  const today = new Date().toISOString().split('T')[0];
-  const firstDayOfMonth = new Date(
-    new Date().getFullYear(),
-    new Date().getMonth(),
-    1
-  )
-    .toISOString()
-    .split('T')[0];
-  return { startDate: firstDayOfMonth, endDate: today };
-};
-
-const DATE_PRESETS = [
-  { label: 'Today', value: 'today' },
-  { label: 'Yesterday', value: 'yesterday' },
-  { label: 'Last 7 Days', value: 'last7days' },
-  { label: 'Last 14 Days', value: 'last14days' },
-  { label: 'Last 30 Days', value: 'last30days' },
-  { label: 'Last 90 Days', value: 'last90days' },
-  { label: 'This Month', value: 'thisMonth' },
-  { label: 'Last Month', value: 'lastMonth' },
-  { label: 'Last 6 Months', value: 'last6months' },
-  { label: 'Custom', value: 'custom' },
-];
-
 // ============================================
 // UTILITY FUNCTIONS
 // ============================================
-
-const calculateDateRange = (preset: string): DateRange => {
-  const today = new Date();
-  const start = new Date();
-  const end = new Date();
-
-  switch (preset) {
-    case 'today':
-      return {
-        startDate: today.toISOString().split('T')[0],
-        endDate: today.toISOString().split('T')[0]
-      };
-    case 'yesterday':
-      start.setDate(today.getDate() - 1);
-      return {
-        startDate: start.toISOString().split('T')[0],
-        endDate: start.toISOString().split('T')[0]
-      };
-    case 'last7days':
-      start.setDate(today.getDate() - 7);
-      return {
-        startDate: start.toISOString().split('T')[0],
-        endDate: today.toISOString().split('T')[0]
-      };
-    case 'last14days':
-      start.setDate(today.getDate() - 14);
-      return {
-        startDate: start.toISOString().split('T')[0],
-        endDate: today.toISOString().split('T')[0]
-      };
-    case 'last30days':
-      start.setDate(today.getDate() - 30);
-      return {
-        startDate: start.toISOString().split('T')[0],
-        endDate: today.toISOString().split('T')[0]
-      };
-    case 'last90days':
-      start.setDate(today.getDate() - 90);
-      return {
-        startDate: start.toISOString().split('T')[0],
-        endDate: today.toISOString().split('T')[0]
-      };
-    case 'last6months':
-      start.setMonth(today.getMonth() - 6, today.getDate());
-      return {
-        startDate: start.toISOString().split('T')[0],
-        endDate: today.toISOString().split('T')[0]
-      };
-    case 'thisMonth':
-      start.setDate(1);
-      return {
-        startDate: start.toISOString().split('T')[0],
-        endDate: today.toISOString().split('T')[0]
-      };
-    case 'lastMonth':
-      start.setMonth(today.getMonth() - 1, 1);
-      end.setMonth(today.getMonth(), 0);
-      return {
-        startDate: start.toISOString().split('T')[0],
-        endDate: end.toISOString().split('T')[0]
-      };
-    default:
-      return getDefaultDateRange();
-  }
-};
 
 const calculatePerformanceMetrics = (current: any, previous?: any): { trend: number; direction: 'up' | 'down' | 'neutral' } => {
   if (!previous) return { trend: 0, direction: 'neutral' as const };
@@ -189,13 +101,24 @@ interface PlanLimitError {
 
 export default function Reports() {
   const { toast } = useToast();
-  // Always show today's data only
-  const today = new Date().toISOString().split('T')[0];
-  const [dateRange] = useState<DateRange>({ startDate: today, endDate: today });
+  const { startDate: globalStartDate, endDate: globalEndDate } = useGlobalFilter();
+  
+  // Use global filter dates
+  const [dateRange, setDateRange] = useState<DateRange>({
+    startDate: globalStartDate,
+    endDate: globalEndDate
+  });
   const [selectedStation, setSelectedStation] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [planLimitError, setPlanLimitError] = useState<PlanLimitError | null>(null);
+
+  // Update dateRange when global filter changes
+  useEffect(() => {
+    if (globalStartDate && globalEndDate) {
+      setDateRange({ startDate: globalStartDate, endDate: globalEndDate });
+    }
+  }, [globalStartDate, globalEndDate]);
 
   // Fetch stations
   const { data: stationsResponse } = useStations();
@@ -654,36 +577,19 @@ export default function Reports() {
           </Alert>
         )}
 
-        {/* Controls - Station & Refresh */}
+        {/* Enhanced Filters */}
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-2 items-center">
-            <div className="flex items-center gap-2">
-              <label className="text-xs font-semibold text-gray-500 uppercase">Station:</label>
-              <select
-                value={selectedStation}
-                onChange={(e) => setSelectedStation(e.target.value)}
-                className="px-3 py-1.5 text-sm border border-gray-300 rounded-md"
-              >
-                <option value="all">All Stations</option>
-                {Array.isArray(stations) && stations.map((s: any) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-            <Button
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              size="sm"
-              className="gap-2"
-            >
-              <RefreshCw className={`h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-              {isRefreshing ? 'Refreshing...' : 'Refresh'}
-            </Button>
-            <Button onClick={handleExportAll} size="sm" className="gap-2">
-              <Download className="h-4 w-4" />
-              Export all
-            </Button>
-          </div>
+          <FilterBar
+            dateRange={dateRange}
+            onDateRangeChange={(range) => setDateRange(range)}
+            selectedStation={selectedStation}
+            onStationChange={setSelectedStation}
+            stations={Array.isArray(stations) ? stations : []}
+            onRefresh={handleRefresh}
+            onExportAll={handleExportAll}
+            showRefresh={false}
+            dataType="analytics"
+          />
         </div>
 
         {/* Enhanced Key Metrics */}

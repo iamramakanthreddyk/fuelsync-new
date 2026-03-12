@@ -195,13 +195,6 @@ export function MobileBottomNav() {
       bgColor: "bg-purple-50",
     },
     {
-      title: "Analytics",
-      url: `${basePath}/analytics`,
-      icon: BarChart3,
-      color: "text-red-600",
-      bgColor: "bg-red-50",
-    },
-    {
       title: "Income & Receivables",
       url: `${basePath}/income-report`,
       icon: IndianRupee,
