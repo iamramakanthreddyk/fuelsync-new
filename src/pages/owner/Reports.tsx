@@ -682,24 +682,26 @@ export default function Reports() {
           />
 
           {/* Date Presets */}
-          <div className="flex flex-wrap gap-2">
-            <span className="text-sm font-medium text-gray-700 mr-2 self-center">Quick Select:</span>
-            {DATE_PRESETS.map((preset) => (
-              <Button
-                key={preset.value}
-                variant={datePreset === preset.value ? "default" : "outline"}
-                size="sm"
-                onClick={() => handleDatePresetChange(preset.value)}
-                className="text-xs"
-              >
-                {preset.label}
-              </Button>
-            ))}
+          <div className="space-y-2">
+            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Quick Select</span>
+            <div className="flex flex-wrap gap-1.5">
+              {DATE_PRESETS.map((preset) => (
+                <Button
+                  key={preset.value}
+                  variant={datePreset === preset.value ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handleDatePresetChange(preset.value)}
+                  className="text-xs h-7 px-2.5"
+                >
+                  {preset.label}
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
         {/* Enhanced Key Metrics */}
-        <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-3 lg:grid-cols-3 w-full">
+        <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-3 w-full">
           <StatCard
             title="Total Revenue"
             value={formatCurrency(totals.sales, 0)}
@@ -724,44 +726,44 @@ export default function Reports() {
         </div>
 
         {/* Insights Cards */}
-        <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-green-100 rounded-lg">
-                <TrendingUp className="w-5 h-5 text-green-600" />
+        <div className="grid gap-3 sm:gap-4 grid-cols-2 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 sm:p-4 border border-gray-200">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+              <div className="p-1.5 sm:p-2 bg-green-100 rounded-lg shrink-0">
+                <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Peak Performance</h3>
-                <p className="text-sm text-gray-500">Best performing day</p>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">Peak Day</h3>
+                <p className="text-xs text-gray-500 hidden sm:block">Best performing day</p>
               </div>
             </div>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-base sm:text-2xl font-bold text-green-600 truncate">
               {insights.peakDay ? new Date(insights.peakDay.date).toLocaleDateString() : 'N/A'}
             </div>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm text-gray-600 mt-1 truncate">
               {formatCurrency(insights.peakDay?.totalSales || 0, 0)} revenue
             </p>
           </div>
 
 
-          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-4 border border-gray-200 sm:col-span-2 lg:col-span-1">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="p-2 bg-purple-100 rounded-lg">
-                <BarChart3 className="w-5 h-5 text-purple-600" />
+          <div className="bg-white/80 backdrop-blur-sm rounded-lg p-3 sm:p-4 border border-gray-200">
+            <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
+              <div className="p-1.5 sm:p-2 bg-purple-100 rounded-lg shrink-0">
+                <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5 text-purple-600" />
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900">Top Fuel Type</h3>
-                <p className="text-sm text-gray-500">Most profitable</p>
+              <div className="min-w-0">
+                <h3 className="font-semibold text-gray-900 text-sm sm:text-base truncate">Top Fuel</h3>
+                <p className="text-xs text-gray-500 hidden sm:block">Most profitable type</p>
               </div>
             </div>
-            <div className="text-2xl font-bold text-purple-600">
+            <div className="text-base sm:text-2xl font-bold text-purple-600 truncate">
               {insights.fuelTypeBreakdown[0] ? (
                 FUEL_TYPE_LABELS[insights.fuelTypeBreakdown[0].type as keyof typeof FUEL_TYPE_LABELS] || insights.fuelTypeBreakdown[0].type
               ) : (
                 'N/A'
               )}
             </div>
-            <p className="text-sm text-gray-600 mt-1">
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">
               {insights.fuelTypeBreakdown[0] ? `${insights.fuelTypeBreakdown[0].percentage.toFixed(1)}% of revenue` : 'No data'}
             </p>
           </div>
@@ -812,7 +814,7 @@ export default function Reports() {
               selectedStation={selectedStation}
             />
             <ExpenseAnalysisTab
-              expenses={expenses}
+              expenses={expenses as any}
               isLoading={expensesLoading}
               dateRange={dateRange}
               totalRevenue={totals.sales}

@@ -13,7 +13,7 @@ import {
 
 export const ReportTabTriggers: React.FC = () => {
   return (
-    <TabsList className="grid w-full grid-cols-8 gap-1 bg-slate-100 p-1 rounded-lg h-auto md:h-auto overflow-x-auto">
+    <TabsList className="grid w-full grid-cols-4 sm:grid-cols-8 gap-1 bg-slate-100 p-1 rounded-lg h-auto overflow-hidden">
       <TabsTrigger
         value="overview"
         className="rounded-md data-[state=active]:bg-white data-[state=active]:text-slate-900 data-[state=active]:shadow-sm text-xs py-2 px-1 md:px-3 transition-all duration-200 flex flex-col md:flex-row items-center gap-0 md:gap-2 whitespace-nowrap"

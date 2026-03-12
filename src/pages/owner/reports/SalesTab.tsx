@@ -127,16 +127,16 @@ export const SalesTab: React.FC<SalesTabProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <Card className="lg:col-span-2">
               <CardHeader>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <CardTitle className="text-lg">Grand Total</CardTitle>
-                    <CardDescription>All stations, selected period</CardDescription>
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                  <div className="min-w-0">
+                    <CardTitle className="text-base sm:text-lg">Grand Total</CardTitle>
+                    <CardDescription className="text-xs sm:text-sm">All stations, selected period</CardDescription>
                   </div>
-                  <div className="text-right">
-                    <div className="text-2xl font-bold text-green-600">{formatCurrency(totals.sales, 0)}</div>
-                    <div className="text-sm text-muted-foreground">{safeToFixed(totals.quantity)} L • {totals.transactions} txns</div>
+                  <div className="text-left sm:text-right shrink-0">
+                    <div className="text-xl sm:text-2xl font-bold text-green-600">{formatCurrency(totals.sales, 0)}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">{safeToFixed(totals.quantity)} L • {totals.transactions} txns</div>
                     {insights && (
-                      <div className="text-sm text-muted-foreground">Avg: ₹{safeToFixed(insights.avgTransactionValue)}</div>
+                      <div className="text-xs sm:text-sm text-muted-foreground">Avg: ₹{safeToFixed(insights.avgTransactionValue)}</div>
                     )}
                   </div>
                 </div>

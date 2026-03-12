@@ -171,18 +171,18 @@ export const ExpenseAnalysisTab: React.FC<ExpenseAnalysisTabProps> = ({
           <CardContent>
             <div className="space-y-3">
               {expensesByCategory.map((item, idx) => (
-                <div key={item.category} className="flex items-center justify-between p-3 border rounded-lg">
-                  <div className="flex items-center gap-3">
+                <div key={item.category} className="flex items-center justify-between p-2.5 sm:p-3 border rounded-lg gap-2">
+                  <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                     <div
-                      className="w-3 h-3 rounded-full"
+                      className="w-3 h-3 rounded-full shrink-0"
                       style={{ backgroundColor: EXPENSE_COLORS[idx % EXPENSE_COLORS.length] }}
                     />
-                    <div>
-                      <div className="font-medium capitalize">{item.category}</div>
-                      <div className="text-xs text-muted-foreground">{item.count} entry{item.count !== 1 ? 'ies' : ''}</div>
+                    <div className="min-w-0">
+                      <div className="font-medium capitalize text-sm truncate">{item.category}</div>
+                      <div className="text-xs text-muted-foreground">{item.count} item{item.count !== 1 ? 's' : ''}</div>
                     </div>
                   </div>
-                  <div className="text-right font-semibold text-red-600">
+                  <div className="text-right font-semibold text-red-600 shrink-0 text-sm">
                     ₹{safeToFixed(item.amount, 0)}
                   </div>
                 </div>
