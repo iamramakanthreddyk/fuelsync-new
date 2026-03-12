@@ -3,14 +3,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
 import { useStations } from '@/hooks/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, BarChart3 } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
+import { useGlobalFilter } from '@/context/GlobalFilterContext';
 import { ProfitDashboardWithProvider } from '@/components/dashboard/ProfitDashboardWithProvider';
 
 const ProfitReports = () => {
   const { user } = useAuth();
   const { data: stationsResponse } = useStations();
   const stations = stationsResponse?.data;
+  const { startDate, endDate } = useGlobalFilter();
   const [selectedStationId, setSelectedStationId] = React.useState<string>('');
 
   // Set default station on load
@@ -44,15 +47,24 @@ const ProfitReports = () => {
   const currentStation = stations?.find(s => s.id === selectedStationId);
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
-      {/* Compact Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Profit Reports</h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            Your station's financial performance at a glance
-          </p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+      <DateRangeFilterToolbar />
+      <div className="container mx-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+        {/* Enhanced Header with Icon */}
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 pt-2">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="p-2 bg-gradient-to-br from-emerald-100 to-teal-100 rounded-lg shadow-sm">
+                <BarChart3 className="w-6 h-6 text-emerald-700" />
+              </div>
+              <div>
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Profit Reports</h1>
+              </div>
+            </div>
+            <p className="text-muted-foreground text-sm ml-11">
+              Financial performance from {startDate} to {endDate}
+            </p>
+          </div>
 
         {/* Station Selector - Compact */}
         {stations && stations.length > 1 && (
@@ -75,8 +87,9 @@ const ProfitReports = () => {
 
       {/* Station Profit Dashboard */}
       {selectedStationId && currentStation && (
-        <ProfitDashboardWithProvider stationId={selectedStationId} />
+        <ProfitDashboardWithProvider stationId={selectedStationId} dateRange={{ startDate, endDate }} />
       )}
+      </div>
     </div>
   );
 };

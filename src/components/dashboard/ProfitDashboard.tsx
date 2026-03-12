@@ -1,33 +1,21 @@
 import React from 'react';
 import { useProfit } from '@/context/ProfitProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { IndianRupee, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 
-interface ProfitDashboardProps {
-  selectedMonth: string;
-  setSelectedMonth: (month: string) => void;
+interface DateRange {
+  startDate: string;
+  endDate: string;
 }
 
-const getMonthLabel = (monthStr: string) => {
-  const [year, month] = monthStr.split('-');
-  const date = new Date(parseInt(year), parseInt(month) - 1);
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
-};
+interface ProfitDashboardProps {
+  dateRange: DateRange;
+}
 
-export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ selectedMonth, setSelectedMonth }) => {
+export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ dateRange }) => {
   const { data: profitData, isLoading, error } = useProfit();
-
-  // Generate last 12 months
-  const months = Array.from({ length: 12 }, (_, i) => {
-    const date = new Date();
-    date.setMonth(date.getMonth() - i);
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    return `${year}-${month}`;
-  }).reverse();
 
 
   if (error) {
@@ -41,23 +29,6 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ selectedMonth,
 
   return (
     <div className="space-y-4 sm:space-y-6">
-      {/* Month Selector - Compact */}
-      <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 items-start sm:items-center">
-        <label className="text-sm font-medium">Select Month:</label>
-        <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-          <SelectTrigger className="w-full sm:w-48">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {months.map((month) => (
-              <SelectItem key={month} value={month}>
-                {getMonthLabel(month)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-
       {isLoading ? (
         <Card>
           <CardContent className="pt-6 text-center">
@@ -155,7 +126,7 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ selectedMonth,
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">P&L Statement</CardTitle>
-              <CardDescription>{getMonthLabel(selectedMonth)}</CardDescription>
+              <CardDescription>Period: {dateRange.startDate} to {dateRange.endDate}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-1 text-sm">

@@ -185,8 +185,14 @@ export const analyticsApi = {
     );
   },
 
-  /** GET /stations/:stationId/profit-summary?month=... */
-  getProfitSummary: (stationId: string, month?: string) => {
+  /** GET /stations/:stationId/profit-summary?month=... OR ?startDate=...&endDate=... */
+  getProfitSummary: (stationId: string, month?: string, startDate?: string, endDate?: string) => {
+    if (startDate && endDate) {
+      const qs = new URLSearchParams({ startDate, endDate });
+      return apiClient.get<{ success: boolean; data: ProfitSummary }>(
+        `/stations/${stationId}/profit-summary?${qs.toString()}`
+      );
+    }
     const url = month
       ? `/stations/${stationId}/profit-summary?month=${month}`
       : `/stations/${stationId}/profit-summary`;
