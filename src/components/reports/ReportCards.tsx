@@ -110,41 +110,36 @@ export const SalesReportCard: React.FC<SalesReportCardProps> = ({
   }),
   className,
 }) => {
-  // compact fuel item for listings
+  // Compact fuel item for listings (horizontal, minimal)
   const FuelItem: React.FC<{ fuel: FuelTypeSale }> = ({ fuel }) => (
-    <div className="flex items-center justify-between py-1">
-      <div className="flex items-center gap-2 min-w-0">
-        <Badge className={`${getFuelBadgeClasses(fuel.fuelType)} text-xs px-1.5 py-0.5 shrink-0`}>{(fuel.fuelType || 'UNK').toUpperCase()}</Badge>
-        <div className="min-w-0">
-          <div className="text-sm font-medium truncate">₹{fuel.sales.toLocaleString('en-IN')}</div>
-          <div className="text-xs text-muted-foreground truncate">{safeToFixed(fuel.quantity)} L • {fuel.transactions} txns</div>
-        </div>
-      </div>
-      <div className="text-right text-xs text-muted-foreground ml-3">{(fuel as any).percentage ?? ''}</div>
+    <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-gray-50 border border-gray-100 text-xs">
+      <Badge className={`${getFuelBadgeClasses(fuel.fuelType)} text-[10px] px-1 py-0.5 shrink-0`}>{(fuel.fuelType || 'UNK').toUpperCase()}</Badge>
+      <span className="font-semibold text-gray-700 truncate">₹{fuel.sales.toLocaleString('en-IN')}</span>
+      <span className="text-gray-500">{safeToFixed(fuel.quantity)} L</span>
+      <span className="text-gray-400">{fuel.transactions} txns</span>
     </div>
   );
 
   return (
-    <Card className={cn('w-full', className)}>
-      <CardHeader className="pb-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <CardTitle className="text-sm truncate">{report.stationName}</CardTitle>
-            <CardDescription className="text-xs text-muted-foreground">{dateFormatter(report.date)}</CardDescription>
-          </div>
-          <div className="flex-shrink-0 text-right">
-            <div className="text-base font-bold text-green-600">₹{report.totalSales.toLocaleString('en-IN')}</div>
-            <div className="text-xs text-muted-foreground">{safeToFixed(report.totalQuantity)} L • {report.totalTransactions} txns</div>
-          </div>
+    <Card className={cn('w-full border border-gray-100 shadow-sm bg-white', className)}>
+      <div className="flex items-center justify-between px-3 py-2 gap-2">
+        <div className="min-w-0 flex-1">
+          <div className="font-semibold text-gray-800 truncate text-xs">{report.stationName}</div>
+          <div className="text-[11px] text-gray-400">{dateFormatter(report.date)}</div>
         </div>
-      </CardHeader>
-      <CardContent className="pt-2 pb-3">
-        <div className="grid gap-2">
-          {(Array.isArray(report.fuelTypeSales) ? report.fuelTypeSales : []).map((fuel) => (
+        <div className="flex items-center gap-3 shrink-0 text-xs">
+          <span className="text-green-600 font-bold">₹{report.totalSales.toLocaleString('en-IN')}</span>
+          <span className="text-blue-600 font-medium">{safeToFixed(report.totalQuantity)} L</span>
+          <span className="text-purple-600">{report.totalTransactions} txns</span>
+        </div>
+      </div>
+      {Array.isArray(report.fuelTypeSales) && report.fuelTypeSales.length > 0 && (
+        <div className="flex flex-wrap gap-1 px-3 pb-2">
+          {report.fuelTypeSales.map((fuel) => (
             <FuelItem key={`${fuel.fuelType}-${report.stationId}-${report.date}`} fuel={fuel} />
           ))}
         </div>
-      </CardContent>
+      )}
     </Card>
   );
 };
