@@ -159,10 +159,12 @@ export default function DailySalesReport() {
   
   // Memoize expense calculations
   const { totalExpenses, expensesByCategory } = useMemo(() => {
-    const total = expenses.reduce((sum, e: any) => sum + (Number(e.amount) || 0), 0);
+    // Only count approved/auto-approved expenses in profit calculations
+    const approvedExpenses = expenses.filter((e: any) => e.approvalStatus === 'approved' || e.approvalStatus === 'auto_approved');
+    const total = approvedExpenses.reduce((sum, e: any) => sum + (Number(e.amount) || 0), 0);
     
     const byCategory: Record<string, number> = {};
-    expenses.forEach((e: any) => {
+    approvedExpenses.forEach((e: any) => {
       const cat = e.category || 'uncategorized';
       byCategory[cat] = (byCategory[cat] || 0) + (Number(e.amount) || 0);
     });
