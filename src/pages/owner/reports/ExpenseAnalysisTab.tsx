@@ -23,26 +23,38 @@ export const ExpenseAnalysisTab: React.FC<ExpenseAnalysisTabProps> = ({
   dateRange,
   totalRevenue = 0,
 }) => {
+  // DEBUG: Log incoming expenses
+  // Remove or comment out after debugging
+  // eslint-disable-next-line no-console
+  console.log('ExpenseAnalysisTab expenses:', expenses);
   // Group expenses by category
   const expensesByCategory = React.useMemo(() => {
     const grouped: Record<string, { amount: number; count: number }> = {};
-    
     expenses.forEach((exp: any) => {
       const category = exp.category || 'uncategorized';
       if (!grouped[category]) {
         grouped[category] = { amount: 0, count: 0 };
       }
-      grouped[category].amount += exp.amount || 0;
+      // Ensure amount is a number (API may return string)
+      const amt = typeof exp.amount === 'string' ? parseFloat(exp.amount) : exp.amount || 0;
+      grouped[category].amount += amt;
       grouped[category].count += 1;
     });
-    
-    return Object.entries(grouped)
+    const result = Object.entries(grouped)
       .map(([category, data]) => ({
         category: category.replace(/_/g, ' '),
         amount: data.amount,
         count: data.count,
       }))
       .sort((a, b) => b.amount - a.amount);
+    
+    // DEBUG
+    if (expenses.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log('Expenses by category:', result, 'from expenses:', expenses);
+    }
+    
+    return result;
   }, [expenses]);
 
   // Calculate totals
@@ -53,12 +65,25 @@ export const ExpenseAnalysisTab: React.FC<ExpenseAnalysisTabProps> = ({
 
   // Group by approval status
   const approvalBreakdown = React.useMemo(() => {
+    const getAmount = (e: any) => typeof e.amount === 'string' ? parseFloat(e.amount) : e.amount || 0;
     const approved = expenses.filter((e: any) => e.approvalStatus === 'approved' || e.approvalStatus === 'auto_approved')
-      .reduce((sum, e: any) => sum + (e.amount || 0), 0);
+      .reduce((sum, e: any) => sum + getAmount(e), 0);
     const pending = expenses.filter((e: any) => e.approvalStatus === 'pending')
-      .reduce((sum, e: any) => sum + (e.amount || 0), 0);
+      .reduce((sum, e: any) => sum + getAmount(e), 0);
     const rejected = expenses.filter((e: any) => e.approvalStatus === 'rejected')
-      .reduce((sum, e: any) => sum + (e.amount || 0), 0);
+      .reduce((sum, e: any) => sum + getAmount(e), 0);
+    
+    // DEBUG: Log breakdown
+    if (expenses.length > 0) {
+      // eslint-disable-next-line no-console
+      console.log('Approval breakdown:', {
+        approved,
+        pending,
+        rejected,
+        approvable: expenses.filter((e: any) => e.approvalStatus === 'approved' || e.approvalStatus === 'auto_approved'),
+        approvalStatuses: expenses.map((e: any) => ({ status: e.approvalStatus, amount: getAmount(e), id: e.id })),
+      });
+    }
     
     return { approved, pending, rejected };
   }, [expenses]);
