@@ -358,6 +358,8 @@ export function printNozzlesReport<T extends Record<string, any>>(
   const w = createPrintWindow({ reportType: 'nozzles', dateRange, onPopupBlocked });
   if (!w) return;
 
+  const hasTransactions = data.some((n: any) => n.transactions !== undefined);
+  
   const grandTotal = data.reduce(
     (acc: any, n: any) => ({
       sales: acc.sales + (n.totalSales || 0),
@@ -372,17 +374,17 @@ export function printNozzlesReport<T extends Record<string, any>>(
     <div class="summary-row"><span>Total Nozzles:</span><span>${data.length}</span></div>
     <div class="summary-row"><span>Total Sales:</span><span>${currency(grandTotal.sales)}</span></div>
     <div class="summary-row"><span>Total Volume:</span><span>${safeToFixed(grandTotal.quantity)} L</span></div>
-    <div class="summary-row"><span>Total Transactions:</span><span>${grandTotal.transactions}</span></div>
+    ${hasTransactions ? `<div class="summary-row"><span>Total Transactions:</span><span>${grandTotal.transactions}</span></div>` : ''}
   </div>`);
 
   w.document.write(
-    `<table><thead><tr><th>Nozzle</th><th>Pump</th><th>Fuel</th><th>Sales</th><th>Volume (L)</th><th>Price/L</th><th>Txns</th></tr></thead><tbody>`
+    `<table><thead><tr><th>Nozzle</th><th>Pump</th><th>Fuel</th><th>Sales</th><th>Volume (L)</th><th>Price/L</th>${hasTransactions ? '<th>Txns</th>' : ''}</tr></thead><tbody>`
   );
   
   data.forEach((n: any) => {
     const pricePerL = n.totalQuantity > 0 ? n.totalSales / n.totalQuantity : 0;
     w.document.write(
-      `<tr><td>${n.nozzleNumber}</td><td>${n.pumpName}</td><td>${n.fuelType}</td><td>${currency(n.totalSales)}</td><td>${safeToFixed(n.totalQuantity ?? 0)}</td><td>${currency(pricePerL)}</td><td><strong>${n.transactions}</strong></td></tr>`
+      `<tr><td>${n.nozzleNumber}</td><td>${n.pumpName}</td><td>${n.fuelType}</td><td>${currency(n.totalSales)}</td><td>${safeToFixed(n.totalQuantity ?? 0)}</td><td>${currency(pricePerL)}</td>${n.transactions !== undefined ? `<td><strong>${n.transactions}</strong></td>` : ''}</tr>`
     );
   });
 
@@ -421,12 +423,12 @@ export function printPumpsReport<T extends Record<string, any>>(
   if (!w) return;
 
   w.document.write(
-    `<table><thead><tr><th>Pump</th><th>Station</th><th>Sales</th><th>Volume</th><th>Txns</th></tr></thead><tbody>`
+    `<table><thead><tr><th>Pump</th><th>Station</th><th>Sales</th><th>Volume</th>${data.some((p: any) => p.transactions !== undefined) ? '<th>Txns</th>' : ''}</tr></thead><tbody>`
   );
   
   data.forEach((p: any) => {
     w.document.write(
-      `<tr><td>${p.pumpName} (${p.pumpNumber})</td><td>${p.stationName}</td><td>${currency(p.totalSales)}</td><td>${safeToFixed(p.totalQuantity ?? 0)}</td><td>${p.transactions}</td></tr>`
+      `<tr><td>${p.pumpName} (${p.pumpNumber})</td><td>${p.stationName}</td><td>${currency(p.totalSales)}</td><td>${safeToFixed(p.totalQuantity ?? 0)}</td>${p.transactions !== undefined ? `<td>${p.transactions}</td>` : ''}</tr>`
     );
   });
 
