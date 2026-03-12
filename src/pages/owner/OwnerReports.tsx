@@ -58,6 +58,7 @@ import {
 } from 'lucide-react';
 
 // Import tab components
+import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
 import { ReportTabTriggers } from './reports/ReportTabTriggers';
 import { OverviewTab } from './reports/OverviewTab';
 import { AnalyticsTab } from './reports/AnalyticsTab';
@@ -531,6 +532,7 @@ export default function OwnerReports() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20">
+      <DateRangeFilterToolbar />
       <div className="container mx-auto p-2 sm:p-4 lg:p-6 page-container space-y-4 lg:space-y-6">
         {/* Header with Enhanced Features */}
         <div className="flex flex-col gap-4">
@@ -600,7 +602,7 @@ export default function OwnerReports() {
                 </div>
                 <div>
                   <h3 className="font-semibold text-gray-900">Filters</h3>
-                  <p className="text-sm text-gray-500">Date range controlled by Global Filter</p>
+                  <p className="text-sm text-gray-500">Date range set by the Global Filter above</p>
                 </div>
               </div>
 
