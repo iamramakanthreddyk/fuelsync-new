@@ -97,19 +97,24 @@ export default function IncomeReport() {
     
     const data = rawReportData as any;
     
+    // Safely extract with deep defensive checks
+    const incomeBreakdown = data?.incomeBreakdown || {};
+    const summaryMetrics = data?.summaryMetrics || {};
+    const receivablesSummary = data?.receivables?.summary || {};
+    
     return {
-      period: data.period || { startDate: dateRange.startDate, endDate: dateRange.endDate },
+      period: data?.period || { startDate: dateRange.startDate, endDate: dateRange.endDate },
       salesBreakdown: {
-        totalSales: data.incomeBreakdown?.calculatedSaleValue || 0,
-        totalLitres: data.summaryMetrics?.totalLiters || 0,
+        totalSales: incomeBreakdown.calculatedSaleValue ?? 0,
+        totalLitres: summaryMetrics.totalLiters ?? 0,
         transactions: 0,
-        cash: data.incomeBreakdown?.cashReceived || 0,
-        online: data.incomeBreakdown?.onlineReceived || 0,
-        credit: data.incomeBreakdown?.creditPending || 0
+        cash: incomeBreakdown.cashReceived ?? 0,
+        online: incomeBreakdown.onlineReceived ?? 0,
+        credit: incomeBreakdown.creditPending ?? 0
       },
       creditorsBreakdown: {
-        totalOutstanding: data.receivables?.summary?.totalOutstanding || 0,
-        totalOverdue: data.receivables?.summary?.overdue || 0,
+        totalOutstanding: receivablesSummary.totalOutstanding ?? 0,
+        totalOverdue: receivablesSummary.overdue ?? 0,
         creditors: []
       }
     };
@@ -197,13 +202,28 @@ export default function IncomeReport() {
     );
   }
 
-  if (error || !reportData) {
+  if (error) {
     return (
       <div className="container mx-auto p-6">
         <Card>
           <CardContent className="pt-6">
             <p className="text-center text-destructive">
-              Error loading report data
+              Error loading report data: {error.message || 'Unknown error'}
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Ensure reportData exists and has required properties
+  if (!reportData || !reportData.salesBreakdown) {
+    return (
+      <div className="container mx-auto p-6">
+        <Card>
+          <CardContent className="pt-6">
+            <p className="text-center text-muted-foreground">
+              No data available for the selected period
             </p>
           </CardContent>
         </Card>
@@ -218,7 +238,7 @@ export default function IncomeReport() {
         <div>
           <h1 className="text-2xl md:text-3xl font-bold">Income Report</h1>
           <p className="text-muted-foreground">
-            {new Date(reportData.period.startDate).toLocaleDateString('en-IN')} - {new Date(reportData.period.endDate).toLocaleDateString('en-IN')}
+            {new Date(reportData?.period?.startDate || dateRange.startDate).toLocaleDateString('en-IN')} - {new Date(reportData?.period?.endDate || dateRange.endDate).toLocaleDateString('en-IN')}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 items-center">
@@ -285,7 +305,7 @@ export default function IncomeReport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              ₹{reportData.salesBreakdown.totalSales.toLocaleString('en-IN')}
+              ₹{(reportData?.salesBreakdown?.totalSales || 0).toLocaleString('en-IN')}
             </div>
           </CardContent>
         </Card>
@@ -299,7 +319,7 @@ export default function IncomeReport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              ₹{reportData.salesBreakdown.cash.toLocaleString('en-IN')}
+              ₹{(reportData?.salesBreakdown?.cash || 0).toLocaleString('en-IN')}
             </div>
           </CardContent>
         </Card>
@@ -327,7 +347,7 @@ export default function IncomeReport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
-              ₹{reportData.creditorsBreakdown.totalOutstanding.toLocaleString('en-IN')}
+              ₹{(reportData?.creditorsBreakdown?.totalOutstanding || 0).toLocaleString('en-IN')}
             </div>
           </CardContent>
         </Card>
@@ -341,7 +361,7 @@ export default function IncomeReport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              ₹{(reportData.salesBreakdown.totalSales - totalExpenses).toLocaleString('en-IN')}
+              ₹{((reportData?.salesBreakdown?.totalSales || 0) - totalExpenses).toLocaleString('en-IN')}
             </div>
           </CardContent>
         </Card>
@@ -357,21 +377,21 @@ export default function IncomeReport() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600 mb-1">
-                ₹{reportData.salesBreakdown.cash.toLocaleString('en-IN')}
+                ₹{(reportData?.salesBreakdown?.cash || 0).toLocaleString('en-IN')}
               </div>
               <div className="text-sm text-muted-foreground">Cash</div>
             </div>
 
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600 mb-1">
-                ₹{reportData.salesBreakdown.online.toLocaleString('en-IN')}
+                ₹{(reportData?.salesBreakdown?.online || 0).toLocaleString('en-IN')}
               </div>
               <div className="text-sm text-muted-foreground">Online</div>
             </div>
 
             <div className="text-center p-4 bg-orange-50 rounded-lg">
               <div className="text-2xl font-bold text-orange-600 mb-1">
-                ₹{reportData.salesBreakdown.credit.toLocaleString('en-IN')}
+                ₹{(reportData?.salesBreakdown?.credit || 0).toLocaleString('en-IN')}
               </div>
               <div className="text-sm text-muted-foreground">Credit</div>
             </div>
@@ -407,8 +427,8 @@ export default function IncomeReport() {
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Period Summary</h3>
             <p className="text-muted-foreground mb-4">
-              {safeToFixed(reportData.salesBreakdown.totalLitres, 0)} liters sold •
-              ₹{reportData.salesBreakdown.totalSales.toLocaleString('en-IN')} total sales
+              {safeToFixed(reportData?.salesBreakdown?.totalLitres || 0, 0)} liters sold •
+              ₹{(reportData?.salesBreakdown?.totalSales || 0).toLocaleString('en-IN')} total sales
             </p>
             <div className="text-sm text-muted-foreground">
               Report generated on {new Date().toLocaleDateString('en-IN')}
