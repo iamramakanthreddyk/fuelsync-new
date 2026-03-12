@@ -5,7 +5,7 @@ import { useStations } from '@/hooks/api';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { ProfitDashboard } from '@/components/dashboard/ProfitDashboard';
+import { ProfitDashboardWithProvider } from '@/components/dashboard/ProfitDashboardWithProvider';
 
 const ProfitReports = () => {
   const { user } = useAuth();
@@ -75,7 +75,7 @@ const ProfitReports = () => {
 
       {/* Station Profit Dashboard */}
       {selectedStationId && currentStation && (
-        <ProfitDashboard stationId={selectedStationId} />
+        <ProfitDashboardWithProvider stationId={selectedStationId} />
       )}
     </div>
   );

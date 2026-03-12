@@ -1,14 +1,14 @@
-import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import React from 'react';
+import { useProfit } from '@/context/ProfitProvider';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { IndianRupee, TrendingUp, TrendingDown, AlertCircle } from 'lucide-react';
-import { getProfitSummary, type ProfitSummary } from '@/lib/financial-reporting-api';
 import { safeToFixed } from '@/lib/format-utils';
 
 interface ProfitDashboardProps {
-  stationId: string;
+  selectedMonth: string;
+  setSelectedMonth: (month: string) => void;
 }
 
 const getMonthLabel = (monthStr: string) => {
@@ -17,22 +17,8 @@ const getMonthLabel = (monthStr: string) => {
   return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' });
 };
 
-const getCurrentMonth = () => {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
-};
-
-export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) => {
-  const [selectedMonth, setSelectedMonth] = useState(getCurrentMonth());
-  
-  const { data: profitData, isLoading, error } = useQuery({
-    queryKey: ['profit-summary', stationId, selectedMonth],
-    queryFn: async () => {
-      const response = await getProfitSummary(stationId, selectedMonth);
-      return response?.data as ProfitSummary;
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
+export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ selectedMonth, setSelectedMonth }) => {
+  const { data: profitData, isLoading, error } = useProfit();
 
   // Generate last 12 months
   const months = Array.from({ length: 12 }, (_, i) => {
@@ -42,6 +28,7 @@ export const ProfitDashboard: React.FC<ProfitDashboardProps> = ({ stationId }) =
     const month = String(date.getMonth() + 1).padStart(2, '0');
     return `${year}-${month}`;
   }).reverse();
+
 
   if (error) {
     return (
