@@ -3,7 +3,7 @@
  * Comprehensive daily financial summary: Sales, Expenses, Shortfalls & Profit/Loss
  */
 
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,8 @@ import { ArrowLeft, Printer, TrendingUp, TrendingDown, AlertCircle, Download } f
 import { useNavigate } from 'react-router-dom';
 import { usePermissions } from '@/hooks/usePermissions';
 import { useSettlements } from '@/hooks/useReportData';
+import { useGlobalFilter } from '@/context/GlobalFilterContext';
+import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
 import { calculateCOGS, calculateProfit, calculateProfitMargin } from '@/lib/profit-utils';
 // aggregation is done inline from API rows below
 
@@ -41,34 +43,45 @@ const COLORS = ['#3b82f6', '#ef4444', '#10b981', '#f59e0b', '#8b5cf6'];
 export default function DailySalesReport() {
   const navigate = useNavigate();
   const { canAccessFeature } = usePermissions();
-  const selectedDate = new Date().toISOString().split('T')[0];
+  const { startDate, endDate } = useGlobalFilter();
+  const queryClient = useQueryClient();
   const [selectedStationId, setSelectedStationId] = useState<string>('');
+
+  // Invalidate queries when dates change to force refetch
+  useEffect(() => {
+    if (startDate && endDate) {
+      queryClient.invalidateQueries({ queryKey: ['sales-report'] });
+      queryClient.invalidateQueries({ queryKey: ['daily-expenses'] });
+      queryClient.invalidateQueries({ queryKey: ['settlements'] });
+    }
+  }, [startDate, endDate, queryClient]);
 
   // Fetch raw sales readings
   const { data: apiResponse, isLoading: salesLoading } = useQuery({
-    queryKey: ['sales-report', selectedDate],
+    queryKey: ['sales-report', startDate, endDate],
     queryFn: async () => {
-      const response = await apiClient.get<{ success: boolean; data: any[] }>(`/analytics/sales?startDate=${selectedDate}&endDate=${selectedDate}`);
+      const response = await apiClient.get<{ success: boolean; data: any[] }>(`/analytics/sales?startDate=${startDate}&endDate=${endDate}`);
       const payload = (response as any)?.data ?? response;
       const rows = Array.isArray(payload) ? payload : (payload?.data ?? []);
       return rows;
-    }
+    },
+    enabled: !!startDate && !!endDate
   });
 
-  // Fetch expenses for the day
+  // Fetch expenses for the date range
   const { data: expensesData, isLoading: expensesLoading } = useQuery({
-    queryKey: ['daily-expenses', selectedDate, selectedStationId],
+    queryKey: ['daily-expenses', startDate, endDate, selectedStationId],
     queryFn: async () => {
       if (!selectedStationId) return null;
-      const response = await expenseApi.getSummary(selectedStationId, selectedDate, selectedDate);
+      const response = await expenseApi.getSummary(selectedStationId, startDate, endDate);
       return response?.data ?? response;
     },
-    enabled: !!selectedStationId
+    enabled: !!selectedStationId && !!startDate && !!endDate
   });
 
   // Fetch settlements for shortfall/variance data
   const { data: settlementsData = [], isLoading: shortfallLoading } = useSettlements({
-    dateRange: { startDate: selectedDate, endDate: selectedDate },
+    dateRange: { startDate, endDate },
     selectedStation: selectedStationId
   });
 
@@ -310,6 +323,9 @@ export default function DailySalesReport() {
 
   return (
     <div className="container mx-auto p-6 space-y-6 max-w-7xl print:p-4">
+      {/* Date Filter */}
+      <DateRangeFilterToolbar />
+
       {/* Header */}
       <div className="flex flex-col gap-4 print:mb-4">
         <div className="flex items-center justify-between">

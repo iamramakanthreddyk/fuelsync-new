@@ -291,7 +291,7 @@ function PendingApprovalRow({ expense, onApprove, approving }: PendingRowProps) 
       <TableCell className="text-xs">{expense.expenseDate}</TableCell>
       <TableCell className="text-xs">{EXPENSE_CATEGORIES[expense.category] ?? expense.category}</TableCell>
       <TableCell className="text-xs max-w-[160px] truncate">{expense.description}</TableCell>
-      <TableCell className="text-xs font-semibold">{fmt(expense.amount)}</TableCell>
+      <TableCell className="text-xs font-semibold">{fmt(parseFloat(String(expense.amount)))}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{(expense.enteredByUser as any)?.name ?? '—'}</TableCell>
       <TableCell>
         <div className="flex gap-1">
@@ -508,7 +508,7 @@ export default function ExpensesPage() {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Period Total</div>
-                <div className="text-xl font-bold">{fmt(allExpenses.reduce((sum, e) => sum + (e.amount || 0), 0))}</div>
+                <div className="text-xl font-bold">{fmt(allExpenses.reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0))}</div>
                 <div className="text-xs text-muted-foreground">{globalStartDate} to {globalEndDate}</div>
               </div>
             </div>
@@ -606,14 +606,14 @@ export default function ExpensesPage() {
           <Card>
             <CardContent className="pt-4 pb-3">
               <p className="text-xs text-muted-foreground">Total Expenses</p>
-              <p className="text-xl font-bold text-blue-600">{fmt(allExpenses.reduce((sum, e) => sum + (e.amount || 0), 0))}</p>
+              <p className="text-xl font-bold text-blue-600">{fmt(allExpenses.reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0))}</p>
             </CardContent>
           </Card>
           {pending.length > 0 && (
             <Card className="border-yellow-200">
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">⏳ Awaiting Review</p>
-                <p className="text-xl font-bold text-yellow-600">{fmt(pending.reduce((sum, e) => sum + (e.amount || 0), 0))}</p>
+                <p className="text-xl font-bold text-yellow-600">{fmt(pending.reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0))}</p>
                 <p className="text-xs text-yellow-600">{pending.length} pending</p>
                 <p className="text-xs text-muted-foreground mt-1">Entered by staff • Not counted yet</p>
               </CardContent>
@@ -629,7 +629,7 @@ export default function ExpensesPage() {
           if (!acc[cat]) {
             acc[cat] = { category: cat, total: 0, count: 0 };
           }
-          acc[cat].total += exp.amount || 0;
+          acc[cat].total += parseFloat(String(exp.amount)) || 0;
           acc[cat].count += 1;
           return acc;
         }, {});
