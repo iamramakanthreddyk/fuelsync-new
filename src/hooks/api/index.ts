@@ -463,6 +463,15 @@ export function useExpenses(stationId: string, filters?: { startDate?: string; e
   });
 }
 
+// Fetch all expenses across all stations for a date range
+export function useAllExpenses(filters?: { startDate?: string; endDate?: string; limit?: number }) {
+  return useQuery({
+    queryKey: ['expenses-all', filters],
+    queryFn: () => expenseApi.getAll({ startDate: filters?.startDate, endDate: filters?.endDate, limit: filters?.limit }),
+    enabled: !!(filters?.startDate && filters?.endDate),
+  });
+}
+
 export function useCreateExpense() {
   const queryClient = useQueryClient();
   

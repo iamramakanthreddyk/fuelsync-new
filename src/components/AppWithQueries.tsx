@@ -44,8 +44,7 @@ import StationsManagement from '@/pages/owner/StationsManagement';
 import AddStation from '@/pages/owner/AddStation';
 import StationDetail from '@/pages/owner/StationDetail';
 import EmployeesManagement from '@/pages/owner/EmployeesManagement';
-import OwnerReports from '@/pages/owner/Reports';
-import IncomeReport from '@/pages/owner/IncomeReport';
+import OwnerReports from '@/pages/owner/OwnerReports';
 import QuickDataEntry from '@/pages/owner/QuickDataEntryEnhanced';
 import SettlementStationSelector from '@/pages/owner/SettlementStationSelector';
 import DailySettlement from '@/pages/owner/DailySettlement';
@@ -386,7 +385,6 @@ function AppContent() {
                     <Route path="/manager/stations/:id/prices" element={<Prices />} />
                     <Route path="/manager/employees" element={<EmployeesManagement />} />
                     <Route path="/manager/reports" element={<ManagerReports />} />                    <Route path="/manager/sample-readings" element={<SampleReadings />} />
-                    <Route path="/manager/income-report" element={<IncomeReport />} />
                     <Route path="/manager/profit-reports" element={<ProfitReports />} />
                     <Route path="/manager/expenses" element={<ExpensesPage />} />
                     <Route path="/manager/shifts" element={<ShiftManagement />} />
@@ -424,7 +422,6 @@ function AppContent() {
                     <Route path="/owner/employees" element={<EmployeesManagement />} />
                     <Route path="/owner/reports" element={<OwnerReports />} />
                     <Route path="/owner/sample-readings" element={<SampleReadings />} />
-                    <Route path="/owner/income-report" element={<IncomeReport />} />
                     <Route path="/owner/profit-reports" element={<ProfitReports />} />
                     <Route path="/owner/expenses" element={<ExpensesPage />} />
                     <Route path="/owner/shifts" element={<ShiftManagement />} />

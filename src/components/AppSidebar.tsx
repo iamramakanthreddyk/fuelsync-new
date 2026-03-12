@@ -147,13 +147,6 @@ export function AppSidebar() {
           bgColor: "bg-violet-50",
         },
         {
-          title: "Income & Receivables",
-          url: `${basePath}/income-report`,
-          icon: IndianRupee,
-          color: "text-teal-600",
-          bgColor: "bg-teal-50",
-        },
-        {
           title: "Profit Reports",
           url: `${basePath}/profit-reports`,
           icon: BarChart3,

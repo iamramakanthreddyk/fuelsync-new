@@ -11,7 +11,16 @@ import { Tabs } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { useStations, useExpenses } from '@/hooks/api';
+import { Card, CardContent } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useStations, useExpenses, useAllExpenses } from '@/hooks/api';
 import {
   useSalesReports,
   usePumpPerformance,
@@ -25,7 +34,6 @@ import { useGlobalFilter } from '@/context/GlobalFilterContext';
 import { analyticsApi } from '@/api/analytics';
 import {
   ReportHeader,
-  FilterBar,
   StatCard,
   DateRange,
 } from '@/components/reports';
@@ -46,6 +54,7 @@ import {
   Clock,
   AlertCircle,
   X,
+  Download,
 } from 'lucide-react';
 
 // Import tab components
@@ -99,7 +108,7 @@ interface PlanLimitError {
 // MAIN COMPONENT
 // ============================================
 
-export default function Reports() {
+export default function OwnerReports() {
   const { toast } = useToast();
   const { startDate: globalStartDate, endDate: globalEndDate } = useGlobalFilter();
   
@@ -142,10 +151,20 @@ export default function Reports() {
     dateRange,
     selectedStation,
   });
-  const { data: expensesResponse, isLoading: expensesLoading, error: expensesError, refetch: refetchExpenses } = useExpenses(selectedStation || '', {
+  
+  // Use appropriate expense hook based on station selection
+  const stationExpensesQuery = useExpenses(selectedStation && selectedStation !== 'all' ? selectedStation : '', {
     startDate: dateRange.startDate,
     endDate: dateRange.endDate
   });
+  const allExpensesQuery = useAllExpenses(selectedStation === 'all' ? {
+    startDate: dateRange.startDate,
+    endDate: dateRange.endDate
+  } : undefined);
+  
+  // Use the appropriate response based on station selection
+  const { data: expensesResponse, isLoading: expensesLoading, error: expensesError, refetch: refetchExpenses } = 
+    selectedStation === 'all' ? allExpensesQuery : stationExpensesQuery;
 
   // Fetch analytics data
   const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery({
@@ -268,7 +287,7 @@ export default function Reports() {
   // Extract expenses from response
   const expenses = useMemo(() => {
     if (expensesResponse && 'data' in expensesResponse) {
-      return (expensesResponse as any).data?.data || [];
+      return (expensesResponse as any).data || [];
     }
     return [];
   }, [expensesResponse]);
@@ -572,19 +591,62 @@ export default function Reports() {
         )}
 
         {/* Enhanced Filters - Station Selection Only */}
-        <div className="space-y-4">
-          <FilterBar
-            dateRange={dateRange}
-            onDateRangeChange={() => {}} // Dates controlled by global filter only
-            selectedStation={selectedStation}
-            onStationChange={setSelectedStation}
-            stations={Array.isArray(stations) ? stations : []}
-            onRefresh={handleRefresh}
-            onExportAll={handleExportAll}
-            showRefresh={false}
-            dataType="analytics"
-          />
-        </div>
+        <Card className="border bg-white shadow-sm">
+          <CardContent className="p-3 md:p-4">
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-blue-100 rounded-lg">
+                  <BarChart3 className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">Filters</h3>
+                  <p className="text-sm text-gray-500">Date range controlled by Global Filter</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-sm font-medium">Station</Label>
+                  <Select value={selectedStation} onValueChange={setSelectedStation}>
+                    <SelectTrigger className="w-full py-2 md:py-1">
+                      <SelectValue placeholder="Select Station" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Stations</SelectItem>
+                      {stations.map((station: any) => (
+                        <SelectItem key={station.id} value={station.id}>
+                          {station.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-2 items-end">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleRefresh}
+                    disabled={isRefreshing}
+                    className="flex-1"
+                  >
+                    <RefreshCw className={`w-4 h-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    Refresh
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleExportAll}
+                    className="flex-1"
+                  >
+                    <Download className="w-4 h-4 mr-2" />
+                    Export
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Enhanced Key Metrics */}
         <div className="grid gap-3 sm:gap-4 lg:gap-6 grid-cols-1 sm:grid-cols-3 w-full">
