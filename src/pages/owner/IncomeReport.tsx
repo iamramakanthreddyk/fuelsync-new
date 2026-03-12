@@ -77,7 +77,7 @@ export default function IncomeReport() {
   };
 
   // Fetch report data
-  const { data: reportData, isLoading, error } = useQuery({
+  const { data: rawReportData, isLoading, error } = useQuery({
     queryKey: ['income-report', selectedStation, dateRange],
     queryFn: async () => {
       if (!selectedStation) return null;
@@ -90,6 +90,30 @@ export default function IncomeReport() {
     },
     enabled: !!selectedStation
   });
+
+  // Transform backend response to expected format
+  const reportData = useMemo(() => {
+    if (!rawReportData) return null;
+    
+    const data = rawReportData as any;
+    
+    return {
+      period: data.period || { startDate: dateRange.startDate, endDate: dateRange.endDate },
+      salesBreakdown: {
+        totalSales: data.incomeBreakdown?.calculatedSaleValue || 0,
+        totalLitres: data.summaryMetrics?.totalLiters || 0,
+        transactions: 0,
+        cash: data.incomeBreakdown?.cashReceived || 0,
+        online: data.incomeBreakdown?.onlineReceived || 0,
+        credit: data.incomeBreakdown?.creditPending || 0
+      },
+      creditorsBreakdown: {
+        totalOutstanding: data.receivables?.summary?.totalOutstanding || 0,
+        totalOverdue: data.receivables?.summary?.overdue || 0,
+        creditors: []
+      }
+    };
+  }, [rawReportData, dateRange]);
 
   // Fetch expenses for the date range
   const { data: expensesResponse } = useExpenses(selectedStation || '', {

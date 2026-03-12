@@ -103,22 +103,16 @@ export default function Reports() {
   const { toast } = useToast();
   const { startDate: globalStartDate, endDate: globalEndDate } = useGlobalFilter();
   
-  // Use global filter dates
-  const [dateRange, setDateRange] = useState<DateRange>({
+  // Use ONLY global filter dates - no local override
+  const dateRange: DateRange = {
     startDate: globalStartDate,
     endDate: globalEndDate
-  });
+  };
+  
   const [selectedStation, setSelectedStation] = useState<string>('all');
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
   const [planLimitError, setPlanLimitError] = useState<PlanLimitError | null>(null);
-
-  // Update dateRange when global filter changes
-  useEffect(() => {
-    if (globalStartDate && globalEndDate) {
-      setDateRange({ startDate: globalStartDate, endDate: globalEndDate });
-    }
-  }, [globalStartDate, globalEndDate]);
 
   // Fetch stations
   const { data: stationsResponse } = useStations();
@@ -577,11 +571,11 @@ export default function Reports() {
           </Alert>
         )}
 
-        {/* Enhanced Filters */}
+        {/* Enhanced Filters - Station Selection Only */}
         <div className="space-y-4">
           <FilterBar
             dateRange={dateRange}
-            onDateRangeChange={(range) => setDateRange(range)}
+            onDateRangeChange={() => {}} // Dates controlled by global filter only
             selectedStation={selectedStation}
             onStationChange={setSelectedStation}
             stations={Array.isArray(stations) ? stations : []}
