@@ -7,8 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { getSalesAnalysis } from '@/lib/financial-reporting-api';
+import { analyticsApi } from '@/api/analytics';
 import { useStations } from '@/hooks/api';
 import {
   Scale3d,
@@ -28,7 +27,7 @@ export default function SettlementStationSelector() {
     queryFn: async () => {
       try {
         const today = new Date().toISOString().split('T')[0];
-        const response = await getSalesAnalysis(today, today);
+        const response = await analyticsApi.getSalesAnalysis(today, today);
         
         if (response?.data && Array.isArray(response.data)) {
           return response.data;
@@ -87,7 +86,7 @@ export default function SettlementStationSelector() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {stations.map((station) => {
             const summary = getSummaryForStation(station.id);
-            const hasReadings = summary && summary.totalSaleValue > 0;
+            const hasReadings = summary && summary.totalSales > 0;
 
             return (
               <Card
@@ -115,30 +114,15 @@ export default function SettlementStationSelector() {
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">Sale Value</span>
                           <span className="font-bold text-green-600">
-                            ₹{summary.totalSaleValue.toFixed(2)}
+                            ₹{summary.totalSales.toFixed(2)}
                           </span>
                         </div>
                         <div className="flex items-center justify-between">
                           <span className="text-xs text-muted-foreground">Readings</span>
                           <span className="font-semibold text-gray-700">
-                            {summary.readingsCount || 0}
+                            {summary.readings || 0}
                           </span>
                         </div>
-                        {summary.settlementStatus && (
-                          <div className="flex items-center justify-between pt-1 border-t">
-                            <span className="text-xs text-muted-foreground">Status</span>
-                            <Badge
-                              variant="outline"
-                              className={
-                                summary.settlementStatus === 'settled'
-                                  ? 'bg-green-100 text-green-800'
-                                  : 'bg-yellow-100 text-yellow-800'
-                              }
-                            >
-                              {summary.settlementStatus}
-                            </Badge>
-                          </div>
-                        )}
                       </div>
                       <Button
                         onClick={() => handleSelectStation(station.id)}

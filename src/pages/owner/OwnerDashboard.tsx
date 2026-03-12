@@ -15,7 +15,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
-import { getOwnerStats } from '@/lib/financial-reporting-api';
+import { analyticsApi } from '@/api/analytics';
 import { useStations, usePumps, useFuelPrices } from '@/hooks/api';
 import { useVarianceSummary } from '@/hooks/useVarianceSummary';
 import { safeToFixed, formatCurrency } from '@/lib/format-utils';
@@ -61,7 +61,7 @@ export default function OwnerDashboard() {
     queryKey: ['owner-dashboard-stats', user?.id],
     queryFn: async () => {
       try {
-        const response = await getOwnerStats(user?.id);
+        const response = await analyticsApi.getOwnerStats(user?.id);
         return response ?? null;
       } catch (error) {
         return null;

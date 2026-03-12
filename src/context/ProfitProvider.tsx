@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { getProfitSummary } from '@/lib/financial-reporting-api';
+import { analyticsApi } from '@/api/analytics';
 import type { ProfitSummary } from '@/api/analytics';
 
 interface ProfitContextValue {
@@ -27,7 +27,7 @@ export function ProfitProvider({ stationId, month, children }: ProfitProviderPro
   } = useQuery({
     queryKey: ['profit-summary', stationId, month],
     queryFn: async () => {
-      const response = await getProfitSummary(stationId, month);
+      const response = await analyticsApi.getProfitSummary(stationId, month);
       return response?.data as ProfitSummary;
     },
     staleTime: 5 * 60 * 1000,

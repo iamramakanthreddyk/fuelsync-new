@@ -21,7 +21,7 @@ import {
   aggregateRawReadingsToSalesReports,
 } from '@/hooks/useReportData';
 import { useToast } from '@/hooks/use-toast';
-import { getOwnerAnalytics } from '@/lib/financial-reporting-api';
+import { analyticsApi } from '@/api/analytics';
 import {
   ReportHeader,
   FilterBar,
@@ -247,7 +247,7 @@ export default function Reports() {
   const { data: analyticsData, isLoading: analyticsLoading, refetch: refetchAnalytics } = useQuery({
     queryKey: ['analytics-reports', dateRange, selectedStation],
     queryFn: async () => {
-      const response = await getOwnerAnalytics(
+      const response = await analyticsApi.getOwnerAnalytics(
         dateRange.startDate,
         dateRange.endDate,
         selectedStation !== 'all' ? selectedStation : undefined
@@ -364,7 +364,7 @@ export default function Reports() {
   // Extract expenses from response
   const expenses = useMemo(() => {
     if (expensesResponse && 'data' in expensesResponse) {
-      return expensesResponse.data || [];
+      return (expensesResponse as any).data?.data || [];
     }
     return [];
   }, [expensesResponse]);

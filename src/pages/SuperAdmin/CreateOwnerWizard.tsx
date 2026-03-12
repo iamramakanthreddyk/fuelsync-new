@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { apiClient } from "@/lib/api";
+import { apiClient } from "@/lib/api-client";
 import { getErrorMessage } from '@/lib/errorUtils';
 import { User, Building2, CheckCircle, AlertCircle } from 'lucide-react';
 

@@ -8,7 +8,8 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiClient } from '@/lib/api-client';
-import { getExpenseSummary, type ExpenseSummary } from '@/lib/expenses-api';
+import { expenseApi } from '@/api/expenses';
+import type { ExpenseSummary } from '@/api/expenses';
 import { safeToFixed, formatVolume } from '@/lib/format-utils';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Legend } from 'recharts';
 import { ArrowLeft, Printer, TrendingUp, TrendingDown, AlertCircle, Download } from 'lucide-react';
@@ -59,7 +60,7 @@ export default function DailySalesReport() {
     queryKey: ['daily-expenses', selectedDate, selectedStationId],
     queryFn: async () => {
       if (!selectedStationId) return null;
-      const response = await getExpenseSummary(selectedStationId, selectedDate, selectedDate);
+      const response = await expenseApi.getSummary(selectedStationId, selectedDate, selectedDate);
       return response?.data ?? response;
     },
     enabled: !!selectedStationId

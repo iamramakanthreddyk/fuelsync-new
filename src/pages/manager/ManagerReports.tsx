@@ -11,8 +11,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '@/lib/api-client';
-import { getAllExpenses, groupExpensesByCategory, getExpenseStats, parseExpenseAmount } from '@/lib/expenses-api';
-import type { Expense } from '@/lib/expenses-api';
+import { expenseApi, groupExpensesByCategory, getExpenseStats, parseExpenseAmount } from '@/api/expenses';
+import type { Expense } from '@/api/expenses';
 import { useStations } from '@/hooks/api';
 import { useGlobalFilter } from '@/context/GlobalFilterContext';
 import { useSettlements } from '@/hooks/useReportData';
@@ -85,7 +85,7 @@ export default function ManagerReports() {
   // Fetch expenses list using date range - use expenses endpoint which supports startDate/endDate
   const { data: expensesResponse, isLoading: expensesLoading, error: expensesError } = useQuery({
     queryKey: ['manager-expenses', startDate, endDate],
-    queryFn: () => getAllExpenses(startDate, endDate, 100),
+    queryFn: () => expenseApi.getAll({ startDate, endDate, limit: 100 }),
     enabled: !!startDate && !!endDate,
   });
 

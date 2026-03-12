@@ -20,10 +20,8 @@ import {
   userApi,
   salesApi,
   authApi,
+  configApi,
 } from '@/api';
-// api-wrapper is kept only for the hooks that normalise response and update stores
-import { api as apiWrapper } from '@/lib/api-wrapper';
-import type { NormalizedResponse as ApiResponseType } from '@/lib/api-wrapper';
 import { useStationStore } from '@/store/stationStore';
 import { getApiErrorMessage } from '@/lib/apiErrorHandler';
 import type {
@@ -36,7 +34,6 @@ import type {
   Tank,
   TankRefill,
   User,
-  ConfigResponse,
   SubmitReadingRequest,
   StartShiftRequest,
   EndShiftRequest,
@@ -117,12 +114,7 @@ export const queryKeys = {
 export function useConfig() {
   return useQuery({
     queryKey: queryKeys.config,
-    queryFn: async () => {
-      const res = await apiWrapper.get<ConfigResponse>('/config');
-      // return envelope-like shape expected by callers
-      if (res.success) return { success: true, data: res.data } as unknown as ConfigResponse;
-      throw new Error(res.error.message);
-    },
+    queryFn: () => configApi.get(),
     staleTime: 1000 * 60 * 60, // 1 hour - config rarely changes
   });
 }
@@ -141,16 +133,12 @@ export function useStations() {
     queryKey: queryKeys.stations,
     queryFn: async () => {
       try {
-        const response = await apiWrapper.get<Station[]>('/stations');
+        const response = await stationApi.getAll();
         if (response.success) {
           setStations(response.data as Station[]);
-          return { success: true, data: response.data } as unknown as ApiResponseType<Station[]>;
         }
-
-        // Normalize server side errors into thrown errors so react-query marks it errored
-        throw new Error(response.error.message);
+        return response;
       } catch (error) {
-        // Use centralized error handler
         throw new Error(getApiErrorMessage(error));
       }
     },
@@ -218,14 +206,11 @@ export function usePumps(stationId: string) {
   return useQuery({
     queryKey: queryKeys.pumps(stationId),
     queryFn: async () => {
-      const response = await apiWrapper.get<Pump[]>(`/stations/${stationId}/pumps`);
+      const response = await pumpApi.getAll(stationId);
       if (response.success) {
         setPumps(response.data as Pump[]);
-        return { success: true, data: response.data } as unknown as ApiResponseType<Pump[]>;
       }
-
-      // Throw to allow react-query to surface errors; caller can inspect error object
-      throw new Error(response.error.message);
+      return response;
     },
     enabled: !!stationId,
   });

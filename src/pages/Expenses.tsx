@@ -404,8 +404,8 @@ export default function ExpensesPage() {
     },
   });
 
-  const pending: Expense[] = (pendingQuery.data as any)?.data?.expenses ?? [];
-  const allExpenses: Expense[] = (expensesQuery.data as any)?.data?.expenses ?? [];
+  const pending: Expense[] = (pendingQuery.data as any)?.data?.data ?? [];
+  const allExpenses: Expense[] = (expensesQuery.data as any)?.data?.data ?? [];
 
   // Filter expenses by search and single filter
   const filteredExpenses = allExpenses.filter((exp) => {

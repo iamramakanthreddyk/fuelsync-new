@@ -6,6 +6,7 @@
 
 import { apiClient } from '@/lib/api-client';
 import type { ApiResponse } from '@/lib/api-client';
+import type { ConfigResponse } from '@/types/api';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -53,4 +54,12 @@ export const authApi = {
    */
   changePassword: (currentPassword: string, newPassword: string) =>
     apiClient.put<ApiResponse<null>>('/auth/password', { currentPassword, newPassword }),
+};
+
+/**
+ * Config API — application-level configuration (fuel types, categories, roles, etc.)
+ */
+export const configApi = {
+  /** GET /config */
+  get: () => apiClient.get<ConfigResponse>('/config'),
 };

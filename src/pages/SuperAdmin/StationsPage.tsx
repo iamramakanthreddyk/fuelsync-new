@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
-import { apiClient } from "@/lib/api";
+import { apiClient } from "@/lib/api-client";
 import { getStatusBadgeClasses } from '@/lib/badgeColors';
 import { getUserMessage, getValidationErrors } from "@/lib/error-utils";
 import { handleApiCall } from "@/lib/handleApiCall";

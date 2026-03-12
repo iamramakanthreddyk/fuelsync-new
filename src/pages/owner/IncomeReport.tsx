@@ -7,16 +7,14 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useStations, useExpenses } from '@/hooks/api';
-import { getIncomeReceivablesReport, parseSalesAmount } from '@/lib/financial-reporting-api';
-import { safeToFixed, formatCurrency } from '@/lib/format-utils';
+import { analyticsApi, parseSalesAmount } from '@/api/analytics';
+import { safeToFixed } from '@/lib/format-utils';
 import {
-  TrendingUp, IndianRupee, AlertTriangle, Download,
-  Calendar, CreditCard, DollarSign, TrendingDown
+  TrendingUp, IndianRupee, Download, TrendingDown
 } from 'lucide-react';
 import {
   Select,
@@ -27,25 +25,7 @@ import {
 } from '@/components/ui/select';
 import { DateRangeFilter } from '@/components/filters/DateRangeFilter';
 
-interface IncomeReportData {
-  period: { startDate: string; endDate: string };
-  summaryMetrics: {
-    totalLiters: number;
-    totalSaleValue: number;
-  };
-  incomeBreakdown: {
-    calculatedSaleValue: number;
-    cashReceived: number;
-    onlineReceived: number;
-    creditPending: number;
-  };
-  receivables: {
-    summary: { totalOutstanding: number };
-  };
-  incomeStatement: {
-    netCashIncome: number;
-  };
-}
+
 
 export default function IncomeReport() {
   const { toast } = useToast();
@@ -101,7 +81,7 @@ export default function IncomeReport() {
     queryKey: ['income-report', selectedStation, dateRange],
     queryFn: async () => {
       if (!selectedStation) return null;
-      const response = await getIncomeReceivablesReport(
+      const response = await analyticsApi.getIncomeReceivables(
         selectedStation,
         dateRange.startDate,
         dateRange.endDate
@@ -119,13 +99,13 @@ export default function IncomeReport() {
 
   const expenses = useMemo(() => {
     if (expensesResponse && 'data' in expensesResponse) {
-      return expensesResponse.data || [];
+      return (expensesResponse as any).data?.data || [];
     }
     return [];
   }, [expensesResponse]);
 
   const totalExpenses = useMemo(() => {
-    return expenses.reduce((sum, exp: any) => sum + parseSalesAmount(exp.amount), 0);
+    return expenses.reduce((sum: number, exp: any) => sum + parseSalesAmount(exp.amount), 0);
   }, [expenses]);
 
   const expensesByCategory = useMemo(() => {
@@ -145,12 +125,12 @@ export default function IncomeReport() {
       ['INCOME REPORT'],
       [`Period: ${reportData.period.startDate} to ${reportData.period.endDate}`],
       [],
-      ['Total Sales', reportData.incomeBreakdown.calculatedSaleValue],
-      ['Cash Received', reportData.incomeBreakdown.cashReceived],
-      ['Online Received', reportData.incomeBreakdown.onlineReceived],
-      ['Credit Pending', reportData.incomeBreakdown.creditPending],
-      ['Outstanding Receivables', reportData.receivables.summary.totalOutstanding],
-      ['Net Cash Income', reportData.incomeStatement.netCashIncome]
+      ['Total Sales', reportData.salesBreakdown.totalSales],
+      ['Cash Received', reportData.salesBreakdown.cash],
+      ['Online Received', reportData.salesBreakdown.online],
+      ['Credit Pending', reportData.salesBreakdown.credit],
+      ['Outstanding Receivables', reportData.creditorsBreakdown.totalOutstanding],
+      ['Net Cash Income', reportData.salesBreakdown.totalSales - totalExpenses]
     ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csv], { type: 'text/csv' });
@@ -275,13 +255,13 @@ export default function IncomeReport() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <DollarSign className="w-4 h-4 text-green-600" />
+              <TrendingUp className="w-4 h-4 text-green-600" />
               Total Sales
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-green-600">
-              ₹{reportData.incomeBreakdown.calculatedSaleValue.toLocaleString('en-IN')}
+              ₹{reportData.salesBreakdown.totalSales.toLocaleString('en-IN')}
             </div>
           </CardContent>
         </Card>
@@ -295,7 +275,7 @@ export default function IncomeReport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              ₹{reportData.incomeBreakdown.cashReceived.toLocaleString('en-IN')}
+              ₹{reportData.salesBreakdown.cash.toLocaleString('en-IN')}
             </div>
           </CardContent>
         </Card>
@@ -317,13 +297,13 @@ export default function IncomeReport() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
-              <CreditCard className="w-4 h-4 text-orange-600" />
+              <IndianRupee className="w-4 h-4 text-orange-600" />
               Outstanding
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-orange-600">
-              ₹{reportData.receivables.summary.totalOutstanding.toLocaleString('en-IN')}
+              ₹{reportData.creditorsBreakdown.totalOutstanding.toLocaleString('en-IN')}
             </div>
           </CardContent>
         </Card>
@@ -337,7 +317,7 @@ export default function IncomeReport() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-purple-600">
-              ₹{(reportData.incomeStatement.netCashIncome - totalExpenses).toLocaleString('en-IN')}
+              ₹{(reportData.salesBreakdown.totalSales - totalExpenses).toLocaleString('en-IN')}
             </div>
           </CardContent>
         </Card>
@@ -353,21 +333,21 @@ export default function IncomeReport() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="text-center p-4 bg-green-50 rounded-lg">
               <div className="text-2xl font-bold text-green-600 mb-1">
-                ₹{reportData.incomeBreakdown.cashReceived.toLocaleString('en-IN')}
+                ₹{reportData.salesBreakdown.cash.toLocaleString('en-IN')}
               </div>
               <div className="text-sm text-muted-foreground">Cash</div>
             </div>
 
             <div className="text-center p-4 bg-blue-50 rounded-lg">
               <div className="text-2xl font-bold text-blue-600 mb-1">
-                ₹{reportData.incomeBreakdown.onlineReceived.toLocaleString('en-IN')}
+                ₹{reportData.salesBreakdown.online.toLocaleString('en-IN')}
               </div>
               <div className="text-sm text-muted-foreground">Online</div>
             </div>
 
             <div className="text-center p-4 bg-orange-50 rounded-lg">
               <div className="text-2xl font-bold text-orange-600 mb-1">
-                ₹{reportData.incomeBreakdown.creditPending.toLocaleString('en-IN')}
+                ₹{reportData.salesBreakdown.credit.toLocaleString('en-IN')}
               </div>
               <div className="text-sm text-muted-foreground">Credit</div>
             </div>
@@ -403,8 +383,8 @@ export default function IncomeReport() {
           <div className="text-center">
             <h3 className="text-lg font-semibold mb-2">Period Summary</h3>
             <p className="text-muted-foreground mb-4">
-              {safeToFixed(reportData.summaryMetrics.totalLiters, 0)} liters sold •
-              ₹{reportData.incomeBreakdown.calculatedSaleValue.toLocaleString('en-IN')} total sales
+              {safeToFixed(reportData.salesBreakdown.totalLitres, 0)} liters sold •
+              ₹{reportData.salesBreakdown.totalSales.toLocaleString('en-IN')} total sales
             </p>
             <div className="text-sm text-muted-foreground">
               Report generated on {new Date().toLocaleDateString('en-IN')}
