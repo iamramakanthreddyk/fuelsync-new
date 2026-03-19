@@ -53,12 +53,8 @@ import {
   Zap,
   Building2,
   Fuel,
-  AlertTriangle,
-  Plus,
-  Trash2,
-  ChevronDown
+  AlertTriangle
 } from 'lucide-react';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { PaymentAllocationForm } from '@/components/features/payment/PaymentAllocationForm';
 
 import type {
@@ -71,10 +67,7 @@ import type {
   ReadingEntry,
   CreditAllocation,
   PaymentAllocation,
-  PaymentSubBreakdown,
-  UpiSubType,
-  CardSubType,
-  OilCompanySubType
+  PaymentSubBreakdown
 } from '@/types/finance';
 
 // Utility function to calculate litres and sale value for a nozzle
@@ -331,34 +324,6 @@ export default function QuickDataEntryEnhanced() {
     };
   }, [readings, pumps, fuelPrices, allLastReadings]);
 
-  // Calculate payment allocation match status
-  const paymentMatchStatus = useMemo(() => {
-    const nonSampleEntries = Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0 && !r.is_sample);
-    
-    // If no non-sample readings, payment allocation is not required
-    if (nonSampleEntries.length === 0) {
-      return { isMatched: true, allocated: 0, required: 0, difference: 0 };
-    }
-
-    const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
-    
-    // Use breakdown total if it exists and is greater than the explicit online field
-    // This ensures reconciliation works even if breakdown is entered but online field not yet synced
-    const breakdownTotal = calculateOnlineBreakdownTotal(paymentAllocation.onlineBreakdown);
-    const onlineAmount = Math.max(toNumber(paymentAllocation.online), breakdownTotal);
-    
-    const allocated = toNumber(paymentAllocation.cash) + onlineAmount + totalCredit;
-    const required = saleSummary.totalSaleValue;
-    const difference = allocated - required;
-
-    return {
-      isMatched: Math.abs(difference) <= 0.01,
-      allocated,
-      required,
-      difference
-    };
-  }, [readings, paymentAllocation, saleSummary.totalSaleValue]);
-
   // Calculate non-sample readings count for UI logic
   const nonSampleReadings = useMemo(() => {
     return Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0 && !r.is_sample);
@@ -399,49 +364,6 @@ export default function QuickDataEntryEnhanced() {
       }));
     }
   }, [saleSummary.totalSaleValue, paymentAllocation]);
-
-  const { onlineBreakdown, online } = paymentAllocation;
-
-  // Initialize online breakdown when online > 0
-  useEffect(() => {
-    const onlineAmount = toNumber(String(online));
-    if (onlineAmount > 0 && !onlineBreakdown) {
-      setPaymentAllocation(prev => ({
-        ...prev,
-        onlineBreakdown: initializeOnlineBreakdown()
-      }));
-    } else if (onlineAmount === 0) {
-      setPaymentAllocation(prev => ({
-        ...prev,
-        onlineBreakdown: null
-      }));
-    }
-  }, [online, onlineBreakdown]);
-
-  // Auto-open payment breakdown when online payment is entered
-  useEffect(() => {
-    const onlineAmount = toNumber(String(online));
-    if (onlineAmount > 0) {
-      setIsPaymentBreakdownOpen(true);
-    }
-  }, [online]);
-
-  // Auto-sync online payment with breakdown total (reconciliation)
-  useEffect(() => {
-    const breakdownTotal = calculateOnlineBreakdownTotal(onlineBreakdown);
-    const currentOnline = toNumber(online);
-
-    // If breakdown total exists and differs from online field, sync them
-    if (breakdownTotal > 0 && Math.abs(breakdownTotal - currentOnline) > 0.01) {
-      // Update online field to match breakdown and adjust cash to compensate
-      const difference = breakdownTotal - currentOnline;
-      setPaymentAllocation(prev => ({
-        ...prev,
-        online: breakdownTotal.toString(),
-        cash: Math.max(0, toNumber(prev.cash) - difference).toString()
-      }));
-    }
-  }, [onlineBreakdown, online]);
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
