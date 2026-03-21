@@ -1,12 +1,39 @@
 /**
+ * Station Controller
+ * Station, Pump, and Nozzle management
+ * 
+ * MULTI-STATION SUPPORT:
+ * - Owner can have multiple stations
+ * - Station.ownerId links to owner User
+ * - Staff have User.stationId for their assigned station
+ * 
+ * AUDIT LOGGING:
+ * - All CREATE, UPDATE, DELETE operations logged to AuditLog
+ * - Tracks: station creation, pump/nozzle changes, price updates
+ */
+
+// ===== SERVICE LAYER =====
+const services = require('../services');
+
+// ===== MODEL & DATABASE ACCESS =====
+const { models, sequelize } = require('../services/modelAccess');
+const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading } = models;
+
+// ===== SEQUELIZE UTILITIES =====
+const { Op, fn, col } = require('sequelize');
+
+// ===== UTILITIES =====
+const { logAudit } = require('../utils/auditLog');
+const { FUEL_TYPES } = require('../config/constants');
+const { calculateDeduplicatedTotals, formatReadingResponse, validateReadingSequence, calculateSaleValue, calculateLitresSold } = require('../utils/readingHelpers');
+
+// ===== CONSTANTS =====
+const EXCLUDE_SAMPLE_READINGS = { isSample: { [Op.ne]: true } };
+
+/**
  * Get readings for a station (test compatibility)
  * GET /stations/:stationId/readings
  */
-
-// Filter to exclude sample readings from all queries
-const { Op } = require('sequelize');
-const EXCLUDE_SAMPLE_READINGS = { isSample: { [Op.ne]: true } };
-
 exports.getStationReadings = async (req, res, next) => {
   try {
     const { stationId } = req.params;
@@ -55,71 +82,6 @@ exports.getStationReadings = async (req, res, next) => {
     next(error);
   }
 };
-/**
- * Station Controller
- * Station, Pump, and Nozzle management
- * 
- * MULTI-STATION SUPPORT:
- * - Owner can have multiple stations
- * - Station.ownerId links to owner User
- * - Staff have User.stationId for their assigned station
- * 
- * AUDIT LOGGING:
- * - All CREATE, UPDATE, DELETE operations logged to AuditLog
- * - Tracks: station creation, pump/nozzle changes, price updates
- */
-
-const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, sequelize } = require('../models');
-const { logAudit } = require('../utils/auditLog');
-const { fn, col } = require('sequelize');
-const { FUEL_TYPES } = require('../config/constants');
-const settlementVerificationService = require('../services/settlementVerificationService');
-
-// Helper: deduplicate payment totals across readings (shared)
-// Accepts either raw NozzleReading DB objects or the mapped reading objects
-const calcDeduplicatedTotals = (items) => {
-  const seen = new Set();
-  const acc = { cash: 0, online: 0, credit: 0, litres: 0, value: 0 };
-
-  items.forEach((r) => {
-    const litres = parseFloat(r.litresSold || r.litres || 0) || 0;
-    const value = parseFloat(r.saleValue || r.totalAmount || r.value || 0) || 0;
-    acc.litres += litres;
-    acc.value += value;
-
-    const cash = parseFloat(
-      (r.cashAmount ?? r.cash ?? (r.transaction && r.transaction.paymentBreakdown && r.transaction.paymentBreakdown.cash) ?? 0) || 0
-    );
-    const online = parseFloat(
-      (r.onlineAmount ?? r.online ?? (r.transaction && r.transaction.paymentBreakdown && r.transaction.paymentBreakdown.online) ?? 0) || 0
-    );
-    const credit = parseFloat(
-      (r.creditAmount ?? r.credit ?? (r.transaction && r.transaction.paymentBreakdown && r.transaction.paymentBreakdown.credit) ?? 0) || 0
-    );
-
-    // Req #1: prefer assignedEmployeeId (responsible employee) for dedup key
-    const employeeId = r.assignedEmployeeId || (r.recordedBy && r.recordedBy.id) || r.enteredBy || (r.enteredByUser && r.enteredByUser.id) || r.createdBy || 'unknown';
-
-    if (cash > 0 || online > 0 || credit > 0) {
-      const key = `${employeeId}|${cash.toFixed(2)}|${online.toFixed(2)}|${credit.toFixed(2)}`;
-      if (!seen.has(key)) {
-        seen.add(key);
-        acc.cash += cash;
-        acc.online += online;
-        acc.credit += credit;
-      }
-    } else {
-      const legacyKey = `legacy|${r.id}`;
-      if (!seen.has(legacyKey)) {
-        seen.add(legacyKey);
-        acc.cash += value;
-      }
-    }
-  });
-
-  return acc;
-};
-
 // ============================================
 // HELPER: Check if user can access station
 // ============================================
@@ -1461,9 +1423,6 @@ exports.getReadingsForSettlement = async (req, res, next) => {
 
     const queryDate = date || new Date().toISOString().split('T')[0];
 
-    const { NozzleReading, Nozzle, User, Settlement, DailyTransaction } = require('../models');
-    const { Op } = require('sequelize');
-
     // Fetch all readings for this station/date with details
     const readings = await NozzleReading.findAll({
       where: {
@@ -1684,8 +1643,6 @@ exports.recordSettlement = async (req, res, next) => {
     const calculatedVariance = parsedExpectedCash - parsedActualCash;
 
     // Fetch employee-reported totals exclusively from DailyTransaction (source-of-truth)
-    const { DailyTransaction } = require('../models');
-    const { Op } = require('sequelize');
 
     let transactions = [];
     if (readingIds && Array.isArray(readingIds) && readingIds.length > 0) {
@@ -1738,8 +1695,6 @@ exports.recordSettlement = async (req, res, next) => {
     }
 
     // Persist settlement
-    const sequelize = require('../models').sequelize;
-    const { Settlement } = require('../models');
 
     const t = await sequelize.transaction();
     try {
@@ -1823,7 +1778,7 @@ exports.recordSettlement = async (req, res, next) => {
       // Verify settlement integrity if finalizing
       if (isFinal) {
         try {
-          const verificationResult = await settlementVerificationService.verifySettlementComplete(
+          const verificationResult = await services.settlementVerificationService.verifySettlementComplete(
             record.id,     // settlementId
             stationId,     // stationId
             settlementDate, // date (should match settlement.date)
@@ -1924,7 +1879,7 @@ exports.getSettlements = async (req, res, next) => {
     }
 
     // Query persisted settlements with variance analysis
-    const { Settlement, User, DailyTransaction } = require('../models');
+
     // Build date filter if provided
     const whereClause = { stationId };
     if (startDate && endDate) {
@@ -2045,7 +2000,7 @@ exports.getVarianceSummary = async (req, res, next) => {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
 
-    const { Settlement, DailyTransaction } = require('../models');
+
     const { Op } = require('sequelize');
 
     const where = { stationId };
@@ -2174,7 +2129,7 @@ exports.getSettlementVsSales = async (req, res, next) => {
 
     const queryDate = date || new Date().toISOString().split('T')[0];
 
-    const { Settlement, NozzleReading } = require('../models');
+
 
     // Get settlement for the day
     const settlement = await Settlement.findOne({
@@ -2189,10 +2144,10 @@ exports.getSettlementVsSales = async (req, res, next) => {
         queryDate
       ),
       include: [{
-        model: require('../models').Nozzle,
+        model: Nozzle,
         attributes: ['nozzleNumber'],
         include: [{
-          model: require('../models').Pump,
+          model: Pump,
           attributes: ['pumpNumber']
         }]
       }],
@@ -2207,7 +2162,6 @@ exports.getSettlementVsSales = async (req, res, next) => {
     });
 
     // Aggregate payment breakdown from DailyTransaction (source of tender entries)
-    const { DailyTransaction } = require('../models');
     const txns = await DailyTransaction.findAll({ where: { stationId, transactionDate: queryDate }, raw: true });
     let totalCashSales = 0, totalOnlineSales = 0, totalCreditSales = 0;
     txns.forEach(tx => {
@@ -2371,8 +2325,7 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
       });
     }
 
-    const { Station } = require('../models');
-    const employeeShortfallsService = require('../services/employeeShortfallsService');
+
 
     // Handle "all" case - get shortfalls for all user's stations
     let stationIds = [stationId];
@@ -2442,7 +2395,7 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
     
     for (const sid of stationIds) {
       try {
-        const shortfalls = await employeeShortfallsService.getEmployeeShortfallsForDateRange({
+        const shortfalls = await services.employeeShortfallsService.getEmployeeShortfallsForDateRange({
           stationId: sid,
           startDate,
           endDate
@@ -2554,8 +2507,7 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
       });
     }
 
-    const { Station } = require('../models');
-    const employeeSalesService = require('../services/employeeSalesService');
+
 
     // Handle "all" case - get sales for all user's stations
     let stationIds = [stationId];
@@ -2638,7 +2590,7 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
     for (const sid of stationIds) {
       try {
         console.log(`[EmployeeSalesBreakdown] Fetching data for station ${sid}...`);
-        const sales = await employeeSalesService.getEmployeeSalesBreakdown({
+        const sales = await services.employeeSalesService.getEmployeeSalesBreakdown({
           stationId: sid,
           startDate,
           endDate
@@ -2795,7 +2747,7 @@ exports.getAllExpenses = async (req, res, next) => {
       });
     }
 
-    const { Station, Expense: ExpenseModel, User: UserModel, sequelize } = require('../models');
+
 
     // Determine which stations user can access
     let stationIds = [];
