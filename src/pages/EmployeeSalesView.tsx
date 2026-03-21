@@ -6,9 +6,9 @@ import {
   CardHeader,
   CardTitle
 } from "@/components/ui/card";
-import { useSalesData } from "@/hooks/useSalesData";
+import { useSales, usePumps } from "@/hooks/api";
+import { unwrapDataOrArray } from '@/lib/api-utils';
 import { useRoleAccess } from "@/hooks/useRoleAccess";
-import { usePumpsData } from "@/hooks/usePumpsData";
 import { SalesCharts } from "@/components/SalesCharts";
 import { SalesFilterBar } from "@/components/SalesFilterBar";
 import { SalesTable } from "@/components/SalesTable";
@@ -22,8 +22,12 @@ export default function EmployeeSalesView() {
   const isMobile = useIsMobile();
 
   const { currentStation } = useRoleAccess();
-  const { data: sales, isLoading } = useSalesData(isToday ? new Date().toISOString().split('T')[0] : undefined);
-  const { data: pumps } = usePumpsData();
+  const salesQuery = useSales(currentStation?.id, isToday ? new Date().toISOString().split('T')[0] : undefined);
+  const sales = unwrapDataOrArray(salesQuery.data, []);
+  const isLoading = salesQuery.isLoading;
+  
+  const pumpsQuery = usePumps(currentStation?.id || '');
+  const pumps = unwrapDataOrArray(pumpsQuery.data, []);
 
   // FILTERS - controlled by filter bar
   const [dateRange, setDateRange] = useState<{ start: Date | null; end: Date | null }>({

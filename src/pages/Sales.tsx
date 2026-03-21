@@ -30,7 +30,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { FUEL_TYPE_LABELS } from '@/lib/constants';
-import { useSalesData } from "@/hooks/useSalesData";
+import { useSales } from "@/hooks/api";
+import { unwrapDataOrArray } from '@/lib/api-utils';
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { safeLower } from '@/lib/stringUtils';
 import { Skeleton } from "@/components/ui/skeleton";
@@ -47,11 +48,13 @@ export default function Sales() {
   const [productType, setProductType] = useState<string>("");
   const [selectedStationId, setSelectedStationId] = useState<number | null>(null);
 
-  const { data: sales, isLoading } = useSalesData(
+  const { data: sales, isLoading } = useSales(
+    canAccessAllStations ? undefined : currentStation?.id,
     undefined,
     dateRange.start ? new Date(dateRange.start).toISOString().split('T')[0] : undefined,
     dateRange.end ? new Date(dateRange.end).toISOString().split('T')[0] : undefined
   );
+  const salesArray = unwrapDataOrArray(sales, []);
   const { currentStation, canAccessAllStations, stations, isManager } = useRoleAccess();
 
   const normalizeFuel = (sale: any) => {
@@ -112,7 +115,7 @@ export default function Sales() {
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-xl lg:text-2xl font-bold break-words">
-              ₹{sales?.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+              ₹{salesArray?.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
             </div>
           </CardContent>
         </Card>
@@ -124,7 +127,7 @@ export default function Sales() {
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-xl lg:text-2xl font-bold break-words">
-              {sales?.reduce((sum, sale) => sum + (sale.deltaVolumeL || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || '0.0'} L
+              {salesArray?.reduce((sum, sale) => sum + (sale.deltaVolumeL || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || '0.0'} L
             </div>
           </CardContent>
         </Card>
@@ -135,7 +138,7 @@ export default function Sales() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{sales?.length || 0}</div>
+            <div className="text-lg sm:text-xl lg:text-2xl font-bold">{salesArray?.length || 0}</div>
           </CardContent>
         </Card>
       </div>
@@ -251,9 +254,9 @@ export default function Sales() {
                 </div>
               ))}
             </div>
-          ) : sales && sales.length > 0 ? (
+          ) : salesArray && salesArray.length > 0 ? (
             <div className="space-y-4">
-                  {sales
+                  {salesArray
                 .filter(sale => {
                   const saleFuel = normalizeFuel(sale);
                   if (productType && saleFuel.toUpperCase() !== (productType || '').toUpperCase()) return false;

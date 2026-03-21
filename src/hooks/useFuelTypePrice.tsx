@@ -6,7 +6,8 @@
  */
 
 import { useMemo } from 'react';
-import { useFuelPricesData } from './useFuelPricesData';
+import { useFuelPrices } from './api';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 
 export interface FuelTypePriceStatus {
   hasPriceForType: boolean;
@@ -21,7 +22,8 @@ export interface FuelTypePriceStatus {
  * @returns Whether the fuel type has a price set
  */
 export function useFuelTypePrice(stationId?: string, fuelType?: string): FuelTypePriceStatus {
-  const { data: fuelPrices } = useFuelPricesData(stationId);
+  const fuelPricesQuery = useFuelPrices(stationId || '');
+  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
 
   const status = useMemo<FuelTypePriceStatus>(() => {
     if (!fuelType) {

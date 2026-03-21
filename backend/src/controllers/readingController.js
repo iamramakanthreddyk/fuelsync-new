@@ -26,41 +26,26 @@
 
 const { NozzleReading, Nozzle, Pump, Station, User, Shift, sequelize } = require('../models');
 const { Op } = require('sequelize');
+const { NotFoundError, AuthorizationError, AuthenticationError } = require('../utils/errors');
 const { canAccessStation } = require('../middleware/accessControl');
-const { logAudit } = require('../utils/auditLog');
 const readingValidation = require('../services/readingValidationService');
 const readingValidationEnhancedService = require('../services/readingValidationEnhancedService');
 const readingCalculation = require('../services/readingCalculationService');
 const readingCache = require('../services/readingCacheService');
 const readingRepository = require('../repositories/readingRepository');
+const readingCreationService = require('../services/readingCreationService');
 
 /**
- * Enter a new nozzle reading (SIMPLIFIED - payment tracking moved to transactions)
+ * Create a nozzle reading
  * POST /api/v1/readings
- * 
- * Now only accepts reading data:
- * - nozzleId, readingDate, readingValue
- * - Optional: pricePerLitre, totalAmount, litresSold, notes
- * 
- * Payment breakdown is now handled via DailyTransaction model
  */
 exports.createReading = async (req, res, next) => {
   try {
-    const userId = req.userId;
+    const user = req.user;
+    if (!user) throw new NotFoundError('User not found');
 
-    // Normalize input (handle camelCase and snake_case)
-    const normalizedInput = readingValidation.normalizeReadingInput(req.body);
-
-    console.log('[DEBUG] createReading received params:', normalizedInput);
-
-    // Validate required fields
-    const requiredValidation = readingValidation.validateRequiredFields(normalizedInput);
-    if (!requiredValidation.isValid) {
-      return res.status(400).json({ success: false, error: requiredValidation.error });
-    }
-
-    // Fetch nozzle with relations
-    const nozzle = await Nozzle.findByPk(normalizedInput.nozzleId, {
+    // Load nozzle with relations
+    const nozzle = await Nozzle.findByPk(req.body.nozzleId, {
       include: [{
         model: Pump,
         as: 'pump',
@@ -68,271 +53,35 @@ exports.createReading = async (req, res, next) => {
       }]
     });
 
-    // Validate nozzle exists and is active
-    const nozzleValidation = readingValidation.validateNozzleActive(nozzle);
-    if (!nozzleValidation.isValid) {
-      return res.status(404).json({ success: false, error: nozzleValidation.error });
+    if (!nozzle) {
+      throw new NotFoundError('Nozzle', req.body.nozzleId);
     }
 
     const stationId = nozzle.pump.stationId;
-    
+
     // Authorization check
-    const user = await User.findByPk(userId);
     if (!(await canAccessStation(user, stationId))) {
-      return res.status(403).json({ success: false, error: 'Not authorized to enter readings for this station' });
+      throw new AuthorizationError('Not authorized to enter readings for this station');
     }
 
-    // --- Req #1: Employee Attribution Validation ---
-    // Only manager/owner can enter readings attributed to another employee
-    let resolvedAssignedEmployeeId = null;
-    if (normalizedInput.assignedEmployeeId) {
-      if (!['manager', 'owner', 'super_admin'].includes(user.role)) {
-        return res.status(403).json({
-          success: false,
-          error: 'Only managers and owners can assign readings to other employees'
-        });
-      }
-      // Verify the assigned employee exists and belongs to the same station
-      const assignedEmployee = await User.findOne({
-        where: {
-          id: normalizedInput.assignedEmployeeId,
-          stationId,
-          role: 'employee',
-          isActive: true
-        }
-      });
-      if (!assignedEmployee) {
-        return res.status(404).json({
-          success: false,
-          error: 'Assigned employee not found at this station or is not an active employee'
-        });
-      }
-      resolvedAssignedEmployeeId = assignedEmployee.id;
-    }
-
-    // Get station settings
+    // Load station
     const station = await Station.findByPk(stationId);
+    if (!station) throw new NotFoundError('Station', stationId);
 
-    // Check if shift is required
-    let activeShift = null;
-    if (station.requireShiftForReadings) {
-      activeShift = await Shift.getActiveShift(userId);
-      if (!activeShift) {
-        return res.status(400).json({
-          success: false,
-          error: 'You must have an active shift to enter readings. Please start your shift first.',
-          requiresShift: true
-        });
-      }
-    } else {
-      activeShift = await Shift.getActiveShift(userId);
-    }
-
-    // Resolve previous reading and determine if initial
-    const { previousReading, previousReadingRecord } = await readingCalculation.resolvePreviousReading(
-      normalizedInput.nozzleId,
-      normalizedInput.readingDate,
-      nozzle.initialReading,
-      normalizedInput.previousReading
+    // Delegate all business logic to service
+    const result = await readingCreationService.createReading(
+      { user, nozzle, station },
+      req.body
     );
-
-    const isInitialReading = readingValidation.determineIsInitial(previousReadingRecord, normalizedInput.previousReading);
-
-    // Validate reading value
-    const readingValidationResult = readingValidation.validateReadingValue(
-      normalizedInput.readingValue,
-      previousReading,
-      isInitialReading
-    );
-    if (!readingValidationResult.isValid) {
-      return res.status(400).json({
-        success: false,
-        error: readingValidationResult.error,
-        previousReading: readingValidationResult.previousReading
-      });
-    }
-
-    // Enhanced validation: Check for duplicates
-    const duplicateCheck = await readingValidationEnhancedService.checkDuplicateReading({
-      nozzleId: normalizedInput.nozzleId,
-      readingDate: normalizedInput.readingDate,
-      readingValue: normalizedInput.readingValue,
-      tolerance: 0.01
-    });
-
-    if (duplicateCheck.isDuplicate) {
-      return res.status(409).json({
-        success: false,
-        error: 'Duplicate reading detected',
-        details: {
-          message: `A reading for nozzle ${normalizedInput.nozzleId} on ${normalizedInput.readingDate} with value ${duplicateCheck.existingReading.readingValue} already exists`,
-          existingReadingId: duplicateCheck.existingReading.id,
-          existingReadingDate: duplicateCheck.existingReading.createdAt
-        }
-      });
-    }
-
-    // Enhanced validation: Check sequence and unusual increases
-    const sequenceValidation = await readingValidationEnhancedService.validateReadingSequence({
-      nozzleId: normalizedInput.nozzleId,
-      currentValue: normalizedInput.readingValue,
-      readingDate: normalizedInput.readingDate,
-      previousValue: previousReading
-    });
-
-    if (!sequenceValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        error: sequenceValidation.error,
-        details: sequenceValidation.details,
-        warnings: sequenceValidation.warnings
-      });
-    }
-
-    // Enhanced validation: Check for meter specifications compliance
-    const meterValidation = await readingValidationEnhancedService.validateMeterSpecifications({
-      nozzleId: normalizedInput.nozzleId,
-      readingValue: normalizedInput.readingValue,
-      fuelType: nozzle.fuelType
-    });
-
-    if (!meterValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        error: meterValidation.error,
-        details: meterValidation.details
-      });
-    }
-
-    // Validate backdated reading
-    try {
-      const stationWithOwner = await Station.findByPk(stationId, {
-        include: [{ model: User, as: 'owner', include: ['plan'] }]
-      });
-      const allowedBackdatedDays = stationWithOwner?.owner?.plan?.backdatedDays ?? 3;
-      const backdateValidation = readingValidation.validateBackdatedReading(normalizedInput.readingDate, allowedBackdatedDays);
-      if (!backdateValidation.isValid) {
-        return res.status(403).json({ success: false, error: backdateValidation.error });
-      }
-    } catch (err) {
-      console.warn('Backdate validation failed, proceeding with default:', err?.message || err);
-    }
-
-    // Populate all calculated fields
-    const calculations = await readingCalculation.populateReadingCalculations({
-      nozzle,
-      readingDate: normalizedInput.readingDate,
-      normalizedInput,
-      stationId
-    });
-
-    // Validate litres sold match
-    const litresValidation = readingValidation.validateLitresSoldMatch(
-      normalizedInput.litresSold,
-      calculations.calculatedLitresSold
-    );
-    if (!litresValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        error: litresValidation.error,
-        details: litresValidation.details
-      });
-    }
-
-    // Create reading
-    const t = await sequelize.transaction();
-    let reading;
-    try {
-      reading = await NozzleReading.create({
-        nozzleId: normalizedInput.nozzleId,
-        stationId,
-        pumpId: nozzle.pumpId || (nozzle.pump ? nozzle.pump.id : null),
-        fuelType: nozzle.fuelType,
-        enteredBy: userId,
-        // Req #1: attribution - null if self-entry, employee ID if entered by manager/owner on behalf
-        assignedEmployeeId: resolvedAssignedEmployeeId,
-        readingDate: normalizedInput.readingDate,
-        readingValue: calculations.currentValue,
-        previousReading: calculations.previousReading,
-        litresSold: calculations.calculatedLitresSold,
-        pricePerLitre: calculations.calculatedPricePerLitre,
-        totalAmount: calculations.calculatedTotalAmount,
-        isInitialReading: calculations.isInitialReading,
-        isSample: normalizedInput.isSample,
-        notes: normalizedInput.notes,
-        shiftId: activeShift?.id || null,
-        // Legacy fields (no longer used in workflow)
-        cashAmount: 0,
-        onlineAmount: 0,
-        creditAmount: 0,
-        creditorId: null,
-        paymentBreakdown: {}
-      }, { transaction: t });
-
-      // Update nozzle cache
-      await readingCache.updateNozzleCacheDirect(
-        normalizedInput.nozzleId,
-        calculations.currentValue,
-        normalizedInput.readingDate
-      );
-
-      // Audit log
-      await logAudit({
-        userId,
-        userEmail: user.email,
-        userRole: user.role,
-        stationId,
-        action: 'CREATE',
-        entityType: 'NozzleReading',
-        entityId: reading.id,
-        newValues: {
-          id: reading.id,
-          nozzleId: normalizedInput.nozzleId,
-          litresSold: calculations.calculatedLitresSold,
-          totalAmount: calculations.calculatedTotalAmount,
-          fuelType: nozzle.fuelType,
-          assignedEmployeeId: resolvedAssignedEmployeeId,
-          enteredBy: userId
-        },
-        category: 'data',
-        severity: 'info',
-        description: resolvedAssignedEmployeeId
-          ? `Recorded reading on behalf of employee ${resolvedAssignedEmployeeId}: ${calculations.calculatedLitresSold}L of ${nozzle.fuelType} for ₹${calculations.calculatedTotalAmount.toFixed(2)}`
-          : `Recorded reading: ${calculations.calculatedLitresSold}L of ${nozzle.fuelType} for ₹${calculations.calculatedTotalAmount.toFixed(2)}`
-      });
-
-      await t.commit();
-    } catch (err) {
-      await t.rollback();
-      throw err;
-    }
-
-    // Return with calculated values
-    const readingJson = {
-      ...reading.toJSON(),
-      nozzle: {
-        id: nozzle.id,
-        number: nozzle.nozzleNumber,
-        fuelType: nozzle.fuelType
-      },
-      pump: {
-        id: nozzle.pump.id,
-        name: nozzle.pump.name
-      }
-    };
 
     res.status(201).json({
       success: true,
-      data: readingJson,
-      reading: readingJson,
-      message: calculations.isInitialReading 
-        ? 'Initial reading recorded. This nozzle is now ready for daily entries.'
-        : `Sale recorded: ${calculations.calculatedLitresSold.toFixed(3)}L = ₹${calculations.calculatedTotalAmount.toFixed(2)}. Payment breakdown recorded separately via DailyTransaction.`,
-      note: 'Payment breakdown (cash/online/credit) is NOT stored in readings. Use DailyTransaction API to record payment allocation.'
+      data: result.reading,
+      message: result.metadata.message,
+      note: result.metadata.note
     });
-  } catch (error) {
-    console.error('Create reading error:', error);
-    next(error);
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -349,16 +98,11 @@ exports.getPreviousReading = async (req, res, next) => {
       include: [{ model: Pump, as: 'pump' }]
     });
 
-    if (!nozzle) {
-      return res.status(404).json({ success: false, error: 'Nozzle not found' });
-    }
+    if (!nozzle) throw new NotFoundError('Nozzle', nozzleId);
 
-    let previousReading;
-    if (date) {
-      previousReading = await NozzleReading.getPreviousReading(nozzleId, date);
-    } else {
-      previousReading = await NozzleReading.getLatestReading(nozzleId);
-    }
+    const previousReading = date
+      ? await NozzleReading.getPreviousReading(nozzleId, date)
+      : await NozzleReading.getLatestReading(nozzleId);
 
     const stationId = nozzle.pump.stationId;
     const priceDate = date || new Date().toISOString().split('T')[0];
@@ -385,9 +129,8 @@ exports.getPreviousReading = async (req, res, next) => {
         hasReadings: !!previousReading
       }
     });
-  } catch (error) {
-    console.error('Get previous reading error:', error);
-    next(error);
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -398,27 +141,25 @@ exports.getPreviousReading = async (req, res, next) => {
 exports.getReadings = async (req, res, next) => {
   try {
     const { stationId, pumpId, nozzleId, startDate, endDate, page = 1, limit = 50, employeeId } = req.query;
-    const user = await User.findByPk(req.userId);
+    const user = req.user;
+
+    if (!user) throw new AuthenticationError('User not authenticated');
 
     // Build accessible station IDs based on user role
     let accessibleStationIds = null;
     if (user.role === 'super_admin') {
-      // No filter
       accessibleStationIds = null;
     } else if (user.role === 'owner') {
       const ownerStations = await Station.findAll({ where: { ownerId: user.id } });
       accessibleStationIds = ownerStations.map(s => s.id);
       
-      // Validate user owns the requested station
       if (stationId && !accessibleStationIds.includes(stationId)) {
-        return res.status(403).json({ success: false, error: 'Not authorized to view readings for this station' });
+        throw new AuthorizationError('Not authorized to view readings for this station');
       }
     } else {
-      // Manager/Employee - only own station
       accessibleStationIds = [user.stationId];
     }
 
-    // Get readings with filters
     const offset = (page - 1) * limit;
     const { count, rows } = await readingRepository.getReadingsWithFilters({
       stationId,
@@ -429,11 +170,9 @@ exports.getReadings = async (req, res, next) => {
       offset,
       limit,
       accessibleStationIds,
-      // Req #1: support filtering by employee (handles both self-entry and attributed readings)
       employeeId: employeeId || null,
     });
 
-    // Add saleValue to each reading and enrich with attribution info
     const readingsWithSaleValue = rows.map(r => {
       const obj = r.toJSON();
       obj.saleValue = readingRepository.calculateSaleValue(obj);
@@ -441,13 +180,11 @@ exports.getReadings = async (req, res, next) => {
         obj.transaction.paymentBreakdown = obj.transaction.paymentBreakdown || obj.transaction.payment_breakdown || {};
         obj.transaction.paymentSubBreakdown = obj.transaction.paymentSubBreakdown || obj.transaction.payment_sub_breakdown || null;
       }
-      // Req #1: Compute effective employee (who this reading "belongs to" for reports)
       obj.effectiveEmployee = obj.assignedEmployee || obj.enteredByUser || null;
       obj.wasEnteredOnBehalf = !!obj.assignedEmployeeId;
       return obj;
     });
 
-    // Separate linked/unlinked
     const linkedReadings = readingsWithSaleValue.filter(r => r.settlementId);
     const { unlinkedReadings, totals } = readingRepository.getUnlinkedReadingsWithTotals(readingsWithSaleValue);
 
@@ -473,9 +210,8 @@ exports.getReadings = async (req, res, next) => {
         totalPages: Math.ceil(count / limit)
       }
     });
-  } catch (error) {
-    console.error('Get readings error:', error);
-    next(error);
+  } catch (err) {
+    next(err);
   }
 };
 
@@ -486,22 +222,18 @@ exports.getReadings = async (req, res, next) => {
 exports.getReadingById = async (req, res, next) => {
   try {
     const { id } = req.params;
+    const user = req.user;
 
     const reading = await readingRepository.getReadingWithRelations(id);
-    if (!reading) {
-      return res.status(404).json({ success: false, error: 'Reading not found' });
-    }
+    if (!reading) throw new NotFoundError('Reading', id);
 
-    // Authorization check
-    const user = await User.findByPk(req.userId);
     if (!(await canAccessStation(user, reading.stationId))) {
-      return res.status(403).json({ success: false, error: 'Not authorized to view this reading' });
+      throw new AuthorizationError('Not authorized to view this reading');
     }
 
     res.json({ success: true, data: reading });
-  } catch (error) {
-    console.error('Get reading by ID error:', error);
-    next(error);
+  } catch (err) {
+    next(err);
   }
 };
 

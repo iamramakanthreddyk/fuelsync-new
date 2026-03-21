@@ -1,11 +1,9 @@
 
 import { useNavigate } from "react-router-dom";
-import { useFuelPricesData } from "@/hooks/useFuelPricesData";
-import { useFuelPrices } from '@/hooks/api';
+import { useFuelPrices, useDashboardSummary } from '@/hooks/api';
 import { unwrapDataOrObject, unwrapDataOrArray } from '@/lib/api-utils';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
-import { useDashboardData } from "@/hooks/useDashboardData";
 import { useAuth } from "@/hooks/useAuth";
 import { getBasePath } from "@/lib/roleUtils";
 
@@ -15,11 +13,11 @@ export function useSetupChecklist() {
   const { currentStation } = useRoleAccess();
   const { pricesArray, pricesByStation } = useFuelPricesGlobal();
   const stationId = currentStation?.id || user?.stations?.[0]?.id;
-  const { data: fuelPrices } = useFuelPricesData(stationId);
-  // Also check the direct API hook to read the `current` wrapper (ApiResponse.data.current)
   const fuelPricesQuery = useFuelPrices(stationId || '');
+  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
   const apiPricesCurrent = unwrapDataOrObject(fuelPricesQuery.data, null)?.current ?? [];
-  const { data } = useDashboardData();
+  const dashboardQuery = useDashboardSummary(stationId || '');
+  const dashboardData = unwrapDataOrObject(dashboardQuery.data, undefined);
 
   // Check if user has any stations
   const hasStations = user?.stations && user.stations.length > 0;
@@ -57,7 +55,7 @@ export function useSetupChecklist() {
       checklist.push({
         key: "sales_data_entered",
         label: "Enter your first reading",
-        completed: !!data && data.totalReadings > 0,
+        completed: !!dashboardData && dashboardData.today?.readings > 0,
         action: () => navigate(`${getBasePath(user?.role)}/quick-entry`),
       });
     } else if (user?.role === 'manager' || user?.role === 'owner') {
@@ -66,7 +64,7 @@ export function useSetupChecklist() {
       checklist.push({
         key: "station_active_today",
         label: "Check station operations today",
-        completed: !!data && data.totalReadings > 0,
+        completed: !!dashboardData && dashboardData.today?.readings > 0,
         action: () => navigate(`${getBasePath(user?.role)}/dashboard`),
       });
     }

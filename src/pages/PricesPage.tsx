@@ -8,7 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { IndianRupee, Building2 } from "lucide-react";
-import { useFuelPricesData } from "@/hooks/useFuelPricesData";
+import { useFuelPrices } from "@/hooks/api";
+import { unwrapDataOrArray } from '@/lib/api-utils';
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { FuelPriceDialog } from "@/components/prices/FuelPriceDialog";
 import { FuelPricesGrid } from '@/components/prices/FuelPricesGrid';
@@ -57,7 +58,9 @@ export default function PricesPage() {
   }, [routeStationId, selectedStationId, stations]);
   
   // Fetch prices for the SELECTED station (not relying on currentStation)
-  const { data: fuelPrices, error: pricesError } = useFuelPricesData(defaultStationId);
+  const fuelPricesQuery = useFuelPrices(defaultStationId);
+  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
+  const pricesError = fuelPricesQuery.error;
   
   // Get the currently selected station details
   const currentStation = useMemo(() => {

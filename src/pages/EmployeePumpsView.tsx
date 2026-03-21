@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { usePumpsData } from "@/hooks/usePumpsData";
+import { usePumps } from "@/hooks/api";
+import { unwrapDataOrArray } from '@/lib/api-utils';
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { Fuel, Gauge, ClipboardEdit } from "lucide-react";
@@ -12,7 +13,9 @@ import { useNavigate } from 'react-router-dom';
 export default function EmployeePumpsView() {
   const navigate = useNavigate();
   const { currentStation } = useRoleAccess();
-  const { data: pumps, isLoading } = usePumpsData(currentStation?.id || '');
+  const pumpsQuery = usePumps(currentStation?.id || '');
+  const pumps = unwrapDataOrArray(pumpsQuery.data, []);
+  const isLoading = pumpsQuery.isLoading;
 
   if (isLoading) {
     return (
@@ -41,10 +44,10 @@ export default function EmployeePumpsView() {
     );
   }
 
-  const activePumps = Array.isArray(pumps) ? pumps.filter(pump => pump.status === EquipmentStatusEnum.ACTIVE) : [];
-  const totalNozzles = Array.isArray(pumps) ? pumps.reduce((total, pump) => total + (pump.nozzles?.length || 0), 0) : 0;
-  const activeNozzles = Array.isArray(pumps) ? pumps.reduce((total, pump) =>
-    total + (pump.nozzles?.filter(nozzle => nozzle.status === EquipmentStatusEnum.ACTIVE).length || 0), 0) : 0;
+  const activePumps = pumps.filter(pump => pump.status === EquipmentStatusEnum.ACTIVE);
+  const totalNozzles = pumps.reduce((total, pump) => total + (pump.nozzles?.length || 0), 0);
+  const activeNozzles = pumps.reduce((total, pump) =>
+    total + (pump.nozzles?.filter(nozzle => nozzle.status === EquipmentStatusEnum.ACTIVE).length || 0), 0);
 
   return (
     <div className="w-full flex flex-col gap-6 md:gap-8">

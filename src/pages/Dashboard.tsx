@@ -4,12 +4,13 @@ import { IndianRupee, TrendingUp, Clock, AlertTriangle, Lock, Plus, BarChart3, B
 import { TrendsChart } from "@/components/dashboard/TrendsChart";
 import { FuelPriceCard } from "@/components/dashboard/FuelPriceCard";
 import { AlertBadges } from "@/components/dashboard/AlertBadges";
-import { useDashboardData } from "@/hooks/useDashboardData";
+import { useDashboardSummary, useFuelPrices } from "@/hooks/api";
+import { unwrapDataOrObject, unwrapDataOrArray } from '@/lib/api-utils';
+import { normalizeFuelType } from "@/core/fuel/fuelConfig";
 import { UpgradeModal } from "@/components/dashboard/UpgradeModal";
 import { useState, useEffect } from "react";
 import { getBasePath } from '@/lib/roleUtils';
 import { useActivityLogger } from "@/hooks/useActivityLogger";
-import { useFuelPricesData, normalizeFuelType } from "@/hooks/useFuelPricesData";
 import { useFuelPricesGlobal } from "../context/FuelPricesContext";
 import { Button } from "@/components/ui/button";
 import { useRoleAccess } from "@/hooks/useRoleAccess";
@@ -25,10 +26,25 @@ import { useNavigate } from "react-router-dom";
 export default function Dashboard() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { data, isLoading } = useDashboardData();
+  const roleAccess = useRoleAccess();
+  const { currentStation, isEmployee } = roleAccess;
+  
+  const dashboardQuery = useDashboardSummary(currentStation?.id || user?.stations?.[0]?.id || '');
+  const dashboardPayload = unwrapDataOrObject(dashboardQuery.data, undefined);
+  const isLoading = dashboardQuery.isLoading;
   
   // Provide default data structure to prevent crashes
-  const dashboardData = data || {
+  const dashboardData = dashboardPayload ? {
+    todaySales: dashboardPayload.today?.amount ?? 0,
+    todayPayments: (dashboardPayload.today?.cash ?? 0) + (dashboardPayload.today?.online ?? 0) + (dashboardPayload.today?.credit ?? 0),
+    totalReadings: dashboardPayload.today?.readings ?? 0,
+    pendingClosures: 0,
+    trendsData: [],
+    fuelPrices: {},
+    alerts: [],
+    lastReading: null,
+    today: dashboardPayload.today
+  } : {
     todaySales: 0,
     todayPayments: 0,
     totalReadings: 0,
@@ -49,10 +65,9 @@ export default function Dashboard() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const roleAccess = useRoleAccess();
-  const { currentStation, isEmployee } = roleAccess;
-
-  const { data: fuelPricesList, isLoading: isPricesLoading } = useFuelPricesData(currentStation?.id);
+  const fuelPricesQuery = useFuelPrices(currentStation?.id || '');
+  const fuelPricesList = unwrapDataOrArray(fuelPricesQuery.data, []);
+  const isPricesLoading = fuelPricesQuery.isLoading;
 
   const { setStationId } = useFuelPricesGlobal();
 

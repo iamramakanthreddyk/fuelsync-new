@@ -11,8 +11,7 @@
 
 import { useMemo } from 'react';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
-import { usePumps } from './api';
-import { useFuelPricesData } from './useFuelPricesData';
+import { usePumps, useFuelPrices } from './api';
 import { unwrapDataOrArray } from '@/lib/api-utils';
 
 export interface StationFuelPricesStatus {
@@ -30,7 +29,8 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
   const { pricesByStation } = useFuelPricesGlobal();
   const pumpsQuery = usePumps(stationId || '');
   const pumpsResponse = pumpsQuery.data;
-  const { data: fuelPricesData, isLoading: fuelPricesLoading } = useFuelPricesData(stationId);
+  const fuelPricesQuery = useFuelPrices(stationId || '');
+  const fuelPricesData = unwrapDataOrArray(fuelPricesQuery.data, []);
 
   return useMemo(() => {
     if (!stationId) {

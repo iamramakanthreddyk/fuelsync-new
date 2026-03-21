@@ -19,7 +19,8 @@ import { safeToFixed } from '@/lib/format-utils';
 import { PricesRequiredAlert } from '@/components/alerts/PricesRequiredAlert';
 import { FuelTypeSelect } from '@/components/FuelTypeSelect';
 import { FUEL_TYPE_LABELS } from '@/lib/constants';
-import { useFuelPricesData } from '@/hooks/useFuelPricesData';
+import { useFuelPrices } from '@/hooks/api';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 import { getFuelColors } from '@/lib/fuelColors';
 import { PaymentSplit, SaleCalculation } from '@/components/readings';
 import type { PaymentSplitData } from '@/components/readings';
@@ -48,7 +49,8 @@ interface RefillData {
 
 export default function DataEntry() {
   // Fetch global fuel prices for the selected station
-  const { data: fuelPrices = [] } = useFuelPricesData();
+  const fuelPricesQuery = useFuelPrices('');
+  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [selectedStation, setSelectedStation] = useState<string | null>(null);

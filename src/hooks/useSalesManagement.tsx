@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiClient, ApiResponse } from "@/lib/api-client";
 import { useAuth } from "./useAuth";
-import { Sale } from "./useSalesData";
+import type { Sale } from './api';
 
 interface ManualEntryData {
   station_id: number;

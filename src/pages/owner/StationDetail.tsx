@@ -51,7 +51,8 @@ import {
   Calendar,
   RefreshCw
 } from 'lucide-react';
-import { useFuelPricesData } from '@/hooks/useFuelPricesData';
+import { useFuelPrices } from '@/hooks/api';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 import { PermissionGuard } from '@/hooks/usePermissions';
 
 // Import enums and types
@@ -548,8 +549,10 @@ export default function StationDetail() {
     });
   };
 
-  // Fetch fuel prices using the custom hook - MUST be called before ANY early returns
-  const { data: fuelPrices, isLoading: fuelPricesLoading } = useFuelPricesData(id);
+  // Fetch fuel prices using the API hook - MUST be called before ANY early returns
+  const fuelPricesQuery = useFuelPrices(id || '');
+  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
+  const fuelPricesLoading = fuelPricesQuery.isLoading;
 
   if (stationLoading) {
     return (

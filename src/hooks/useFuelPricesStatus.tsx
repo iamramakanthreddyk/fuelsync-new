@@ -8,7 +8,8 @@
  */
 
 import { useMemo } from 'react';
-import { useFuelPricesData } from './useFuelPricesData';
+import { useFuelPrices } from './api';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 import { useRoleAccess } from './useRoleAccess';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { FuelTypeEnum } from '@/core/enums';
@@ -29,7 +30,9 @@ export interface FuelPricesStatus {
  * @param stationId - Optional: Specific station ID to check. If not provided, uses currentStation
  */
 export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
-  const { data: fuelPrices, isLoading } = useFuelPricesData(stationId);
+  const fuelPricesQuery = useFuelPrices(stationId || '');
+  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
+  const isLoading = fuelPricesQuery.isLoading;
   const { currentStation } = useRoleAccess();
   
   const { prices: globalPrices, stationId: ctxStationId } = useFuelPricesGlobal();

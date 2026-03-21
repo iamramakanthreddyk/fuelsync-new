@@ -12,7 +12,8 @@ import { getFuelBadgeClasses, getFuelColors } from '@/lib/fuelColors';
 import { apiClient } from "@/lib/api-client";
 import { Plus, Fuel, Gauge, ClipboardEdit } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { usePumpsData } from "@/hooks/usePumpsData";
+import { usePumps } from "@/hooks/api";
+import { unwrapDataOrArray } from '@/lib/api-utils';
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { EquipmentStatusEnum, FuelTypeEnum, FuelType } from "@/core/enums";
 import { FuelTypeSelect } from '@/components/FuelTypeSelect';
@@ -33,10 +34,10 @@ export default function Pumps() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { currentStation, isOwner, isAdmin } = useRoleAccess();
-  const { data: pumps, isLoading, error } = usePumpsData(currentStation?.id || '');
-  // Normalize response: `usePumps` returns an ApiResponse object ({ success, data })
-  // while legacy consumers expect a raw array. Use `pumpsArray` throughout.
-  const pumpsArray = Array.isArray(pumps) ? pumps : (pumps && (pumps as any).data) ? (pumps as any).data : [];
+  const pumpsQuery = usePumps(currentStation?.id || '');
+  const pumpsArray = unwrapDataOrArray(pumpsQuery.data, []);
+  const isLoading = pumpsQuery.isLoading;
+  const error = pumpsQuery.error;
 
   // Add pump mutation - uses /stations/:stationId/pumps
   const addPumpMutation = useMutation({

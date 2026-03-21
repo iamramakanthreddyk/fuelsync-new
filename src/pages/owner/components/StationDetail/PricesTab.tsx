@@ -5,7 +5,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
-import { useFuelPricesData } from '@/hooks/useFuelPricesData';
+import { useFuelPrices } from '@/hooks/api';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 import { FuelType, FuelTypeEnum } from '@/core/enums';
 import { SetPriceDialog } from './dialogs';
 import { PriceCard } from './cards';
@@ -29,7 +30,10 @@ export default function PricesTab({ id }: PricesTabProps) {
     effectiveFrom: formatDateISO(new Date())
   });
 
-  const { data: fuelPrices, isLoading: fuelPricesLoading, refetch } = useFuelPricesData(id);
+  const fuelPricesQuery = useFuelPrices(id);
+  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
+  const fuelPricesLoading = fuelPricesQuery.isLoading;
+  const refetch = fuelPricesQuery.refetch;
 
   const setPriceMutation = useMutation({
     mutationFn: async (data: { fuelType: string; price: string; costPrice?: string; effectiveFrom: string }) => {

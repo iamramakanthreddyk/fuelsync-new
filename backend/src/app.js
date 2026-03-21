@@ -41,6 +41,8 @@ const { FUEL_TYPES, PAYMENT_METHODS, EXPENSE_CATEGORIES, USER_ROLES } = require(
 // Import middleware
 const normalizeRequestBody = require('./middleware/normalizeRequestBody');
 const { requestTracking } = require('./middleware/requestTracking');
+const errorHandler = require('./middleware/errorHandler');
+const notFoundHandler = require('./middleware/notFoundHandler');
 const healthCheck = require('./utils/healthCheck');
 
 // Create Express app
@@ -266,19 +268,14 @@ const nozzlesRoutes = require('./routes/nozzles');
 const fuelPricesRoutes = require('./routes/fuelPrices');
 const tankRefillsRoutes = require('./routes/tankRefills');
 
-// Legacy /api/* mounts (all route prefixes BEFORE v1 routes to avoid conflicts)
+// Legacy /api/* mounts (SIMPLIFIED - only actual unique endpoints)
+// Removed duplicate tank, shifts, config, plans, activity-logs, admin (use /api/v1/* instead)
 app.use('/api/pumps', pumpsRoutes);
 app.use('/api/nozzles', nozzlesRoutes);
 app.use('/api/fuel-prices', fuelPricesRoutes);
 app.use('/api/tank-refills', tankRefillsRoutes);
-app.use('/api/tanks', tankRoutes);
-app.use('/api/shifts', shiftRoutes);
-app.use('/api/config', configRoutes);
-app.use('/api/plans', planRoutes);
-app.use('/api/activity-logs', activityLogRoutes);
-app.use('/api/admin', adminRoutes);
 
-// v1 compatibility mounts
+// v1 compatibility mounts - CONSOLIDATED ROUTES
 app.use('/api/v1/tank-refills', tankRefillsRoutes);
 app.use('/api/v1/pumps', pumpsRoutes);
 app.use('/api/v1/nozzles', nozzlesRoutes);
@@ -344,51 +341,10 @@ app.get('/api/v1', (req, res) => {
 // ERROR HANDLING
 // ============================================
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({
-    success: false,
-    error: 'Endpoint not found'
-  });
-});
+// 404 handler - must come after all routes
+app.use(notFoundHandler);
 
-// Global error handler
-app.use((err, req, res, next) => {
-  console.error('Error:', err);
-
-  // Sequelize validation errors
-  if (err.name === 'SequelizeValidationError') {
-    return res.status(400).json({
-      success: false,
-      error: 'Validation error',
-      details: err.errors?.map(e => e.message)
-    });
-  }
-
-  // Sequelize unique constraint
-  if (err.name === 'SequelizeUniqueConstraintError') {
-    return res.status(409).json({
-      success: false,
-      error: 'Duplicate entry',
-      details: err.errors?.map(e => e.message)
-    });
-  }
-
-  // JWT errors
-  if (err.name === 'JsonWebTokenError') {
-    return res.status(401).json({
-      success: false,
-      error: 'Invalid token'
-    });
-  }
-
-  // Default error response
-  res.status(err.status || 500).json({
-    success: false,
-    error: process.env.NODE_ENV === 'production' 
-      ? 'Internal server error' 
-      : err.message
-  });
-});
+// Global error handler - must be the last middleware
+app.use(errorHandler);
 
 module.exports = app;

@@ -7,7 +7,7 @@ import { shiftService, dashboardAlertsService, Shift } from '@/services/shiftSer
 import { Badge } from '@/components/ui/badge';
 import { FuelPriceCard } from '@/components/dashboard/FuelPriceCard';
 import { RoleBadge } from '@/components/ui/RoleBadge';
-import { normalizeFuelType } from '@/hooks/useFuelPricesData';
+import { normalizeFuelType } from '@/core/fuel/fuelConfig';
 import { Button } from '@/components/ui/button';
  import { Fuel, Clock, Users, Play, Square, AlertCircle } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
