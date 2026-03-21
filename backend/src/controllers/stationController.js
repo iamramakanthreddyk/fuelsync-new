@@ -16,8 +16,7 @@
 const services = require('../services');
 
 // ===== MODEL & DATABASE ACCESS =====
-const { models, sequelize } = require('../services/modelAccess');
-const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading } = models;
+const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, sequelize } = require('../services/modelAccess');
 
 // ===== SEQUELIZE UTILITIES =====
 const { Op, fn, col } = require('sequelize');

@@ -310,13 +310,13 @@ exports.createQuickEntry = asyncHandler(async (req, res, next) => {
     // Check if all readings are samples
     if (transactionValidation.areAllReadingsSamples(createdReadings)) {
       await t.commit();
-      return sendSuccess(res, { createdReadings }, { message: 'Sample readings recorded. No transaction created.' });
+      return sendSuccess(res, { createdReadings }, 200, { message: 'Sample readings recorded. No transaction created.' });
     }
 
     // If no billable readings, commit and return
     if (readingIds.length === 0) {
       await t.commit();
-      return sendSuccess(res, { createdReadings }, { message: 'Initial readings recorded. No transaction created.' });
+      return sendSuccess(res, { createdReadings }, 200, { message: 'Initial readings recorded. No transaction created.' });
     }
 
     // Validate or auto-balance payment breakdown

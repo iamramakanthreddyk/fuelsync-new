@@ -331,7 +331,7 @@ exports.updateReading = asyncHandler(async (req, res, next) => {
     });
 
     const updatedReading = await readingRepository.getReadingWithRelations(id);
-    return sendSuccess(res, updatedReading, {
+    return sendSuccess(res, updatedReading, 200, {
       message: `Reading updated. Cascaded recalculation to ${recalculated.length} subsequent readings`
     });
   } catch (err) {
@@ -361,7 +361,7 @@ exports.getTodayReadings = asyncHandler(async (req, res, next) => {
 
   const readings = await readingRepository.getReadingsForDate(null, today, accessibleStationIds);
 
-  return sendSuccess(res, readings, {
+  return sendSuccess(res, readings, 200, {
     count: readings.length,
     message: `Loaded ${readings.length} readings for today`
   });
@@ -444,5 +444,5 @@ exports.deleteReading = asyncHandler(async (req, res, next) => {
   // Refresh nozzle cache
   await readingCache.refreshNozzleCache(reading.nozzleId);
 
-  return sendSuccess(res, reading, { message: 'Reading deleted' });
+  return sendSuccess(res, reading, 200, { message: 'Reading deleted' });
 });

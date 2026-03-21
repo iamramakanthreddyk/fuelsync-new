@@ -224,7 +224,7 @@ exports.login = asyncHandler(async (req, res, next) => {
     description: `${user.role} user logged in successfully`
   });
 
-  return sendSuccess(res, { token, user: userPayload }, { message: 'Login successful' });
+  return sendSuccess(res, { token, user: userPayload }, 200, { message: 'Login successful' });
 });
 
 /**

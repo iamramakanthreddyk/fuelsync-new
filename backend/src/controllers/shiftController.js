@@ -167,7 +167,7 @@ exports.endShift = asyncHandler(async (req, res, next) => {
     description: `${shift.employee.name} ended shift at ${endTime || 'auto'}`
   });
   
-  return sendSuccess(res, endedShift, {
+  return sendSuccess(res, endedShift, 200, {
     message: `Shift ended. Duration: ${endedShift.getDuration()?.toFixed(1)} hours. Cash difference: ₹${endedShift.cashDifference || 0}`
   });
 });
@@ -339,7 +339,7 @@ exports.cancelShift = asyncHandler(async (req, res, next) => {
     endedBy: req.userId
   });
   
-  return sendSuccess(res, shift, {
+  return sendSuccess(res, shift, 200, {
     message: 'Shift cancelled'
   });
 });

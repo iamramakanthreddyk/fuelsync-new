@@ -319,7 +319,7 @@ const deleteExpense = asyncHandler(async (req, res, next) => {
     description: `Deleted expense: ${expenseData.description}`
   });
 
-  return sendSuccess(res, null, {
+  return sendSuccess(res, null, 200, {
     message: 'Expense deleted'
   });
 });
@@ -377,7 +377,7 @@ const approveExpense = asyncHandler(async (req, res, next) => {
     description: `${action === 'approve' ? 'Approved' : 'Rejected'} expense: ${expense.description} (₹${expense.amount}) entered by ${expense.enteredByUser?.name}`
   });
 
-  return sendSuccess(res, expense, {
+  return sendSuccess(res, expense, 200, {
     message: `Expense ${action === 'approve' ? 'approved' : 'rejected'} successfully`
   });
 });

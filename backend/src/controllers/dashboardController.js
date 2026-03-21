@@ -39,11 +39,11 @@ exports.getSummary = asyncHandler(async (req, res, next) => {
       date: new Date().toISOString().split('T')[0],
       today: { litres: 0, amount: 0, cash: 0, online: 0, credit: 0, readings: 0 }, 
       pumps: [] 
-    }, { executionMs: Date.now() - startTime });
+    }, 200, { executionMs: Date.now() - startTime });
   }
 
   const summary = await dashboardService.calculateTodaySummary(stationFilter, user.role);
-  return sendSuccess(res, summary, { executionMs: Date.now() - startTime });
+  return sendSuccess(res, summary, 200, { executionMs: Date.now() - startTime });
 });
 
 /**
@@ -61,7 +61,7 @@ exports.getNozzleBreakdown = asyncHandler(async (req, res, next) => {
 
   const stationFilter = await dashboardRepo.getStationFilter(user, stationId);
   if (stationFilter === null) {
-    return sendSuccess(res, { nozzles: [] }, { 
+    return sendSuccess(res, { nozzles: [] }, 200, { 
       startDate: start, 
       endDate: end,
       executionMs: Date.now() - startTime 
@@ -70,7 +70,7 @@ exports.getNozzleBreakdown = asyncHandler(async (req, res, next) => {
 
   const nozzles = await dashboardService.calculateNozzleBreakdown(stationFilter, start, end, effectivePumpId);
 
-  return sendSuccess(res, { nozzles }, { 
+  return sendSuccess(res, { nozzles }, 200, { 
     startDate: start, 
     endDate: end,
     executionMs: Date.now() - startTime 
@@ -95,7 +95,7 @@ exports.getDailySummary = asyncHandler(async (req, res, next) => {
 
   const stationFilter = await dashboardRepo.getStationFilter(user, stationId);
   if (stationFilter === null) {
-    return sendSuccess(res, [], { 
+    return sendSuccess(res, [], 200, { 
       startDate: effectiveStartDate,
       endDate: effectiveEndDate,
       executionMs: Date.now() - startTime 
@@ -108,7 +108,7 @@ exports.getDailySummary = asyncHandler(async (req, res, next) => {
     effectiveEndDate
   );
 
-  return sendSuccess(res, dailyStats, { 
+  return sendSuccess(res, dailyStats, 200, { 
     startDate: effectiveStartDate,
     endDate: effectiveEndDate,
     executionMs: Date.now() - startTime 
@@ -130,7 +130,7 @@ exports.getFuelBreakdown = asyncHandler(async (req, res, next) => {
 
   const stationFilter = await dashboardRepo.getStationFilter(user, stationId);
   if (stationFilter === null) {
-    return sendSuccess(res, { breakdown: [] }, { 
+    return sendSuccess(res, { breakdown: [] }, 200, { 
       startDate: start, 
       endDate: end,
       executionMs: Date.now() - startTime 
@@ -139,7 +139,7 @@ exports.getFuelBreakdown = asyncHandler(async (req, res, next) => {
 
   const breakdown = await dashboardService.calculateFuelBreakdown(stationFilter, start, end);
 
-  return sendSuccess(res, { breakdown }, { 
+  return sendSuccess(res, { breakdown }, 200, { 
     startDate: start, 
     endDate: end,
     executionMs: Date.now() - startTime 
@@ -161,7 +161,7 @@ exports.getPumpPerformance = asyncHandler(async (req, res, next) => {
 
   const stationFilter = await dashboardRepo.getStationFilter(user, stationId);
   if (stationFilter === null) {
-    return sendSuccess(res, { pumps: [] }, { 
+    return sendSuccess(res, { pumps: [] }, 200, { 
       startDate: start, 
       endDate: end,
       executionMs: Date.now() - startTime 
@@ -186,7 +186,7 @@ exports.getPumpPerformance = asyncHandler(async (req, res, next) => {
   const readings = await dashboardRepo.getPumpPerformanceData(stationIds, start, end);
   const pumps = dashboardService.formatPumpPerformance(readings);
 
-  return sendSuccess(res, { pumps }, { 
+  return sendSuccess(res, { pumps }, 200, { 
     startDate: start, 
     endDate: end,
     executionMs: Date.now() - startTime 

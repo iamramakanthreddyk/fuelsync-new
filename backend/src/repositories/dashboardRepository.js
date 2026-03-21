@@ -273,7 +273,7 @@ async function getEmployeeCount(stationIds) {
   return User.count({
     where: {
       stationId: { [Op.in]: stationIds },
-      role: { [Op.in]: ['manager', 'attendant'] },
+      role: { [Op.in]: ['manager', 'employee'] },
       isActive: true
     }
   });
