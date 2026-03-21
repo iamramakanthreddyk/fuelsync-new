@@ -7,293 +7,269 @@
  * - Tracks: creditor creation/updates, credit sales, settlements
  */
 
+// ===== MODELS & DATABASE =====
 const { Creditor, CreditTransaction, CreditSettlementLink, Station, User, NozzleReading, sequelize } = require('../models');
-const { logAudit } = require('../utils/auditLog');
 const { Op } = require('sequelize');
-const { hasPermission, CREDIT_STATUS } = require('../config/constants');
+
+// ===== ERROR & RESPONSE HANDLING =====
+const { asyncHandler, AuthorizationError, NotFoundError } = require('../utils/errors');
+const { sendSuccess, sendCreated, sendError, sendPaginated } = require('../utils/apiResponse');
+
+// ===== UTILITIES =====
+const { logAudit } = require('../utils/auditLog');
+
+// ===== MIDDLEWARE & CONFIG =====
 const { canAccessStation } = require('../middleware/accessControl');
+const { hasPermission, CREDIT_STATUS } = require('../config/constants');
 
 /**
  * Get all creditors for a station
  */
-const getCreditors = async (req, res) => {
-  try {
-    const { stationId } = req.params;
-    // Verify station access
-    if (!(await canAccessStation(req.user, stationId))) {
-      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
-    }
-    const { isActive, search, page = 1, limit = 20 } = req.query;
-    
-    // Build where clause
-    const where = { stationId };
-    if (isActive !== undefined) {
-      where.isActive = isActive === 'true';
-    }
-    if (search) {
-      where[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { businessName: { [Op.iLike]: `%${search}%` } },
-        { phone: { [Op.iLike]: `%${search}%` } }
-      ];
-    }
-    
-    const offset = (page - 1) * limit;
-    
-    const { count, rows: creditors } = await Creditor.findAndCountAll({
-      where,
-      order: [['name', 'ASC']],
-      limit: parseInt(limit, 10),
-      offset
-    });
-    
-    res.json({
-      success: true,
-      data: creditors,
-      pagination: {
-        page: parseInt(page, 10),
-        limit: parseInt(limit, 10),
-        total: count,
-        pages: Math.ceil(count / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Get creditors error:', error);
-    res.status(500).json({ success: false, error: { message: 'Failed to fetch creditors' } });
+const getCreditors = asyncHandler(async (req, res) => {
+  const { stationId } = req.params;
+  // Verify station access
+  if (!(await canAccessStation(req.user, stationId))) {
+    throw new AuthorizationError('Access denied');
   }
-};
+  const { isActive, search, page = 1, limit = 20 } = req.query;
+  
+  // Build where clause
+  const where = { stationId };
+  if (isActive !== undefined) {
+    where.isActive = isActive === 'true';
+  }
+  if (search) {
+    where[Op.or] = [
+      { name: { [Op.iLike]: `%${search}%` } },
+      { businessName: { [Op.iLike]: `%${search}%` } },
+      { phone: { [Op.iLike]: `%${search}%` } }
+    ];
+  }
+  
+  const offset = (page - 1) * limit;
+  
+  const { count, rows: creditors } = await Creditor.findAndCountAll({
+    where,
+    order: [['name', 'ASC']],
+    limit: parseInt(limit, 10),
+    offset
+  });
+  
+  return sendPaginated(res, creditors, {
+    page: parseInt(page, 10),
+    limit: parseInt(limit, 10),
+    total: count
+  });
+});
 
 /**
  * Get credit ledger with outstanding balances and last sale dates
  * Used by frontend for Credit Ledger page
  * GET /api/v1/creditors/ledger?search=...
  */
-const getCreditLedger = async (req, res) => {
-  try {
-    const { search, stationId, showAll } = req.query;
-    
-    // Get station from user if not provided
-    let finalStationId = stationId;
-    if (!finalStationId && req.user?.stations?.length > 0) {
-      finalStationId = req.user.stations[0].id;
-    }
-    
-    // Verify station access
-    if (!(await canAccessStation(req.user, finalStationId))) {
-      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
-    }
-    
-    // Build where clause
-    const where = { 
-      stationId: finalStationId,
-      isActive: true 
-    };
-    if (search) {
-      where[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { businessName: { [Op.iLike]: `%${search}%` } },
-        { phone: { [Op.iLike]: `%${search}%` } }
-      ];
-    }
-    
-    // Get all active creditors for the station
-    const creditors = await Creditor.findAll({
-      where,
-      attributes: ['id', 'name', 'businessName', 'currentBalance', 'creditLimit', 'phone', 'lastTransactionDate'],
-      order: [['currentBalance', 'DESC']]
-    });
-    
-    // Enrich with last sale date from nozzle_readings (most recent credit_amount > 0)
-    const enrichedCreditors = await Promise.all(
-      creditors.map(async (c) => {
-        const lastReading = await NozzleReading.findOne({
-          where: {
-            creditorId: c.id,
-            creditAmount: { [Op.gt]: 0 }
-          },
-          attributes: ['readingDate'],
-          order: [['readingDate', 'DESC']],
-          raw: true
-        });
-        
-        return {
-          id: c.id,
-          name: c.name,
-          businessName: c.businessName,
-          mobile: c.phone,
-          creditLimit: c.creditLimit,
-          outstanding: parseFloat(c.currentBalance) || 0,
-          lastSaleDate: lastReading?.readingDate || null
-        };
-      })
-    );
-    
-    // Filter based on showAll parameter
-    // showAll=true: show all creditors
-    // showAll=false/undefined: show only creditors with outstanding balances
-    const filtered = showAll === 'true' ? enrichedCreditors : enrichedCreditors.filter(c => c.outstanding > 0);
-    
-    res.json(filtered);
-  } catch (error) {
-    console.error('Get credit ledger error:', error);
-    res.status(500).json({ success: false, error: { message: 'Failed to fetch credit ledger' } });
+const getCreditLedger = asyncHandler(async (req, res) => {
+  const { search, stationId, showAll } = req.query;
+  
+  // Get station from user if not provided
+  let finalStationId = stationId;
+  if (!finalStationId && req.user?.stations?.length > 0) {
+    finalStationId = req.user.stations[0].id;
   }
-};
+  
+  // Verify station access
+  if (!(await canAccessStation(req.user, finalStationId))) {
+    throw new AuthorizationError('Access denied');
+  }
+  
+  // Build where clause
+  const where = { 
+    stationId: finalStationId,
+    isActive: true 
+  };
+  if (search) {
+    where[Op.or] = [
+      { name: { [Op.iLike]: `%${search}%` } },
+      { businessName: { [Op.iLike]: `%${search}%` } },
+      { phone: { [Op.iLike]: `%${search}%` } }
+    ];
+  }
+  
+  // Get all active creditors for the station
+  const creditors = await Creditor.findAll({
+    where,
+    attributes: ['id', 'name', 'businessName', 'currentBalance', 'creditLimit', 'phone', 'lastTransactionDate'],
+    order: [['currentBalance', 'DESC']]
+  });
+  
+  // Enrich with last sale date from nozzle_readings (most recent credit_amount > 0)
+  const enrichedCreditors = await Promise.all(
+    creditors.map(async (c) => {
+      const lastReading = await NozzleReading.findOne({
+        where: {
+          creditorId: c.id,
+          creditAmount: { [Op.gt]: 0 }
+        },
+        attributes: ['readingDate'],
+        order: [['readingDate', 'DESC']],
+        raw: true
+      });
+      
+      return {
+        id: c.id,
+        name: c.name,
+        businessName: c.businessName,
+        mobile: c.phone,
+        creditLimit: c.creditLimit,
+        outstanding: parseFloat(c.currentBalance) || 0,
+        lastSaleDate: lastReading?.readingDate || null
+      };
+    })
+  );
+  
+  // Filter based on showAll parameter
+  // showAll=true: show all creditors
+  // showAll=false/undefined: show only creditors with outstanding balances
+  const filtered = showAll === 'true' ? enrichedCreditors : enrichedCreditors.filter(c => c.outstanding > 0);
+  
+  return sendSuccess(res, filtered);
+});
 
 /**
  * Get single creditor with transaction history
  */
-const getCreditor = async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const creditor = await Creditor.findByPk(id, {
-      include: [
-        {
-          model: CreditTransaction,
-          as: 'transactions',
-          order: [['transactionDate', 'DESC']],
-          limit: 50
-        }
-      ]
-    });
-    
-    if (!creditor) {
-      return res.status(404).json({ success: false, error: { message: 'Creditor not found' } });
-    }
-    
-    res.json({ success: true, data: creditor });
-  } catch (error) {
-    console.error('Get creditor error:', error);
-    res.status(500).json({ success: false, error: { message: 'Failed to fetch creditor' } });
+const getCreditor = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  const creditor = await Creditor.findByPk(id, {
+    include: [
+      {
+        model: CreditTransaction,
+        as: 'transactions',
+        order: [['transactionDate', 'DESC']],
+        limit: 50
+      }
+    ]
+  });
+  
+  if (!creditor) {
+    throw new NotFoundError('Creditor', id);
   }
-};
+  
+  return sendSuccess(res, creditor);
+});
 
 /**
  * Create a new creditor
  */
-const createCreditor = async (req, res) => {
-  try {
-    const { stationId } = req.params;
-    // Verify station access
-    if (!(await canAccessStation(req.user, stationId))) {
-      return res.status(403).json({ success: false, error: { message: 'Access denied' } });
-    }
-    // Only owner/manager/super_admin can create creditors
-    if (!['super_admin', 'owner', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ success: false, error: { message: 'Only owner or manager can create creditors' } });
-    }
-    const { name, contactPerson, phone, email, address, businessName, gstNumber, creditLimit, notes } = req.body;
-    // Validate required fields
-    if (!name) {
-      return res.status(400).json({ success: false, error: { message: 'Creditor name is required' } });
-    }
-    // Check plan limits
-    const station = await Station.findByPk(stationId, {
-      include: [{ model: User, as: 'owner', include: ['plan'] }]
-    });
-    if (station?.owner?.plan) {
-      const currentCount = await Creditor.count({ where: { stationId, isActive: true } });
-      const limit = station.owner.plan.maxCreditors;
-      if (currentCount >= limit) {
-        return res.status(403).json({
-          success: false,
-          error: { message: `Creditor limit reached (${limit}). Upgrade plan to add more.` }
-        });
-      }
-    }
-    const creditor = await Creditor.create({
-      stationId,
-      name,
-      contactPerson,
-      phone,
-      email,
-      address,
-      businessName,
-      gstNumber,
-      creditLimit: creditLimit || 0,
-      notes,
-      createdBy: req.user.id
-    });
-
-    // Log creditor creation
-    await logAudit({
-      userId: req.user.id,
-      userEmail: req.user.email,
-      userRole: req.user.role,
-      stationId,
-      action: 'CREATE',
-      entityType: 'Creditor',
-      entityId: creditor.id,
-      newValues: {
-        id: creditor.id,
-        name,
-        businessName,
-        creditLimit
-      },
-      category: 'data',
-      severity: 'info',
-      description: `Created creditor: ${name}`
-    });
-
-    res.status(201).json({ success: true, data: creditor, creditor });
-  } catch (error) {
-    console.error('Create creditor error:', error);
-    res.status(500).json({ success: false, error: { message: 'Failed to create creditor' } });
+const createCreditor = asyncHandler(async (req, res) => {
+  const { stationId } = req.params;
+  // Verify station access
+  if (!(await canAccessStation(req.user, stationId))) {
+    throw new AuthorizationError('Access denied');
   }
-};
+  // Only owner/manager/super_admin can create creditors
+  if (!['super_admin', 'owner', 'manager'].includes(req.user.role)) {
+    throw new AuthorizationError('Only owner or manager can create creditors');
+  }
+  const { name, contactPerson, phone, email, address, businessName, gstNumber, creditLimit, notes } = req.body;
+  // Validate required fields
+  if (!name) {
+    return sendError(res, 'VALIDATION_ERROR', 'Creditor name is required', 422);
+  }
+  // Check plan limits
+  const station = await Station.findByPk(stationId, {
+    include: [{ model: User, as: 'owner', include: ['plan'] }]
+  });
+  if (station?.owner?.plan) {
+    const currentCount = await Creditor.count({ where: { stationId, isActive: true } });
+    const limit = station.owner.plan.maxCreditors;
+    if (currentCount >= limit) {
+      return sendError(res, 'LIMIT_EXCEEDED', `Creditor limit reached (${limit}). Upgrade plan to add more.`, 400);
+    }
+  }
+  const creditor = await Creditor.create({
+    stationId,
+    name,
+    contactPerson,
+    phone,
+    email,
+    address,
+    businessName,
+    gstNumber,
+    creditLimit: creditLimit || 0,
+    notes,
+    createdBy: req.user.id
+  });
+
+  // Log creditor creation
+  await logAudit({
+    userId: req.user.id,
+    userEmail: req.user.email,
+    userRole: req.user.role,
+    stationId,
+    action: 'CREATE',
+    entityType: 'Creditor',
+    entityId: creditor.id,
+    newValues: {
+      id: creditor.id,
+      name,
+      businessName,
+      creditLimit
+    },
+    category: 'data',
+    severity: 'info',
+    description: `Created creditor: ${name}`
+  });
+
+  return sendCreated(res, creditor);
+});
 
 /**
  * Update creditor
  */
-const updateCreditor = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-    const creditor = await Creditor.findByPk(id);
-    if (!creditor) {
-      return res.status(404).json({ success: false, error: { message: 'Creditor not found' } });
-    }
-    // Only owner/manager/super_admin can update creditors
-    if (!['super_admin', 'owner', 'manager'].includes(req.user.role)) {
-      return res.status(403).json({ success: false, error: { message: 'Only owner or manager can update creditors' } });
-    }
-    // Only allow updating specific fields
-    const allowedUpdates = ['name', 'contactPerson', 'phone', 'email', 'address', 'businessName', 'gstNumber', 'creditLimit', 'notes', 'isActive'];
-    const oldValues = creditor.toJSON();
-    const newValues = {};
-    
-    allowedUpdates.forEach(field => {
-      if (updates[field] !== undefined) {
-        creditor[field] = updates[field];
-        newValues[field] = updates[field];
-      }
-    });
-    
-    await creditor.save();
-
-    // Log creditor update
-    await logAudit({
-      userId: req.user.id,
-      userEmail: req.user.email,
-      userRole: req.user.role,
-      stationId: creditor.stationId,
-      action: 'UPDATE',
-      entityType: 'Creditor',
-      entityId: creditor.id,
-      oldValues: oldValues,
-      newValues: newValues,
-      category: 'data',
-      severity: 'info',
-      description: `Updated creditor: ${creditor.name}`
-    });
-
-    res.json({ success: true, data: creditor });
-  } catch (error) {
-    console.error('Update creditor error:', error);
-    res.status(500).json({ success: false, error: { message: 'Failed to update creditor' } });
+const updateCreditor = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const updates = req.body;
+  const creditor = await Creditor.findByPk(id);
+  if (!creditor) {
+    throw new NotFoundError('Creditor', id);
   }
-};
+  // Only owner/manager/super_admin can update creditors
+  if (!['super_admin', 'owner', 'manager'].includes(req.user.role)) {
+    throw new AuthorizationError('Only owner or manager can update creditors');
+  }
+  // Only allow updating specific fields
+  const allowedUpdates = ['name', 'contactPerson', 'phone', 'email', 'address', 'businessName', 'gstNumber', 'creditLimit', 'notes', 'isActive'];
+  const oldValues = creditor.toJSON();
+  const newValues = {};
+  
+  allowedUpdates.forEach(field => {
+    if (updates[field] !== undefined) {
+      creditor[field] = updates[field];
+      newValues[field] = updates[field];
+    }
+  });
+  
+  await creditor.save();
+
+  // Log creditor update
+  await logAudit({
+    userId: req.user.id,
+    userEmail: req.user.email,
+    userRole: req.user.role,
+    stationId: creditor.stationId,
+    action: 'UPDATE',
+    entityType: 'Creditor',
+    entityId: creditor.id,
+    oldValues: oldValues,
+    newValues: newValues,
+    category: 'data',
+    severity: 'info',
+    description: `Updated creditor: ${creditor.name}`
+  });
+
+  return sendSuccess(res, creditor);
+});
 
 
 /**
