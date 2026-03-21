@@ -45,7 +45,6 @@ import AddStation from '@/pages/owner/AddStation';
 import StationDetail from '@/pages/owner/StationDetail';
 import EmployeesManagement from '@/pages/owner/EmployeesManagement';
 import OwnerReports from '@/pages/owner/OwnerReports';
-import QuickDataEntry from '@/pages/owner/QuickDataEntryEnhanced';
 import SettlementStationSelector from '@/pages/owner/SettlementStationSelector';
 import DailySettlement from '@/pages/owner/DailySettlement';
 import DailySalesReport from '@/pages/owner/DailySalesReport';
@@ -200,7 +199,7 @@ function ManagerOrOwnerRoute({ children }: { children: React.ReactNode }) {
 function RoleBasedDataEntry() {
   // All users get the enhanced Quick Entry system (single-step)
   // Station selection is controlled by role within the component
-  return <QuickDataEntry />;
+  return <QuickDataEntryEnhanced />;
 }
 
 function RoleBasedSales() {
