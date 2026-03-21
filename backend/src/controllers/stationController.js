@@ -16,7 +16,7 @@
 const services = require('../services');
 
 // ===== MODEL & DATABASE ACCESS =====
-const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, sequelize } = require('../services/modelAccess');
+const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, Settlement, DailyTransaction, sequelize } = require('../services/modelAccess');
 
 // ===== SEQUELIZE UTILITIES =====
 const { Op, fn, col } = require('sequelize');
@@ -1301,7 +1301,6 @@ exports.getDailySales = async (req, res, next) => {
     }
 
     // Get all readings for the date
-    const { Op } = require('sequelize');
     const readings = await NozzleReading.findAll({
       where: {
         stationId,
@@ -1998,9 +1997,6 @@ exports.getVarianceSummary = async (req, res, next) => {
     if (!(await canAccessStation(user, stationId))) {
       return res.status(403).json({ success: false, error: 'Access denied' });
     }
-
-
-    const { Op } = require('sequelize');
 
     const where = { stationId };
     if (startDate || endDate) {
