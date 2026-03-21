@@ -16,7 +16,7 @@
 const services = require('../services');
 
 // ===== MODEL & DATABASE ACCESS =====
-const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, Settlement, DailyTransaction, sequelize } = require('../services/modelAccess');
+const { Station, Pump, Nozzle, User, FuelPrice, Plan, NozzleReading, Settlement, DailyTransaction, Expense, sequelize } = require('../services/modelAccess');
 
 // ===== SEQUELIZE UTILITIES =====
 const { Op, fn, col } = require('sequelize');
@@ -2812,11 +2812,11 @@ exports.getAllExpenses = async (req, res, next) => {
     const offset = (page - 1) * limit;
 
     // Fetch expenses with pagination
-    const { count, rows: expenses } = await ExpenseModel.findAndCountAll({
+    const { count, rows: expenses } = await Expense.findAndCountAll({
       where: expenseWhere,
       include: [
-        { model: UserModel, as: 'enteredByUser', attributes: ['id', 'name', 'role'] },
-        { model: UserModel, as: 'approvedByUser', attributes: ['id', 'name', 'role'], required: false },
+        { model: User, as: 'enteredByUser', attributes: ['id', 'name', 'role'] },
+        { model: User, as: 'approvedByUser', attributes: ['id', 'name', 'role'], required: false },
         { model: Station, as: 'station', attributes: ['id', 'name'], required: false }
       ],
       order: [['expenseDate', 'DESC'], ['createdAt', 'DESC']],
@@ -2834,13 +2834,13 @@ exports.getAllExpenses = async (req, res, next) => {
     }
 
     // Calculate totals (run AFTER the fix loop so corrected statuses are reflected)
-    const approvedTotal = await ExpenseModel.sum('amount', {
+    const approvedTotal = await Expense.sum('amount', {
       where: {
         ...expenseWhere,
         approvalStatus: { [Op.in]: ['approved', 'auto_approved'] }
       }
     });
-    const pendingTotal = await ExpenseModel.sum('amount', {
+    const pendingTotal = await Expense.sum('amount', {
       where: {
         ...expenseWhere,
         approvalStatus: 'pending'
@@ -2848,7 +2848,7 @@ exports.getAllExpenses = async (req, res, next) => {
     });
 
     // Breakdown by category
-    const byCategory = await ExpenseModel.findAll({
+    const byCategory = await Expense.findAll({
       attributes: ['category', [sequelize.fn('SUM', sequelize.col('amount')), 'total']],
       where: {
         ...expenseWhere,
@@ -2859,7 +2859,7 @@ exports.getAllExpenses = async (req, res, next) => {
     });
 
     // Breakdown by frequency
-    const byFrequency = await ExpenseModel.findAll({
+    const byFrequency = await Expense.findAll({
       attributes: ['frequency', [sequelize.fn('SUM', sequelize.col('amount')), 'total'], [sequelize.fn('COUNT', sequelize.col('id')), 'count']],
       where: {
         ...expenseWhere,
