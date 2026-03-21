@@ -120,10 +120,6 @@ export const useUserPermissions = (): UserPermissions => {
   const isSuperAdmin = userRole === 'super_admin' || userRole === 'superadmin';
   const rolePermissions = getRolePermissions(userRole);
 
-  console.log('[DEBUG] useUserPermissions - user:', user);
-  console.log('[DEBUG] useUserPermissions - user.plan:', user.plan);
-  console.log('[DEBUG] useUserPermissions - salesReportsDays:', user.plan?.salesReportsDays);
-
   return {
     // Export permissions
     canExportCSV: isSuperAdmin || (rolePermissions.includes('export_csv') && checkPlanPermission(user, 'export_csv').allowed),

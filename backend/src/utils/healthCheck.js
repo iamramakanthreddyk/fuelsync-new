@@ -62,11 +62,11 @@ exports.getUptime = () => {
  */
 exports.getFullHealth = async () => {
   const [dbCheck, memory] = await Promise.all([
-    this.checkDatabase(),
-    Promise.resolve(this.checkMemory())
+    exports.checkDatabase(),
+    Promise.resolve(exports.checkMemory())
   ]);
 
-  const uptime = this.getUptime();
+  const uptime = exports.getUptime();
 
   const overallStatus = dbCheck.status === 'healthy' && memory.status !== 'warning'
     ? 'healthy'

@@ -12,7 +12,6 @@ const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
 require('dotenv').config();
-require('dotenv').config();
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -148,11 +147,13 @@ if (process.env.NODE_ENV !== 'test') {
   app.use(morgan('combined'));
 }
 
-// Debug logging for all requests
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  next();
-});
+// Debug logging for all requests (development only)
+if (isDevelopment) {
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    next();
+  });
+}
 
 // Body parsing
 app.use(express.json({ limit: '10mb' }));

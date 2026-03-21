@@ -19,20 +19,21 @@ const MAX_CONCURRENT_LOGINS = parseInt(process.env.MAX_CONCURRENT_LOGINS || '3',
 const LOGIN_TIME_WINDOW_MINUTES = parseInt(process.env.LOGIN_TIME_WINDOW_MINUTES || '60', 10);
 
 /**
- * Get JWT secret - fallback to hardcoded if not set
+ * Get JWT_SECRET — fails hard if not configured.
+ * A hardcoded fallback is intentionally NOT provided to prevent accidental
+ * use of a known secret in production.
  */
 const getJwtSecret = () => {
-  // Use environment variable if set, otherwise use hardcoded fallback
-  const secret = process.env.JWT_SECRET || 'fuelsync-hardcoded-secret-key-do-not-use-in-production-very-long-key-for-jwt-signing-12345';
-  
+  const secret = process.env.JWT_SECRET;
+
   if (!secret) {
     throw new Error('FATAL: JWT_SECRET environment variable is not set');
   }
-  
+
   if (secret.length < 32) {
     console.warn('⚠️  WARNING: JWT_SECRET should be at least 32 characters for security');
   }
-  
+
   return secret;
 };
 

@@ -54,11 +54,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const session = useMemo(() => {
-    const t = getToken();
-    return t ? { access_token: t } : null;
-  }, []);
   const token = getToken();
+  const session = useMemo(() => {
+    return token ? { access_token: token } : null;
+  }, [user]); // re-derive when user changes (login/logout)
   const isLoggedIn = !!user && !!token;
 
   // Verify token with backend
@@ -71,8 +70,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         ...userData,
         stations: userData.stations || [],
       };
-      console.log('[DEBUG] User data from /auth/me:', userWithStations);
-      console.log('[DEBUG] Plan data:', userWithStations.plan);
       setUser(userWithStations);
       setStoredUser(userWithStations);
     } catch (error: unknown) {

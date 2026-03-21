@@ -54,8 +54,6 @@ export default function Dashboard() {
 
   const { data: fuelPricesList, isLoading: isPricesLoading } = useFuelPricesData(currentStation?.id);
 
-  // Debug logging
-  console.log('Dashboard fuelPricesList:', fuelPricesList, 'currentStation:', currentStation);
   const { setStationId } = useFuelPricesGlobal();
 
   useEffect(() => {

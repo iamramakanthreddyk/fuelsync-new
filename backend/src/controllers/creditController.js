@@ -103,9 +103,6 @@ const getCreditLedger = async (req, res) => {
       order: [['currentBalance', 'DESC']]
     });
     
-    console.log(`Found ${creditors.length} creditors for station ${finalStationId}`);
-    creditors.forEach(c => console.log(`- ${c.name}: balance=${c.currentBalance}, limit=${c.creditLimit}`));
-    
     // Enrich with last sale date from nozzle_readings (most recent credit_amount > 0)
     const enrichedCreditors = await Promise.all(
       creditors.map(async (c) => {

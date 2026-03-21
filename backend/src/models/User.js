@@ -104,10 +104,13 @@ module.exports = (sequelize) => {
       },
       afterCreate: (user) => {
         try {
-          const secret = process.env.JWT_SECRET || 'test-secret';
-          user.token = jwt.sign({ userId: user.id }, secret, { expiresIn: '7d' });
+          const secret = process.env.JWT_SECRET;
+          if (secret) {
+            user.token = jwt.sign({ userId: user.id }, secret, { expiresIn: '7d' });
+          } else {
+            user.token = null;
+          }
         } catch (err) {
-          // ignore token generation failures in non-critical environments
           user.token = null;
         }
       },

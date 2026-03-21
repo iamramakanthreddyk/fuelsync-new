@@ -18,20 +18,21 @@ const jwt = require('jsonwebtoken');
 const { User } = require('../models');
 
 /**
- * Validate JWT_SECRET is properly configured - fallback to hardcoded if needed
+ * Get JWT_SECRET — fails hard if not configured.
+ * A hardcoded fallback is intentionally NOT provided to prevent accidental
+ * use of a known secret in production.
  */
 const getJwtSecret = () => {
-  // Use environment variable if set, otherwise use hardcoded fallback
-  const secret = process.env.JWT_SECRET || 'fuelsync-hardcoded-secret-key-do-not-use-in-production-very-long-key-for-jwt-signing-12345';
-  
+  const secret = process.env.JWT_SECRET;
+
   if (!secret) {
     throw new Error('FATAL: JWT_SECRET environment variable is not set. Server cannot start without it.');
   }
-  
+
   if (secret.length < 32) {
     console.warn('⚠️  WARNING: JWT_SECRET should be at least 32 characters for security');
   }
-  
+
   return secret;
 };
 
