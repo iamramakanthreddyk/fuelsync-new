@@ -22,214 +22,180 @@
  * - employee: Only themselves
  */
 
+// ===== MODELS & DATABASE =====
 const { User, Station, Plan } = require('../models');
 const { Op } = require('sequelize');
+
+// ===== ERROR & RESPONSE HANDLING =====
+const { asyncHandler, NotFoundError, AuthorizationError } = require('../utils/errors');
+const { sendSuccess, sendCreated, sendError, sendPaginated } = require('../utils/apiResponse');
+
+// ===== MIDDLEWARE & CONFIG =====
 const { USER_ROLES } = require('../config/constants');
-const { logAudit } = require('../utils/auditLog');
 const { PERMISSIONS, ROLE_PERMISSIONS, PLAN_FEATURES } = require('../middleware/permissions');
+
+// ===== UTILITIES =====
+const { logAudit } = require('../utils/auditLog');
 
 /**
  * Get users based on role permissions
  * GET /api/v1/users
  */
-exports.getUsers = async (req, res, next) => {
-  try {
-    const { role, stationId, isActive, search, page = 1, limit = 20 } = req.query;
-    const currentUser = req.user;
-    const currentRole = (currentUser.role || '').toLowerCase();
+exports.getUsers = asyncHandler(async (req, res, next) => {
+  const { role, stationId, isActive, search, page = 1, limit = 20 } = req.query;
+  const currentUser = req.user;
+  const currentRole = (currentUser.role || '').toLowerCase();
 
-    let where = {};
-    let stationFilter = {};
+  let where = {};
+  let stationFilter = {};
 
-    // Role-based filtering
-    if (currentRole === 'super_admin') {
-      // Super admin can see all users
-      if (role) where.role = role;
-      if (stationId) where.stationId = stationId;
-    } else if (currentRole === 'owner') {
-      // Owner sees staff in their stations only
-      const ownerStations = await Station.findAll({
-        where: { ownerId: currentUser.id },
-        attributes: ['id']
-      });
-      const stationIds = ownerStations.map(s => s.id);
-      
-      if (stationIds.length === 0) {
-        return res.json({ success: true, data: [], pagination: { total: 0 } });
-      }
-      
-      where.stationId = { [Op.in]: stationIds };
-      where.role = { [Op.in]: ['manager', 'employee'] }; // Only staff, not other owners
-      
-      if (stationId && stationIds.includes(stationId)) {
-        where.stationId = stationId;
-      }
-    } else if (currentRole === 'manager') {
-      // Manager sees only employees in their station
-      where.stationId = currentUser.stationId;
-      where.role = 'employee';
-    } else {
-      // Employee can only see themselves
-      return res.json({
-        success: true,
-        data: [currentUser.toSafeObject()],
-        pagination: { total: 1, page: 1, limit: 1, pages: 1 }
-      });
-    }
-
-    if (isActive !== undefined) {
-      where.isActive = isActive === 'true';
-    }
-
-    if (search) {
-      where[Op.or] = [
-        { name: { [Op.iLike]: `%${search}%` } },
-        { email: { [Op.iLike]: `%${search}%` } },
-        { phone: { [Op.iLike]: `%${search}%` } }
-      ];
-    }
-
-    const offset = (parseInt(page) - 1) * parseInt(limit);
-
-    const { count, rows: users } = await User.findAndCountAll({
-      where,
-      include: [
-        { model: Station, as: 'station', attributes: ['id', 'name', 'code'] },
-        { model: Plan, as: 'plan', attributes: ['id', 'name'] }
-      ],
-      attributes: { exclude: ['password'] },
-      order: [['createdAt', 'DESC']],
-      limit: parseInt(limit),
-      offset
+  if (currentRole === 'super_admin') {
+    if (role) where.role = role;
+    if (stationId) where.stationId = stationId;
+  } else if (currentRole === 'owner') {
+    const ownerStations = await Station.findAll({
+      where: { ownerId: currentUser.id },
+      attributes: ['id']
     });
-
-    res.json({
-      success: true,
-      data: users,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: count,
-        pages: Math.ceil(count / limit)
-      }
+    const stationIds = ownerStations.map(s => s.id);
+    
+    if (stationIds.length === 0) {
+      return sendSuccess(res, [], { pagination: { total: 0 } });
+    }
+    
+    where.stationId = { [Op.in]: stationIds };
+    where.role = { [Op.in]: ['manager', 'employee'] };
+    
+    if (stationId && stationIds.includes(stationId)) {
+      where.stationId = stationId;
+    }
+  } else if (currentRole === 'manager') {
+    where.stationId = currentUser.stationId;
+    where.role = 'employee';
+  } else {
+    return sendSuccess(res, [currentUser.toSafeObject()], { 
+      pagination: { total: 1, page: 1, limit: 1, pages: 1 } 
     });
-  } catch (error) {
-    console.error('Get users error:', error);
-    next(error);
   }
-};
+
+  if (isActive !== undefined) {
+    where.isActive = isActive === 'true';
+  }
+
+  if (search) {
+    where[Op.or] = [
+      { name: { [Op.iLike]: `%${search}%` } },
+      { email: { [Op.iLike]: `%${search}%` } },
+      { phone: { [Op.iLike]: `%${search}%` } }
+    ];
+  }
+
+  const offset = (parseInt(page) - 1) * parseInt(limit);
+
+  const { count, rows: users } = await User.findAndCountAll({
+    where,
+    include: [
+      { model: Station, as: 'station', attributes: ['id', 'name', 'code'] },
+      { model: Plan, as: 'plan', attributes: ['id', 'name'] }
+    ],
+    attributes: { exclude: ['password'] },
+    order: [['createdAt', 'DESC']],
+    limit: parseInt(limit),
+    offset
+  });
+
+  return sendPaginated(res, users, {
+    page: parseInt(page),
+    limit: parseInt(limit),
+    total: count,
+    pages: Math.ceil(count / limit)
+  });
+});
 
 /**
  * Get single user
  * GET /api/v1/users/:id
  */
-exports.getUser = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const currentUser = req.user;
+exports.getUser = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const currentUser = req.user;
 
-    const user = await User.findByPk(id, {
-      include: [
-        { model: Station, as: 'station', attributes: ['id', 'name', 'code'] },
-        { model: Plan, as: 'plan', attributes: ['id', 'name'] },
-        { model: User, as: 'creator', attributes: ['id', 'name'] }
-      ],
-      attributes: { exclude: ['password'] }
-    });
+  const user = await User.findByPk(id, {
+    include: [
+      { model: Station, as: 'station', attributes: ['id', 'name', 'code'] },
+      { model: Plan, as: 'plan', attributes: ['id', 'name'] },
+      { model: User, as: 'creator', attributes: ['id', 'name'] }
+    ],
+    attributes: { exclude: ['password'] }
+  });
 
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    // Check permissions
-    const canView = await canAccessUser(currentUser, user);
-    if (!canView) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    res.json({ success: true, data: user });
-  } catch (error) {
-    console.error('Get user error:', error);
-    next(error);
+  if (!user) {
+    throw new NotFoundError('User', id);
   }
-};
+
+  const canView = await canAccessUser(currentUser, user);
+  if (!canView) {
+    throw new AuthorizationError('Access denied');
+  }
+
+  return sendSuccess(res, user);
+});
 
 /**
  * Create new user
  * POST /api/v1/users
  */
-exports.createUser = async (req, res, next) => {
-  try {
-    const { email, password, name, phone, role, stationId, planId } = req.body;
-    const currentUser = req.user;
-    const currentRole = (currentUser.role || '').toLowerCase();
-    const roleNormalized = (role || '').toLowerCase();
+exports.createUser = asyncHandler(async (req, res, next) => {
+  const { email, password, name, phone, role, stationId, planId } = req.body;
+  const currentUser = req.user;
+  const currentRole = (currentUser.role || '').toLowerCase();
+  const roleNormalized = (role || '').toLowerCase();
 
-    // Validation
-    if (!email || !password || !name || !role) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email, password, name, and role are required'
-      });
+  if (!email || !password || !name || !role) {
+    return sendError(res, 'VALIDATION_ERROR', 'Email, password, name, and role are required', 400);
+  }
+
+  const creationRules = {
+    'super_admin': ['owner'],
+    'owner': ['manager', 'employee'],
+    'manager': ['employee'],
+    'employee': []
+  };
+
+  const allowedRoles = creationRules[currentRole] || [];
+  if (!allowedRoles.includes(roleNormalized)) {
+    throw new AuthorizationError(`${currentUser.role} cannot create ${role} users`);
+  }
+
+  if (['manager', 'employee'].includes(roleNormalized)) {
+    if (!stationId) {
+      return sendError(res, 'VALIDATION_ERROR', 'Station ID is required for manager/employee', 400);
     }
 
-    // Check creation permissions
-    const creationRules = {
-      'super_admin': ['owner'],
-      'owner': ['manager', 'employee'],
-      'manager': ['employee'],
-      'employee': []
-    };
-
-    const allowedRoles = creationRules[currentRole] || [];
-    if (!allowedRoles.includes(roleNormalized)) {
-      return res.status(403).json({
-        success: false,
-        error: `${currentUser.role} cannot create ${role} users`
-      });
+    const station = await Station.findByPk(stationId);
+    if (!station) {
+      throw new NotFoundError('Station', stationId);
     }
 
-    // Station validation for manager/employee
-    if (['manager', 'employee'].includes(roleNormalized)) {
-      if (!stationId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Station ID is required for manager/employee'
+    if (currentRole === 'owner' && station.ownerId !== currentUser.id) {
+      throw new AuthorizationError('You can only add staff to your own stations');
+    }
+
+    if (currentRole === 'manager' && currentUser.stationId !== stationId) {
+      throw new AuthorizationError('You can only add employees to your station');
+    }
+
+    if (currentRole === 'owner') {
+      const ownerPlan = await Plan.findByPk(currentUser.planId);
+      if (ownerPlan) {
+        const employeeCount = await User.count({
+          where: { stationId, role: { [Op.in]: ['manager', 'employee'] }, isActive: true }
         });
-      }
-
-      // Verify owner owns this station OR manager is creating for their station
-      const station = await Station.findByPk(stationId);
-      if (!station) {
-        return res.status(404).json({ success: false, error: 'Station not found' });
-      }
-
-      if (currentRole === 'owner' && station.ownerId !== currentUser.id) {
-        return res.status(403).json({
-          success: false,
-          error: 'You can only add staff to your own stations'
-        });
-      }
-
-      if (currentRole === 'manager' && currentUser.stationId !== stationId) {
-        return res.status(403).json({
-          success: false,
-          error: 'You can only add employees to your station'
-        });
-      }
-
-      // Check employee limit
-      if (currentRole === 'owner') {
-        const ownerPlan = await Plan.findByPk(currentUser.planId);
-        if (ownerPlan) {
-          const employeeCount = await User.count({
-            where: { stationId, role: { [Op.in]: ['manager', 'employee'] }, isActive: true }
-          });
-          
-          if (employeeCount >= ownerPlan.maxEmployees) {
-            return res.status(402).json({
-              success: false,
-              error: `Employee limit reached (${ownerPlan.maxEmployees}). Upgrade your plan to add more staff.`,
+        
+        if (employeeCount >= ownerPlan.maxEmployees) {
+          return sendError(res, 'PLAN_LIMIT_EXCEEDED', 
+            `Employee limit reached (${ownerPlan.maxEmployees}). Upgrade your plan to add more staff.`, 
+            402, {
               planLimitExceeded: true,
               details: {
                 planName: ownerPlan.name,
@@ -238,358 +204,317 @@ exports.createUser = async (req, res, next) => {
                 current: employeeCount,
                 upgradeRequired: true
               }
-            });
-          }
+            }
+          );
         }
       }
     }
-
-    // Check email uniqueness
-    const existingUser = await User.findOne({ where: { email: email.toLowerCase() } });
-    if (existingUser) {
-      return res.status(409).json({ success: false, error: 'Email already registered' });
-    }
-
-    // Get plan for new owner
-    let ownerPlanId = null;
-    if (roleNormalized === 'owner') {
-      if (planId && currentRole === 'super_admin') {
-        const plan = await Plan.findByPk(planId);
-        if (plan) {
-          ownerPlanId = plan.id;
-        } else {
-          return res.status(400).json({ success: false, error: 'Invalid planId provided' });
-        }
-      } else {
-        // Try to find Free plan first, then Basic plan as fallback
-        let plan = await Plan.findOne({ where: { name: 'Free' } });
-        if (!plan) {
-          plan = await Plan.findOne({ where: { name: 'Basic' } });
-        }
-        // If no default plan exists (fresh DB in tests), create a Free plan automatically
-        if (!plan) {
-          console.warn('No default plan found — creating a Free plan automatically for owner creation');
-          plan = await Plan.create({
-            name: 'Free',
-            description: 'Auto-created Free plan',
-            maxStations: 1,
-            maxPumpsPerStation: 5,
-            maxNozzlesPerPump: 4,
-            maxEmployees: 5,
-            maxCreditors: 10,
-            backdatedDays: 3,
-            analyticsDays: 7,
-            priceMonthly: 0,
-            features: {},
-            sortOrder: 999,
-            isActive: true
-          });
-        }
-        ownerPlanId = plan.id;
-      }
-    }
-
-    // Create user
-    const user = await User.create({
-      email: email.toLowerCase(),
-      password,
-      name,
-      phone,
-      role: roleNormalized,
-      stationId: ['manager', 'employee'].includes(roleNormalized) ? stationId : null,
-      planId: roleNormalized === 'owner' ? ownerPlanId : null,
-      createdBy: currentUser.id
-    });
-
-    // Log user creation
-    await logAudit({
-      userId: currentUser.id,
-      userEmail: currentUser.email,
-      userRole: currentUser.role,
-      stationId: stationId || null,
-      action: 'CREATE',
-      entityType: 'User',
-      entityId: user.id,
-      newValues: {
-        id: user.id,
-        email: user.email,
-        name,
-        role: roleNormalized,
-        stationId
-      },
-      category: 'data',
-      severity: 'info',
-      description: `Created ${roleNormalized} user: ${name} (${email})`
-    });
-
-    res.status(201).json({
-      success: true,
-      data: user.toSafeObject(),
-      message: `${role} created successfully`
-    });
-  } catch (error) {
-    console.error('Create user error:', error);
-    next(error);
   }
-};
+
+  const existingUser = await User.findOne({ where: { email: email.toLowerCase() } });
+  if (existingUser) {
+    return sendError(res, 'CONFLICT', 'Email already registered', 409);
+  }
+
+  let ownerPlanId = null;
+  if (roleNormalized === 'owner') {
+    if (planId && currentRole === 'super_admin') {
+      const plan = await Plan.findByPk(planId);
+      if (plan) {
+        ownerPlanId = plan.id;
+      } else {
+        return sendError(res, 'VALIDATION_ERROR', 'Invalid planId provided', 400);
+      }
+    } else {
+      let plan = await Plan.findOne({ where: { name: 'Free' } });
+      if (!plan) {
+        plan = await Plan.findOne({ where: { name: 'Basic' } });
+      }
+      if (!plan) {
+        console.warn('No default plan found — creating a Free plan automatically for owner creation');
+        plan = await Plan.create({
+          name: 'Free',
+          description: 'Auto-created Free plan',
+          maxStations: 1,
+          maxPumpsPerStation: 5,
+          maxNozzlesPerPump: 4,
+          maxEmployees: 5,
+          maxCreditors: 10,
+          backdatedDays: 3,
+          analyticsDays: 7,
+          priceMonthly: 0,
+          features: {},
+          sortOrder: 999,
+          isActive: true
+        });
+      }
+      ownerPlanId = plan.id;
+    }
+  }
+
+  const user = await User.create({
+    email: email.toLowerCase(),
+    password,
+    name,
+    phone,
+    role: roleNormalized,
+    stationId: ['manager', 'employee'].includes(roleNormalized) ? stationId : null,
+    planId: roleNormalized === 'owner' ? ownerPlanId : null,
+    createdBy: currentUser.id
+  });
+
+  await logAudit({
+    userId: currentUser.id,
+    userEmail: currentUser.email,
+    userRole: currentUser.role,
+    stationId: stationId || null,
+    action: 'CREATE',
+    entityType: 'User',
+    entityId: user.id,
+    newValues: {
+      id: user.id,
+      email: user.email,
+      name,
+      role: roleNormalized,
+      stationId
+    },
+    category: 'data',
+    severity: 'info',
+    description: `Created ${roleNormalized} user: ${name} (${email})`
+  });
+
+  return sendCreated(res, user.toSafeObject(), {
+    message: `${role} created successfully`
+  });
+});
 
 /**
  * Update user
  * PUT /api/v1/users/:id
  */
-exports.updateUser = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { name, phone, stationId, isActive, planId } = req.body;
-    const currentUser = req.user;
+exports.updateUser = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { name, phone, stationId, isActive, planId } = req.body;
+  const currentUser = req.user;
 
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    // Check permissions
-    const canEdit = await canAccessUser(currentUser, user);
-    if (!canEdit) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    // Prevent self-deactivation
-    if (id === currentUser.id && isActive === false) {
-      return res.status(400).json({ success: false, error: 'Cannot deactivate yourself' });
-    }
-
-    // If changing station, verify ownership
-    if (stationId && stationId !== user.stationId) {
-      if (currentUser.role === 'owner') {
-        const station = await Station.findByPk(stationId);
-        if (!station || station.ownerId !== currentUser.id) {
-          return res.status(403).json({
-            success: false,
-            error: 'You can only move staff to your own stations'
-          });
-        }
-      } else if (currentUser.role !== 'super_admin') {
-        return res.status(403).json({
-          success: false,
-          error: 'Only owner can change staff station'
-        });
-      }
-    }
-
-
-    // Allow super_admin to update planId for owners
-    const updateFields = {
-      name: name || user.name,
-      phone: phone !== undefined ? phone : user.phone,
-      stationId: stationId || user.stationId,
-      isActive: isActive !== undefined ? isActive : user.isActive
-    };
-
-    if (user.role === 'owner' && currentUser.role === 'super_admin' && planId) {
-      const plan = await Plan.findByPk(planId);
-      if (!plan) {
-        return res.status(400).json({ success: false, error: 'Invalid planId provided' });
-      }
-      updateFields.planId = planId;
-    }
-
-    const oldValues = user.toJSON();
-    await user.update(updateFields);
-    const newValues = updateFields;
-
-    // Log user update
-    await logAudit({
-      userId: currentUser.id,
-      userEmail: currentUser.email,
-      userRole: currentUser.role,
-      stationId: user.stationId,
-      action: 'UPDATE',
-      entityType: 'User',
-      entityId: user.id,
-      oldValues: oldValues,
-      newValues: newValues,
-      category: 'data',
-      severity: 'info',
-      description: `Updated user: ${user.name} (${user.email})`
-    });
-
-    res.json({
-      success: true,
-      data: user.toSafeObject(),
-      message: 'User updated'
-    });
-  } catch (error) {
-    console.error('Update user error:', error);
-    next(error);
+  const user = await User.findByPk(id);
+  if (!user) {
+    throw new NotFoundError('User', id);
   }
-};
+
+  const canEdit = await canAccessUser(currentUser, user);
+  if (!canEdit) {
+    throw new AuthorizationError('Access denied');
+  }
+
+  if (id === currentUser.id && isActive === false) {
+    return sendError(res, 'VALIDATION_ERROR', 'Cannot deactivate yourself', 400);
+  }
+
+  if (stationId && stationId !== user.stationId) {
+    if (currentUser.role === 'owner') {
+      const station = await Station.findByPk(stationId);
+      if (!station || station.ownerId !== currentUser.id) {
+        throw new AuthorizationError('You can only move staff to your own stations');
+      }
+    } else if (currentUser.role !== 'super_admin') {
+      throw new AuthorizationError('Only owner can change staff station');
+    }
+  }
+
+  const updateFields = {
+    name: name || user.name,
+    phone: phone !== undefined ? phone : user.phone,
+    stationId: stationId || user.stationId,
+    isActive: isActive !== undefined ? isActive : user.isActive
+  };
+
+  if (user.role === 'owner' && currentUser.role === 'super_admin' && planId) {
+    const plan = await Plan.findByPk(planId);
+    if (!plan) {
+      return sendError(res, 'VALIDATION_ERROR', 'Invalid planId provided', 400);
+    }
+    updateFields.planId = planId;
+  }
+
+  const oldValues = user.toJSON();
+  await user.update(updateFields);
+  const newValues = updateFields;
+
+  await logAudit({
+    userId: currentUser.id,
+    userEmail: currentUser.email,
+    userRole: currentUser.role,
+    stationId: user.stationId,
+    action: 'UPDATE',
+    entityType: 'User',
+    entityId: user.id,
+    oldValues: oldValues,
+    newValues: newValues,
+    category: 'data',
+    severity: 'info',
+    description: `Updated user: ${user.name} (${user.email})`
+  });
+
+  return sendSuccess(res, user.toSafeObject(), {
+    message: 'User updated'
+  });
+});
 
 /**
  * Deactivate user (soft delete)
  * DELETE /api/v1/users/:id
  */
-exports.deactivateUser = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const currentUser = req.user;
+exports.deactivateUser = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const currentUser = req.user;
 
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    // Prevent deactivation of superadmin
-    if (user.role === 'super_admin') {
-      return res.status(403).json({ success: false, error: 'Superadmin cannot be deactivated.' });
-    }
-
-    // Can't deactivate yourself
-    if (id === currentUser.id) {
-      return res.status(400).json({ success: false, error: 'Cannot deactivate yourself' });
-    }
-
-    // Prevent orphaning stations: owners cannot be deactivated if responsible for stations
-    if (user.role === 'owner') {
-      const { Station } = require('../models');
-      const ownedStations = await Station.findAll({
-        where: { ownerId: id },
-        attributes: ['id', 'name']
-      });
-      if (ownedStations.length > 0) {
-        return res.status(403).json({
-          success: false,
-          error: `Cannot deactivate owner: responsible for ${ownedStations.length} station(s). Transfer ownership first or request superadmin assistance.`,
-          stations: ownedStations.map(s => ({ id: s.id, name: s.name }))
-        });
-      }
-    }
-
-    // Check permissions
-    const canEdit = await canAccessUser(currentUser, user);
-    if (!canEdit) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    const userData = user.toJSON();
-    await user.update({ isActive: false });
-
-    // Log user deactivation
-    await logAudit({
-      userId: currentUser.id,
-      userEmail: currentUser.email,
-      userRole: currentUser.role,
-      stationId: user.stationId,
-      action: 'UPDATE',
-      entityType: 'User',
-      entityId: user.id,
-      oldValues: userData,
-      newValues: { isActive: false },
-      category: 'data',
-      severity: 'warning',
-      description: `Deactivated user: ${user.name} (${user.email})`
-    });
-
-    res.json({
-      success: true,
-      message: `User ${user.name} deactivated`
-    });
-  } catch (error) {
-    console.error('Deactivate user error:', error);
-    next(error);
+  const user = await User.findByPk(id);
+  if (!user) {
+    throw new NotFoundError('User', id);
   }
-};
+
+  if (user.role === 'super_admin') {
+    throw new AuthorizationError('Superadmin cannot be deactivated');
+  }
+
+  if (id === currentUser.id) {
+    return sendError(res, 'VALIDATION_ERROR', 'Cannot deactivate yourself', 400);
+  }
+
+  if (user.role === 'owner') {
+    const ownedStations = await Station.findAll({
+      where: { ownerId: id },
+      attributes: ['id', 'name']
+    });
+    if (ownedStations.length > 0) {
+      return sendError(res, 'VALIDATION_ERROR', 
+        `Cannot deactivate owner: responsible for ${ownedStations.length} station(s). Transfer ownership first or request superadmin assistance.`,
+        403, {
+          stations: ownedStations.map(s => ({ id: s.id, name: s.name }))
+        }
+      );
+    }
+  }
+
+  const canEdit = await canAccessUser(currentUser, user);
+  if (!canEdit) {
+    throw new AuthorizationError('Access denied');
+  }
+
+  const userData = user.toJSON();
+  await user.update({ isActive: false });
+
+  await logAudit({
+    userId: currentUser.id,
+    userEmail: currentUser.email,
+    userRole: currentUser.role,
+    stationId: user.stationId,
+    action: 'UPDATE',
+    entityType: 'User',
+    entityId: user.id,
+    oldValues: userData,
+    newValues: { isActive: false },
+    category: 'data',
+    severity: 'warning',
+    description: `Deactivated user: ${user.name} (${user.email})`
+  });
+
+  return sendSuccess(res, null, {
+    message: `User ${user.name} deactivated`
+  });
+});
 
 /**
  * Reset password
  * POST /api/v1/users/:id/reset-password
  */
-exports.resetPassword = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { newPassword } = req.body;
-    const currentUser = req.user;
+exports.resetPassword = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { newPassword } = req.body;
+  const currentUser = req.user;
 
-    if (!newPassword || newPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        error: 'Password must be at least 6 characters'
-      });
-    }
-
-    const user = await User.findByPk(id);
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    // Can reset own password or managed users
-    if (id !== currentUser.id) {
-      const canEdit = await canAccessUser(currentUser, user);
-      if (!canEdit) {
-        return res.status(403).json({ success: false, error: 'Access denied' });
-      }
-    }
-
-    await user.update({ password: newPassword }); // Hook will hash it
-
-    res.json({
-      success: true,
-      message: 'Password reset successfully'
-    });
-  } catch (error) {
-    console.error('Reset password error:', error);
-    next(error);
+  if (!newPassword || newPassword.length < 6) {
+    return sendError(res, 'VALIDATION_ERROR', 'Password must be at least 6 characters', 400);
   }
-};
+
+  const user = await User.findByPk(id);
+  if (!user) {
+    throw new NotFoundError('User', id);
+  }
+
+  // Can reset own password or managed users
+  if (id !== currentUser.id) {
+    const canEdit = await canAccessUser(currentUser, user);
+    if (!canEdit) {
+      throw new AuthorizationError('Access denied');
+    }
+  }
+
+  await user.update({ password: newPassword }); // Hook will hash it
+
+  await logAudit({
+    userId: currentUser.id,
+    userEmail: currentUser.email,
+    userRole: currentUser.role,
+    stationId: user.stationId,
+    action: 'UPDATE',
+    entityType: 'User',
+    entityId: user.id,
+    oldValues: { password: '***' },
+    newValues: { password: '***' },
+    category: 'security',
+    severity: 'info',
+    description: `Password reset for user: ${user.name} (${user.email})`
+  });
+
+  return sendSuccess(res, null, {
+    message: 'Password reset successfully'
+  });
+});
 
 /**
  * Get staff for a specific station
  * GET /api/v1/stations/:stationId/staff
  */
-exports.getStationStaff = async (req, res, next) => {
-  try {
-    const { stationId } = req.params;
-    const { role } = req.query;
-    const currentUser = req.user;
+exports.getStationStaff = asyncHandler(async (req, res, next) => {
+  const { stationId } = req.params;
+  const { role } = req.query;
+  const currentUser = req.user;
 
-    // Verify station access
-    const station = await Station.findByPk(stationId);
-    if (!station) {
-      return res.status(404).json({ success: false, error: 'Station not found' });
-    }
-
-    // Check permissions
-    const currentRole = (currentUser.role || '').toLowerCase();
-    if (currentRole === 'owner' && station.ownerId !== currentUser.id) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-    if (['manager', 'employee'].includes(currentRole) && currentUser.stationId !== stationId) {
-      return res.status(403).json({ success: false, error: 'Access denied' });
-    }
-
-    const where = { stationId };
-    if (role) where.role = role;
-
-    const staff = await User.findAll({
-      where,
-      attributes: { exclude: ['password'] },
-      order: [['role', 'ASC'], ['name', 'ASC']]
-    });
-
-    res.json({
-      success: true,
-      data: staff,
-      summary: {
-        managers: staff.filter(u => u.role === 'manager').length,
-        employees: staff.filter(u => u.role === 'employee').length,
-        total: staff.length
-      }
-    });
-  } catch (error) {
-    console.error('Get station staff error:', error);
-    next(error);
+  // Verify station access
+  const station = await Station.findByPk(stationId);
+  if (!station) {
+    throw new NotFoundError('Station', stationId);
   }
-};
+
+  // Check permissions
+  const currentRole = (currentUser.role || '').toLowerCase();
+  if (currentRole === 'owner' && station.ownerId !== currentUser.id) {
+    throw new AuthorizationError('Access denied');
+  }
+  if (['manager', 'employee'].includes(currentRole) && currentUser.stationId !== stationId) {
+    throw new AuthorizationError('Access denied');
+  }
+
+  const where = { stationId };
+  if (role) where.role = role;
+
+  const staff = await User.findAll({
+    where,
+    attributes: { exclude: ['password'] },
+    order: [['role', 'ASC'], ['name', 'ASC']]
+  });
+
+  return sendSuccess(res, {
+    staff,
+    summary: {
+      managers: staff.filter(u => u.role === 'manager').length,
+      employees: staff.filter(u => u.role === 'employee').length,
+      total: staff.length
+    }
+  });
+});
 
 /**
  * Helper: Check if user can access another user
@@ -622,76 +547,68 @@ module.exports = exports;
  * Get effective features / permissions for a user (role + plan applied)
  * GET /api/v1/users/:id/effective-features
  */
-exports.getEffectiveFeatures = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const currentUser = req.user;
+exports.getEffectiveFeatures = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const currentUser = req.user;
 
-    // Only super_admin can fetch arbitrary user's effective features
-    if ((currentUser.role || '').toLowerCase() !== 'super_admin') {
-      return res.status(403).json({ success: false, error: 'Insufficient permissions' });
-    }
-
-    const targetUser = await User.findByPk(id, {
-      include: [{ model: Station, as: 'station' }, { model: Plan, as: 'plan' }]
-    });
-
-    if (!targetUser) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    // Determine effective plan: user's own plan or station owner's plan
-    let effectivePlan = targetUser.plan || null;
-    let ownerPlanUsed = false;
-
-    if (!effectivePlan && targetUser.stationId) {
-      const station = await Station.findByPk(targetUser.stationId);
-      if (station && station.ownerId) {
-        const owner = await User.findByPk(station.ownerId, { include: [{ model: Plan, as: 'plan' }] });
-        if (owner && owner.plan) {
-          effectivePlan = owner.plan;
-          ownerPlanUsed = true;
-        }
-      }
-    }
-
-    const role = (targetUser.role || '').toLowerCase();
-    const rolePerms = ROLE_PERMISSIONS[role] || [];
-
-    const planName = effectivePlan ? (effectivePlan.name || '').toLowerCase() : null;
-    const planFeatures = planName ? (PLAN_FEATURES[planName] || {}) : {};
-
-    // Build effective permissions map
-    const effective = {};
-    Object.keys(PERMISSIONS).forEach((key) => {
-      const perm = PERMISSIONS[key];
-      const roleAllows = rolePerms.includes(perm);
-      const planCfg = planFeatures[perm] || { allowed: false };
-      const planAllows = !!planCfg.allowed;
-      effective[perm] = {
-        roleAllows,
-        planAllows,
-        allowed: roleAllows && planAllows,
-        details: planCfg
-      };
-    });
-
-    res.json({
-      success: true,
-      data: {
-        userId: targetUser.id,
-        email: targetUser.email,
-        role: targetUser.role,
-        stationId: targetUser.stationId,
-        plan: effectivePlan ? { id: effectivePlan.id, name: effectivePlan.name } : null,
-        ownerPlanUsed,
-        rolePermissions: rolePerms,
-        planFeatures: planFeatures,
-        effectivePermissions: effective
-      }
-    });
-  } catch (error) {
-    console.error('Get effective features error:', error);
-    next(error);
+  // Only super_admin can fetch arbitrary user's effective features
+  if ((currentUser.role || '').toLowerCase() !== 'super_admin') {
+    throw new AuthorizationError('Insufficient permissions');
   }
-};
+
+  const targetUser = await User.findByPk(id, {
+    include: [{ model: Station, as: 'station' }, { model: Plan, as: 'plan' }]
+  });
+
+  if (!targetUser) {
+    throw new NotFoundError('User', id);
+  }
+
+  // Determine effective plan: user's own plan or station owner's plan
+  let effectivePlan = targetUser.plan || null;
+  let ownerPlanUsed = false;
+
+  if (!effectivePlan && targetUser.stationId) {
+    const station = await Station.findByPk(targetUser.stationId);
+    if (station && station.ownerId) {
+      const owner = await User.findByPk(station.ownerId, { include: [{ model: Plan, as: 'plan' }] });
+      if (owner && owner.plan) {
+        effectivePlan = owner.plan;
+        ownerPlanUsed = true;
+      }
+    }
+  }
+
+  const role = (targetUser.role || '').toLowerCase();
+  const rolePerms = ROLE_PERMISSIONS[role] || [];
+
+  const planName = effectivePlan ? (effectivePlan.name || '').toLowerCase() : null;
+  const planFeatures = planName ? (PLAN_FEATURES[planName] || {}) : {};
+
+  // Build effective permissions map
+  const effective = {};
+  Object.keys(PERMISSIONS).forEach((key) => {
+    const perm = PERMISSIONS[key];
+    const roleAllows = rolePerms.includes(perm);
+    const planCfg = planFeatures[perm] || { allowed: false };
+    const planAllows = !!planCfg.allowed;
+    effective[perm] = {
+      roleAllows,
+      planAllows,
+      allowed: roleAllows && planAllows,
+      details: planCfg
+    };
+  });
+
+  return sendSuccess(res, {
+    userId: targetUser.id,
+    email: targetUser.email,
+    role: targetUser.role,
+    stationId: targetUser.stationId,
+    plan: effectivePlan ? { id: effectivePlan.id, name: effectivePlan.name } : null,
+    ownerPlanUsed,
+    rolePermissions: rolePerms,
+    planFeatures: planFeatures,
+    effectivePermissions: effective
+  });
+});

@@ -8,11 +8,17 @@
  * - BULK_EXPORT: Export operations are logged
  */
 
+// ===== MODELS & DATABASE =====
 const { NozzleReading, Station, User, sequelize } = require('../models');
-const { logAudit } = require('../utils/auditLog');
 const bulkOperations = require('../services/bulkOperations');
 const readingValidationEnhancedService = require('../services/readingValidationEnhancedService');
-const { parseStream } = require('fast-csv');
+
+// ===== ERROR & RESPONSE HANDLING =====
+const { asyncHandler, NotFoundError, ValidationError } = require('../utils/errors');
+const { sendSuccess, sendError, sendCreated } = require('../utils/apiResponse');
+
+// ===== UTILITIES =====
+const { logAudit } = require('../utils/auditLog');
 
 /**
  * Validate bulk readings before import
@@ -26,61 +32,40 @@ const { parseStream } = require('fast-csv');
  *   ]
  * }
  */
-exports.validateBulkReadings = async (req, res, next) => {
-  try {
-    const { stationId, readings } = req.body;
-    const userId = req.userId;
+exports.validateBulkReadings = asyncHandler(async (req, res, next) => {
+  const { stationId, readings } = req.body;
+  const userId = req.user.id;
 
-    if (!stationId) {
-      return res.status(400).json({
-        success: false,
-        error: 'stationId is required'
-      });
-    }
-
-    if (!Array.isArray(readings) || readings.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'readings array is required and must not be empty'
-      });
-    }
-
-    // Verify station exists and user has access
-    const station = await Station.findByPk(stationId);
-    if (!station) {
-      return res.status(404).json({
-        success: false,
-        error: 'Station not found'
-      });
-    }
-
-    // Validate all readings
-    const validationResult = await bulkOperations.validateBulkReadings({
-      stationId,
-      readings,
-      userId
-    });
-
-    const statusCode = validationResult.allValid ? 200 : 400;
-    res.status(statusCode).json({
-      success: validationResult.allValid,
-      message: `Validation complete: ${validationResult.validCount} valid, ${validationResult.invalidCount} invalid`,
-      data: {
-        totalReadings: validationResult.totalReadings,
-        validCount: validationResult.validCount,
-        invalidCount: validationResult.invalidCount,
-        allValid: validationResult.allValid,
-        results: validationResult.results
-      }
-    });
-  } catch (error) {
-    console.error('[ERROR] validateBulkReadings:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  if (!stationId) {
+    return sendError(res, 'MISSING_FIELD', 'stationId is required', 400);
   }
-};
+
+  if (!Array.isArray(readings) || readings.length === 0) {
+    return sendError(res, 'INVALID_ARRAY', 'readings array is required and must not be empty', 400);
+  }
+
+  // Verify station exists and user has access
+  const station = await Station.findByPk(stationId);
+  if (!station) throw new NotFoundError('Station', stationId);
+
+  // Validate all readings
+  const validationResult = await bulkOperations.validateBulkReadings({
+    stationId,
+    readings,
+    userId
+  });
+
+  const statusCode = validationResult.allValid ? 200 : 400;
+  
+  return sendSuccess(res, {
+    totalReadings: validationResult.totalReadings,
+    validCount: validationResult.validCount,
+    invalidCount: validationResult.invalidCount,
+    allValid: validationResult.allValid,
+    results: validationResult.results,
+    message: `Validation complete: ${validationResult.validCount} valid, ${validationResult.invalidCount} invalid`
+  }, { statusCode });
+});
 
 /**
  * Create readings in bulk via CSV or JSON
@@ -98,73 +83,54 @@ exports.validateBulkReadings = async (req, res, next) => {
  *   readings: [...]
  * }
  */
-exports.bulkCreateReadings = async (req, res, next) => {
-  let t;
-  try {
-    const userId = req.userId;
-    const { stationId } = req.body;
+exports.bulkCreateReadings = asyncHandler(async (req, res, next) => {
+  const { stationId } = req.body;
+  const userId = req.user.id;
 
-    if (!stationId) {
-      return res.status(400).json({
-        success: false,
-        error: 'stationId is required'
-      });
-    }
+  if (!stationId) {
+    return sendError(res, 'MISSING_FIELD', 'stationId is required', 400);
+  }
 
-    // Verify station exists
-    const station = await Station.findByPk(stationId);
-    if (!station) {
-      return res.status(404).json({
-        success: false,
-        error: 'Station not found'
-      });
-    }
+  // Verify station exists
+  const station = await Station.findByPk(stationId);
+  if (!station) throw new NotFoundError('Station', stationId);
 
-    let readings = [];
+  let readings = [];
 
-    // Parse readings from file or JSON body
-    if (req.file) {
-      // CSV file upload
-      readings = await bulkOperations.parseCSVForImport(req.file.buffer.toString('utf-8'));
-    } else if (req.body.readings) {
-      // JSON array in request body
-      readings = req.body.readings;
-    } else {
-      return res.status(400).json({
-        success: false,
-        error: 'Either file upload or readings array in body is required'
-      });
-    }
+  // Parse readings from file or JSON body
+  if (req.file) {
+    // CSV file upload
+    readings = await bulkOperations.parseCSVForImport(req.file.buffer.toString('utf-8'));
+  } else if (req.body.readings) {
+    // JSON array in request body
+    readings = req.body.readings;
+  } else {
+    return sendError(res, 'INVALID_INPUT', 'Either file upload or readings array in body is required', 400);
+  }
 
-    if (!Array.isArray(readings) || readings.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No readings found to import'
-      });
-    }
+  if (!Array.isArray(readings) || readings.length === 0) {
+    return sendError(res, 'INVALID_ARRAY', 'No readings found to import', 400);
+  }
 
-    // Validate all readings first
-    const validationResult = await bulkOperations.validateBulkReadings({
-      stationId,
-      readings,
-      userId
+  // Validate all readings first
+  const validationResult = await bulkOperations.validateBulkReadings({
+    stationId,
+    readings,
+    userId
+  });
+
+  if (!validationResult.allValid) {
+    return sendError(res, 'VALIDATION_FAILED', 'Validation failed - some readings are invalid', 400, {
+      validCount: validationResult.validCount,
+      invalidCount: validationResult.invalidCount,
+      results: validationResult.results
     });
+  }
 
-    if (!validationResult.allValid) {
-      return res.status(400).json({
-        success: false,
-        error: 'Validation failed - some readings are invalid',
-        data: {
-          validCount: validationResult.validCount,
-          invalidCount: validationResult.invalidCount,
-          results: validationResult.results
-        }
-      });
-    }
+  // Create transaction for atomic operation
+  const t = await sequelize.transaction();
 
-    // Create transaction for atomic operation
-    t = await sequelize.transaction();
-
+  try {
     // Bulk create readings with transaction
     const createResult = await bulkOperations.bulkCreateReadings({
       stationId,
@@ -175,9 +141,7 @@ exports.bulkCreateReadings = async (req, res, next) => {
 
     if (!createResult.success) {
       await t.rollback();
-      return res.status(500).json({
-        success: false,
-        error: 'Bulk create failed',
+      return sendError(res, 'BULK_CREATE_FAILED', 'Bulk create failed', 500, {
         details: createResult.details
       });
     }
@@ -203,28 +167,18 @@ exports.bulkCreateReadings = async (req, res, next) => {
 
     await t.commit();
 
-    res.status(201).json({
-      success: true,
-      message: `Successfully imported ${createResult.createdCount} readings`,
-      data: {
-        createdCount: createResult.createdCount,
-        skippedCount: createResult.skippedCount,
-        totalLiters: createResult.totalLiters,
-        totalAmount: createResult.totalAmount,
-        details: createResult.details
-      }
-    });
+    return sendCreated(res, {
+      createdCount: createResult.createdCount,
+      skippedCount: createResult.skippedCount,
+      totalLiters: createResult.totalLiters,
+      totalAmount: createResult.totalAmount,
+      details: createResult.details
+    }, { message: `Successfully imported ${createResult.createdCount} readings` });
   } catch (error) {
-    if (t) {
-      await t.rollback();
-    }
-    console.error('[ERROR] bulkCreateReadings:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    await t.rollback();
+    throw error;
   }
-};
+});
 
 /**
  * Export readings to CSV
@@ -236,69 +190,53 @@ exports.bulkCreateReadings = async (req, res, next) => {
  * - endDate: YYYY-MM-DD (required)
  * - nozzleIds: comma-separated UUIDs (optional, filter by specific nozzles)
  */
-exports.exportReadingsToCSV = async (req, res, next) => {
-  try {
-    const { stationId, startDate, endDate, nozzleIds } = req.query;
-    const userId = req.userId;
+exports.exportReadingsToCSV = asyncHandler(async (req, res, next) => {
+  const { stationId, startDate, endDate, nozzleIds } = req.query;
+  const userId = req.user.id;
 
-    if (!stationId || !startDate || !endDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'stationId, startDate, and endDate are required'
-      });
-    }
+  if (!stationId || !startDate || !endDate) {
+    return sendError(res, 'MISSING_FIELDS', 'stationId, startDate, and endDate are required', 400);
+  }
 
-    // Verify station exists
-    const station = await Station.findByPk(stationId);
-    if (!station) {
-      return res.status(404).json({
-        success: false,
-        error: 'Station not found'
-      });
-    }
+  // Verify station exists
+  const station = await Station.findByPk(stationId);
+  if (!station) throw new NotFoundError('Station', stationId);
 
-    // Parse nozzle IDs filter if provided
-    const nozzleFilter = nozzleIds ? nozzleIds.split(',').map(id => id.trim()) : null;
+  // Parse nozzle IDs filter if provided
+  const nozzleFilter = nozzleIds ? nozzleIds.split(',').map(id => id.trim()) : null;
 
-    // Export to CSV
-    const csvContent = await bulkOperations.exportReadingsToCSV({
-      stationId,
+  // Export to CSV
+  const csvContent = await bulkOperations.exportReadingsToCSV({
+    stationId,
+    startDate,
+    endDate,
+    nozzleIds: nozzleFilter
+  });
+
+  // Audit log
+  const currentUser = await User.findByPk(userId);
+  await logAudit({
+    userId,
+    userEmail: currentUser?.email,
+    userRole: currentUser?.role,
+    stationId,
+    action: 'BULK_EXPORT',
+    entityType: 'NozzleReading',
+    newValues: {
       startDate,
       endDate,
-      nozzleIds: nozzleFilter
-    });
+      nozzleCount: nozzleFilter ? nozzleFilter.length : 'all'
+    },
+    category: 'data',
+    severity: 'info',
+    description: `Exported readings from ${startDate} to ${endDate}`
+  });
 
-    // Audit log
-    const currentUser = await User.findByPk(userId);
-    await logAudit({
-      userId,
-      userEmail: currentUser?.email,
-      userRole: currentUser?.role,
-      stationId,
-      action: 'BULK_EXPORT',
-      entityType: 'NozzleReading',
-      newValues: {
-        startDate,
-        endDate,
-        nozzleCount: nozzleFilter ? nozzleFilter.length : 'all'
-      },
-      category: 'data',
-      severity: 'info',
-      description: `Exported readings from ${startDate} to ${endDate}`
-    });
-
-    // Return CSV file
-    res.setHeader('Content-Type', 'text/csv');
-    res.setHeader('Content-Disposition', `attachment; filename="readings_${stationId}_${startDate}_${endDate}.csv"`);
-    res.send(csvContent);
-  } catch (error) {
-    console.error('[ERROR] exportReadingsToCSV:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
+  // Return CSV file
+  res.setHeader('Content-Type', 'text/csv');
+  res.setHeader('Content-Disposition', `attachment; filename="readings_${stationId}_${startDate}_${endDate}.csv"`);
+  res.send(csvContent);
+});
 
 /**
  * Update readings in bulk
@@ -312,38 +250,26 @@ exports.exportReadingsToCSV = async (req, res, next) => {
  *   ]
  * }
  */
-exports.bulkUpdateReadings = async (req, res, next) => {
-  let t;
+exports.bulkUpdateReadings = asyncHandler(async (req, res, next) => {
+  const { stationId, updates } = req.body;
+  const userId = req.user.id;
+
+  if (!stationId) {
+    return sendError(res, 'MISSING_FIELD', 'stationId is required', 400);
+  }
+
+  if (!Array.isArray(updates) || updates.length === 0) {
+    return sendError(res, 'INVALID_ARRAY', 'updates array is required and must not be empty', 400);
+  }
+
+  // Verify station exists
+  const station = await Station.findByPk(stationId);
+  if (!station) throw new NotFoundError('Station', stationId);
+
+  // Create transaction for atomic operation
+  const t = await sequelize.transaction();
+
   try {
-    const { stationId, updates } = req.body;
-    const userId = req.userId;
-
-    if (!stationId) {
-      return res.status(400).json({
-        success: false,
-        error: 'stationId is required'
-      });
-    }
-
-    if (!Array.isArray(updates) || updates.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'updates array is required and must not be empty'
-      });
-    }
-
-    // Verify station exists
-    const station = await Station.findByPk(stationId);
-    if (!station) {
-      return res.status(404).json({
-        success: false,
-        error: 'Station not found'
-      });
-    }
-
-    // Create transaction for atomic operation
-    t = await sequelize.transaction();
-
     // Bulk update readings with transaction
     const updateResult = await bulkOperations.bulkUpdateReadings({
       stationId,
@@ -353,9 +279,7 @@ exports.bulkUpdateReadings = async (req, res, next) => {
 
     if (!updateResult.success) {
       await t.rollback();
-      return res.status(500).json({
-        success: false,
-        error: 'Bulk update failed',
+      return sendError(res, 'BULK_UPDATE_FAILED', 'Bulk update failed', 500, {
         details: updateResult.details
       });
     }
@@ -379,23 +303,13 @@ exports.bulkUpdateReadings = async (req, res, next) => {
 
     await t.commit();
 
-    res.status(200).json({
-      success: true,
-      message: `Successfully updated ${updateResult.updatedCount} readings`,
-      data: {
-        updatedCount: updateResult.updatedCount,
-        skippedCount: updateResult.skippedCount,
-        details: updateResult.details
-      }
-    });
+    return sendSuccess(res, {
+      updatedCount: updateResult.updatedCount,
+      skippedCount: updateResult.skippedCount,
+      details: updateResult.details
+    }, { message: `Successfully updated ${updateResult.updatedCount} readings` });
   } catch (error) {
-    if (t) {
-      await t.rollback();
-    }
-    console.error('[ERROR] bulkUpdateReadings:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    await t.rollback();
+    throw error;
   }
-};
+});

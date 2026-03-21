@@ -10,9 +10,18 @@
  * All CREATE/UPDATE/REFILL operations are tracked via logAudit() from utils/auditLog
  */
 
+// ===== MODELS & DATABASE =====
 const { Tank, TankRefill, Station, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
+
+// ===== ERROR & RESPONSE HANDLING =====
+const { asyncHandler, NotFoundError, AuthorizationError } = require('../utils/errors');
+const { sendSuccess, sendCreated, sendError, sendPaginated } = require('../utils/apiResponse');
+
+// ===== MIDDLEWARE & CONFIG =====
 const { canAccessStation } = require('../middleware/accessControl');
+
+// ===== UTILITIES =====
 const { logAudit } = require('../utils/auditLog');
 const costOfGoodsService = require('../services/costOfGoodsService');
 
@@ -22,37 +31,23 @@ const costOfGoodsService = require('../services/costOfGoodsService');
  * 
  * Response includes full status with "since last refill" tracking
  */
-exports.getTanks = async (req, res, next) => {
-  try {
-    const { stationId } = req.params;
-    const user = await User.findByPk(req.userId);
-    
-    // Authorization
-    if (!(await canAccessStation(user, stationId))) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to access this station'
-      });
-    }
-    
-    // Get tanks with full status (includes "since last refill" data)
-    const tanks = await Tank.findAll({
-      where: { stationId, isActive: true },
-      order: [['fuelType', 'ASC'], ['name', 'ASC']]
-    });
-    
-    // Map to include full status with tracking info
-    const tanksWithStatus = tanks.map(tank => tank.getFullStatus());
-    
-    res.json({
-      success: true,
-      data: tanksWithStatus
-    });
-  } catch (error) {
-    console.error('Get tanks error:', error);
-    next(error);
+exports.getTanks = asyncHandler(async (req, res, next) => {
+  const { stationId } = req.params;
+  const user = await User.findByPk(req.userId);
+  
+  if (!(await canAccessStation(user, stationId))) {
+    throw new AuthorizationError('Not authorized to access this station');
   }
-};
+  
+  const tanks = await Tank.findAll({
+    where: { stationId, isActive: true },
+    order: [['fuelType', 'ASC'], ['name', 'ASC']]
+  });
+  
+  const tanksWithStatus = tanks.map(tank => tank.getFullStatus());
+  
+  return sendSuccess(res, tanksWithStatus);
+});
 
 /**
  * Get tank warnings for dashboard
@@ -61,53 +56,43 @@ exports.getTanks = async (req, res, next) => {
  * Returns tanks with low, critical, empty, or NEGATIVE status
  * Negative status indicates owner may have forgotten to record a refill
  */
-exports.getTankWarnings = async (req, res, next) => {
-  try {
-    const user = await User.findByPk(req.userId);
-    let stationId = null;
-    
-    // Get station context based on role
-    if (user.role === 'owner') {
-      const stations = await Station.findAll({ where: { ownerId: user.id } });
-      const warnings = [];
-      for (const station of stations) {
-        const stationTanks = await Tank.findAll({
-          where: { stationId: station.id, isActive: true }
-        });
-        
-        // Filter to tanks with warning-level status (including negative)
-        for (const tank of stationTanks) {
-          const fullStatus = tank.getFullStatus();
-          if (['low', 'critical', 'empty', 'negative'].includes(fullStatus.status)) {
-            warnings.push({
-              ...fullStatus,
-              stationName: station.name
-            });
-          }
+exports.getTankWarnings = asyncHandler(async (req, res, next) => {
+  const user = await User.findByPk(req.userId);
+  let stationId = null;
+  
+  if (user.role === 'owner') {
+    const stations = await Station.findAll({ where: { ownerId: user.id } });
+    const warnings = [];
+    for (const station of stations) {
+      const stationTanks = await Tank.findAll({
+        where: { stationId: station.id, isActive: true }
+      });
+      
+      for (const tank of stationTanks) {
+        const fullStatus = tank.getFullStatus();
+        if (['low', 'critical', 'empty', 'negative'].includes(fullStatus.status)) {
+          warnings.push({
+            ...fullStatus,
+            stationName: station.name
+          });
         }
       }
-      return res.json({ success: true, data: warnings });
-    } else if (user.stationId) {
-      stationId = user.stationId;
     }
-    
-    const tanks = await Tank.findAll({
-      where: { stationId, isActive: true }
-    });
-    
-    const warnings = tanks
-      .map(tank => tank.getFullStatus())
-      .filter(status => ['low', 'critical', 'empty', 'negative'].includes(status.status));
-    
-    res.json({
-      success: true,
-      data: warnings
-    });
-  } catch (error) {
-    console.error('Get tank warnings error:', error);
-    next(error);
+    return sendSuccess(res, warnings);
+  } else if (user.stationId) {
+    stationId = user.stationId;
   }
-};
+  
+  const tanks = await Tank.findAll({
+    where: { stationId, isActive: true }
+  });
+  
+  const warnings = tanks
+    .map(tank => tank.getFullStatus())
+    .filter(status => ['low', 'critical', 'empty', 'negative'].includes(status.status));
+  
+  return sendSuccess(res, warnings);
+});
 
 /**
  * Get single tank with details
@@ -119,56 +104,40 @@ exports.getTankWarnings = async (req, res, next) => {
  * - Alert if level is negative
  * - Recent refill history
  */
-exports.getTank = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    
-    const tank = await Tank.findByPk(id, {
-      include: [
-        { model: Station, as: 'station', attributes: ['id', 'name'] },
-        { 
-          model: TankRefill, 
-          as: 'refills', 
-          limit: 10,
-          order: [['refillDate', 'DESC']],
-          include: [{ model: User, as: 'enteredByUser', attributes: ['id', 'name'] }]
-        }
-      ]
-    });
-    
-    if (!tank) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tank not found'
-      });
-    }
-    
-    // Authorization
-    const user = await User.findByPk(req.userId);
-    if (!(await canAccessStation(user, tank.stationId))) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to access this tank'
-      });
-    }
-    
-    // Get full status with "since last refill" tracking
-    const fullStatus = tank.getFullStatus();
-    
-    res.json({
-      success: true,
-      data: {
-        ...fullStatus,
-        station: tank.station,
-        refills: tank.refills,
-        notes: tank.notes
+exports.getTank = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  
+  const tank = await Tank.findByPk(id, {
+    include: [
+      { model: Station, as: 'station', attributes: ['id', 'name'] },
+      { 
+        model: TankRefill, 
+        as: 'refills', 
+        limit: 10,
+        order: [['refillDate', 'DESC']],
+        include: [{ model: User, as: 'enteredByUser', attributes: ['id', 'name'] }]
       }
-    });
-  } catch (error) {
-    console.error('Get tank error:', error);
-    next(error);
+    ]
+  });
+  
+  if (!tank) {
+    throw new NotFoundError('Tank', id);
   }
-};
+  
+  const user = await User.findByPk(req.userId);
+  if (!(await canAccessStation(user, tank.stationId))) {
+    throw new AuthorizationError('Not authorized to access this tank');
+  }
+  
+  const fullStatus = tank.getFullStatus();
+  
+  return sendSuccess(res, {
+    ...fullStatus,
+    station: tank.station,
+    refills: tank.refills,
+    notes: tank.notes
+  });
+});
 
 /**
  * Create a new tank
@@ -177,115 +146,95 @@ exports.getTank = async (req, res, next) => {
  * Supports custom fuel display names (MSD, HSM, XP 95) via displayFuelName
  * Initial level sets the starting point for "since last refill" tracking
  */
-exports.createTank = async (req, res, next) => {
-  try {
-    const { stationId } = req.params;
-    const { 
-      fuelType, 
-      name, 
-      displayFuelName,  // Custom fuel name (e.g., "MSD", "HSM", "XP 95")
-      capacity, 
-      currentLevel, 
-      lowLevelWarning, 
-      criticalLevelWarning, 
-      lowLevelPercent, 
-      criticalLevelPercent, 
-      trackingMode, 
-      notes 
-    } = req.body;
-    
-    const user = await User.findByPk(req.userId);
-    
-    // Authorization
-    if (!(await canAccessStation(user, stationId))) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to access this station'
-      });
-    }
-    
-    // Check if tank for this fuel type already exists
-    const existingTank = await Tank.findOne({
-      where: { stationId, fuelType, isActive: true }
-    });
-    
-    if (existingTank) {
-      return res.status(400).json({
-        success: false,
-        error: `Tank for ${fuelType} already exists at this station`
-      });
-    }
-    
-    // Calculate initial level for tracking
-    const initialLevel = parseFloat(currentLevel) || 0;
-    
-    const tank = await Tank.create({
-      stationId,
-      fuelType,
-      name,
-      displayFuelName: displayFuelName || null, // Custom fuel name (MSD, HSM, etc.)
-      capacity,
-      currentLevel: initialLevel,
-      // Initialize "since last refill" tracking with initial level
-      levelAfterLastRefill: initialLevel > 0 ? initialLevel : null,
-      lastRefillDate: initialLevel > 0 ? new Date().toISOString().split('T')[0] : null,
-      lastRefillAmount: initialLevel > 0 ? initialLevel : null,
-      lowLevelWarning,
-      criticalLevelWarning,
-      lowLevelPercent,
-      criticalLevelPercent,
-      trackingMode: trackingMode || 'warning',
-      notes
-    });
-
-    // If initial level is set, create an "initial" entry in tank_refills for audit
-    if (initialLevel > 0) {
-      await TankRefill.create({
-        tankId: tank.id,
-        stationId,
-        litres: initialLevel,
-        refillDate: new Date().toISOString().split('T')[0],
-        entryType: 'initial',
-        enteredBy: req.userId,
-        notes: `Initial tank setup with ${initialLevel}L`
-      });
-    }
-
-    // Log tank creation
-    await logAudit({
-      userId: req.userId,
-      userEmail: user.email,
-      userRole: user.role,
-      stationId,
-      action: 'CREATE',
-      entityType: 'Tank',
-      entityId: tank.id,
-      newValues: {
-        id: tank.id,
-        fuelType,
-        displayFuelName: tank.displayFuelName,
-        name,
-        capacity,
-        currentLevel: tank.currentLevel
-      },
-      category: 'data',
-      severity: 'info',
-      description: `Created tank for ${tank.displayFuelName || fuelType} with capacity ${capacity}L`
-    });
-    
-    // Return full status with "since last refill" tracking
-    const fullStatus = tank.getFullStatus();
-    
-    res.status(201).json({
-      success: true,
-      data: fullStatus,
-      message: `Tank created for ${fullStatus.displayFuelName}. Current level: ${tank.currentLevel}L`
-    });
-  } catch (error) {
-    console.error('Create tank error:', error);
-    next(error);
+exports.createTank = asyncHandler(async (req, res, next) => {
+  const { stationId } = req.params;
+  const { 
+    fuelType, 
+    name, 
+    displayFuelName,
+    capacity, 
+    currentLevel, 
+    lowLevelWarning, 
+    criticalLevelWarning, 
+    lowLevelPercent, 
+    criticalLevelPercent, 
+    trackingMode, 
+    notes 
+  } = req.body;
+  
+  const user = await User.findByPk(req.userId);
+  
+  if (!(await canAccessStation(user, stationId))) {
+    throw new AuthorizationError('Not authorized to access this station');
   }
-};
+  
+  const existingTank = await Tank.findOne({
+    where: { stationId, fuelType, isActive: true }
+  });
+  
+  if (existingTank) {
+    return sendError(res, 'CONFLICT', `Tank for ${fuelType} already exists at this station`, 400);
+  }
+  
+  const initialLevel = parseFloat(currentLevel) || 0;
+  
+  const tank = await Tank.create({
+    stationId,
+    fuelType,
+    name,
+    displayFuelName: displayFuelName || null,
+    capacity,
+    currentLevel: initialLevel,
+    levelAfterLastRefill: initialLevel > 0 ? initialLevel : null,
+    lastRefillDate: initialLevel > 0 ? new Date().toISOString().split('T')[0] : null,
+    lastRefillAmount: initialLevel > 0 ? initialLevel : null,
+    lowLevelWarning,
+    criticalLevelWarning,
+    lowLevelPercent,
+    criticalLevelPercent,
+    trackingMode: trackingMode || 'warning',
+    notes
+  });
+
+  if (initialLevel > 0) {
+    await TankRefill.create({
+      tankId: tank.id,
+      stationId,
+      litres: initialLevel,
+      refillDate: new Date().toISOString().split('T')[0],
+      entryType: 'initial',
+      enteredBy: req.userId,
+      notes: `Initial tank setup with ${initialLevel}L`
+    });
+  }
+
+  await logAudit({
+    userId: req.userId,
+    userEmail: user.email,
+    userRole: user.role,
+    stationId,
+    action: 'CREATE',
+    entityType: 'Tank',
+    entityId: tank.id,
+    newValues: {
+      id: tank.id,
+      fuelType,
+      displayFuelName: tank.displayFuelName,
+      name,
+      capacity,
+      currentLevel: tank.currentLevel
+    },
+    category: 'data',
+    severity: 'info',
+    description: `Created tank for ${tank.displayFuelName || fuelType} with capacity ${capacity}L`
+  });
+  
+  const fullStatus = tank.getFullStatus();
+  
+  return sendCreated(res, fullStatus, {
+    message: `Tank created for ${fullStatus.displayFuelName}. Current level: ${tank.currentLevel}L`
+  });
+});
 
 /**
  * Update tank settings
@@ -296,213 +245,156 @@ exports.createTank = async (req, res, next) => {
  * - capacity, thresholds, tracking mode
  * - Does NOT allow direct currentLevel changes (use refill/calibrate instead)
  */
-exports.updateTank = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-    
-    const tank = await Tank.findByPk(id);
-    
-    if (!tank) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tank not found'
-      });
-    }
-    
-    // Authorization
-    const user = await User.findByPk(req.userId);
-    if (!(await canAccessStation(user, tank.stationId))) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this tank'
-      });
-    }
-    
-    // Allowed updates (displayFuelName added for custom fuel naming; fuelType allowed to fix wrongly-created tanks)
-    const allowedUpdates = [
-      'name', 
-      'fuelType',          // Allow correction of wrongly-set fuel type
-      'displayFuelName',  // Custom fuel name (MSD, HSM, XP 95)
-      'capacity', 
-      'lowLevelWarning', 
-      'criticalLevelWarning', 
-      'lowLevelPercent', 
-      'criticalLevelPercent', 
-      'trackingMode', 
-      'allowNegative', 
-      'notes', 
-      'isActive'
-    ];
-    
-    const oldValues = tank.toJSON();
-    const newValues = {};
-    
-    allowedUpdates.forEach(field => {
-      if (updates[field] !== undefined) {
-        tank[field] = updates[field];
-        newValues[field] = updates[field];
-      }
-    });
-    
-    await tank.save();
-
-    // Log tank update
-    await logAudit({
-      userId: req.userId,
-      userEmail: user.email,
-      userRole: user.role,
-      stationId: tank.stationId,
-      action: 'UPDATE',
-      entityType: 'Tank',
-      entityId: tank.id,
-      oldValues: oldValues,
-      newValues: newValues,
-      category: 'data',
-      severity: 'info',
-      description: `Updated tank: ${tank.displayFuelName || tank.name} (${tank.fuelType})`
-    });
-    
-    // Return full status
-    res.json({
-      success: true,
-      data: tank.getFullStatus()
-    });
-  } catch (error) {
-    console.error('Update tank error:', error);
-    next(error);
+exports.updateTank = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const updates = req.body;
+  
+  const tank = await Tank.findByPk(id);
+  
+  if (!tank) {
+    throw new NotFoundError('Tank', id);
   }
-};
+  
+  const user = await User.findByPk(req.userId);
+  if (!(await canAccessStation(user, tank.stationId))) {
+    throw new AuthorizationError('Not authorized to update this tank');
+  }
+  
+  const allowedUpdates = [
+    'name', 
+    'fuelType',
+    'displayFuelName',
+    'capacity', 
+    'lowLevelWarning', 
+    'criticalLevelWarning', 
+    'lowLevelPercent', 
+    'criticalLevelPercent', 
+    'trackingMode', 
+    'allowNegative', 
+    'notes', 
+    'isActive'
+  ];
+  
+  const oldValues = tank.toJSON();
+  const newValues = {};
+  
+  allowedUpdates.forEach(field => {
+    if (updates[field] !== undefined) {
+      tank[field] = updates[field];
+      newValues[field] = updates[field];
+    }
+  });
+  
+  await tank.save();
+
+  await logAudit({
+    userId: req.userId,
+    userEmail: user.email,
+    userRole: user.role,
+    stationId: tank.stationId,
+    action: 'UPDATE',
+    entityType: 'Tank',
+    entityId: tank.id,
+    oldValues: oldValues,
+    newValues: newValues,
+    category: 'data',
+    severity: 'info',
+    description: `Updated tank: ${tank.displayFuelName || tank.name} (${tank.fuelType})`
+  });
+  
+  return sendSuccess(res, tank.getFullStatus());
+});
 
 /**
  * Calibrate tank with physical dip reading
  * POST /api/v1/tanks/:id/calibrate
  */
-exports.calibrateTank = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { dipReading, date, notes } = req.body;
-    
-    if (dipReading === undefined) {
-      return res.status(400).json({
-        success: false,
-        error: 'dipReading is required'
-      });
-    }
-    
-    const tank = await Tank.findByPk(id);
-    
-    if (!tank) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tank not found'
-      });
-    }
-    
-    // Authorization
-    const user = await User.findByPk(req.userId);
-    if (!(await canAccessStation(user, tank.stationId))) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to calibrate this tank'
-      });
-    }
-    
-    const oldLevel = tank.currentLevel;
-    const status = await tank.calibrate(dipReading, date);
-    
-    // Create adjustment entry if there's a difference
-    const difference = parseFloat(dipReading) - parseFloat(oldLevel);
-    if (Math.abs(difference) > 0.5) {
-      await TankRefill.create({
-        tankId: tank.id,
-        stationId: tank.stationId,
-        litres: difference,
-        refillDate: date || new Date().toISOString().split('T')[0],
-        entryType: 'adjustment',
-        enteredBy: req.userId,
-        notes: notes || `Dip calibration adjustment: ${oldLevel}L → ${dipReading}L`
-      });
-    }
-    
-    res.json({
-      success: true,
-      data: {
-        tank: tank.toJSON(),
-        status,
-        adjustment: difference
-      },
-      message: `Tank calibrated. Level adjusted by ${difference.toFixed(1)}L`
-    });
-  } catch (error) {
-    console.error('Calibrate tank error:', error);
-    next(error);
+exports.calibrateTank = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { dipReading, date, notes } = req.body;
+  
+  if (dipReading === undefined) {
+    return sendError(res, 'VALIDATION_ERROR', 'dipReading is required', 400);
   }
-};
+  
+  const tank = await Tank.findByPk(id);
+  
+  if (!tank) {
+    throw new NotFoundError('Tank', id);
+  }
+  
+  const user = await User.findByPk(req.userId);
+  if (!(await canAccessStation(user, tank.stationId))) {
+    throw new AuthorizationError('Not authorized to calibrate this tank');
+  }
+  
+  const oldLevel = tank.currentLevel;
+  const status = await tank.calibrate(dipReading, date);
+  
+  const difference = parseFloat(dipReading) - parseFloat(oldLevel);
+  if (Math.abs(difference) > 0.5) {
+    await TankRefill.create({
+      tankId: tank.id,
+      stationId: tank.stationId,
+      litres: difference,
+      refillDate: date || new Date().toISOString().split('T')[0],
+      entryType: 'adjustment',
+      enteredBy: req.userId,
+      notes: notes || `Dip calibration adjustment: ${oldLevel}L → ${dipReading}L`
+    });
+  }
+  
+  return sendSuccess(res, {
+    tank: tank.toJSON(),
+    status,
+    adjustment: difference,
+    message: `Tank calibrated. Level adjusted by ${difference.toFixed(1)}L`
+  });
+});
 
 /**
  * Record a tank refill (with backdating support)
  * POST /api/v1/tanks/:id/refill
  */
-exports.recordRefill = async (req, res, next) => {
-  const t = await sequelize.transaction();
+exports.recordRefill = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { 
+    litres, refillDate, refillTime,
+    costPerLitre, totalCost,
+    supplierName, invoiceNumber,
+    vehicleNumber, driverName, driverPhone,
+    notes
+  } = req.body;
   
-  try {
-    const { id } = req.params;
-    const { 
-      litres, refillDate, refillTime,
-      costPerLitre, totalCost,
-      supplierName, invoiceNumber,
-      vehicleNumber, driverName, driverPhone,
-      notes
-    } = req.body;
-    
-    if (!litres || litres <= 0) {
-      await t.rollback();
-      return res.status(400).json({
-        success: false,
-        error: 'litres must be a positive number'
-      });
-    }
-    
-    const tank = await Tank.findByPk(id, { transaction: t });
-    
-    if (!tank) {
-      await t.rollback();
-      return res.status(404).json({
-        success: false,
-        error: 'Tank not found'
-      });
-    }
-    
-    // Authorization
-    const user = await User.findByPk(req.userId);
-    if (!(await canAccessStation(user, tank.stationId))) {
-      await t.rollback();
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to record refill for this tank'
-      });
-    }
-    
-    const tankLevelBefore = parseFloat(tank.currentLevel);
+  if (!litres || litres <= 0) {
+    return sendError(res, 'VALIDATION_ERROR', 'litres must be a positive number', 400);
+  }
+  
+  const tank = await Tank.findByPk(id);
+  
+  if (!tank) {
+    throw new NotFoundError('Tank', id);
+  }
+  
+  const user = await User.findByPk(req.userId);
+  if (!(await canAccessStation(user, tank.stationId))) {
+    throw new AuthorizationError('Not authorized to record refill for this tank');
+  }
+  
+  const tankLevelBefore = parseFloat(tank.currentLevel);
 
-    // Validate capacity: if tank does not allow overflow, reject refill that exceeds capacity
-    if (typeof tank.capacity === 'number' && !tank.allowNegative) {
-      const projectedLevel = tankLevelBefore + parseFloat(litres);
-      if (projectedLevel > tank.capacity) {
-        await t.rollback();
-        return res.status(400).json({
-          success: false,
-          error: 'Refill would exceed tank capacity'
-        });
-      }
+  if (typeof tank.capacity === 'number' && !tank.allowNegative) {
+    const projectedLevel = tankLevelBefore + parseFloat(litres);
+    if (projectedLevel > tank.capacity) {
+      return sendError(res, 'VALIDATION_ERROR', 'Refill would exceed tank capacity', 400);
     }
+  }
 
-    // Calculate level after refill
+  const refill = await sequelize.transaction(async (transaction) => {
+    const tankToRefill = await Tank.findByPk(id, { transaction });
     const tankLevelAfter = tankLevelBefore + parseFloat(litres);
 
-    const refill = await TankRefill.create({
+    const newRefill = await TankRefill.create({
       tankId: tank.id,
       stationId: tank.stationId,
       litres: parseFloat(litres),
@@ -518,309 +410,223 @@ exports.recordRefill = async (req, res, next) => {
       entryType: 'refill',
       enteredBy: req.userId,
       notes
-    }, { transaction: t });
+    }, { transaction });
     
-    // Tank level is updated by afterCreate hook
-    await tank.reload({ transaction: t });
+    await tankToRefill.reload({ transaction });
 
-    // Update COGS on refill (auto-calculate from actual purchase)
     try {
       await costOfGoodsService.updateCOGSOnRefill({
         stationId: tank.stationId,
-        refillId: refill.id,
+        refillId: newRefill.id,
         refillAmount: parseFloat(litres),
-        refillDate: refill.refillDate,
+        refillDate: newRefill.refillDate,
         unitPrice: parseFloat(costPerLitre || 0),
-        totalPrice: refill.totalCost,
+        totalPrice: newRefill.totalCost,
         fuelType: tank.fuelType,
-        transaction: t
+        transaction
       });
     } catch (cogsError) {
       console.warn('[WARN] COGS update failed on refill:', cogsError.message);
-      // Don't block refill recording if COGS fails
     }
 
-    // Log tank refill
-    await logAudit({
-      userId: req.userId,
-      userEmail: user.email,
-      userRole: user.role,
-      stationId: tank.stationId,
-      action: 'CREATE',
-      entityType: 'TankRefill',
-      entityId: refill.id,
-      newValues: {
-        id: refill.id,
-        tankId: tank.id,
-        litres: parseFloat(litres),
-        totalCost: refill.totalCost,
-        supplierName
-      },
-      category: 'finance',
-      severity: 'info',
-      description: `Recorded refill: +${litres}L of ${tank.fuelType} for ${tank.name}`
-    });
-    
-    await t.commit();
-    
-    res.status(201).json({
-      success: true,
-      data: {
-        refill,
-        tank: {
-          ...tank.toJSON(),
-          status: tank.getStatus()
-        }
-      },
-      message: `Refill recorded: +${litres}L. New level: ${tank.currentLevel}L`
-    });
-  } catch (error) {
-    await t.rollback();
-    console.error('Record refill error:', error);
-    next(error);
-  }
-};
+    return newRefill;
+  });
+  
+  await tank.reload();
+
+  await logAudit({
+    userId: req.userId,
+    userEmail: user.email,
+    userRole: user.role,
+    stationId: tank.stationId,
+    action: 'CREATE',
+    entityType: 'TankRefill',
+    entityId: refill.id,
+    newValues: {
+      id: refill.id,
+      tankId: tank.id,
+      litres: parseFloat(litres),
+      totalCost: refill.totalCost,
+      supplierName
+    },
+    category: 'finance',
+    severity: 'info',
+    description: `Recorded refill: +${litres}L of ${tank.fuelType} for ${tank.name}`
+  });
+  
+  return sendCreated(res, {
+    refill,
+    tank: {
+      ...tank.toJSON(),
+      status: tank.getStatus()
+    },
+    message: `Refill recorded: +${litres}L. New level: ${tank.currentLevel}L`
+  });
+});
 
 /**
  * Get refill history for a tank
  * GET /api/v1/tanks/:id/refills
  */
-exports.getRefills = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { startDate, endDate, page = 1, limit = 20 } = req.query;
-    
-    const tank = await Tank.findByPk(id);
-    
-    if (!tank) {
-      return res.status(404).json({
-        success: false,
-        error: 'Tank not found'
-      });
-    }
-    
-    // Authorization
-    const user = await User.findByPk(req.userId);
-    if (!(await canAccessStation(user, tank.stationId))) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to view this tank'
-      });
-    }
-    
-    const { count, rows } = await TankRefill.getHistory(id, {
-      startDate,
-      endDate,
-      page: parseInt(page),
-      limit: parseInt(limit)
-    });
-    
-    res.json({
-      success: true,
-      data: rows,
-      pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
-        total: count,
-        pages: Math.ceil(count / limit)
-      }
-    });
-  } catch (error) {
-    console.error('Get refills error:', error);
-    next(error);
+exports.getRefills = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { startDate, endDate, page = 1, limit = 20 } = req.query;
+  
+  const tank = await Tank.findByPk(id);
+  
+  if (!tank) {
+    throw new NotFoundError('Tank', id);
   }
-};
+  
+  const user = await User.findByPk(req.userId);
+  if (!(await canAccessStation(user, tank.stationId))) {
+    throw new AuthorizationError('Not authorized to view this tank');
+  }
+  
+  const { count, rows } = await TankRefill.getHistory(id, {
+    startDate,
+    endDate,
+    page: parseInt(page),
+    limit: parseInt(limit)
+  });
+  
+  return sendPaginated(res, rows, {
+    page: parseInt(page),
+    limit: parseInt(limit),
+    total: count,
+    pages: Math.ceil(count / limit)
+  });
+});
 
 /**
  * Get refill summary for station
  * GET /api/v1/stations/:stationId/refills/summary
  */
-exports.getRefillSummary = async (req, res, next) => {
-  try {
-    const { stationId } = req.params;
-    const { startDate, endDate } = req.query;
-    
-    if (!startDate || !endDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'startDate and endDate are required'
-      });
-    }
-    
-    // Authorization
-    const user = await User.findByPk(req.userId);
-    if (!(await canAccessStation(user, stationId))) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to access this station'
-      });
-    }
-    
-    const summary = await TankRefill.getSummary(stationId, startDate, endDate);
-    const byFuelType = await TankRefill.getByFuelType(stationId, startDate, endDate);
-    
-    res.json({
-      success: true,
-      data: {
-        period: { startDate, endDate },
-        summary,
-        byFuelType
-      }
-    });
-  } catch (error) {
-    console.error('Get refill summary error:', error);
-    next(error);
+exports.getRefillSummary = asyncHandler(async (req, res, next) => {
+  const { stationId } = req.params;
+  const { startDate, endDate } = req.query;
+  
+  if (!startDate || !endDate) {
+    return sendError(res, 'VALIDATION_ERROR', 'startDate and endDate are required', 400);
   }
-};
+  
+  const user = await User.findByPk(req.userId);
+  if (!(await canAccessStation(user, stationId))) {
+    throw new AuthorizationError('Not authorized to access this station');
+  }
+  
+  const summary = await TankRefill.getSummary(stationId, startDate, endDate);
+  const byFuelType = await TankRefill.getByFuelType(stationId, startDate, endDate);
+  
+  return sendSuccess(res, {
+    period: { startDate, endDate },
+    summary,
+    byFuelType
+  });
+});
 
 /**
  * Update a refill entry
  * PUT /api/v1/refills/:id
  */
-exports.updateRefill = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const updates = req.body;
-    
-    const refill = await TankRefill.findByPk(id, {
-      include: [{ model: Tank, as: 'tank' }]
-    });
-    
-    if (!refill) {
-      return res.status(404).json({
-        success: false,
-        error: 'Refill not found'
-      });
-    }
-    
-    // Authorization
-    const user = await User.findByPk(req.userId);
-    if (!(await canAccessStation(user, refill.stationId))) {
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to update this refill'
-      });
-    }
-    
-    // Only allow certain field updates (not litres to preserve tank level accuracy)
-    const allowedUpdates = ['refillDate', 'refillTime', 'costPerLitre', 'totalCost', 
-                           'supplierName', 'invoiceNumber',
-                           'vehicleNumber', 'driverName', 'driverPhone', 'notes'];
-    
-    allowedUpdates.forEach(field => {
-      if (updates[field] !== undefined) {
-        refill[field] = updates[field];
-      }
-    });
-    
-    await refill.save();
-    
-    res.json({
-      success: true,
-      data: refill
-    });
-  } catch (error) {
-    console.error('Update refill error:', error);
-    next(error);
+exports.updateRefill = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const updates = req.body;
+  
+  const refill = await TankRefill.findByPk(id, {
+    include: [{ model: Tank, as: 'tank' }]
+  });
+  
+  if (!refill) {
+    throw new NotFoundError('Refill', id);
   }
-};
+  
+  const user = await User.findByPk(req.userId);
+  if (!(await canAccessStation(user, refill.stationId))) {
+    throw new AuthorizationError('Not authorized to update this refill');
+  }
+  
+  const allowedUpdates = ['refillDate', 'refillTime', 'costPerLitre', 'totalCost', 
+                         'supplierName', 'invoiceNumber',
+                         'vehicleNumber', 'driverName', 'driverPhone', 'notes'];
+  
+  allowedUpdates.forEach(field => {
+    if (updates[field] !== undefined) {
+      refill[field] = updates[field];
+    }
+  });
+  
+  await refill.save();
+  
+  return sendSuccess(res, refill);
+});
 
 /**
  * Delete a tank (owner/manager only)
  * DELETE /api/v1/tanks/:id
  */
-exports.deleteTank = async (req, res, next) => {
-  try {
-    const { id } = req.params;
+exports.deleteTank = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
 
-    const tank = await Tank.findByPk(id);
-    if (!tank) {
-      return res.status(404).json({ success: false, error: 'Tank not found' });
-    }
-
-    const user = await User.findByPk(req.userId);
-    if (!['super_admin', 'owner', 'manager'].includes(user.role)) {
-      return res.status(403).json({ success: false, error: 'Only managers and above can delete tanks' });
-    }
-
-    if (!(await canAccessStation(user, tank.stationId))) {
-      return res.status(403).json({ success: false, error: 'Not authorized to delete this tank' });
-    }
-
-    await logAudit({
-      userId: req.userId,
-      userEmail: user.email,
-      userRole: user.role,
-      stationId: tank.stationId,
-      action: 'DELETE',
-      entityType: 'Tank',
-      entityId: tank.id,
-      oldValues: tank.toJSON(),
-      newValues: null,
-      category: 'data',
-      severity: 'warning',
-      description: `Deleted tank: ${tank.displayFuelName || tank.name} (${tank.fuelType})`
-    });
-
-    await tank.destroy();
-
-    res.json({ success: true, message: 'Tank deleted successfully' });
-  } catch (error) {
-    console.error('Delete tank error:', error);
-    next(error);
+  const tank = await Tank.findByPk(id);
+  if (!tank) {
+    throw new NotFoundError('Tank', id);
   }
-};
+
+  const user = await User.findByPk(req.userId);
+  if (!['super_admin', 'owner', 'manager'].includes(user.role)) {
+    throw new AuthorizationError('Only managers and above can delete tanks');
+  }
+
+  if (!(await canAccessStation(user, tank.stationId))) {
+    throw new AuthorizationError('Not authorized to delete this tank');
+  }
+
+  await logAudit({
+    userId: req.userId,
+    userEmail: user.email,
+    userRole: user.role,
+    stationId: tank.stationId,
+    action: 'DELETE',
+    entityType: 'Tank',
+    entityId: tank.id,
+    oldValues: tank.toJSON(),
+    newValues: null,
+    category: 'data',
+    severity: 'warning',
+    description: `Deleted tank: ${tank.displayFuelName || tank.name} (${tank.fuelType})`
+  });
+
+  await tank.destroy();
+
+  return sendSuccess(res, null, { message: 'Tank deleted successfully' });
+});
 
 /**
  * Delete a refill entry (will adjust tank level)
  * DELETE /api/v1/refills/:id
  */
-exports.deleteRefill = async (req, res, next) => {
-  const t = await sequelize.transaction();
+exports.deleteRefill = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
   
-  try {
-    const { id } = req.params;
-    
-    const refill = await TankRefill.findByPk(id, { transaction: t });
-    
-    if (!refill) {
-      await t.rollback();
-      return res.status(404).json({
-        success: false,
-        error: 'Refill not found'
-      });
-    }
-    
-    // Authorization - only owner/manager can delete
-    const user = await User.findByPk(req.userId);
-    if (!['super_admin', 'owner', 'manager'].includes(user.role)) {
-      await t.rollback();
-      return res.status(403).json({
-        success: false,
-        error: 'Only managers and above can delete refill entries'
-      });
-    }
-    
-    if (!(await canAccessStation(user, refill.stationId))) {
-      await t.rollback();
-      return res.status(403).json({
-        success: false,
-        error: 'Not authorized to delete this refill'
-      });
-    }
-    
-    // afterDestroy hook will adjust tank level
-    await refill.destroy({ transaction: t });
-    
-    await t.commit();
-    
-    res.json({
-      success: true,
-      message: 'Refill deleted and tank level adjusted'
-    });
-  } catch (error) {
-    await t.rollback();
-    console.error('Delete refill error:', error);
-    next(error);
+  const refill = await TankRefill.findByPk(id);
+  
+  if (!refill) {
+    throw new NotFoundError('Refill', id);
   }
-};
+  
+  const user = await User.findByPk(req.userId);
+  if (!['super_admin', 'owner', 'manager'].includes(user.role)) {
+    throw new AuthorizationError('Only managers and above can delete refill entries');
+  }
+  
+  if (!(await canAccessStation(user, refill.stationId))) {
+    throw new AuthorizationError('Not authorized to delete this refill');
+  }
+  
+  await sequelize.transaction(async (transaction) => {
+    await refill.destroy({ transaction });
+  });
+  
+  return sendSuccess(res, null, { message: 'Refill deleted and tank level adjusted' });
+});

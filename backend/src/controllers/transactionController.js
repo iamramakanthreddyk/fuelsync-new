@@ -9,13 +9,21 @@
  * All transaction operations are tracked via logAudit() from utils/auditLog
  */
 
+// ===== MODELS & DATABASE =====
 const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize, FuelPrice, Nozzle, Pump } = require('../models');
-const { logAudit } = require('../utils/auditLog');
+const bulkOperations = require('../services/bulkOperations');
 const transactionValidation = require('../services/transactionValidationService');
 const transactionValidationEnhancedService = require('../services/transactionValidationEnhancedService');
 const creditAllocationService = require('../services/creditAllocationService');
 const { VALIDATION_ERRORS, TRANSACTION_STATUS } = require('../config/transactionConstants');
 const { Op } = require('sequelize');
+
+// ===== ERROR & RESPONSE HANDLING =====
+const { asyncHandler, NotFoundError, ValidationError, AuthorizationError } = require('../utils/errors');
+const { sendSuccess, sendCreated, sendError } = require('../utils/apiResponse');
+
+// ===== UTILITIES =====
+const { logAudit } = require('../utils/auditLog');
 // Minimal helper to compute litresSold and totalAmount similar to readingController
 async function createComputedReading({ stationId, nozzleId, readingValue, readingDate, notes, userId, transaction, stationPricesMap, isSample = false, forceNotInitial = false, assignedEmployeeId = null }) {
   // Find previous (last) reading for nozzle before or on date
@@ -98,629 +106,485 @@ async function createComputedReading({ stationId, nozzleId, readingValue, readin
 /**
  * Create a daily transaction
  * POST /api/v1/transactions
- * 
- * Request body:
- * {
- *   stationId: UUID,
- *   transactionDate: YYYY-MM-DD,
- *   readingIds: UUID[],
- *   paymentBreakdown: { cash: number, online: number, credit?: number },  ← legacy (still accepted)
- *   paymentSubBreakdown?: {                                                ← NEW: detailed sub-types
- *     cash: number,
- *     upi: { gpay, phonepe, paytm, amazon_pay, cred, bhim, other_upi },
- *     card: { debit_card, credit_card },
- *     oil_company: { hp_pay, iocl_card, bpcl_smartfleet, ... },
- *     credit: number
- *   },
- *   creditAllocations?: [{ creditorId: UUID, amount: number }],
- *   notes?: string
- * }
- * 
- * If paymentSubBreakdown is provided, paymentBreakdown will be derived from it automatically.
  */
-exports.createTransaction = async (req, res, next) => {
-  try {
-    const { stationId, transactionDate, readingIds = [], paymentBreakdown = {}, paymentSubBreakdown = null, creditAllocations = [], notes = '' } = req.body;
-    const userId = req.userId;
+exports.createTransaction = asyncHandler(async (req, res, next) => {
+  const { stationId, transactionDate, readingIds = [], paymentBreakdown = {}, paymentSubBreakdown = null, creditAllocations = [], notes = '' } = req.body;
+  const userId = req.user.id;
 
-    // Input validation
-    if (!stationId) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.STATION_REQUIRED });
-    if (!transactionDate) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.DATE_REQUIRED });
-    if (!Array.isArray(readingIds) || readingIds.length === 0) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.READINGS_REQUIRED });
+  // Input validation
+  if (!stationId) return sendError(res, 'MISSING_FIELD', VALIDATION_ERRORS.STATION_REQUIRED, 400);
+  if (!transactionDate) return sendError(res, 'MISSING_FIELD', VALIDATION_ERRORS.DATE_REQUIRED, 400);
+  if (!Array.isArray(readingIds) || readingIds.length === 0) return sendError(res, 'INVALID_ARRAY', VALIDATION_ERRORS.READINGS_REQUIRED, 400);
 
-    // Verify station exists
-    const station = await Station.findByPk(stationId);
-    if (!station) return res.status(404).json({ success: false, error: VALIDATION_ERRORS.STATION_NOT_FOUND });
+  // Verify station exists
+  const station = await Station.findByPk(stationId);
+  if (!station) throw new NotFoundError('Station', stationId);
 
-    // Fetch readings to validate and sum
-    const readings = await NozzleReading.findAll({
-      where: { id: readingIds, stationId, readingDate: transactionDate, isInitialReading: false }
+  // Fetch readings to validate and sum
+  const readings = await NozzleReading.findAll({
+    where: { id: readingIds, stationId, readingDate: transactionDate, isInitialReading: false }
+  });
+
+  if (readings.length === 0) return sendError(res, 'NO_READINGS', VALIDATION_ERRORS.NO_READINGS_FOUND, 400);
+
+  // Calculate totals
+  const totalLiters = readings.reduce((sum, r) => sum + parseFloat(r.litresSold || 0), 0);
+  const totalSaleValue = readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
+
+  // Check if all readings are samples
+  if (transactionValidation.areAllReadingsSamples(readings)) {
+    return sendError(res, 'SAMPLE_ONLY', VALIDATION_ERRORS.SAMPLE_READINGS_ONLY, 400);
+  }
+
+  // Validate using enhanced service
+  const enhancedValidation = await transactionValidationEnhancedService.validateTransactionComplete({
+    stationId,
+    transactionDate,
+    readingIds,
+    readings,
+    paymentBreakdown,
+    creditAllocations,
+    totalSaleValue
+  });
+
+  if (!enhancedValidation.isValid) {
+    return sendError(res, 'VALIDATION_FAILED', enhancedValidation.error, 400, {
+      details: enhancedValidation.details,
+      issues: enhancedValidation.issues
     });
+  }
 
-    if (readings.length === 0) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.NO_READINGS_FOUND });
+  const normalizedBreakdown = enhancedValidation.normalizedBreakdown;
 
-    // Calculate totals
-    const totalLiters = readings.reduce((sum, r) => sum + parseFloat(r.litresSold || 0), 0);
-    const totalSaleValue = readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
+  // If paymentSubBreakdown provided, derive the legacy paymentBreakdown from it
+  const { collapsePaymentBreakdown } = require('../config/constants');
+  let effectiveBreakdown = normalizedBreakdown;
+  if (paymentSubBreakdown && typeof paymentSubBreakdown === 'object') {
+    effectiveBreakdown = collapsePaymentBreakdown(paymentSubBreakdown);
+  }
 
-    // Check if all readings are samples
-    if (transactionValidation.areAllReadingsSamples(readings)) {
-      return res.status(400).json({ success: false, error: VALIDATION_ERRORS.SAMPLE_READINGS_ONLY });
-    }
-
-    // Validate using enhanced service (checks amount variance, methods required, credit allocations linked to readings)
-    const enhancedValidation = await transactionValidationEnhancedService.validateTransactionComplete({
+  const t = await sequelize.transaction();
+  try {
+    const dailyTxn = await DailyTransaction.create({
       stationId,
       transactionDate,
+      totalLiters,
+      totalSaleValue,
+      paymentBreakdown: effectiveBreakdown,
+      paymentSubBreakdown: paymentSubBreakdown || null,
+      creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
       readingIds,
-      readings,
-      paymentBreakdown,
-      creditAllocations,
-      totalSaleValue
+      createdBy: userId,
+      notes,
+      status: TRANSACTION_STATUS.SUBMITTED
+    }, { transaction: t });
+
+    // Process credit allocations
+    const createdCreditTxns = await creditAllocationService.processCreditAllocations({
+      stationId,
+      creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
+      transactionDate,
+      readingIds,
+      notes,
+      userId,
+      transaction: t
     });
 
-    if (!enhancedValidation.isValid) {
-      return res.status(400).json({
-        success: false,
-        error: enhancedValidation.error,
-        details: enhancedValidation.details,
-        issues: enhancedValidation.issues
-      });
-    }
+    // Link readings to transaction
+    await NozzleReading.update(
+      { transactionId: dailyTxn.id },
+      { where: { id: readingIds }, transaction: t }
+    );
 
-    const normalizedBreakdown = enhancedValidation.normalizedBreakdown;
-
-    // Req #2: If paymentSubBreakdown provided, derive the legacy paymentBreakdown from it
-    const { collapsePaymentBreakdown } = require('../config/constants');
-    let effectiveBreakdown = normalizedBreakdown;
-    if (paymentSubBreakdown && typeof paymentSubBreakdown === 'object') {
-      effectiveBreakdown = collapsePaymentBreakdown(paymentSubBreakdown);
-    }
-
-    // Persist atomically
-    const t = await sequelize.transaction();
-    try {
-      const dailyTxn = await DailyTransaction.create({
-        stationId,
+    // Audit log
+    const currentUser = await User.findByPk(userId);
+    await logAudit({
+      userId,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      stationId,
+      action: 'CREATE',
+      entityType: 'DailyTransaction',
+      entityId: dailyTxn.id,
+      newValues: {
+        id: dailyTxn.id,
         transactionDate,
         totalLiters,
         totalSaleValue,
-        paymentBreakdown: effectiveBreakdown,
-        // Req #2: Store structured sub-type breakdown if supplied
-        paymentSubBreakdown: paymentSubBreakdown || null,
-        creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
-        readingIds,
-        createdBy: userId,
-        notes,
-        status: TRANSACTION_STATUS.SUBMITTED
-      }, { transaction: t });
-
-      // Process credit allocations (creates CreditTransactions and updates creditor balances)
-      const createdCreditTxns = await creditAllocationService.processCreditAllocations({
-        stationId,
-        creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
-        transactionDate,
-        readingIds,
-        notes,
-        userId,
-        transaction: t
-      });
-
-      // Link readings to transaction
-      await NozzleReading.update(
-        { transactionId: dailyTxn.id },
-        { where: { id: readingIds }, transaction: t }
-      );
-
-      // Audit log
-      const currentUser = await User.findByPk(userId);
-      await logAudit({
-        userId,
-        userEmail: currentUser?.email,
-        userRole: currentUser?.role,
-        stationId,
-        action: 'CREATE',
-        entityType: 'DailyTransaction',
-        entityId: dailyTxn.id,
-        newValues: {
-          id: dailyTxn.id,
-          transactionDate,
-          totalLiters,
-          totalSaleValue,
-          paymentBreakdown: normalizedBreakdown,
-          creditAllocations: creditAllocations.length
-        },
-        category: 'finance',
-        severity: 'info',
-        description: `Created daily transaction: ₹${totalSaleValue.toFixed(2)} from ${totalLiters}L of fuel`
-      });
-
-      await t.commit();
-
-      const result = await DailyTransaction.findByPk(dailyTxn.id, {
-        include: [
-          { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
-          { model: Station, as: 'station', attributes: ['id', 'name'] }
-        ]
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: `Transaction created for ${readings.length} readings`,
-        data: result,
-        creditTransactions: createdCreditTxns
-      });
-    } catch (err) {
-      await t.rollback();
-      console.error('[ERROR] createTransaction:', err);
-      
-      // Map validation errors to appropriate HTTP status codes
-      if (err.message && err.message.includes(VALIDATION_ERRORS.CREDIT_LIMIT_EXCEEDED)) {
-        return res.status(403).json({ success: false, error: err.message });
-      }
-      if (err.message && (err.message.includes(VALIDATION_ERRORS.CREDITOR_NOT_FOUND) || err.message.includes(VALIDATION_ERRORS.CREDITOR_NOT_FOUND_FOR_ALLOCATION))) {
-        return res.status(404).json({ success: false, error: err.message });
-      }
-      if (err.message && err.message.includes('isActive')) {
-        return res.status(403).json({ success: false, error: err.message });
-      }
-      
-      return res.status(500).json({ success: false, error: err.message });
-    }
-  } catch (error) {
-    console.error('[ERROR] createTransaction:', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * Create quick-entry: accepts readings (full objects) and a transaction payload
- * POST /api/v1/transactions/quick-entry
- * Request body:
- * {
- *   stationId,
- *   transactionDate,
- *   readings: [{ nozzleId, readingValue, readingDate, notes }],
- *   paymentBreakdown, creditAllocations, notes
- * }
- */
-exports.createQuickEntry = async (req, res, next) => {
-  try {
-    const { stationId, transactionDate, readings = [], paymentBreakdown, creditAllocations = [], notes = '' } = req.body;
-    // Accept both field names: assignedEmployeeId (canonical) or associatedEmployeeId (legacy frontend)
-    const assignedEmployeeId = req.body.assignedEmployeeId || req.body.associatedEmployeeId || null;
-    const userId = req.userId;
-
-    if (!stationId) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.STATION_REQUIRED });
-    if (!transactionDate) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.DATE_REQUIRED });
-    if (!Array.isArray(readings) || readings.length === 0) return res.status(400).json({ success: false, error: VALIDATION_ERRORS.READINGS_REQUIRED });
-
-    const station = await Station.findByPk(stationId);
-    if (!station) return res.status(404).json({ success: false, error: VALIDATION_ERRORS.STATION_NOT_FOUND });
-
-    const t = await sequelize.transaction();
-    try {
-      // Create readings sequentially to preserve previous-reading logic
-      const createdReadings = [];
-      const stationPricesMap = Array.isArray(req.body.stationPrices)
-        ? req.body.stationPrices.reduce((acc, p) => {
-            const key = (p.fuelType || p.fuel_type || '').toString().toLowerCase();
-            const val = p.price !== undefined ? p.price : p.price_per_litre;
-            if (key && val !== undefined && val !== null) acc[key] = parseFloat(String(val));
-            return acc;
-          }, {})
-        : {};
-
-      for (const r of readings) {
-        const nozzleId = r.nozzleId || r.nozzle_id;
-        const readingValue = r.readingValue !== undefined ? r.readingValue : r.reading_value;
-        const readingDateVal = r.readingDate || r.reading_date || transactionDate;
-        const notesVal = r.notes || '';
-        const isSampleVal = r.isSample !== undefined ? r.isSample : r.is_sample || false;
-
-        const created = await createComputedReading({
-          stationId,
-          nozzleId,
-          readingValue,
-          readingDate: readingDateVal,
-          notes: notesVal,
-          userId,
-          transaction: t,
-          stationPricesMap,
-          isSample: isSampleVal,
-          forceNotInitial: true,
-          assignedEmployeeId
-        });
-        createdReadings.push(created);
-      }
-
-      // Build readingIds for billable readings (exclude initial readings)
-      const billableReadings = createdReadings.filter(cr => !cr.isInitialReading);
-      const readingIds = billableReadings.map(cr => cr.id);
-
-      // Compute totals from created, billable readings only
-      const totalLiters = billableReadings.reduce((s, r) => s + parseFloat(r.litresSold || 0), 0);
-      const totalSaleValue = billableReadings.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
-
-      // Check if all readings are samples
-      if (transactionValidation.areAllReadingsSamples(createdReadings)) {
-        await t.commit();
-        return res.status(201).json({
-          success: true,
-          message: 'Sample readings recorded. No transaction created.',
-          data: { createdReadings }
-        });
-      }
-
-      // If no billable readings, commit and return
-      if (readingIds.length === 0) {
-        await t.commit();
-        return res.status(201).json({
-          success: true,
-          message: 'Initial readings recorded. No transaction created.',
-          data: { createdReadings }
-        });
-      }
-
-      // Validate or auto-balance payment breakdown
-      const paymentBalance = transactionValidation.autoBalancePayment(paymentBreakdown, totalSaleValue);
-      if (!paymentBalance.isValid) {
-        await t.rollback();
-        return res.status(400).json({
-          success: false,
-          error: paymentBalance.error,
-          details: paymentBalance.details
-        });
-      }
-
-      // Validate credit allocations
-      const creditValidation = transactionValidation.validateCreditAllocations(
-        creditAllocations,
-        paymentBalance.normalizedBreakdown.credit
-      );
-      if (!creditValidation.isValid) {
-        await t.rollback();
-        return res.status(400).json({ success: false, error: creditValidation.error });
-      }
-
-      // Create DailyTransaction
-      const dailyTxn = await DailyTransaction.create({
-        stationId,
-        transactionDate,
-        totalLiters,
-        totalSaleValue,
-        paymentBreakdown: paymentBalance.normalizedBreakdown,
-        creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
-        readingIds,
-        createdBy: userId,
-        notes,
-        status: TRANSACTION_STATUS.SUBMITTED
-      }, { transaction: t });
-
-      // Process credit allocations (batch query creditors, fix N+1)
-      const createdCreditTxns = await creditAllocationService.processCreditAllocations({
-        stationId,
-        creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
-        transactionDate,
-        readingIds,
-        notes,
-        userId,
-        transaction: t
-      });
-
-      // Link readings to transaction
-      await NozzleReading.update(
-        { transactionId: dailyTxn.id },
-        { where: { id: readingIds }, transaction: t }
-      );
-
-      // Audit log
-      const currentUser = await User.findByPk(userId);
-      await logAudit({
-        userId,
-        userEmail: currentUser?.email,
-        userRole: currentUser?.role,
-        stationId,
-        action: 'CREATE',
-        entityType: 'DailyTransaction',
-        entityId: dailyTxn.id,
-        newValues: {
-          id: dailyTxn.id,
-          transactionDate,
-          totalLiters,
-          totalSaleValue,
-          paymentBreakdown: paymentBalance.normalizedBreakdown,
-          creditAllocations: creditAllocations?.length || 0,
-          readingsCount: readingIds?.length || 0
-        },
-        category: 'finance',
-        severity: 'info',
-        description: `Created quick entry: ₹${totalSaleValue.toFixed(2)} from ${totalLiters}L with ${(creditAllocations || []).length} credit allocations`
-      });
-
-      await t.commit();
-
-      const result = await DailyTransaction.findByPk(dailyTxn.id, {
-        include: [
-          { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
-          { model: Station, as: 'station', attributes: ['id', 'name'] }
-        ]
-      });
-
-      return res.status(201).json({
-        success: true,
-        message: 'Quick entry created',
-        data: result,
-        createdReadings,
-        creditTransactions: createdCreditTxns,
-        autoBalanced: paymentBalance.autoBalanced
-      });
-    } catch (err) {
-      await t.rollback();
-      console.error('[ERROR] createQuickEntry:', err);
-      return res.status(500).json({ success: false, error: err.message });
-    }
-  } catch (error) {
-    console.error('[ERROR] createQuickEntry:', error);
-    return res.status(500).json({ success: false, error: error.message });
-  }
-};
-
-/**
- * Get ALL transactions for a station on a specific date
- * GET /api/v1/transactions/:stationId/:date
- * Returns array of transactions (multiple employees/shifts per day)
- */
-exports.getTransactionForDate = async (req, res, next) => {
-  try {
-    const { stationId, date } = req.params;
-
-    const transactions = await DailyTransaction.findAll({
-      where: {
-        stationId,
-        transactionDate: date
+        paymentBreakdown: normalizedBreakdown,
+        creditAllocations: creditAllocations.length
       },
-      include: [
-        { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
-        { model: Station, as: 'station', attributes: ['id', 'name'] }
-      ],
-      order: [['createdAt', 'ASC']] // Order by creation time
+      category: 'finance',
+      severity: 'info',
+      description: `Created daily transaction: ₹${totalSaleValue.toFixed(2)} from ${totalLiters}L of fuel`
     });
 
-    // Calculate daily totals across all transactions
-    const dailyTotals = transactions.reduce((totals, transaction) => {
-      const breakdown = transaction.paymentBreakdown || {};
-      return {
-        totalLiters: totals.totalLiters + parseFloat(transaction.totalLiters || 0),
-        totalSaleValue: totals.totalSaleValue + parseFloat(transaction.totalSaleValue || 0),
-        cash: totals.cash + parseFloat(breakdown.cash || 0),
-        online: totals.online + parseFloat(breakdown.online || 0),
-        credit: totals.credit + parseFloat(breakdown.credit || 0),
-        transactionCount: totals.transactionCount + 1
-      };
-    }, {
-      totalLiters: 0,
-      totalSaleValue: 0,
-      cash: 0,
-      online: 0,
-      credit: 0,
-      transactionCount: 0
-    });
+    await t.commit();
 
-    return res.json({
-      success: true,
-      data: {
-        transactions,
-        dailyTotals,
-        summary: {
-          transactionCount: transactions.length,
-          totalLiters: dailyTotals.totalLiters,
-          totalSaleValue: dailyTotals.totalSaleValue,
-          paymentBreakdown: {
-            cash: dailyTotals.cash,
-            online: dailyTotals.online,
-            credit: dailyTotals.credit
-          }
-        }
-      }
-    });
-  } catch (error) {
-    console.error('[ERROR] getTransactionForDate:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get transactions for a station in date range
- * GET /api/v1/transactions/station/:stationId?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
- */
-exports.getTransactionsForStation = async (req, res, next) => {
-  try {
-    const { stationId } = req.params;
-    const { startDate, endDate, status } = req.query;
-
-    const whereClause = { stationId };
-
-    if (startDate || endDate) {
-      whereClause.transactionDate = {};
-      if (startDate) whereClause.transactionDate[Op.gte] = startDate;
-      if (endDate) whereClause.transactionDate[Op.lte] = endDate;
-    }
-
-    if (status) {
-      whereClause.status = status;
-    }
-
-    const transactions = await DailyTransaction.findAll({
-      where: whereClause,
-      include: [
-        { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
-        { model: Station, as: 'station', attributes: ['id', 'name'] }
-      ],
-      order: [['transactionDate', 'DESC']],
-      limit: 100
-    });
-
-    return res.json({
-      success: true,
-      count: transactions.length,
-      data: transactions
-    });
-  } catch (error) {
-    console.error('[ERROR] getTransactionsForStation:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get summary statistics for transactions in date range
- * GET /api/v1/transactions/station/:stationId/summary?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
- */
-exports.getTransactionSummary = async (req, res, next) => {
-  try {
-    const { stationId } = req.params;
-    const { startDate, endDate } = req.query;
-
-    if (!startDate || !endDate) {
-      return res.status(400).json({
-        success: false,
-        error: 'startDate and endDate query parameters required'
-      });
-    }
-
-    const summary = await DailyTransaction.getSummary(stationId, startDate, endDate);
-
-    return res.json({
-      success: true,
-      data: {
-        stationId,
-        dateRange: { startDate, endDate },
-        ...summary
-      }
-    });
-  } catch (error) {
-    console.error('[ERROR] getTransactionSummary:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-};
-
-/**
- * Update transaction (e.g., change status, update payment breakdown)
- * PUT /api/v1/transactions/:id
- */
-exports.updateTransaction = async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { paymentBreakdown, creditAllocations, status, notes } = req.body;
-
-    const transaction = await DailyTransaction.findByPk(id);
-    if (!transaction) {
-      return res.status(404).json({
-        success: false,
-        error: 'Transaction not found'
-      });
-    }
-
-    // Validate new payment breakdown if provided
-    if (paymentBreakdown) {
-      const newTotal = parseFloat(paymentBreakdown.cash || 0) +
-                      parseFloat(paymentBreakdown.online || 0) +
-                      parseFloat(paymentBreakdown.credit || 0);
-
-      const diff = Math.abs(newTotal - transaction.totalSaleValue);
-      if (diff > 0.01) {
-        return res.status(400).json({
-          success: false,
-          error: `Payment breakdown must match total sale value (₹${transaction.totalSaleValue.toFixed(2)})`
-        });
-      }
-
-      transaction.paymentBreakdown = {
-        cash: parseFloat(paymentBreakdown.cash || 0),
-        online: parseFloat(paymentBreakdown.online || 0),
-        credit: parseFloat(paymentBreakdown.credit || 0)
-      };
-    }
-
-    if (creditAllocations) {
-      transaction.creditAllocations = creditAllocations;
-    }
-
-    if (status) {
-      transaction.status = status;
-    }
-
-    if (notes !== undefined) {
-      transaction.notes = notes;
-    }
-
-    await transaction.save();
-
-    const result = await DailyTransaction.findByPk(id, {
+    const result = await DailyTransaction.findByPk(dailyTxn.id, {
       include: [
         { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
         { model: Station, as: 'station', attributes: ['id', 'name'] }
       ]
     });
 
-    return res.json({
-      success: true,
-      message: 'Transaction updated',
-      data: result
-    });
-  } catch (error) {
-    console.error('[ERROR] updateTransaction:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+    return sendCreated(res, { ...result.dataValues, creditTransactions: createdCreditTxns }, { message: `Transaction created for ${readings.length} readings` });
+  } catch (err) {
+    await t.rollback();
+    
+    // Map validation errors to appropriate HTTP status codes
+    if (err.message && err.message.includes(VALIDATION_ERRORS.CREDIT_LIMIT_EXCEEDED)) {
+      return sendError(res, 'CREDIT_LIMIT', err.message, 403);
+    }
+    if (err.message && (err.message.includes(VALIDATION_ERRORS.CREDITOR_NOT_FOUND) || err.message.includes(VALIDATION_ERRORS.CREDITOR_NOT_FOUND_FOR_ALLOCATION))) {
+      throw new NotFoundError('Creditor', 'referenced');
+    }
+    if (err.message && err.message.includes('isActive')) {
+      return sendError(res, 'CREDITOR_INACTIVE', err.message, 403);
+    }
+    
+    throw err;
   }
-};
+});
+
+/**
+ * Create quick-entry: accepts readings (full objects) and a transaction payload
+ * POST /api/v1/transactions/quick-entry
+ */
+exports.createQuickEntry = asyncHandler(async (req, res, next) => {
+  const { stationId, transactionDate, readings = [], paymentBreakdown, creditAllocations = [], notes = '' } = req.body;
+  const assignedEmployeeId = req.body.assignedEmployeeId || req.body.associatedEmployeeId || null;
+  const userId = req.user.id;
+
+  if (!stationId) return sendError(res, 'MISSING_FIELD', VALIDATION_ERRORS.STATION_REQUIRED, 400);
+  if (!transactionDate) return sendError(res, 'MISSING_FIELD', VALIDATION_ERRORS.DATE_REQUIRED, 400);
+  if (!Array.isArray(readings) || readings.length === 0) return sendError(res, 'INVALID_ARRAY', VALIDATION_ERRORS.READINGS_REQUIRED, 400);
+
+  const station = await Station.findByPk(stationId);
+  if (!station) throw new NotFoundError('Station', stationId);
+
+  const t = await sequelize.transaction();
+  try {
+    // Create readings and build billable list
+    const createdReadings = [];
+    const stationPricesMap = Array.isArray(req.body.stationPrices)
+      ? req.body.stationPrices.reduce((acc, p) => {
+          const key = (p.fuelType || p.fuel_type || '').toString().toLowerCase();
+          const val = p.price !== undefined ? p.price : p.price_per_litre;
+          if (key && val !== undefined && val !== null) acc[key] = parseFloat(String(val));
+          return acc;
+        }, {})
+      : {};
+
+    for (const r of readings) {
+      const nozzleId = r.nozzleId || r.nozzle_id;
+      const readingValue = r.readingValue !== undefined ? r.readingValue : r.reading_value;
+      const readingDateVal = r.readingDate || r.reading_date || transactionDate;
+      const notesVal = r.notes || '';
+      const isSampleVal = r.isSample !== undefined ? r.isSample : r.is_sample || false;
+
+      const created = await createComputedReading({
+        stationId,
+        nozzleId,
+        readingValue,
+        readingDate: readingDateVal,
+        notes: notesVal,
+        userId,
+        transaction: t,
+        stationPricesMap,
+        isSample: isSampleVal,
+        forceNotInitial: true,
+        assignedEmployeeId
+      });
+      createdReadings.push(created);
+    }
+
+    // Build readingIds for billable readings
+    const billableReadings = createdReadings.filter(cr => !cr.isInitialReading);
+    const readingIds = billableReadings.map(cr => cr.id);
+
+    // Compute totals from created, billable readings only
+    const totalLiters = billableReadings.reduce((s, r) => s + parseFloat(r.litresSold || 0), 0);
+    const totalSaleValue = billableReadings.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
+
+    // Check if all readings are samples
+    if (transactionValidation.areAllReadingsSamples(createdReadings)) {
+      await t.commit();
+      return sendSuccess(res, { createdReadings }, { message: 'Sample readings recorded. No transaction created.' });
+    }
+
+    // If no billable readings, commit and return
+    if (readingIds.length === 0) {
+      await t.commit();
+      return sendSuccess(res, { createdReadings }, { message: 'Initial readings recorded. No transaction created.' });
+    }
+
+    // Validate or auto-balance payment breakdown
+    const paymentBalance = transactionValidation.autoBalancePayment(paymentBreakdown, totalSaleValue);
+    if (!paymentBalance.isValid) {
+      await t.rollback();
+      return sendError(res, 'PAYMENT_INVALID', paymentBalance.error, 400, paymentBalance.details);
+    }
+
+    // Validate credit allocations
+    const creditValidation = transactionValidation.validateCreditAllocations(
+      creditAllocations,
+      paymentBalance.normalizedBreakdown.credit
+    );
+    if (!creditValidation.isValid) {
+      await t.rollback();
+      return sendError(res, 'CREDIT_INVALID', creditValidation.error, 400);
+    }
+
+    // Create DailyTransaction
+    const dailyTxn = await DailyTransaction.create({
+      stationId,
+      transactionDate,
+      totalLiters,
+      totalSaleValue,
+      paymentBreakdown: paymentBalance.normalizedBreakdown,
+      creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
+      readingIds,
+      createdBy: userId,
+      notes,
+      status: TRANSACTION_STATUS.SUBMITTED
+    }, { transaction: t });
+
+    // Process credit allocations
+    const createdCreditTxns = await creditAllocationService.processCreditAllocations({
+      stationId,
+      creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
+      transactionDate,
+      readingIds,
+      notes,
+      userId,
+      transaction: t
+    });
+
+    // Link readings to transaction
+    await NozzleReading.update(
+      { transactionId: dailyTxn.id },
+      { where: { id: readingIds }, transaction: t }
+    );
+
+    // Audit log
+    const currentUser = await User.findByPk(userId);
+    await logAudit({
+      userId,
+      userEmail: currentUser?.email,
+      userRole: currentUser?.role,
+      stationId,
+      action: 'CREATE',
+      entityType: 'DailyTransaction',
+      entityId: dailyTxn.id,
+      newValues: {
+        id: dailyTxn.id,
+        transactionDate,
+        totalLiters,
+        totalSaleValue,
+        paymentBreakdown: paymentBalance.normalizedBreakdown,
+        creditAllocations: creditAllocations?.length || 0,
+        readingsCount: readingIds?.length || 0
+      },
+      category: 'finance',
+      severity: 'info',
+      description: `Created quick entry: ₹${totalSaleValue.toFixed(2)} from ${totalLiters}L with ${(creditAllocations || []).length} credit allocations`
+    });
+
+    await t.commit();
+
+    const result = await DailyTransaction.findByPk(dailyTxn.id, {
+      include: [
+        { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
+        { model: Station, as: 'station', attributes: ['id', 'name'] }
+      ]
+    });
+
+    return sendCreated(res, { ...result.dataValues, createdReadings, creditTransactions: createdCreditTxns, autoBalanced: paymentBalance.autoBalanced }, { message: 'Quick entry created' });
+  } catch (err) {
+    await t.rollback();
+    throw err;
+  }
+});
+
+/**
+ * Get ALL transactions for a station on a specific date
+ * GET /api/v1/transactions/:stationId/:date
+ */
+exports.getTransactionForDate = asyncHandler(async (req, res, next) => {
+  const { stationId, date } = req.params;
+
+  const transactions = await DailyTransaction.findAll({
+    where: {
+      stationId,
+      transactionDate: date
+    },
+    include: [
+      { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
+      { model: Station, as: 'station', attributes: ['id', 'name'] }
+    ],
+    order: [['createdAt', 'ASC']]
+  });
+
+  // Calculate daily totals across all transactions
+  const dailyTotals = transactions.reduce((totals, transaction) => {
+    const breakdown = transaction.paymentBreakdown || {};
+    return {
+      totalLiters: totals.totalLiters + parseFloat(transaction.totalLiters || 0),
+      totalSaleValue: totals.totalSaleValue + parseFloat(transaction.totalSaleValue || 0),
+      cash: totals.cash + parseFloat(breakdown.cash || 0),
+      online: totals.online + parseFloat(breakdown.online || 0),
+      credit: totals.credit + parseFloat(breakdown.credit || 0),
+      transactionCount: totals.transactionCount + 1
+    };
+  }, {
+    totalLiters: 0,
+    totalSaleValue: 0,
+    cash: 0,
+    online: 0,
+    credit: 0,
+    transactionCount: 0
+  });
+
+  return sendSuccess(res, {
+    transactions,
+    dailyTotals,
+    summary: {
+      transactionCount: transactions.length,
+      totalLiters: dailyTotals.totalLiters,
+      totalSaleValue: dailyTotals.totalSaleValue,
+      paymentBreakdown: {
+        cash: dailyTotals.cash,
+        online: dailyTotals.online,
+        credit: dailyTotals.credit
+      }
+    }
+  });
+});
+
+/**
+ * Get transactions for a station in date range
+ * GET /api/v1/transactions/station/:stationId?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+ */
+exports.getTransactionsForStation = asyncHandler(async (req, res, next) => {
+  const { stationId } = req.params;
+  const { startDate, endDate, status } = req.query;
+
+  const whereClause = { stationId };
+
+  if (startDate || endDate) {
+    whereClause.transactionDate = {};
+    if (startDate) whereClause.transactionDate[Op.gte] = startDate;
+    if (endDate) whereClause.transactionDate[Op.lte] = endDate;
+  }
+
+  if (status) {
+    whereClause.status = status;
+  }
+
+  const transactions = await DailyTransaction.findAll({
+    where: whereClause,
+    include: [
+      { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
+      { model: Station, as: 'station', attributes: ['id', 'name'] }
+    ],
+    order: [['transactionDate', 'DESC']],
+    limit: 100
+  });
+
+  return sendSuccess(res, { count: transactions.length, transactions });
+});
+
+/**
+ * Get summary statistics for transactions in date range
+ * GET /api/v1/transactions/station/:stationId/summary?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
+ */
+exports.getTransactionSummary = asyncHandler(async (req, res, next) => {
+  const { stationId } = req.params;
+  const { startDate, endDate } = req.query;
+
+  if (!startDate || !endDate) {
+    return sendError(res, 'MISSING_FIELDS', 'startDate and endDate query parameters required', 400);
+  }
+
+  const summary = await DailyTransaction.getSummary(stationId, startDate, endDate);
+
+  return sendSuccess(res, {
+    stationId,
+    dateRange: { startDate, endDate },
+    ...summary
+  });
+});
+
+/**
+ * Update transaction (e.g., change status, update payment breakdown)
+ * PUT /api/v1/transactions/:id
+ */
+exports.updateTransaction = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  const { paymentBreakdown, creditAllocations, status, notes } = req.body;
+
+  const transaction = await DailyTransaction.findByPk(id);
+  if (!transaction) throw new NotFoundError('Transaction', id);
+
+  // Validate new payment breakdown if provided
+  if (paymentBreakdown) {
+    const newTotal = parseFloat(paymentBreakdown.cash || 0) +
+                    parseFloat(paymentBreakdown.online || 0) +
+                    parseFloat(paymentBreakdown.credit || 0);
+
+    const diff = Math.abs(newTotal - transaction.totalSaleValue);
+    if (diff > 0.01) {
+      return sendError(res, 'PAYMENT_MISMATCH', `Payment breakdown must match total sale value (₹${transaction.totalSaleValue.toFixed(2)})`, 400);
+    }
+
+    transaction.paymentBreakdown = {
+      cash: parseFloat(paymentBreakdown.cash || 0),
+      online: parseFloat(paymentBreakdown.online || 0),
+      credit: parseFloat(paymentBreakdown.credit || 0)
+    };
+  }
+
+  if (creditAllocations) {
+    transaction.creditAllocations = creditAllocations;
+  }
+
+  if (status) {
+    transaction.status = status;
+  }
+
+  if (notes !== undefined) {
+    transaction.notes = notes;
+  }
+
+  await transaction.save();
+
+  const result = await DailyTransaction.findByPk(id, {
+    include: [
+      { model: User, as: 'createdByUser', attributes: ['id', 'name', 'email'] },
+      { model: Station, as: 'station', attributes: ['id', 'name'] }
+    ]
+  });
+
+  return sendSuccess(res, result, { message: 'Transaction updated' });
+});
 
 /**
  * Delete transaction
  * DELETE /api/v1/transactions/:id
  */
-exports.deleteTransaction = async (req, res, next) => {
-  try {
-    const { id } = req.params;
+exports.deleteTransaction = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
 
-    const transaction = await DailyTransaction.findByPk(id);
-    if (!transaction) {
-      return res.status(404).json({
-        success: false,
-        error: 'Transaction not found'
-      });
-    }
+  const transaction = await DailyTransaction.findByPk(id);
+  if (!transaction) throw new NotFoundError('Transaction', id);
 
-    // Don't allow deleting settled transactions
-    if (transaction.status === 'settled') {
-      return res.status(403).json({
-        success: false,
-        error: 'Cannot delete settled transactions'
-      });
-    }
-
-    await transaction.destroy();
-
-    return res.json({
-      success: true,
-      message: 'Transaction deleted'
-    });
-  } catch (error) {
-    console.error('[ERROR] deleteTransaction:', error);
-    return res.status(500).json({
-      success: false,
-      error: error.message
-    });
+  // Don't allow deleting settled transactions
+  if (transaction.status === 'settled') {
+    return sendError(res, 'SETTLED_TRANSACTION', 'Cannot delete settled transactions', 403);
   }
-};
+
+  await transaction.destroy();
+
+  return sendSuccess(res, null, { message: 'Transaction deleted' });
+});
