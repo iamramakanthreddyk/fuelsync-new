@@ -243,8 +243,8 @@ async function seedUsersAndStations(plans) {
   console.log('  ✓ Super admin created');
   
   // ============================================
-  // SCENARIO 1: FREE PLAN - Single Small Station
-  // Tests: Plan limits, basic operations
+  // SCENARIO 1: Demo Owner - Single Station (Basic Plan)
+  // Basic plan: 3 stations, 5 pumps/station, 10 employees
   // ============================================
   users.owner1 = await User.create({
     name: 'Rajesh Kumar',
@@ -252,7 +252,7 @@ async function seedUsersAndStations(plans) {
     password: hashedPassword,
     phone: '+91-9876543210',
     role: 'owner',
-    planId: plans.free.id,
+    planId: plans.basic.id,
     isActive: true
   });
   

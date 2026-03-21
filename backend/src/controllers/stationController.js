@@ -414,7 +414,14 @@ exports.createStation = async (req, res, next) => {
     } catch (err) {
       console.error('Error while creating station inside transaction:', err);
       try { await t.rollback(); } catch (e) { /* ignore */ }
-      return res.status(500).json({ success: false, error: 'Internal server error' });
+      if (err.name === 'SequelizeValidationError') {
+        const msg = err.errors?.[0]?.message || 'Validation failed';
+        return res.status(400).json({ success: false, error: msg });
+      }
+      if (err.name === 'SequelizeUniqueConstraintError') {
+        return res.status(409).json({ success: false, error: 'A station with this code or name already exists' });
+      }
+      return res.status(500).json({ success: false, error: err.message || 'Failed to create station' });
     }
 
   } catch (error) {

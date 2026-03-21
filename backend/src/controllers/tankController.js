@@ -319,9 +319,10 @@ exports.updateTank = async (req, res, next) => {
       });
     }
     
-    // Allowed updates (displayFuelName added for custom fuel naming)
+    // Allowed updates (displayFuelName added for custom fuel naming; fuelType allowed to fix wrongly-created tanks)
     const allowedUpdates = [
       'name', 
+      'fuelType',          // Allow correction of wrongly-set fuel type
       'displayFuelName',  // Custom fuel name (MSD, HSM, XP 95)
       'capacity', 
       'lowLevelWarning', 
@@ -720,6 +721,52 @@ exports.updateRefill = async (req, res, next) => {
     });
   } catch (error) {
     console.error('Update refill error:', error);
+    next(error);
+  }
+};
+
+/**
+ * Delete a tank (owner/manager only)
+ * DELETE /api/v1/tanks/:id
+ */
+exports.deleteTank = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const tank = await Tank.findByPk(id);
+    if (!tank) {
+      return res.status(404).json({ success: false, error: 'Tank not found' });
+    }
+
+    const user = await User.findByPk(req.userId);
+    if (!['super_admin', 'owner', 'manager'].includes(user.role)) {
+      return res.status(403).json({ success: false, error: 'Only managers and above can delete tanks' });
+    }
+
+    if (!(await canAccessStation(user, tank.stationId))) {
+      return res.status(403).json({ success: false, error: 'Not authorized to delete this tank' });
+    }
+
+    await logAudit({
+      userId: req.userId,
+      userEmail: user.email,
+      userRole: user.role,
+      stationId: tank.stationId,
+      action: 'DELETE',
+      entityType: 'Tank',
+      entityId: tank.id,
+      oldValues: tank.toJSON(),
+      newValues: null,
+      category: 'data',
+      severity: 'warning',
+      description: `Deleted tank: ${tank.displayFuelName || tank.name} (${tank.fuelType})`
+    });
+
+    await tank.destroy();
+
+    res.json({ success: true, message: 'Tank deleted successfully' });
+  } catch (error) {
+    console.error('Delete tank error:', error);
     next(error);
   }
 };

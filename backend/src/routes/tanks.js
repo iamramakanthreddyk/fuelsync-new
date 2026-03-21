@@ -49,6 +49,13 @@ router.put('/:id',
   tankController.updateTank
 );
 
+// Delete tank (owner+)
+router.delete('/:id',
+  requireMinRole('owner'),
+  validateId(),
+  tankController.deleteTank
+);
+
 // Calibrate tank with dip reading (manager+)
 router.post('/:id/calibrate',
   requireMinRole('manager'),

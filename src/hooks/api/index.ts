@@ -564,6 +564,20 @@ export function useUpdateTank() {
 }
 
 /**
+ * Delete a tank
+ */
+export function useDeleteTank() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (tankId: string) => tankApi.delete(tankId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['tanks'] });
+    },
+  });
+}
+
+/**
  * Record a tank refill
  */
 export function useRecordRefill() {

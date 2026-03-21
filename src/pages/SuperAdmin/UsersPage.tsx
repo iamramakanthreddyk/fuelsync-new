@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Users, Plus, Search, Edit, Trash2, UserCheck, UserX, Crown, Building2, Briefcase, User as UserIcon } from "lucide-react";
+import { Users, Plus, Search, Edit, Trash2, UserCheck, UserX, Crown, Building2, Briefcase, User as UserIcon, CreditCard } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { RoleBadge } from "@/components/ui/RoleBadge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { getErrorMessage } from "@/lib/errorUtils";
 import { apiClient } from "@/lib/api-client";
@@ -135,6 +136,35 @@ const UsersPage = () => {
 
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
+
+  // Quick plan-change dialog
+  const [planChangeUser, setPlanChangeUser] = useState<User | null>(null);
+  const [pendingPlanId, setPendingPlanId] = useState<string>("");
+  const [isChangingPlan, setIsChangingPlan] = useState(false);
+
+  const openPlanChangeDialog = (target: User) => {
+    setPlanChangeUser(target);
+    setPendingPlanId(target.planId || target.plan?.id || "");
+  };
+
+  const handleChangePlan = async () => {
+    if (!planChangeUser || !pendingPlanId) return;
+    try {
+      setIsChangingPlan(true);
+      await updateUserMutation.mutateAsync({ userId: planChangeUser.id, data: { planId: pendingPlanId } });
+      toast({
+        title: "Plan updated",
+        description: `${planChangeUser.name}'s plan has been changed to ${plans.find((p) => p.id === pendingPlanId)?.name ?? "new plan"}.`,
+        variant: "success",
+      });
+      setPlanChangeUser(null);
+      await invalidateUsers();
+    } catch (error) {
+      toast({ title: "Error", description: getErrorMessage(error), variant: "destructive" });
+    } finally {
+      setIsChangingPlan(false);
+    }
+  };
   const [editForm, setEditForm] = useState({
     id: "",
     name: "",
@@ -684,6 +714,11 @@ const UsersPage = () => {
                         <Button variant="outline" size="sm" onClick={() => openEditPanel(item)} className="flex-1">
                           <Edit className="mr-1 h-4 w-4" /> Edit
                         </Button>
+                        {item.role === "owner" && (
+                          <Button variant="outline" size="sm" onClick={() => openPlanChangeDialog(item)} className="flex-1">
+                            <CreditCard className="mr-1 h-4 w-4" /> Plan
+                          </Button>
+                        )}
                         <Button variant="outline" size="sm" onClick={() => handleToggleStatus(item)} className="flex-1">
                           {item.isActive ? <UserX className="mr-1 h-4 w-4" /> : <UserCheck className="mr-1 h-4 w-4" />}
                           {item.isActive ? "Deactivate" : "Activate"}
@@ -766,6 +801,11 @@ const UsersPage = () => {
                             <Button variant="outline" size="sm" onClick={() => openEditPanel(item)}>
                               <Edit className="mr-2 h-4 w-4" /> Edit
                             </Button>
+                            {item.role === "owner" && (
+                              <Button variant="outline" size="sm" onClick={() => openPlanChangeDialog(item)}>
+                                <CreditCard className="mr-2 h-4 w-4" /> Plan
+                              </Button>
+                            )}
                             <Button variant="outline" size="sm" onClick={() => handleToggleStatus(item)}>
                               {item.isActive ? <UserX className="mr-2 h-4 w-4" /> : <UserCheck className="mr-2 h-4 w-4" />}
                               {item.isActive ? "Deactivate" : "Activate"}
@@ -800,6 +840,96 @@ const UsersPage = () => {
           )}
         </CardContent>
       </Card>
+
+      {/* Quick Plan Change Dialog */}
+      <Dialog
+        open={!!planChangeUser}
+        onOpenChange={(open) => {
+          if (!open) setPlanChangeUser(null);
+        }}
+      >
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" /> Change Subscription Plan
+            </DialogTitle>
+            <DialogDescription>
+              Changing plan for <strong>{planChangeUser?.name}</strong>.
+              {planChangeUser?.plan && (
+                <> Current plan: <strong>{planChangeUser.plan.name}</strong> — ₹{planChangeUser.plan.priceMonthly}/mo</>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className={`grid gap-3 ${
+            plans.length <= 2 ? "grid-cols-1 sm:grid-cols-2" :
+            plans.length === 3 ? "grid-cols-1 sm:grid-cols-3" :
+            "grid-cols-1 sm:grid-cols-2 lg:grid-cols-4"
+          }`}>
+            {plans.map((plan) => {
+              const isCurrent = plan.id === (planChangeUser?.planId || planChangeUser?.plan?.id);
+              const isSelected = plan.id === pendingPlanId;
+              return (
+                <button
+                  key={plan.id}
+                  type="button"
+                  onClick={() => setPendingPlanId(plan.id)}
+                  className={`rounded-lg border-2 p-3 text-left transition-colors ${
+                    isSelected
+                      ? "border-primary bg-primary/5"
+                      : isCurrent
+                      ? "border-blue-400 bg-blue-50 dark:bg-blue-950/30"
+                      : "border-border hover:border-primary/40"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-1">
+                    <span className="font-semibold text-sm">{plan.name}</span>
+                    <div className="flex flex-col items-end gap-1">
+                      {isCurrent && <Badge variant="secondary" className="text-xs whitespace-nowrap">Current</Badge>}
+                      {isSelected && !isCurrent && <Badge className="text-xs">Selected</Badge>}
+                    </div>
+                  </div>
+                  <div className="mt-0.5 text-sm font-medium text-primary">₹{plan.priceMonthly}/mo</div>
+                  <dl className="mt-2 space-y-0.5 text-xs">
+                    {([
+                      ["Stations", plan.maxStations],
+                      ["Employees", plan.maxEmployees],
+                      ["Pumps/station", plan.maxPumpsPerStation],
+                      ["Nozzles/pump", plan.maxNozzlesPerPump],
+                      ["Backdated", `${plan.backdatedDays}d`],
+                      ["Analytics", `${plan.analyticsDays}d`],
+                      ["Export", plan.canExport ? "✓" : "✗"],
+                      ["Profit reports", plan.canViewProfitLoss ? "✓" : "✗"],
+                      ["Expenses", plan.canTrackExpenses ? "✓" : "✗"],
+                    ] as [string, string | number][]).map(([label, val]) => (
+                      <div key={label} className="flex justify-between text-muted-foreground">
+                        <dt>{label}</dt>
+                        <dd className="font-medium text-foreground">{val}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </button>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPlanChangeUser(null)} disabled={isChangingPlan}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleChangePlan}
+              disabled={
+                !pendingPlanId ||
+                pendingPlanId === (planChangeUser?.planId || planChangeUser?.plan?.id) ||
+                isChangingPlan
+              }
+            >
+              {isChangingPlan ? "Saving..." : "Confirm Change"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {selectedUser && (
         <Card className="mt-6 max-w-3xl">
@@ -869,12 +999,36 @@ const UsersPage = () => {
                     <SelectContent>
                       {plans.map((plan) => (
                         <SelectItem key={plan.id} value={plan.id}>
-                          {plan.name} - ₹{plan.priceMonthly}/month
+                          <div className="flex flex-col">
+                            <span>{plan.name} — ₹{plan.priceMonthly}/mo</span>
+                            <span className="text-xs text-muted-foreground">
+                              {plan.maxStations} stations · {plan.maxEmployees} employees · {plan.maxPumpsPerStation} pumps/station
+                            </span>
+                          </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
+                {editForm.planId && (() => {
+                  const sel = plans.find((p) => p.id === editForm.planId);
+                  if (!sel) return null;
+                  return (
+                    <div className="rounded-md border bg-muted/30 p-3 text-xs">
+                      <p className="mb-1.5 font-medium text-foreground">Plan limits preview</p>
+                      <div className="grid grid-cols-2 gap-x-6 gap-y-1 text-muted-foreground">
+                        <span>Stations</span><span className="font-medium text-foreground">{sel.maxStations}</span>
+                        <span>Employees</span><span className="font-medium text-foreground">{sel.maxEmployees}</span>
+                        <span>Pumps / station</span><span className="font-medium text-foreground">{sel.maxPumpsPerStation}</span>
+                        <span>Nozzles / pump</span><span className="font-medium text-foreground">{sel.maxNozzlesPerPump}</span>
+                        <span>Backdated entries</span><span className="font-medium text-foreground">{sel.backdatedDays} days</span>
+                        <span>Analytics window</span><span className="font-medium text-foreground">{sel.analyticsDays} days</span>
+                        <span>Export</span><span className="font-medium text-foreground">{sel.canExport ? "✓ Yes" : "✗ No"}</span>
+                        <span>Profit reports</span><span className="font-medium text-foreground">{sel.canViewProfitLoss ? "✓ Yes" : "✗ No"}</span>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             )}
 

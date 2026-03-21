@@ -18,6 +18,7 @@ import {
   useRecordRefill, 
   useCalibrateTank, 
   useUpdateTank,
+  useDeleteTank,
   useTankRefills,
   useFuelPrices
 } from '@/hooks/api';
@@ -33,6 +34,16 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -51,6 +62,7 @@ import {
   Gauge,
   TrendingUp,
   AlertOctagon,
+  Trash2,
 } from 'lucide-react';
 import { getFuelTypeOptionsLegacy, type FuelType } from '@/lib/constants';
 import { toNumber } from '@/utils/number';
@@ -94,6 +106,7 @@ export default function Inventory() {
   const [showRefillDialog, setShowRefillDialog] = useState(false);
   const [showCalibrateDialog, setShowCalibrateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteTankDialog, setShowDeleteTankDialog] = useState(false);
   const [selectedTank, setSelectedTank] = useState<TankData | null>(null);
 
   // Refill history filter
@@ -129,6 +142,7 @@ export default function Inventory() {
   const recordRefillMutation = useRecordRefill();
   const calibrateMutation = useCalibrateTank();
   const updateTankMutation = useUpdateTank();
+  const deleteTankMutation = useDeleteTank();
 
   // Tanks query
   const { data: tanksResponse, isLoading: tanksLoading, refetch: refetchTanks } = useTanks(selectedStationId);
@@ -1154,6 +1168,26 @@ export default function Inventory() {
               </div>
 
               <div className="space-y-2">
+                <Label className="font-semibold">Fuel Type</Label>
+                <Select defaultValue={selectedTank?.fuelType} onValueChange={(v) => {
+                  const el = document.getElementById('edit-fuel-type') as HTMLInputElement;
+                  if (el) el.value = v;
+                }}>
+                  <SelectTrigger className="text-base">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getFuelTypeOptionsLegacy().map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {/* Hidden input to hold selected fuel type value */}
+                <input type="hidden" id="edit-fuel-type" defaultValue={selectedTank?.fuelType} />
+                <p className="text-xs text-muted-foreground">Change only if the wrong fuel type was set initially.</p>
+              </div>
+
+              <div className="space-y-2">
                 <Label className="font-semibold">Display Name</Label>
                 <Input 
                   className="text-base"
@@ -1185,6 +1219,14 @@ export default function Inventory() {
             </div>
           )}
           <DialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <Button
+              variant="destructive"
+              onClick={() => { setShowEditDialog(false); setShowDeleteTankDialog(true); }}
+              className="w-full sm:w-auto"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Delete Tank
+            </Button>
             <Button variant="outline" onClick={() => setShowEditDialog(false)} className="w-full sm:w-auto border-slate-300 hover:bg-slate-50">
               Cancel
             </Button>
@@ -1195,11 +1237,13 @@ export default function Inventory() {
                 const displayName = (document.getElementById('edit-display-name') as HTMLInputElement)?.value;
                 const name = (document.getElementById('edit-tank-name') as HTMLInputElement)?.value;
                 const capacity = (document.getElementById('edit-capacity') as HTMLInputElement)?.value;
+                const fuelType = (document.getElementById('edit-fuel-type') as HTMLInputElement)?.value;
 
                 try {
                   await updateTankMutation.mutateAsync({
                     tankId: selectedTank.id,
                     data: {
+                      fuelType: fuelType || undefined,
                       displayFuelName: displayName || undefined,
                       name: name || undefined,
                       capacity: capacity ? toNumber(capacity) : undefined,
@@ -1219,6 +1263,38 @@ export default function Inventory() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Tank Confirmation Dialog */}
+      <AlertDialog open={showDeleteTankDialog} onOpenChange={setShowDeleteTankDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Tank?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the <strong>{selectedTank?.displayFuelName}</strong> tank and all associated data. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={async () => {
+                if (!selectedTank) return;
+                try {
+                  await deleteTankMutation.mutateAsync(selectedTank.id);
+                  toast({ title: 'Tank deleted', description: `${selectedTank.displayFuelName} has been removed.` });
+                  setShowDeleteTankDialog(false);
+                  setSelectedTank(null);
+                  refetchTanks();
+                } catch (error: any) {
+                  toast({ title: 'Error', description: error.message || 'Failed to delete tank', variant: 'destructive' });
+                }
+              }}
+            >
+              {deleteTankMutation.isPending ? 'Deleting...' : 'Delete Tank'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

@@ -37,7 +37,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api-client';
+import { apiClient, ApiError } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
 import { Plus, Users, User, UserCheck, Mail, Phone, MapPin, Edit, Key, Trash } from 'lucide-react';
 
@@ -140,7 +140,7 @@ function EmployeeFormContent({
           />
         </div>
         <div>
-          <Label htmlFor="password" className="text-sm sm:text-base">Password {isEdit && '(leave blank to keep current)'}</Label>
+          <Label htmlFor="password" className="text-sm sm:text-base">{isEdit ? 'Password (leave blank to keep current)' : 'Password *'}</Label>
           <Input
             id="password"
             type="password"
@@ -231,6 +231,23 @@ export default function EmployeesManagement() {
     }
   });
 
+  /** Extracts error message and whether it's a plan quota error */
+  function parseApiError(error: unknown, fallback: string): { title: string; message: string } {
+    let message = fallback;
+    if (error instanceof ApiError) {
+      message = error.message;
+      if (error.statusCode === 402 || message.toLowerCase().includes('limit')) {
+        return { title: 'Plan Limit Reached', message };
+      }
+      if (error.statusCode === 403) {
+        return { title: 'Permission Denied', message };
+      }
+    } else if (error instanceof Error) {
+      message = error.message;
+    }
+    return { title: 'Error', message };
+  }
+
   // Create employee mutation
   const createMutation = useMutation({
     mutationFn: async (data: EmployeeFormData) => {
@@ -244,18 +261,8 @@ export default function EmployeesManagement() {
       setFormData(initialFormData);
     },
     onError: (error: unknown) => {
-      let message = 'Failed to create employee';
-      if (typeof error === 'object' && error !== null && 'response' in error) {
-        const errObj = error as { response?: { data?: { error?: string } } };
-        message = errObj.response?.data?.error || message;
-      } else if (error instanceof Error) {
-        message = error.message;
-      }
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive'
-      });
+      const { title, message } = parseApiError(error, 'Failed to create employee');
+      toast({ title, description: message, variant: 'destructive' });
     }
   });
 
@@ -273,18 +280,8 @@ export default function EmployeesManagement() {
       setFormData(initialFormData);
     },
     onError: (error: unknown) => {
-      let message = 'Failed to update employee';
-      if (typeof error === 'object' && error !== null && 'response' in error) {
-        const errObj = error as { response?: { data?: { error?: string } } };
-        message = errObj.response?.data?.error || message;
-      } else if (error instanceof Error) {
-        message = error.message;
-      }
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive'
-      });
+      const { title, message } = parseApiError(error, 'Failed to update employee');
+      toast({ title, description: message, variant: 'destructive' });
     }
   });
 
@@ -300,18 +297,8 @@ export default function EmployeesManagement() {
       setDeleteEmployeeId(null);
     },
     onError: (error: unknown) => {
-      let message = 'Failed to delete employee';
-      if (typeof error === 'object' && error !== null && 'response' in error) {
-        const errObj = error as { response?: { data?: { error?: string } } };
-        message = errObj.response?.data?.error || message;
-      } else if (error instanceof Error) {
-        message = error.message;
-      }
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive'
-      });
+      const { title, message } = parseApiError(error, 'Failed to delete employee');
+      toast({ title, description: message, variant: 'destructive' });
     }
   });
 
@@ -328,18 +315,8 @@ export default function EmployeesManagement() {
       setNewPassword('');
     },
     onError: (error: unknown) => {
-      let message = 'Failed to reset password';
-      if (typeof error === 'object' && error !== null && 'response' in error) {
-        const errObj = error as { response?: { data?: { error?: string } } };
-        message = errObj.response?.data?.error || message;
-      } else if (error instanceof Error) {
-        message = error.message;
-      }
-      toast({
-        title: 'Error',
-        description: message,
-        variant: 'destructive'
-      });
+      const { title, message } = parseApiError(error, 'Failed to reset password');
+      toast({ title, description: message, variant: 'destructive' });
     }
   });
 

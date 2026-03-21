@@ -308,7 +308,8 @@ module.exports = {
   PUMP_STATUS: {
     ACTIVE: 'active',
     REPAIR: 'repair',
-    INACTIVE: 'inactive'
+    INACTIVE: 'inactive',
+    MAINTENANCE: 'maintenance'
   },
 
   /**

@@ -137,7 +137,7 @@ const StationFormContent = ({ formData, onChange, formErrors = {} }: {
 
     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <div className="space-y-2">
-        <Label htmlFor="phone" className="text-sm font-medium">Phone</Label>
+        <Label htmlFor="phone" className="text-sm font-medium">Phone *</Label>
         <Input
           id="phone"
           value={formData.phone}

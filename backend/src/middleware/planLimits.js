@@ -161,7 +161,7 @@ const enforcePlanLimit = (resourceType) => {
           console.log(`[PLANCHECK-MW] stationCount=${stationCount} limit=${plan.maxStations}`);
 
           if (plan.maxStations && stationCount >= plan.maxStations) {
-            return res.status(403).json({
+            return res.status(402).json({
               success: false,
               error: `Plan limit reached. Your ${plan.name} plan allows ${plan.maxStations} station(s). You currently have ${stationCount}.`,
               planLimitExceeded: true,
@@ -191,7 +191,7 @@ const enforcePlanLimit = (resourceType) => {
           console.log(`[PLANCHECK-MW] pumpCount=${pumpCount} stationId=${stationId} limit=${plan.maxPumpsPerStation}`);
 
           if (plan.maxPumpsPerStation && pumpCount >= plan.maxPumpsPerStation) {
-            return res.status(403).json({
+            return res.status(402).json({
               success: false,
               error: `Plan limit reached. Your ${plan.name} plan allows ${plan.maxPumpsPerStation} pump(s) per station. This station has ${pumpCount}.`,
               planLimitExceeded: true,
@@ -221,7 +221,7 @@ const enforcePlanLimit = (resourceType) => {
           console.log(`[PLANCHECK-MW] nozzleCount=${nozzleCount} pumpId=${pumpId} limit=${plan.maxNozzlesPerPump}`);
 
           if (plan.maxNozzlesPerPump && nozzleCount >= plan.maxNozzlesPerPump) {
-            return res.status(403).json({
+            return res.status(402).json({
               success: false,
               error: `Plan limit reached. Your ${plan.name} plan allows ${plan.maxNozzlesPerPump} nozzle(s) per pump. This pump has ${nozzleCount}.`,
               planLimitExceeded: true,
@@ -246,7 +246,7 @@ const enforcePlanLimit = (resourceType) => {
           });
 
           if (plan.maxEmployees && employeeCount >= plan.maxEmployees) {
-            return res.status(403).json({
+            return res.status(402).json({
               success: false,
               error: `Plan limit reached. Your ${plan.name} plan allows ${plan.maxEmployees} employee(s). You currently have ${employeeCount}.`,
               planLimitExceeded: true,

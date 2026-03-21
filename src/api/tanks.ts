@@ -27,6 +27,10 @@ export const tankApi = {
   update: (tankId: string, data: Partial<Tank>) =>
     apiClient.put<ApiResponse<Tank>>(`/tanks/${tankId}`, data),
 
+  /** DELETE /tanks/:id */
+  delete: (tankId: string) =>
+    apiClient.delete<ApiResponse<void>>(`/tanks/${tankId}`),
+
   /** POST /tanks/:id/refill */
   recordRefill: (tankId: string, data: Partial<TankRefill>) =>
     apiClient.post<ApiResponse<TankRefill>>(`/tanks/${tankId}/refill`, data),

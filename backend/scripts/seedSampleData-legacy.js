@@ -230,17 +230,17 @@ async function seedUsersAndStations() {
   }
   
   // ============================================
-  // SCENARIO 1: Free Plan Owner - Single Small Station
-  // Tests: Plan limits (1 station, 2 pumps, 2 employees)
+  // SCENARIO 1: Demo Owner - Single Station (Basic Plan)
+  // Basic plan: 3 stations, 5 pumps/station, 10 employees
   // ============================================
-  console.log('  Creating Free Plan scenario...');
+  console.log('  Creating Demo Owner scenario...');
   const owner1 = await User.create({
     name: 'Rajesh Kumar',
     email: 'rajesh@quickfuel.com',
     password: plainPassword,
     phone: '+91-9876543210',
     role: 'owner',
-    planId: freePlan.id,
+    planId: basicPlan.id,
     isActive: true
   });
   

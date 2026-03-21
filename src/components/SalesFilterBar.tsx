@@ -73,7 +73,7 @@ export function SalesFilterBar({
                 className={`text-left truncate border border-muted-foreground/10 ${isMobile ? 'h-10 flex-1 px-3' : 'h-8 min-w-[148px] px-3 py-1 flex-shrink-0'}`}
               >
                 {dateRange.start && dateRange.end
-                  ? `${format(dateRange.start, "dd MMM yyyy")} - ${format(dateRange.end, "dd MMM")}`
+                  ? `${format(dateRange.start, "dd MMM yyyy")} - ${format(dateRange.end, "dd MMM yyyy")}`
                   : "Select date range"}
               </Button>
             </PopoverTrigger>
@@ -84,6 +84,7 @@ export function SalesFilterBar({
                   from: dateRange.start ?? undefined,
                   to: dateRange.end ?? undefined,
                 }}
+                defaultMonth={dateRange.start ?? new Date()}
                 onSelect={(range) => {
                   if (!range) {
                     onDateRangeChange({ start: null, end: null });
@@ -94,6 +95,9 @@ export function SalesFilterBar({
                     });
                   }
                 }}
+                fromYear={2024}
+                toYear={new Date().getFullYear() + 1}
+                captionLayout="dropdown"
                 className="p-3"
                 initialFocus
               />

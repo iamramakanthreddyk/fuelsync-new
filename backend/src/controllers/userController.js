@@ -227,9 +227,17 @@ exports.createUser = async (req, res, next) => {
           });
           
           if (employeeCount >= ownerPlan.maxEmployees) {
-            return res.status(403).json({
+            return res.status(402).json({
               success: false,
-              error: `Employee limit reached (${ownerPlan.maxEmployees}). Upgrade plan to add more.`
+              error: `Employee limit reached (${ownerPlan.maxEmployees}). Upgrade your plan to add more staff.`,
+              planLimitExceeded: true,
+              details: {
+                planName: ownerPlan.name,
+                resource: 'employees',
+                limit: ownerPlan.maxEmployees,
+                current: employeeCount,
+                upgradeRequired: true
+              }
             });
           }
         }
