@@ -311,12 +311,12 @@ async function getPeriodSalesData(stationIds, currentStart, currentEnd, prevStar
     current: {
       totalSales: parseFloat(currentRows?.totalSales || 0),
       totalQuantity: parseFloat(currentRows?.totalQuantity || 0),
-      totalTransactions: parseInt(currentRows?.totalTransactions || 0)
+      totalTransactions: parseInt(currentRows?.totalTransactions || 0, 10)
     },
     previous: prevRows ? {
       totalSales: parseFloat(prevRows?.totalSales || 0),
       totalQuantity: parseFloat(prevRows?.totalQuantity || 0),
-      totalTransactions: parseInt(prevRows?.totalTransactions || 0)
+      totalTransactions: parseInt(prevRows?.totalTransactions || 0, 10)
     } : null
   };
 }

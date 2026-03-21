@@ -41,13 +41,13 @@ const config = {
     sqlite: {
       dialect: 'sqlite',
       storage: getSqlitePath(),
-      logging: console.log,
+      logging: process.env.DEBUG ? console.log : false,
       define: commonOptions,
     },
     postgres: {
       url: process.env.DATABASE_URL || getPostgresUrl(),
       dialect: 'postgres',
-      logging: console.log,
+      logging: process.env.DEBUG ? console.log : false,
       pool: { max: 5, min: 0, acquire: 30000, idle: 10000 },
       define: commonOptions,
     }

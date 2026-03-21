@@ -75,8 +75,6 @@ const { fn, col } = require('sequelize');
 const { FUEL_TYPES } = require('../config/constants');
 const settlementVerificationService = require('../services/settlementVerificationService');
 
-console.log('[INIT] stationController loaded');
-
 // Helper: deduplicate payment totals across readings (shared)
 // Accepts either raw NozzleReading DB objects or the mapped reading objects
 const calcDeduplicatedTotals = (items) => {
@@ -126,37 +124,23 @@ const calcDeduplicatedTotals = (items) => {
 // HELPER: Check if user can access station
 // ============================================
 const canAccessStation = async (user, stationId) => {
-  console.log(`🔐 canAccessStation check - userId: ${user?.id}, role: ${user?.role}, stationId: ${stationId}`);
-  
   if (user.role === 'super_admin') {
-    console.log(`✅ super_admin can access any station`);
     return true;
   }
   
   if (user.role === 'owner') {
     // Owner can access stations they own
     const station = await Station.findByPk(stationId);
-    console.log(`🔍 Station lookup - Found: ${!!station}, Owner: ${station?.ownerId}, UserID: ${user.id}, Match: ${station?.ownerId === user.id}`);
     
     if (!station) {
-      console.log(`❌ Station ${stationId} not found`);
       return false;
     }
     
-    const isOwner = station.ownerId === user.id;
-    if (!isOwner) {
-      console.log(`❌ User ${user.id} is not owner of station ${stationId}. Station owner: ${station.ownerId}`);
-    } else {
-      console.log(`✅ User ${user.id} is owner of station ${stationId}`);
-    }
-    
-    return isOwner;
+    return station.ownerId === user.id;
   }
   
   // Manager/Employee can only access their assigned station
-  const canAccess = user.stationId === stationId;
-  console.log(`🔍 Manager/Employee check - userStationId: ${user.stationId}, requestStationId: ${stationId}, canAccess: ${canAccess}`);
-  return canAccess;
+  return user.stationId === stationId;
 };
 
 // ============================================
@@ -261,22 +245,8 @@ exports.getStations = async (req, res, next) => {
  */
 exports.createStation = async (req, res, next) => {
   try {
-    console.log('🔍 RAW REQUEST BODY:', req.body);
-    console.log('🔍 Request body keys:', Object.keys(req.body));
-    console.log('🔍 Request body entries:', Object.entries(req.body));
-    
     const { name, address, city, state, pincode, phone, email, gstNumber, ownerId, currentPlanId } = req.body;
     const user = await User.findByPk(req.userId, { include: [{ model: Plan, as: 'plan' }] });
-
-    console.log('🔍 Station creation request:');
-    console.log('  - User role:', user.role);
-    console.log('  - name received:', name);
-    console.log('  - phone received:', phone);
-    console.log('  - ownerId received:', ownerId);
-    console.log('  - ownerId type:', typeof ownerId);
-    console.log('  - ownerId === undefined?', ownerId === undefined);
-    console.log('  - ownerId === null?', ownerId === null);
-    console.log('  - Full body:', JSON.stringify(req.body, null, 2));
 
     if (!name) {
       return res.status(400).json({ success: false, error: 'Station name is required' });
@@ -287,9 +257,6 @@ exports.createStation = async (req, res, next) => {
     if (user.role === 'super_admin') {
       // Super admin must provide ownerId
       if (!ownerId || typeof ownerId !== 'string' || ownerId.trim() === '') {
-        console.error('❌ Station creation failed: Invalid ownerId');
-        console.error('   ownerId value:', ownerId);
-        console.error('   Request body:', req.body);
         return res.status(400).json({ success: false, error: 'Owner ID is required when creating a station as super admin' });
       }
       const owner = await User.findByPk(ownerId);
@@ -713,11 +680,6 @@ exports.getPumps = async (req, res, next) => {
             lastReading: lastReading !== null ? lastReading : (nozzle.initialReading !== undefined ? parseFloat(nozzle.initialReading) : 0),
             lastReadingDate: lastReadingResult ? lastReadingResult.readingDate : null
           };
-          
-          // Debug log to verify correct reading is selected
-          if (lastReadingResult) {
-            console.log(`[NOZZLE DEBUG] Nozzle ${nozzle.id}: lastReadingValue=${lastReading}, readingDate=${lastReadingResult.readingDate}, createdAt=${lastReadingResult.createdAt}`);
-          }
           
           return result;
         }));

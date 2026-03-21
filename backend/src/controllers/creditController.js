@@ -43,7 +43,7 @@ const getCreditors = async (req, res) => {
     const { count, rows: creditors } = await Creditor.findAndCountAll({
       where,
       order: [['name', 'ASC']],
-      limit: parseInt(limit),
+      limit: parseInt(limit, 10),
       offset
     });
     
@@ -51,8 +51,8 @@ const getCreditors = async (req, res) => {
       success: true,
       data: creditors,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total: count,
         pages: Math.ceil(count / limit)
       }
@@ -668,7 +668,7 @@ const getTransactions = async (req, res) => {
         { model: User, as: 'enteredByUser', attributes: ['id', 'name'] }
       ],
       order: [['transactionDate', 'DESC'], ['createdAt', 'DESC']],
-      limit: parseInt(limit),
+      limit: parseInt(limit, 10),
       offset
     });
     
@@ -682,8 +682,8 @@ const getTransactions = async (req, res) => {
       success: true,
       data: normalized,
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total: count,
         pages: Math.ceil(count / limit)
       }

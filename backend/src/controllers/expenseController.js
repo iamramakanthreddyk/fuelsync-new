@@ -121,8 +121,8 @@ const getExpenses = async (req, res) => {
         byCategory
       },
       pagination: {
-        page: parseInt(page),
-        limit: parseInt(limit),
+        page: parseInt(page, 10),
+        limit: parseInt(limit, 10),
         total: count,
         pages: Math.ceil(count / limit)
       }
@@ -449,7 +449,7 @@ const getExpenseSummary = async (req, res) => {
             category: r.category,
             label: EXPENSE_CATEGORY_LABELS[r.category] || r.category,
             total: parseFloat(r.dataValues.total),
-            count: parseInt(r.dataValues.count)
+            count: parseInt(r.dataValues.count, 10)
           }))
         }
       });

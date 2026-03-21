@@ -316,14 +316,6 @@ exports.getPumpPerformance = async (req, res, next) => {
     ({ startDate, endDate, stationId } = req.query);
     const user = await User.findByPk(req.userId);
     
-    console.log('Pump performance request:', {
-      userId: req.userId,
-      userRole: user?.role,
-      stationId,
-      startDate,
-      endDate
-    });
-    
     if (!startDate || !endDate) {
       return res.status(400).json({
         success: false,
@@ -332,7 +324,6 @@ exports.getPumpPerformance = async (req, res, next) => {
     }
 
     stationFilter = await getStationFilter(user, stationId);
-    console.log('Station filter:', stationFilter);
     
     if (stationFilter === null) {
       return res.json({ success: true, data: [] });
@@ -343,8 +334,6 @@ exports.getPumpPerformance = async (req, res, next) => {
       where: stationFilter,
       attributes: ['id', 'name']
     });
-
-    console.log('Found stations:', stations.length, stations.map(s => s.name));
     
     if (stations.length === 0) {
       return res.json({ success: true, data: [] });
@@ -358,8 +347,6 @@ exports.getPumpPerformance = async (req, res, next) => {
       attributes: ['id']
     });
     const pumpIds = pumpsForStations.map(p => p.id);
-
-    console.log('Found pumps:', pumpIds.length);
     
     if (pumpIds.length === 0) {
       return res.json({ success: true, data: [] });
@@ -377,7 +364,6 @@ exports.getPumpPerformance = async (req, res, next) => {
       limit: 5,
       raw: true
     });
-    console.log('[DIAGNOSTIC] Sample readings (first 5):', JSON.stringify(sampleReadings, null, 2));
 
     // Check if any rows exist for the pumpIds without date filtering
     const diagnosticPumpCheck = await NozzleReading.count({
@@ -455,8 +441,6 @@ exports.getPumpPerformance = async (req, res, next) => {
       group: ['pump.id', 'nozzle.id', 'nozzle.nozzle_number', 'nozzle.fuel_type'],
       raw: true
     });
-    console.log('[DEBUG] nozzleData rows returned:', nozzleData.length);
-    if (nozzleData.length > 0) console.log('[DEBUG] nozzleData first row:', JSON.stringify(nozzleData[0]));
 
     // Get all pumps for the stations
     const allPumps = await Pump.findAll({

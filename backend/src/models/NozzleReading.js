@@ -478,7 +478,6 @@ module.exports = (sequelize) => {
       where: { nozzleId },
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
     });
-    console.log(`[DEBUG] getLatestReading for nozzleId=${nozzleId}:`, latest ? latest.readingValue : null);
     return latest;
   };
 

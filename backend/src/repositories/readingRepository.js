@@ -68,8 +68,8 @@ exports.getReadingsWithFilters = async ({
     where,
     include: READING_INCLUDES,
     order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
-    limit: parseInt(limit),
-    offset: parseInt(offset),
+    limit: parseInt(limit, 10),
+    offset: parseInt(offset, 10),
     distinct: true
   });
 };

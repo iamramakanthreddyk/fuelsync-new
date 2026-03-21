@@ -449,6 +449,22 @@ exports.deactivateUser = async (req, res, next) => {
       return res.status(400).json({ success: false, error: 'Cannot deactivate yourself' });
     }
 
+    // Prevent orphaning stations: owners cannot be deactivated if responsible for stations
+    if (user.role === 'owner') {
+      const { Station } = require('../models');
+      const ownedStations = await Station.findAll({
+        where: { ownerId: id },
+        attributes: ['id', 'name']
+      });
+      if (ownedStations.length > 0) {
+        return res.status(403).json({
+          success: false,
+          error: `Cannot deactivate owner: responsible for ${ownedStations.length} station(s). Transfer ownership first or request superadmin assistance.`,
+          stations: ownedStations.map(s => ({ id: s.id, name: s.name }))
+        });
+      }
+    }
+
     // Check permissions
     const canEdit = await canAccessUser(currentUser, user);
     if (!canEdit) {

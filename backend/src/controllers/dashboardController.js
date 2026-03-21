@@ -325,7 +325,7 @@ exports.getMissedEntriesAlert = async (req, res, next) => {
       
       if (!station || !station.alertOnMissedReadings) continue;
       
-      const effectiveThreshold = parseInt(thresholdDays) || station.missedReadingThresholdDays || 1;
+      const effectiveThreshold = parseInt(thresholdDays, 10) || station.missedReadingThresholdDays || 1;
       const nozzlesWithGaps = await Nozzle.getNozzlesWithGaps(sid, effectiveThreshold);
       
       if (nozzlesWithGaps.length > 0) {
@@ -542,7 +542,7 @@ exports.getOwnerAnalytics = async (req, res, next) => {
 
     const totalSales = parseFloat(periodData.current?.totalSales || 0);
     const totalQuantity = parseFloat(periodData.current?.totalQuantity || 0);
-    const totalTransactions = parseInt(periodData.current?.totalTransactions || 0);
+    const totalTransactions = parseInt(periodData.current?.totalTransactions || 0, 10);
     const averageTransaction = totalTransactions > 0 ? totalSales / totalTransactions : 0;
     const prevSales = parseFloat(periodData.previous?.totalSales || 0);
     const salesGrowth = prevSales > 0 ? ((totalSales - prevSales) / prevSales) * 100 : 0;
