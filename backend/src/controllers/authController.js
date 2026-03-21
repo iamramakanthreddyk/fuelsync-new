@@ -1,20 +1,25 @@
 /**
  * Authentication Controller
  * REQUIRES JWT_SECRET environment variable
- * 
- * Features:
- * - JWT token generation
- * - Login/logout with audit logging
- * - Session tracking for concurrent login limits
+ * Features: JWT tokens, login/logout with audit, session tracking, concurrent login limits
  */
 
+// ===== MODELS & DATABASE =====
 const jwt = require('jsonwebtoken');
 const { User, Plan, Station } = require('../models');
-const { logAudit, checkConcurrentLoginLimit, getLoginHistory } = require('../utils/auditLog');
-
 const { Op } = require('sequelize');
 
-// Max concurrent logins allowed (configurable via env)
+// ===== SERVICES =====
+const authService = require('../services/authService');
+
+// ===== ERROR & RESPONSE HANDLING =====
+const { asyncHandler, NotFoundError, ValidationError, AuthorizationError } = require('../utils/errors');
+const { sendSuccess, sendCreated, sendError } = require('../utils/apiResponse');
+
+// ===== MIDDLEWARE & CONFIG =====
+const { logAudit, checkConcurrentLoginLimit, getLoginHistory } = require('../utils/auditLog');
+
+// ===== UTILITIES =====
 const MAX_CONCURRENT_LOGINS = parseInt(process.env.MAX_CONCURRENT_LOGINS || '3', 10);
 const LOGIN_TIME_WINDOW_MINUTES = parseInt(process.env.LOGIN_TIME_WINDOW_MINUTES || '60', 10);
 
@@ -60,64 +65,74 @@ const getClientIp = (req) => {
  * User login
  * POST /api/v1/auth/login
  */
-exports.login = async (req, res, next) => {
+exports.login = asyncHandler(async (req, res, next) => {
+  const { email, password } = req.body;
+  const clientIp = getClientIp(req);
+  const userAgent = req.headers['user-agent'] || 'unknown';
+
+  if (!email || !password) {
+    return sendError(res, 'MISSING_FIELDS', 'Email and password are required', 400);
+  }
+
   try {
-    const { email, password } = req.body;
-    const clientIp = getClientIp(req);
-    const userAgent = req.headers['user-agent'] || 'unknown';
+    getJwtSecret();
+  } catch (jwtError) {
+    console.error('❌ [AUTH] JWT_SECRET not configured:', jwtError.message);
+    return sendError(res, 'CONFIG_ERROR', 'Server configuration error: JWT_SECRET not set', 500);
+  }
 
-    if (!email || !password) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email and password are required'
-      });
-    }
+  const user = await User.findOne({
+    where: { email: email.toLowerCase(), isActive: true },
+    include: [
+      { model: Plan, as: 'plan' },
+      { model: Station, as: 'station' }
+    ]
+  });
 
-    // Validate JWT_SECRET before proceeding
-    try {
-      getJwtSecret();
-    } catch (jwtError) {
-      console.error('❌ [AUTH] JWT_SECRET not configured:', jwtError.message);
-      return res.status(500).json({
-        success: false,
-        error: 'Server configuration error: JWT_SECRET not set. Contact admin.'
-      });
-    }
-
-    // Find user
-    const user = await User.findOne({
-      where: { email: email.toLowerCase(), isActive: true },
-      include: [
-        { model: Plan, as: 'plan' },
-        { model: Station, as: 'station' }
-      ]
+  if (!user) {
+    await logAudit({
+      userEmail: email.toLowerCase(),
+      action: 'LOGIN',
+      entityType: 'User',
+      category: 'auth',
+      severity: 'warning',
+      success: false,
+      errorMessage: 'Invalid email or password',
+      ip: clientIp,
+      userAgent: userAgent,
+      description: `Failed login attempt for non-existent or inactive user`
     });
+    return sendError(res, 'INVALID_CREDENTIALS', 'Invalid email or password', 401);
+  }
 
-    if (!user) {
-      // Log failed login attempt
-      await logAudit({
-        userEmail: email.toLowerCase(),
-        action: 'LOGIN',
-        entityType: 'User',
-        category: 'auth',
-        severity: 'warning',
-        success: false,
-        errorMessage: 'Invalid email or password',
-        ip: clientIp,
-        userAgent: userAgent,
-        description: `Failed login attempt for non-existent or inactive user`
-      });
+  const isMatch = await user.comparePassword(password);
+  if (!isMatch) {
+    await logAudit({
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      stationId: user.stationId,
+      action: 'LOGIN',
+      entityType: 'User',
+      category: 'auth',
+      severity: 'warning',
+      success: false,
+      errorMessage: 'Invalid password',
+      ip: clientIp,
+      userAgent: userAgent,
+      description: `Failed login - incorrect password`
+    });
+    return sendError(res, 'INVALID_CREDENTIALS', 'Invalid email or password', 401);
+  }
 
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid email or password'
-      });
-    }
+  if (MAX_CONCURRENT_LOGINS > 0) {
+    const limitExceeded = await checkConcurrentLoginLimit(
+      user.id,
+      MAX_CONCURRENT_LOGINS,
+      LOGIN_TIME_WINDOW_MINUTES
+    );
 
-    // Check password
-    const isMatch = await user.comparePassword(password);
-    if (!isMatch) {
-      // Log failed login attempt
+    if (limitExceeded) {
       await logAudit({
         userId: user.id,
         userEmail: user.email,
@@ -126,151 +141,91 @@ exports.login = async (req, res, next) => {
         action: 'LOGIN',
         entityType: 'User',
         category: 'auth',
-        severity: 'warning',
+        severity: 'critical',
         success: false,
-        errorMessage: 'Invalid password',
+        errorMessage: `Concurrent login limit (${MAX_CONCURRENT_LOGINS}) exceeded`,
         ip: clientIp,
         userAgent: userAgent,
-        description: `Failed login - incorrect password`
+        description: `User exceeded maximum concurrent login limit of ${MAX_CONCURRENT_LOGINS}`
       });
-
-      return res.status(401).json({
-        success: false,
-        error: 'Invalid email or password'
-      });
+      return sendError(res, 'LOGIN_LIMIT_EXCEEDED', `Maximum ${MAX_CONCURRENT_LOGINS} sessions allowed`, 429);
     }
+  }
 
-    // Check concurrent login limit (optional - only if limit > 0)
-    if (MAX_CONCURRENT_LOGINS > 0) {
-      const limitExceeded = await checkConcurrentLoginLimit(
-        user.id,
-        MAX_CONCURRENT_LOGINS,
-        LOGIN_TIME_WINDOW_MINUTES
-      );
+  await user.update({ lastLoginAt: new Date() });
+  const token = generateToken(user.id, user.role);
 
-      if (limitExceeded) {
-        // Log login limit exceeded
-        await logAudit({
-          userId: user.id,
-          userEmail: user.email,
-          userRole: user.role,
-          stationId: user.stationId,
-          action: 'LOGIN',
-          entityType: 'User',
-          category: 'auth',
-          severity: 'critical',
-          success: false,
-          errorMessage: `Concurrent login limit (${MAX_CONCURRENT_LOGINS}) exceeded`,
-          ip: clientIp,
-          userAgent: userAgent,
-          description: `User exceeded maximum concurrent login limit of ${MAX_CONCURRENT_LOGINS} in ${LOGIN_TIME_WINDOW_MINUTES} minutes`
-        });
+  // Build user payload with stations
+  const userPayload = {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    stationId: user.stationId || (user.station ? user.station.id : null),
+    station: user.station ? { id: user.station.id, name: user.station.name } : null,
+    plan: user.plan ? { name: user.plan.name, canExport: user.plan.canExport } : null,
+    stations: []
+  };
 
-        return res.status(429).json({
-          success: false,
-          error: `Too many concurrent logins. Maximum ${MAX_CONCURRENT_LOGINS} sessions allowed.`
-        });
-      }
-    }
-
-    // Update last login
-    await user.update({ lastLoginAt: new Date() });
-
-    // Generate token
-    const token = generateToken(user.id, user.role);
-
-    // Build user payload with stations
-    const userPayload = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      role: user.role,
-      stationId: user.stationId || (user.station ? user.station.id : null),
-      station: user.station ? {
-        id: user.station.id,
-        name: user.station.name
-      } : null,
-      plan: user.plan ? {
-        name: user.plan.name,
-        canExport: user.plan.canExport
-      } : null,
-      stations: [] // Initialize stations array
-    };
-
-    // For owners, fetch their owned stations
-    if ((user.role || '').toLowerCase() === 'owner') {
-      const ownedStations = await Station.findAll({
-        where: { ownerId: user.id },
+  // For owners, fetch their owned stations
+  if ((user.role || '').toLowerCase() === 'owner') {
+    const ownedStations = await Station.findAll({
+      where: { ownerId: user.id },
+      attributes: ['id', 'name', 'code', 'address', 'city', 'state']
+    });
+    userPayload.stations = ownedStations.map(s => ({
+      id: s.id,
+      name: s.name,
+      code: s.code,
+      address: s.address,
+      city: s.city,
+      brand: 'FuelSync'
+    }));
+  } else if (user.role === 'manager' || user.role === 'employee') {
+    if (user.stationId) {
+      const station = await Station.findByPk(user.stationId, {
         attributes: ['id', 'name', 'code', 'address', 'city', 'state']
       });
-      userPayload.stations = ownedStations.map(s => ({
-        id: s.id,
-        name: s.name,
-        code: s.code,
-        address: s.address,
-        city: s.city,
-        brand: 'FuelSync' // Default brand
-      }));
-    } else if (user.role === 'manager' || user.role === 'employee') {
-      // For manager/employee, fetch their assigned station(s)
-      // Managers/employees have stationId field in User model
-      if (user.stationId) {
-        const station = await Station.findByPk(user.stationId, {
-          attributes: ['id', 'name', 'code', 'address', 'city', 'state']
-        });
-        if (station) {
-          userPayload.stations = [{
-            id: station.id,
-            name: station.name,
-            code: station.code,
-            address: station.address,
-            city: station.city,
-            brand: 'FuelSync'
-          }];
-        }
+      if (station) {
+        userPayload.stations = [{
+          id: station.id,
+          name: station.name,
+          code: station.code,
+          address: station.address,
+          city: station.city,
+          brand: 'FuelSync'
+        }];
       }
-    } else if (user.station) {
-      // Fallback for direct station assignment
-      userPayload.stations = [{
-        id: user.station.id,
-        name: user.station.name,
-        code: user.station.code,
-        address: user.station.address,
-        city: user.station.city,
-        brand: 'FuelSync'
-      }];
     }
-
-    // Log successful login
-    await logAudit({
-      userId: user.id,
-      userEmail: user.email,
-      userRole: user.role,
-      stationId: user.stationId,
-      action: 'LOGIN',
-      entityType: 'User',
-      entityId: user.id,
-      category: 'auth',
-      severity: 'info',
-      success: true,
-      ip: clientIp,
-      userAgent: userAgent,
-      description: `${user.role} user logged in successfully`
-    });
-
-    res.json({
-      success: true,
-      data: {
-        token,
-        user: userPayload
-      }
-    });
-
-  } catch (error) {
-    console.error('Login error:', error);
-    next(error);
+  } else if (user.station) {
+    userPayload.stations = [{
+      id: user.station.id,
+      name: user.station.name,
+      code: user.station.code,
+      address: user.station.address,
+      city: user.station.city,
+      brand: 'FuelSync'
+    }];
   }
-};
+
+  await logAudit({
+    userId: user.id,
+    userEmail: user.email,
+    userRole: user.role,
+    stationId: user.stationId,
+    action: 'LOGIN',
+    entityType: 'User',
+    entityId: user.id,
+    category: 'auth',
+    severity: 'info',
+    success: true,
+    ip: clientIp,
+    userAgent: userAgent,
+    description: `${user.role} user logged in successfully`
+  });
+
+  return sendSuccess(res, { token, user: userPayload }, { message: 'Login successful' });
+});
 
 /**
  * Get current user
@@ -278,73 +233,15 @@ exports.login = async (req, res, next) => {
  */
 exports.getCurrentUser = async (req, res, next) => {
   try {
-    const user = await User.findByPk(req.userId, {
-      include: [
-        { model: Plan, as: 'plan' },
-        { model: Station, as: 'station' }
-      ],
-      attributes: { exclude: ['password'] }
-    });
+    const userId = req.userId;
+    const workspaceId = req.user?.workspaceId;
 
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found'
-      });
-    }
-
-    // Build response with proper station data
-    const userData = user.toSafeObject();
-    
-    // For owners, fetch their owned stations
-    if ((user.role || '').toLowerCase() === 'owner') {
-      const ownedStations = await Station.findAll({
-        where: { ownerId: user.id },
-        attributes: ['id', 'name', 'code', 'address', 'city', 'state']
-      });
-      userData.stations = ownedStations.map(s => ({
-        id: s.id,
-        name: s.name,
-        code: s.code,
-        address: s.address,
-        city: s.city,
-        brand: 'FuelSync' // Default brand
-      }));
-    } else if (user.role === 'manager' || user.role === 'employee') {
-      // For manager/employee, fetch their assigned station(s)
-      // Managers/employees have stationId field in User model
-      if (user.stationId) {
-        const station = await Station.findByPk(user.stationId, {
-          attributes: ['id', 'name', 'code', 'address', 'city', 'state']
-        });
-        if (station) {
-          userData.stations = [{
-            id: station.id,
-            name: station.name,
-            code: station.code,
-            address: station.address,
-            city: station.city,
-            brand: 'FuelSync'
-          }];
-        }
-      }
-    } else if (user.station) {
-      // Fallback for direct station assignment
-      userData.stations = [{
-        id: user.station.id,
-        name: user.station.name,
-        code: user.station.code,
-        address: user.station.address,
-        city: user.station.city,
-        brand: 'FuelSync'
-      }];
-    }
+    const userData = await authService.getCurrentUser(userId, workspaceId);
 
     res.json({
       success: true,
       data: userData
     });
-
   } catch (error) {
     console.error('Get current user error:', error);
     next(error);
@@ -359,76 +256,20 @@ exports.register = async (req, res, next) => {
   try {
     const { email, password, name, phone, role, stationId } = req.body;
 
-    // Validation
-    if (!email || !password || !name) {
-      return res.status(400).json({
-        success: false,
-        error: 'Email, password, and name are required'
-      });
-    }
-
-    // Check if email exists
-    const existingUser = await User.findOne({ where: { email: email.toLowerCase() } });
-    if (existingUser) {
-      return res.status(409).json({
-        success: false,
-        error: 'Email already registered'
-      });
-    }
-
-    // Determine role (default to owner for self-registration)
-    let userRole = role || 'owner';
-    let userStationId = stationId;
-
-    // If registering as employee/manager, must have stationId
-    if (['employee', 'manager'].includes(userRole)) {
-      if (!stationId) {
-        return res.status(400).json({
-          success: false,
-          error: 'Station ID required for employee/manager registration'
-        });
-      }
-      
-      // Verify station exists
-      const station = await Station.findByPk(stationId);
-      if (!station) {
-        return res.status(404).json({
-          success: false,
-          error: 'Station not found'
-        });
-      }
-    }
-
-    // Get free plan for new owners
-    let planId = null;
-    if (userRole === 'owner') {
-      const freePlan = await Plan.findOne({ where: { name: 'Free' } });
-      planId = freePlan?.id;
-    }
-
-    // Create user
-    const user = await User.create({
-      email: email.toLowerCase(),
-      password, // Will be hashed by hook
+    const result = await authService.register({
+      email,
+      password,
       name,
       phone,
-      role: userRole,
-      stationId: userStationId,
-      planId
+      role,
+      stationId
     });
-
-    // Generate token
-    const token = generateToken(user.id, user.role);
 
     res.status(201).json({
       success: true,
-      data: {
-        token,
-        user: user.toSafeObject()
-      },
+      data: result,
       message: 'Registration successful'
     });
-
   } catch (error) {
     console.error('Register error:', error);
     next(error);
@@ -444,22 +285,7 @@ exports.changePassword = async (req, res, next) => {
     const userId = req.userId;
     const { currentPassword, newPassword } = req.body;
 
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ success: false, error: 'currentPassword and newPassword are required' });
-    }
-
-    const user = await User.findByPk(userId);
-    if (!user) {
-      return res.status(404).json({ success: false, error: 'User not found' });
-    }
-
-    const isMatch = await user.comparePassword(currentPassword);
-    if (!isMatch) {
-      return res.status(401).json({ success: false, error: 'Current password is incorrect' });
-    }
-
-    user.password = newPassword;
-    await user.save();
+    await authService.changePassword(userId, currentPassword, newPassword);
 
     res.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {
@@ -472,32 +298,14 @@ exports.changePassword = async (req, res, next) => {
  * Logout (client-side token removal, optionally blacklist)
  * POST /api/v1/auth/logout
  */
-exports.logout = async (req, res) => {
+exports.logout = async (req, res, next) => {
   try {
-    // Log logout event
-    if (req.user) {
-      const clientIp = getClientIp(req);
-      const userAgent = req.headers['user-agent'] || 'unknown';
+    const userId = req.user?.id;
+    const clientIp = getClientIp(req);
+    const userAgent = req.headers['user-agent'] || 'unknown';
 
-      await logAudit({
-        userId: req.user.id,
-        userEmail: req.user.email,
-        userRole: req.user.role,
-        stationId: req.user.stationId,
-        action: 'LOGOUT',
-        entityType: 'User',
-        entityId: req.user.id,
-        category: 'auth',
-        severity: 'info',
-        success: true,
-        ip: clientIp,
-        userAgent: userAgent,
-        description: `User logged out`
-      });
-    }
+    await authService.logout(userId, clientIp, userAgent);
 
-    // For now, just respond success
-    // Client should remove token
     res.json({
       success: true,
       message: 'Logged out successfully'
