@@ -29,7 +29,6 @@ const { Op } = require('sequelize');
 const { NotFoundError, AuthorizationError, AuthenticationError } = require('../utils/errors');
 const { canAccessStation } = require('../middleware/accessControl');
 const readingValidation = require('../services/readingValidationService');
-const readingValidationEnhancedService = require('../services/readingValidationEnhancedService');
 const readingCalculation = require('../services/readingCalculationService');
 const readingCache = require('../services/readingCacheService');
 const readingRepository = require('../repositories/readingRepository');
