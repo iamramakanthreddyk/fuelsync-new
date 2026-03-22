@@ -374,7 +374,16 @@ exports.getLatestReadingsForNozzles = asyncHandler(async (req, res) => {
   if (!ids.length) {
     return sendError(res, 'VALIDATION_ERROR', 'No nozzle IDs provided', 400);
   }
-  const results = await readingRepository.getLatestReadingsForNozzles(ids);
+  const resultsMap = await readingRepository.getLatestReadingsForNozzles(ids);
+  
+  // Convert Map to plain object (Maps don't serialize correctly to JSON)
+  const results = {};
+  if (resultsMap instanceof Map) {
+    resultsMap.forEach((reading, nozzleId) => {
+      results[nozzleId] = reading.readingValue;
+    });
+  }
+  
   return sendSuccess(res, results);
 });
 
