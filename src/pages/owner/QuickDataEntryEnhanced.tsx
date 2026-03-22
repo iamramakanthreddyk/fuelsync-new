@@ -516,13 +516,15 @@ export default function QuickDataEntryEnhanced() {
       return;
     }
 
-    // Sync final payment allocation to hook before submission
+    // Sync final state to hook before submission
     updatePaymentBreakdown({
       cash: toNumber(paymentAllocation.cash),
       online: toNumber(paymentAllocation.online),
       credit: paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0)
     });
     updateCreditAllocations(paymentAllocation.credits || []);
+    const { setAssignedEmployee } = quickEntry;
+    setAssignedEmployee(selectedEmployeeId);
     
     // Call the hook's mutation with context needed for payment processing
     submitReadingsMutation.mutate({
