@@ -70,6 +70,10 @@ import type {
 // Utility function to calculate litres and sale value for a nozzle
 const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: number | null, fuelPrices: any[]) => {
   const enteredValue = toNumber(readingValue || '0');
+  if (!enteredValue || isNaN(enteredValue) || enteredValue === 0) {
+    return { litres: 0, saleValue: 0 };
+  }
+  
   const nozzleLast = nozzle?.lastReading !== undefined && nozzle?.lastReading !== null ? toNumber(String(nozzle.lastReading)) : undefined;
   const initial = nozzle?.initialReading !== undefined && nozzle?.initialReading !== null ? toNumber(String(nozzle.initialReading)) : 0;
   let last: number | undefined = undefined;
@@ -77,17 +81,28 @@ const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: num
     last = Number(lastReading);
   } else if (nozzleLast !== undefined) {
     last = nozzleLast;
-  } else if (initial !== undefined) {
+  } else if (initial !== undefined && !isNaN(initial)) {
     last = initial;
   }
   if (last === undefined || isNaN(last)) {
     return { litres: 0, saleValue: 0 };
   }
   const litres = Math.max(0, enteredValue - last);
+  if (litres === 0) {
+    return { litres: 0, saleValue: 0 };
+  }
+  
   // Safety check: ensure fuelPrices is an array before calling .find()
   const pricesArray = Array.isArray(fuelPrices) ? fuelPrices : [];
-  const priceData = pricesArray.find(p => (p.fuel_type || '').toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
-  const price = toNumber(String(priceData?.price_per_litre || 0));
+  if (pricesArray.length === 0) {
+    return { litres, saleValue: 0 };
+  }
+  
+  // Find price - check both snake_case and camelCase keys for compatibility
+  const fuelTypeToFind = (nozzle?.fuelType || '').toUpperCase();
+  let priceData = pricesArray.find(p => (p.fuel_type || p.fuelType || '').toString().toUpperCase() === fuelTypeToFind);
+  
+  const price = toNumber(String(priceData?.price_per_litre || priceData?.pricePerLitre || 0));
   const saleValue = litres * price;
   return { litres, saleValue };
 }
@@ -138,7 +153,9 @@ export default function QuickDataEntryEnhanced() {
     setReadingDate: hookSetReadingDate,
     employees: hookEmployees,
     creditors: hookCreditors,
-    submitReadingsMutation
+    submitReadingsMutation,
+    updatePaymentBreakdown,
+    updateCreditAllocations
   } = quickEntry;
 
   // Get fuel prices context
@@ -376,6 +393,16 @@ export default function QuickDataEntryEnhanced() {
     }
   }, [saleSummary.totalSaleValue, paymentAllocation]);
 
+  // Sync payment allocation to hook's internal state whenever it changes
+  useEffect(() => {
+    updatePaymentBreakdown({
+      cash: toNumber(paymentAllocation.cash),
+      online: toNumber(paymentAllocation.online),
+      credit: paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0)
+    });
+    updateCreditAllocations(paymentAllocation.credits || []);
+  }, [paymentAllocation, updatePaymentBreakdown, updateCreditAllocations]);
+
   // NOTE: Mutation is provided by useQuickEntry hook (submitReadingsMutation)
   // The hook handles all the complex logic for payment allocation, transaction creation, etc.
 
@@ -476,13 +503,29 @@ export default function QuickDataEntryEnhanced() {
       return;
     }
 
+    // Validate employee assignment
+    if (!selectedEmployeeId) {
+      toast({
+        title: 'Employee Required',
+        description: 'Please select an employee to assign these readings to',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    // Sync final payment allocation to hook before submission
+    updatePaymentBreakdown({
+      cash: toNumber(paymentAllocation.cash),
+      online: toNumber(paymentAllocation.online),
+      credit: paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0)
+    });
+    updateCreditAllocations(paymentAllocation.credits || []);
+    
     // Call the hook's mutation with context needed for payment processing
     submitReadingsMutation.mutate({
-      entries,
-      paymentAllocation,
-      selectedEmployeeId,
-      isOwner,
-      isManager
+      readings: entries,
+      pumps,
+      fuelPrices
     } as any);
   };
 
