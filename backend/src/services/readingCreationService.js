@@ -60,12 +60,31 @@ exports.createReading = async (entities, input) => {
     throw new NotFoundError('Nozzle', normalizedInput.nozzleId);
   }
 
-  // --- Step 3: Employee Attribution Validation ---
+  // --- Step 3: Employee Attribution Validation (REQUIRED) ---
+  // RULE: Every reading MUST have an employee responsible for it
+  // - Employee: Must assign to themselves (self-entry)
+  // - Manager/Owner: Must explicitly assign to an employee
+  
   let resolvedAssignedEmployeeId = null;
-  if (normalizedInput.assignedEmployeeId) {
-    if (!['manager', 'owner', 'super_admin'].includes(user.role)) {
+
+  if (user.role === 'employee') {
+    // Employee must assign to themselves (or leave null = implicit self-assignment)
+    if (normalizedInput.assignedEmployeeId && normalizedInput.assignedEmployeeId !== user.id) {
       throw new AuthorizationError(
-        'Only managers and owners can assign readings to other employees'
+        'Employees can only enter readings for themselves'
+      );
+    }
+    // For employee: either explicit self-assignment or implicit (null)
+    resolvedAssignedEmployeeId = normalizedInput.assignedEmployeeId || null;
+  } else if (['manager', 'owner', 'super_admin'].includes(user.role)) {
+    // Manager/Owner MUST explicitly assign to an employee
+    if (!normalizedInput.assignedEmployeeId) {
+      throw new ValidationError(
+        'Managers and owners must assign readings to an employee',
+        {
+          field: 'assignedEmployeeId',
+          message: 'Select which employee this reading belongs to'
+        }
       );
     }
 

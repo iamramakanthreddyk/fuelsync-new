@@ -26,6 +26,7 @@ interface QuickEntryState {
   creditAllocations: CreditAllocation[];
   step: 'readings' | 'transaction';
   submittedReadingIds: string[];
+  assignedEmployeeId: string | null; // REQUIRED: Employee responsible for readings
 }
 
 export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptions) {
@@ -38,7 +39,8 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
     paymentBreakdown: { cash: 0, online: 0, credit: 0 },
     creditAllocations: [],
     step: 'readings',
-    submittedReadingIds: []
+    submittedReadingIds: [],
+    assignedEmployeeId: null // Will be set by user or auto-set for employee mode
   }));
 
   // Update reading date
@@ -119,6 +121,31 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
     }
   };
 
+  // Set assigned employee (required before submission)
+  const setAssignedEmployee = (employeeId: string | null) => {
+    setState(prev => ({ ...prev, assignedEmployeeId: employeeId }));
+  };
+
+  // Fetch employees from station
+  const { data: employees = [] } = useQuery({
+    queryKey: ['employees', stationId],
+    queryFn: async () => {
+      if (!stationId) return [];
+      try {
+        const response = await apiClient.get(`/stations/${stationId}/users?role=employee`);
+        if (response && typeof response === 'object') {
+          if (Array.isArray(response)) return response;
+          if ('data' in response && Array.isArray(response.data)) return response.data;
+        }
+        return [];
+      } catch (error) {
+        console.error('Failed to fetch employees:', error);
+        return [];
+      }
+    },
+    enabled: !!stationId
+  });
+
   // Fetch creditors
   const { data: creditors = [] } = useQuery<Creditor[]>({
     queryKey: ['creditors', stationId],
@@ -163,6 +190,11 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
   const submitReadingsMutation = useMutation({
     mutationFn: async (data: { readings: ReadingEntry[] | ReadingData[], pumps: any[], fuelPrices: any[] }) => {
       const { readings, pumps, fuelPrices } = data;
+      
+      // VALIDATION: Assigned employee is REQUIRED
+      if (!state.assignedEmployeeId) {
+        throw new Error('You must assign these readings to an employee before submission');
+      }
       
       // Convert readings to ReadingEntry[] format for API
       const readingEntries: ReadingEntry[] = [];
@@ -211,6 +243,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
           pricePerLitre: price,
           totalAmount: totalAmount,
           litresSold: litres,
+          assignedEmployeeId: state.assignedEmployeeId, // REQUIRED: Who this reading belongs to
           notes: `Reading entered via quick entry`
         };
 
@@ -303,7 +336,8 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
         paymentBreakdown: { cash: 0, online: 0, credit: 0 },
         creditAllocations: [],
         step: 'readings',
-        submittedReadingIds: []
+        submittedReadingIds: [],
+        assignedEmployeeId: null
       });
 
       // Invalidate queries
@@ -333,7 +367,8 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
       paymentBreakdown: { cash: 0, online: 0, credit: 0 },
       creditAllocations: [],
       step: 'readings',
-      submittedReadingIds: []
+      submittedReadingIds: [],
+      assignedEmployeeId: null
     });
   };
 
@@ -346,11 +381,13 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
     updateReading,
     updatePaymentBreakdown,
     updateCreditAllocations,
+    setAssignedEmployee,
     nextStep,
     prevStep,
     reset,
 
     // Data
+    employees,
     creditors,
     saleSummary,
 
@@ -364,6 +401,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
       : (state.readings as ReadingData[]).length,
     hasValidReadings: mode === 'employee'
       ? Object.keys(state.readings as Record<string, ReadingEntry>).length > 0
-      : (state.readings as ReadingData[]).length > 0
+      : (state.readings as ReadingData[]).length > 0,
+    isEmployeeAssigned: state.assignedEmployeeId !== null
   };
 }
