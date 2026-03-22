@@ -382,10 +382,12 @@ exports.calibrateTank = asyncHandler(async (req, res, next) => {
     discrepancyMessage = `No refill record available - cannot calculate sales discrepancy`;
   }
 
-  // Update tank with the dip reading (physical truth becomes the new level)
+  // Update tank with the dip reading (physical truth becomes the new baseline and level)
+  // Both currentLevel and levelAfterLastRefill are set to the dip reading to avoid negative sales
   const calibrationDate = date || new Date().toISOString().split('T')[0];
   const updatedTank = await tank.update({
     currentLevel: dipReadingValue,
+    levelAfterLastRefill: dipReadingValue,  // Update baseline to match physical reality
     lastDipReading: dipReadingValue,
     lastDipDate: calibrationDate
   });
@@ -416,11 +418,18 @@ exports.calibrateTank = asyncHandler(async (req, res, next) => {
       previousLevel: oldLevel,
       levelAdjustment: levelAdjustment,
       calibrationDate: calibrationDate,
+      baselineAdjusted: true,  // Indicates that levelAfterLastRefill was also adjusted
+      message: `Tank calibrated to physical measurement. Level and sales baseline both adjusted to ${dipReadingValue.toFixed(1)}L`,
       discrepancy: {
         actualSales: actualSales,
         recordedSales: recordedSales,
         variance: discrepancy,
-        message: discrepancyMessage
+        message: discrepancyMessage,
+        explanation: discrepancy > 0 
+          ? `There was a ${discrepancy.toFixed(1)}L loss between last refill and calibration (unrecorded sales or leakage)`
+          : discrepancy < 0
+          ? `System recorded ${Math.abs(discrepancy).toFixed(1)}L more sales than actually happened`
+          : 'Sales tracking matches the physical measurement'
       }
     }
   });

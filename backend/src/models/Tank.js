@@ -387,11 +387,28 @@ module.exports = (sequelize) => {
 
   /**
    * Calibrate tank with physical dip reading
+   * 
+   * IMPORTANT: When calibrating, we update levelAfterLastRefill to match the physical measurement
+   * This ensures that the "sales since last refill" calculation remains accurate
+   * 
+   * Example:
+   * - Last refill: levelAfterLastRefill = 10,000L, lastRefillAmount = 5,000L
+   * - System calculated sales: 1,000L (so currentLevel = 9,000L)
+   * - Physical measurement (dip): 8,000L (discovered 1,000L loss: unrecorded sales or leakage)
+   * 
+   * Action:
+   * - Update levelAfterLastRefill from 10,000 to 8,000 (absorb the loss into the baseline)
+   * - Update currentLevel to 8,000
+   * - Now salesSince = 8,000 - 8,000 = 0 (no "negative sale" shown)
+   * - The 1,000L loss is noted via discrepancy analysis for audit purposes
    */
   Tank.prototype.calibrate = async function(dipReading, date = null) {
+    const dipReadingValue = parseFloat(dipReading);
+    
     await this.update({
-      currentLevel: parseFloat(dipReading),
-      lastDipReading: parseFloat(dipReading),
+      currentLevel: dipReadingValue,
+      levelAfterLastRefill: dipReadingValue,  // Update baseline to match physical reality
+      lastDipReading: dipReadingValue,
       lastDipDate: date || new Date().toISOString().split('T')[0]
     });
 

@@ -364,6 +364,7 @@ async function getSalesByFuelType(stationIds, startDate, endDate) {
 
 /**
  * Get daily sales trend for owner analytics
+ * Includes: sales amount, quantity, transaction count, and average price per litre
  */
 async function getDailyTrendData(stationIds, startDate, endDate) {
   const rows = await NozzleReading.findAll({
@@ -375,17 +376,28 @@ async function getDailyTrendData(stationIds, startDate, endDate) {
     attributes: [
       'readingDate',
       [fn('SUM', col('total_amount')), 'sales'],
-      [fn('SUM', col('litres_sold')), 'quantity']
+      [fn('SUM', col('litres_sold')), 'quantity'],
+      [fn('COUNT', col('id')), 'transactions']
     ],
     group: ['reading_date'],
     order: [['reading_date', 'ASC']],
     raw: true
   });
-  return rows.map(r => ({
-    date: r.readingDate || r.reading_date,
-    sales: r.sales,
-    quantity: r.quantity
-  }));
+  
+  return rows.map(r => {
+    const sales = parseFloat(r.sales) || 0;
+    const quantity = parseFloat(r.quantity) || 0;
+    const transactions = parseInt(r.transactions) || 0;
+    const avgPrice = quantity > 0 ? (sales / quantity) : 0;  // Price per litre
+    
+    return {
+      date: r.readingDate || r.reading_date,
+      sales: Math.round(sales),
+      quantity: Math.round(quantity * 100) / 100,  // 2 decimals
+      transactions: transactions,
+      avgPrice: Math.round(avgPrice * 100) / 100  // Price per litre with 2 decimals
+    };
+  });
 }
 
 module.exports = {
