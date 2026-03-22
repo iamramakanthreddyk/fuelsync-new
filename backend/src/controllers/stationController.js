@@ -1976,6 +1976,132 @@ exports.getSettlements = async (req, res, next) => {
 };
 
 /**
+ * Create a new settlement
+ * POST /api/v1/stations/:stationId/settlements
+ * 
+ * Creates a daily settlement record linking reading IDs and recording
+ * cash/online/credit amounts collected.
+ * 
+ * Body params:
+ *   - date: YYYY-MM-DD
+ *   - expectedCash: ₹ amount from employee readings (system calculated)
+ *   - actualCash: ₹ amount physically collected
+ *   - online: ₹ online payment amount
+ *   - credit: ₹ credit/loan amount
+ *   - notes: optional remarks
+ *   - readingIds: array of reading UUIDs to link
+ *   - paymentSubBreakdown?: detailed payment breakdown
+ *   - associatedEmployeeId?: employee this settlement is from
+ */
+exports.createSettlement = async (req, res, next) => {
+  try {
+    const { stationId } = req.params;
+    const {
+      date,
+      expectedCash,
+      actualCash,
+      online = 0,
+      credit = 0,
+      notes = '',
+      readingIds = [],
+      paymentSubBreakdown = null,
+      associatedEmployeeId = null
+    } = req.body;
+
+    const user = req.user;
+
+    // Check station access
+    if (!(await canAccessStation(user, stationId))) {
+      return res.status(403).json({ success: false, error: 'Access denied' });
+    }
+
+    // Validate required fields
+    if (!date || expectedCash === undefined || actualCash === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields: date, expectedCash, actualCash'
+      });
+    }
+
+    if (!Array.isArray(readingIds) || readingIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'readingIds must be non-empty array'
+      });
+    }
+
+    // Verify all readings belong to this station and date
+    const readings = await NozzleReading.findAll({
+      where: { id: readingIds, stationId },
+      raw: true
+    });
+
+    if (readings.length !== readingIds.length) {
+      return res.status(400).json({
+        success: false,
+        error: 'Some reading IDs do not belong to this station or do not exist'
+      });
+    }
+
+    // Calculate variance
+    const variance = expectedCash - actualCash;
+
+    // Create settlement record
+    const settlement = await Settlement.create({
+      stationId,
+      date,
+      expectedCash: parseFloat(expectedCash),
+      actualCash: parseFloat(actualCash),
+      variance: parseFloat(variance.toFixed(2)),
+      online: parseFloat(online || 0),
+      credit: parseFloat(credit || 0),
+      totalSaleValue: readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0),
+      notes,
+      recordedBy: user.id,
+      readingIds,
+      ...(paymentSubBreakdown ? { paymentSubBreakdown } : {}),
+      isFinal: true
+    });
+
+    // Link all readings to this settlement
+    await NozzleReading.update(
+      { settlementId: settlement.id },
+      { where: { id: readingIds } }
+    );
+
+    logger.info('Settlement created', {
+      settlementId: settlement.id,
+      stationId,
+      date,
+      readingCount: readingIds.length,
+      actualCash,
+      variance
+    });
+
+    res.status(201).json({
+      success: true,
+      data: {
+        id: settlement.id,
+        stationId: settlement.stationId,
+        date: settlement.date,
+        expectedCash: parseFloat(settlement.expectedCash),
+        actualCash: parseFloat(settlement.actualCash),
+        variance: parseFloat(settlement.variance),
+        online: parseFloat(settlement.online),
+        credit: parseFloat(settlement.credit),
+        notes: settlement.notes,
+        readingIds: settlement.readingIds,
+        recordedAt: settlement.createdAt
+      }
+    });
+
+  } catch (error) {
+    logger.error('Settlement creation failed', { error: error.message });
+    next(error);
+  }
+};
+
+/**
  * Compare settlement vs daily sales
  * GET /stations/:stationId/settlement-vs-sales?date=2025-12-09
  * 
