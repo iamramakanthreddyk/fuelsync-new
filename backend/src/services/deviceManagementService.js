@@ -159,9 +159,9 @@ async function getPumps(stationId) {
     order: [['pumpNumber', 'ASC']]
   });
 
-  // Fetch latest reading per nozzle
+  // Fetch latest reading per nozzle (ordered by readingDate DESC, deduplicated in memory)
   const pumpIds = pumps.map(p => p.id);
-  const latestReadings = await NozzleReading.findAll({
+  const allReadings = await NozzleReading.findAll({
     attributes: ['nozzleId', 'readingValue', 'readingDate'],
     where: {
       nozzleId: {
@@ -172,14 +172,12 @@ async function getPumps(stationId) {
       }
     },
     raw: true,
-    subQuery: false,
-    order: [['readingDate', 'DESC']],
-    group: ['nozzleId']
+    order: [['nozzleId', 'ASC'], ['readingDate', 'DESC']]
   });
 
-  // Build readings map for efficient lookup
+  // Build readings map for efficient lookup (keeping only the latest per nozzle)
   const readingsMap = {};
-  latestReadings.forEach(r => {
+  allReadings.forEach(r => {
     if (!readingsMap[r.nozzleId]) {
       readingsMap[r.nozzleId] = r;
     }
