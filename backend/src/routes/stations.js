@@ -119,5 +119,6 @@ router.get('/:stationId/readings', requireMinRole('manager'), stationManagementC
 router.get('/:stationId/daily-sales', stationReportingController.getDailySales);
 router.get('/:stationId/readings-for-settlement', requireMinRole('manager'), stationReportingController.getReadingsForSettlement);
 router.get('/:stationId/variance-summary', requireMinRole('manager'), stationController.getVarianceSummary);
+router.get('/:stationId/settlements', requireMinRole('manager'), stationController.getSettlements);
 
 module.exports = router;
