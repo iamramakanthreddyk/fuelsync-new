@@ -146,49 +146,55 @@ async function getPumps(stationId) {
     throw new Error('Station not found');
   }
 
-  // Fetch pumps with nozzles
+  // Fetch pumps with nozzles (include cached lastReading/lastReadingDate fields)
   const pumps = await Pump.findAll({
     where: { stationId },
     include: [
       {
         model: Nozzle,
         as: 'nozzles',
-        attributes: ['id', 'nozzleNumber', 'fuelType', 'status']
+        attributes: ['id', 'nozzleNumber', 'fuelType', 'status', 'initialReading', 'lastReading', 'lastReadingDate']
       }
     ],
     order: [['pumpNumber', 'ASC']]
   });
 
-  // Fetch latest reading per nozzle (ordered by readingDate DESC, deduplicated in memory)
-  const pumpIds = pumps.map(p => p.id);
-  const allReadings = await NozzleReading.findAll({
-    attributes: ['nozzleId', 'readingValue', 'readingDate'],
-    where: {
-      nozzleId: {
-        [Op.in]: pumpIds.flatMap(pumpId => {
-          const pump = pumps.find(p => p.id === pumpId);
-          return pump.nozzles.map(n => n.id);
-        })
+  // If nozzles have cached lastReading values, use them; otherwise fetch from readings table
+  const nozzlesWithoutCache = pumps
+    .flatMap(p => p.nozzles)
+    .filter(n => !n.lastReading);
+
+  // Only fetch if some nozzles are missing cached values
+  let readingsMap = {};
+  if (nozzlesWithoutCache.length > 0) {
+    const nozzleIds = nozzlesWithoutCache.map(n => n.id);
+    const allReadings = await NozzleReading.findAll({
+      attributes: ['nozzleId', 'readingValue', 'readingDate'],
+      where: { nozzleId: { [Op.in]: nozzleIds } },
+      raw: true,
+      order: [['nozzleId', 'ASC'], ['readingDate', 'DESC']]
+    });
+
+    // Build readings map (keeping only the latest per nozzle)
+    allReadings.forEach(r => {
+      if (!readingsMap[r.nozzleId]) {
+        readingsMap[r.nozzleId] = r;
       }
-    },
-    raw: true,
-    order: [['nozzleId', 'ASC'], ['readingDate', 'DESC']]
-  });
+    });
+  }
 
-  // Build readings map for efficient lookup (keeping only the latest per nozzle)
-  const readingsMap = {};
-  allReadings.forEach(r => {
-    if (!readingsMap[r.nozzleId]) {
-      readingsMap[r.nozzleId] = r;
-    }
-  });
-
-  // Augment nozzles with readings
+  // Augment nozzles with readings if not cached
   pumps.forEach(pump => {
-    pump.nozzles = pump.nozzles.map(nozzle => ({
-      ...nozzle.toJSON(),
-      latestReading: readingsMap[nozzle.id] || null
-    }));
+    pump.nozzles = pump.nozzles.map(nozzle => {
+      const json = nozzle.toJSON();
+      // Use cached value if available, otherwise use just-fetched reading
+      if (!json.lastReading && readingsMap[nozzle.id]) {
+        const latestReading = readingsMap[nozzle.id];
+        json.lastReading = parseFloat(latestReading.readingValue || 0);
+        json.lastReadingDate = latestReading.readingDate;
+      }
+      return json;
+    });
   });
 
   logger.debug('Retrieved pumps with nozzles', { stationId, count: pumps.length });
