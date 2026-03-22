@@ -56,16 +56,36 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
     }
 
     // If global context doesn't have prices, use the direct data as fallback
-    if (!hasPrices && fuelPricesData && Array.isArray(fuelPricesData) && fuelPricesData.length > 0) {
-      hasPrices = true;
-      pricesArray = fuelPricesData.map(price => ({
-        fuel_type: price.fuel_type,
-        price_per_litre: price.price_per_litre
-      }));
-      // Convert to prices object
-      fuelPricesData.forEach(price => {
-        stationPrices[price.fuel_type] = price.price_per_litre;
-      });
+    // API returns nested structure: { stationId, current: [...], history: [...] }
+    if (!hasPrices && fuelPricesData) {
+      let pricesListToProcess = [];
+      
+      // Handle nested structure: { current: [...], history: [...] }
+      if (fuelPricesData.current && Array.isArray(fuelPricesData.current) && fuelPricesData.current.length > 0) {
+        pricesListToProcess = fuelPricesData.current;
+      }
+      // Handle flat array fallback
+      else if (Array.isArray(fuelPricesData) && fuelPricesData.length > 0) {
+        pricesListToProcess = fuelPricesData;
+      }
+      
+      if (pricesListToProcess.length > 0) {
+        hasPrices = true;
+        pricesArray = pricesListToProcess.map(price => ({
+          // Handle both camelCase (fuelType) and snake_case (fuel_type)
+          fuel_type: (price.fuel_type || price.fuelType || '').toUpperCase(),
+          // Handle both "price" and "price_per_litre"
+          price_per_litre: Number(price.price_per_litre || price.price || 0)
+        }));
+        // Convert to prices object
+        pricesListToProcess.forEach(price => {
+          const fuelType = (price.fuel_type || price.fuelType || '').toUpperCase();
+          const priceValue = Number(price.price_per_litre || price.price || 0);
+          if (fuelType) {
+            stationPrices[fuelType] = priceValue;
+          }
+        });
+      }
     }
 
     // Get fuel types from active nozzles

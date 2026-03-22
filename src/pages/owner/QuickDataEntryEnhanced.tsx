@@ -100,9 +100,11 @@ const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: num
   
   // Find price - check both snake_case and camelCase keys for compatibility
   const fuelTypeToFind = (nozzle?.fuelType || '').toUpperCase();
-  let priceData = pricesArray.find(p => (p.fuel_type || p.fuelType || '').toString().toUpperCase() === fuelTypeToFind);
+  let priceData = pricesArray.find(p => 
+    (p.fuel_type || '').toUpperCase() === fuelTypeToFind
+  );
   
-  const price = toNumber(String(priceData?.price_per_litre || priceData?.pricePerLitre || 0));
+  const price = toNumber(String(priceData?.price_per_litre || 0));
   const saleValue = litres * price;
   return { litres, saleValue };
 }
@@ -420,7 +422,8 @@ export default function QuickDataEntryEnhanced() {
     if (!Array.isArray(fuelPrices) || fuelPrices.length === 0) {
       return false;
     }
-    return fuelPrices.some(p => (p.fuel_type || '').toUpperCase() === fuelType.toUpperCase());
+    const fuelTypeUpper = (fuelType || '').toUpperCase();
+    return fuelPrices.some(p => (p.fuel_type || '').toUpperCase() === fuelTypeUpper);
   };
 
   const handleSubmit = () => {
