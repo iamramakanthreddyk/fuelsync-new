@@ -70,21 +70,10 @@ async function submitReadings(data: {
   // Convert readings to ReadingEntry[] format
   const readingEntries: ReadingEntry[] = [];
 
-  if (mode === 'employee') {
-    readingEntries.push(...(readings as ReadingEntry[]));
-  } else {
-    const readingDataArray = readings as ReadingData[];
-    readingDataArray.forEach(reading => {
-      if (reading.openingReading && reading.closingReading) {
-        readingEntries.push({
-          nozzleId: reading.nozzleId,
-          readingValue: reading.closingReading,
-          date: readingDate,
-          paymentType: ''
-        });
-      }
-    });
-  }
+  // Readings are now always ReadingEntry[] (both employee and owner modes use Record format,
+  // and handleSubmit converts via Object.values before calling mutation)
+  const entries = readings as ReadingEntry[];
+  readingEntries.push(...entries.filter(r => r && r.readingValue));
 
   // Submit each reading via service
   const promises = readingEntries.map(entry => {
@@ -168,7 +157,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
   const queryClient = useQueryClient();
 
   const [state, setState] = useState<QuickEntryState>(() => ({
-    readings: mode === 'employee' ? {} : [],
+    readings: {},
     readingDate: new Date().toISOString().split('T')[0],
     paymentBreakdown: { cash: 0, online: 0, credit: 0 },
     creditAllocations: [],
@@ -182,48 +171,21 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
     setState(prev => ({ ...prev, readingDate: date }));
   };
 
-  // Update readings
+  // Update readings - always stored as Record<string, ReadingEntry> keyed by nozzleId
   const updateReading = (nozzleId: string, field: string, value: string) => {
     setState(prev => {
-      if (mode === 'employee') {
-        if (field === 'readingValue') {
-          return {
-            ...prev,
-            readings: {
-              ...(prev.readings as Record<string, ReadingEntry>),
-              [nozzleId]: {
-                nozzleId,
-                readingValue: value,
-                date: prev.readingDate,
-                paymentType: ''
-              }
-            }
-          };
+      const prevReadings = prev.readings as Record<string, ReadingEntry>;
+      const existing = prevReadings[nozzleId] || { nozzleId, readingValue: '', date: prev.readingDate, paymentType: '' };
+      return {
+        ...prev,
+        readings: {
+          ...prevReadings,
+          [nozzleId]: {
+            ...existing,
+            [field]: field === 'is_sample' ? (value === '1') : value
+          }
         }
-      } else {
-        const readings = prev.readings as ReadingData[];
-        const existingIndex = readings.findIndex(r => r.nozzleId === nozzleId);
-        
-        if (existingIndex >= 0) {
-          const updatedReadings = [...readings];
-          updatedReadings[existingIndex] = {
-            ...updatedReadings[existingIndex],
-            [field]: value
-          };
-          return { ...prev, readings: updatedReadings };
-        } else {
-          const newReading: ReadingData = {
-            nozzleId,
-            openingReading: field === 'openingReading' ? value : '',
-            closingReading: field === 'closingReading' ? value : ''
-          };
-          return {
-            ...prev,
-            readings: [...readings, newReading]
-          };
-        }
-      }
-      return prev;
+      };
     });
   };
 
