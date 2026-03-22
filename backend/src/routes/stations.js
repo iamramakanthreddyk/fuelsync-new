@@ -8,6 +8,7 @@ const router = express.Router();
 
 // ===== DOMAIN CONTROLLERS =====
 const stationManagementController = require('../controllers/stationManagementController');
+const stationController = require('../controllers/stationController');
 const deviceController = require('../controllers/deviceController');
 const fuelPricingController = require('../controllers/fuelPricingController');
 const stationReportingController = require('../controllers/stationReportingController');
@@ -117,5 +118,6 @@ router.get('/:stationId/shifts/discrepancies', requireMinRole('manager'), shiftC
 router.get('/:stationId/readings', requireMinRole('manager'), stationManagementController.getStationReadings);
 router.get('/:stationId/daily-sales', stationReportingController.getDailySales);
 router.get('/:stationId/readings-for-settlement', requireMinRole('manager'), stationReportingController.getReadingsForSettlement);
+router.get('/:stationId/variance-summary', requireMinRole('manager'), stationController.getVarianceSummary);
 
 module.exports = router;
