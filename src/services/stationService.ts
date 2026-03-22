@@ -242,10 +242,18 @@ export const stationService = {
 
   // Use StationStaff type from central types
   async getStaff(stationId: string): Promise<StationStaff[]> {
-    const response = await apiClient.get<ApiResponse<StationStaff[]>>(`/stations/${stationId}/staff`);
+    const response = await apiClient.get<ApiResponse<{ staff: StationStaff[]; summary: any }>>(`/stations/${stationId}/staff`);
 
-    if (response && (response as ApiResponse<StationStaff[]>).success && (response as ApiResponse<StationStaff[]>).data) {
-      return (response as ApiResponse<StationStaff[]>).data;
+    if (response && (response as any).success && (response as any).data) {
+      const data = (response as any).data;
+      // Handle response structure: { staff: [...], summary: {...} }
+      if (data && typeof data === 'object' && Array.isArray(data.staff)) {
+        return data.staff;
+      }
+      // Fallback: if data is already an array
+      if (Array.isArray(data)) {
+        return data;
+      }
     }
     return [];
   }
