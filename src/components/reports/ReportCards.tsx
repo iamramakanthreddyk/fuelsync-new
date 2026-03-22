@@ -8,10 +8,10 @@
  * - PumpCard
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users } from 'lucide-react';
+import { Users, ChevronDown } from 'lucide-react';
 import { safeToFixed } from '@/lib/format-utils';
 import { getFuelBadgeClasses } from '@/lib/fuelColors';
 import { cn } from '@/lib/utils';
@@ -110,34 +110,58 @@ export const SalesReportCard: React.FC<SalesReportCardProps> = ({
   }),
   className,
 }) => {
-  // Compact fuel item for listings (horizontal, minimal)
-  const FuelItem: React.FC<{ fuel: FuelTypeSale }> = ({ fuel }) => (
-    <div className="flex items-center gap-2 px-2 py-0.5 rounded bg-gray-50 border border-gray-100 text-xs">
-      <Badge className={`${getFuelBadgeClasses(fuel.fuelType)} text-[10px] px-1 py-0.5 shrink-0`}>{(fuel.fuelType || 'UNK').toUpperCase()}</Badge>
-      <span className="font-semibold text-gray-700 truncate">₹{fuel.sales.toLocaleString('en-IN')}</span>
-      <span className="text-gray-500">{safeToFixed(fuel.quantity)} L</span>
-      <span className="text-gray-400">{fuel.transactions} txns</span>
-    </div>
-  );
+  const [isExpanded, setIsExpanded] = useState(false);
+  const hasFuelBreakdown = Array.isArray(report.fuelTypeSales) && report.fuelTypeSales.length > 0;
 
   return (
     <Card className={cn('w-full border border-gray-100 shadow-sm bg-white', className)}>
-      <div className="flex items-center justify-between px-3 py-2 gap-2">
-        <div className="min-w-0 flex-1">
-          <div className="font-semibold text-gray-800 truncate text-xs">{report.stationName}</div>
-          <div className="text-[11px] text-gray-400">{dateFormatter(report.date)}</div>
+      {/* Summary Row */}
+      <div 
+        className="flex items-center justify-between px-4 py-3 gap-3 cursor-pointer hover:bg-gray-50 transition-colors"
+        onClick={() => hasFuelBreakdown && setIsExpanded(!isExpanded)}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-gray-900 text-sm">{report.stationName}</div>
+          <div className="text-xs text-gray-500 mt-0.5">{dateFormatter(report.date)}</div>
         </div>
-        <div className="flex items-center gap-3 shrink-0 text-xs">
-          <span className="text-green-600 font-bold">₹{report.totalSales.toLocaleString('en-IN')}</span>
-          <span className="text-blue-600 font-medium">{safeToFixed(report.totalQuantity)} L</span>
-          <span className="text-purple-600">{report.totalTransactions} txns</span>
+
+        <div className="flex items-center gap-4 shrink-0">
+          <div className="text-right">
+            <div className="text-sm font-bold text-green-600">₹{report.totalSales.toLocaleString('en-IN')}</div>
+            <div className="text-xs text-gray-500 mt-0.5">{safeToFixed(report.totalQuantity)} L</div>
+          </div>
+          {hasFuelBreakdown && (
+            <ChevronDown 
+              className={cn(
+                'w-5 h-5 text-gray-400 shrink-0 transition-transform',
+                isExpanded && 'rotate-180'
+              )}
+            />
+          )}
         </div>
       </div>
-      {Array.isArray(report.fuelTypeSales) && report.fuelTypeSales.length > 0 && (
-        <div className="flex flex-wrap gap-1 px-3 pb-2">
-          {report.fuelTypeSales.map((fuel) => (
-            <FuelItem key={`${fuel.fuelType}-${report.stationId}-${report.date}`} fuel={fuel} />
-          ))}
+
+      {/* Expanded Fuel Breakdown */}
+      {isExpanded && hasFuelBreakdown && (
+        <div className="border-t border-gray-100 bg-gray-50 px-4 py-3">
+          <div className="space-y-2">
+            {report.fuelTypeSales.map((fuel) => (
+              <div key={`${fuel.fuelType}-${report.stationId}-${report.date}`} className="flex items-center justify-between p-2 bg-white rounded border border-gray-100">
+                <div className="flex items-center gap-2">
+                  <Badge className={`${getFuelBadgeClasses(fuel.fuelType)} text-xs px-2 py-0.5`}>
+                    {(fuel.fuelType || 'UNK').toUpperCase()}
+                  </Badge>
+                  <span className="text-xs text-gray-600 font-medium">
+                    {fuel.transactions} {fuel.transactions === 1 ? 'txn' : 'txns'}
+                  </span>
+                </div>
+                <div className="flex items-baseline gap-3 text-xs">
+                  <span className="font-semibold text-gray-900">₹{fuel.sales.toLocaleString('en-IN')}</span>
+                  <span className="text-gray-500">{safeToFixed(fuel.quantity)} L</span>
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </Card>

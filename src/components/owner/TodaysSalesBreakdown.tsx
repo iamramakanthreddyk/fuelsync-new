@@ -50,17 +50,17 @@ export function TodaysSalesBreakdown() {
         );
 
         if (response.success && response.data) {
-          // API returns { summary, items } structure
-          const summary = response.data.summary || response.data;
-          
-          const totals = {
-            cash: parseFloat(summary.breakdown?.cash || 0),
-            online: parseFloat(summary.breakdown?.online || 0),
-            credit: parseFloat(summary.breakdown?.credit || 0),
-            total: 0,
-          };
-
-          totals.total = totals.cash + totals.online + totals.credit;
+          // API returns an array of daily records: [{ date, totalAmount, cash, online, credit, ... }]
+          const items: any[] = Array.isArray(response.data) ? response.data : [response.data];
+          const totals = items.reduce(
+            (acc: SalesBreakdown, item: any) => ({
+              cash:   acc.cash   + parseFloat(item.cash   ?? item.cashSales   ?? 0),
+              online: acc.online + parseFloat(item.online ?? item.onlineSales ?? 0),
+              credit: acc.credit + parseFloat(item.credit ?? item.creditSales ?? 0),
+              total:  acc.total  + parseFloat(item.totalAmount ?? item.amount ?? item.totalSales ?? 0),
+            }),
+            { cash: 0, online: 0, credit: 0, total: 0 }
+          );
           setBreakdown(totals);
         } else {
           setBreakdown({

@@ -370,15 +370,20 @@ export default function Analytics() {
             </CardHeader>
             <CardContent className="px-2 sm:px-6 pb-4">
               <ResponsiveContainer width="100%" height={350}>
-                <AreaChart data={analytics?.dailyTrend ?? []}>
+                <AreaChart 
+                  data={(analytics?.dailyTrend ?? []).map((d: any) => ({
+                    ...d,
+                    pricePerLiter: d.quantity > 0 ? d.sales / d.quantity : 0
+                  }))}
+                >
                   <defs>
                     <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4}/>
                       <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05}/>
                     </linearGradient>
-                    <linearGradient id="colorQuantity" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.05}/>
+                    <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.4}/>
+                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0.05}/>
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -398,9 +403,16 @@ export default function Analytics() {
                     yAxisId="right"
                     orientation="right"
                     tick={{ fontSize: 11 }}
-                    tickFormatter={(value) => `${safeToFixed(value / 1000, 0)}K L`}
+                    tickFormatter={(value) => `₹${safeToFixed(value, 0)}`}
                   />
-                  <Tooltip content={<CustomTooltip />} />
+                  <Tooltip 
+                    formatter={(value: any, name: string) => {
+                      if (name === 'Sales (₹)') return `₹${safeToFixed(value, 0)}`;
+                      if (name === 'Avg Price/L (₹)') return `₹${safeToFixed(value, 2)}/L`;
+                      return value;
+                    }}
+                    labelFormatter={(label) => `Date: ${label}`}
+                  />
                   <Legend 
                     wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }}
                     iconType="circle"
@@ -418,12 +430,12 @@ export default function Analytics() {
                   <Area 
                     yAxisId="right"
                     type="monotone" 
-                    dataKey="quantity" 
-                    stroke="#10b981" 
+                    dataKey="pricePerLiter" 
+                    stroke="#f59e0b" 
                     strokeWidth={2}
                     fillOpacity={1}
-                    fill="url(#colorQuantity)"
-                    name="Quantity (L)"
+                    fill="url(#colorPrice)"
+                    name="Avg Price/L (₹)"
                   />
                 </AreaChart>
               </ResponsiveContainer>
