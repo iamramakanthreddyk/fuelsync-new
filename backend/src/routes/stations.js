@@ -56,6 +56,7 @@ router.put('/:id/settings',
 // STATION STAFF
 // ============================================
 router.get('/:stationId/staff', userController.getStationStaff);
+router.get('/:stationId/employees', userController.getStationStaff);  // Alias for /staff
 
 // ============================================
 // PUMPS (nested under stations)
