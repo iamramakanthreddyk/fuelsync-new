@@ -46,13 +46,6 @@ export const NozzleReadingRow: React.FC<NozzleReadingRowProps> = ({
   const enteredValue = reading?.readingValue !== undefined && reading?.readingValue !== '' ? parseFloat(reading.readingValue) : undefined;
   const hasFuelPrice = hasPriceForFuelType(nozzle.fuelType);
   
-  // Debug: Log nozzle status for troubleshooting
-  console.log(`🔹 NozzleReadingRow - Nozzle #${nozzle.nozzleNumber} (${nozzle.fuelType}):`, {
-    status: nozzle.status,
-    statusType: typeof nozzle.status,
-    allProps: Object.keys(nozzle)
-  });
-  
   const nozzleStatus = (nozzle.status || 'active').toLowerCase().trim();
   const isNozzleActive = nozzleStatus === EquipmentStatusEnum.ACTIVE || nozzleStatus === 'active';
   const isMaintenance = nozzleStatus === EquipmentStatusEnum.MAINTENANCE || nozzleStatus === 'maintenance';

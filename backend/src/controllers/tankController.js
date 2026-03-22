@@ -308,6 +308,24 @@ exports.updateTank = asyncHandler(async (req, res, next) => {
 /**
  * Calibrate tank with physical dip reading
  * POST /api/v1/tanks/:id/calibrate
+ * 
+ * IMPORTANT: Calibration is a LEVEL ADJUSTMENT, NOT a sale or refill
+ * 
+ * Workflow:
+ * 1. Tank created with capacity and initial level
+ * 2. Refill recorded (increases levelAfterLastRefill and currentLevel)
+ * 3. Sales tracked (decreases currentLevel)
+ * 4. Calibrate (physical measurement): Corrects currentLevel to actual amount
+ * 
+ * Discrepancy Analysis (for auditing ONLY):
+ * - actual_sales = levelAfterLastRefill - dipReading (what really happened)
+ * - recorded_sales = levelAfterLastRefill - oldLevel (what system recorded)
+ * - discrepancy = actual - recorded (shows tracking accuracy)
+ * 
+ * This analysis helps identify:
+ * - Unrecorded sales (actual > recorded)
+ * - Unrecorded refills (recorded > actual)
+ * - But does NOT create new sale/refill entries
  */
 exports.calibrateTank = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
@@ -327,28 +345,84 @@ exports.calibrateTank = asyncHandler(async (req, res, next) => {
   if (!(await canAccessStation(user, tank.stationId))) {
     throw new AuthorizationError('Not authorized to calibrate this tank');
   }
+
+  const dipReadingValue = parseFloat(dipReading);
+  const oldLevel = parseFloat(tank.currentLevel);
+  const levelAfterLastRefill = tank.levelAfterLastRefill ? parseFloat(tank.levelAfterLastRefill) : null;
   
-  const oldLevel = tank.currentLevel;
-  const status = await tank.calibrate(dipReading, date);
+  // Calibration adjustment (what we're correcting the level by)
+  const levelAdjustment = dipReadingValue - oldLevel;
   
-  const difference = parseFloat(dipReading) - parseFloat(oldLevel);
-  if (Math.abs(difference) > 0.5) {
-    await TankRefill.create({
-      tankId: tank.id,
+  // Discrepancy analysis (for auditing only, not for financial records)
+  let actualSales = null;
+  let recordedSales = null;
+  let discrepancy = null;
+  let discrepancyMessage = '';
+
+  if (levelAfterLastRefill !== null && !isNaN(levelAfterLastRefill)) {
+    // actual_sales = what was in tank after last refill - what's physically there now
+    actualSales = levelAfterLastRefill - dipReadingValue;
+    
+    // recorded_sales = what system calculated should be sold
+    recordedSales = levelAfterLastRefill - oldLevel;
+    
+    // discrepancy shows if our sales tracking is accurate
+    discrepancy = actualSales - recordedSales;
+    
+    if (Math.abs(discrepancy) > 0.5) {
+      if (discrepancy > 0) {
+        discrepancyMessage = `Actual sales (${actualSales.toFixed(1)}L) exceed recorded (${recordedSales.toFixed(1)}L) by ${discrepancy.toFixed(1)}L - unaccounted losses`;
+      } else {
+        discrepancyMessage = `Recorded sales (${recordedSales.toFixed(1)}L) exceed actual (${actualSales.toFixed(1)}L) by ${Math.abs(discrepancy).toFixed(1)}L - unaccounted increase`;
+      }
+    } else {
+      discrepancyMessage = `Sales tracking is accurate (variance: ${discrepancy.toFixed(1)}L)`;
+    }
+  } else {
+    discrepancyMessage = `No refill record available - cannot calculate sales discrepancy`;
+  }
+
+  // Update tank with the dip reading (physical truth becomes the new level)
+  const calibrationDate = date || new Date().toISOString().split('T')[0];
+  const updatedTank = await tank.update({
+    currentLevel: dipReadingValue,
+    lastDipReading: dipReadingValue,
+    lastDipDate: calibrationDate
+  });
+
+  // Log calibration audit entry (optional: if significant adjustment)
+  if (notes || Math.abs(levelAdjustment) > 0.5) {
+    await logAudit({
+      userId: req.userId,
       stationId: tank.stationId,
-      litres: difference,
-      refillDate: date || new Date().toISOString().split('T')[0],
-      entryType: 'adjustment',
-      enteredBy: req.userId,
-      notes: notes || `Dip calibration adjustment: ${oldLevel}L → ${dipReading}L`
+      category: 'inventory',
+      action: 'tank_calibrate',
+      resourceId: tank.id,
+      resourceType: 'Tank',
+      changes: {
+        before: { currentLevel: oldLevel, lastDipReading: tank.lastDipReading },
+        after: { currentLevel: dipReadingValue, lastDipReading: dipReadingValue }
+      },
+      severity: 'info',
+      notes: notes || `Calibration: Level adjusted from ${oldLevel.toFixed(1)}L to ${dipReadingValue.toFixed(1)}L (${levelAdjustment > 0 ? '+' : ''}${levelAdjustment.toFixed(1)}L)`
     });
   }
-  
+
   return sendSuccess(res, {
-    tank: tank.toJSON(),
-    status,
-    adjustment: difference,
-    message: `Tank calibrated. Level adjusted by ${difference.toFixed(1)}L`
+    tank: updatedTank.toJSON(),
+    status: updatedTank.getStatus(),
+    calibration: {
+      dipReading: dipReadingValue,
+      previousLevel: oldLevel,
+      levelAdjustment: levelAdjustment,
+      calibrationDate: calibrationDate,
+      discrepancy: {
+        actualSales: actualSales,
+        recordedSales: recordedSales,
+        variance: discrepancy,
+        message: discrepancyMessage
+      }
+    }
   });
 });
 

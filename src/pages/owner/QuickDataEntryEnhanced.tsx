@@ -140,7 +140,10 @@ export default function QuickDataEntryEnhanced() {
   const staffResponse = staffQuery.data;
   const employees: User[] = useMemo(() => {
     if (!staffResponse) return [];
-    if (isApiSuccess<User[]>(staffResponse) && Array.isArray(staffResponse.data)) return staffResponse.data;
+    // Handle backend response structure: { success, data: { staff, summary } }
+    if (isApiSuccess<any>(staffResponse) && staffResponse.data?.staff && Array.isArray(staffResponse.data.staff)) {
+      return staffResponse.data.staff;
+    }
     if (Array.isArray(staffResponse)) return staffResponse as User[];
     return [];
   }, [staffResponse]);
@@ -843,18 +846,34 @@ export default function QuickDataEntryEnhanced() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {pump.nozzles?.map((nozzle: any) => (
-                      <NozzleReadingRow
-                        key={nozzle.id}
-                        nozzle={nozzle}
-                        readings={readings}
-                        handleReadingChange={handleReadingChange}
-                        handleSampleChange={handleSampleChange}
-                        hasPriceForFuelType={hasPriceForFuelType}
-                        lastReading={allLastReadings?.[nozzle.id]}
-                        lastReadingLoading={false}
-                      />
-                    ))}
+                    {pump.nozzles?.map((nozzle: any) => {
+                      // Calculate litres and sale value for this nozzle
+                      const reading = readings[nozzle.id];
+                      const { litres, saleValue } = calculateNozzleSale(
+                        nozzle,
+                        reading?.readingValue || '',
+                        nozzle.lastReading !== null && nozzle.lastReading !== undefined
+                          ? nozzle.lastReading
+                          : (allLastReadings ? allLastReadings[nozzle.id] : undefined),
+                        fuelPrices
+                      );
+
+                      return (
+                        <NozzleReadingRow
+                          key={nozzle.id}
+                          nozzle={nozzle}
+                          readings={readings}
+                          handleReadingChange={handleReadingChange}
+                          handleSampleChange={handleSampleChange}
+                          hasPriceForFuelType={hasPriceForFuelType}
+                          lastReading={allLastReadings?.[nozzle.id]}
+                          lastReadingLoading={false}
+                          showSaleCalculation={true}
+                          litres={litres}
+                          saleValue={saleValue}
+                        />
+                      );
+                    })}
                   </CardContent>
                 </Card>
               ))}
