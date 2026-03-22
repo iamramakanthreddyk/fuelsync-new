@@ -12,7 +12,7 @@
 import { useMemo } from 'react';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { usePumps, useFuelPrices } from './api';
-import { unwrapDataOrArray, unwrapDataOrObject } from '@/lib/api-utils';
+import { unwrapDataOrArray } from '@/lib/api-utils';
 
 export interface StationFuelPricesStatus {
   prices: Record<string, number>; // { PETROL: 105.50, DIESEL: 95.75 }
@@ -28,10 +28,8 @@ export interface StationFuelPricesStatus {
 export function useFuelPricesForStation(stationId?: string): StationFuelPricesStatus {
   const { pricesByStation } = useFuelPricesGlobal();
   
-  // Always fetch prices directly for this station
+  // Always fetch prices directly for this station (only enabled when stationId is truthy)
   const fuelPricesQuery = useFuelPrices(stationId || '');
-  // API returns object with { stationId, current: [...], history: [...] }
-  const fuelPricesData = unwrapDataOrObject(fuelPricesQuery.data, null) as any;
   
   const pumpsQuery = usePumps(stationId || '');
   const pumpsResponse = pumpsQuery.data;
@@ -51,10 +49,23 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
     let hasPrices = false;
 
     // Priority 1: Try direct API response first (most up-to-date)
-    if (fuelPricesData && typeof fuelPricesData === 'object' && 'current' in fuelPricesData) {
-      const currentPrices = fuelPricesData.current;
-      if (Array.isArray(currentPrices) && currentPrices.length > 0) {
+    // The API response is: { success: true, data: { stationId, current: [...], history: [...] } }
+    const apiData = fuelPricesQuery.data as any;
+    if (apiData) {
+      // Handle both wrapped response { success, data: {...} } and unwrapped {...}
+      let pricesData = null;
+      
+      if (apiData.data && typeof apiData.data === 'object' && 'current' in apiData.data) {
+        // Wrapped: { success: true, data: { current: [...] } }
+        pricesData = apiData.data;
+      } else if (apiData.current && Array.isArray(apiData.current)) {
+        // Unwrapped: { stationId, current: [...], history: [...] }
+        pricesData = apiData;
+      }
+      
+      if (pricesData && Array.isArray(pricesData.current) && pricesData.current.length > 0) {
         hasPrices = true;
+        const currentPrices = pricesData.current;
         pricesArray = currentPrices.map((price: any) => ({
           fuel_type: (price.fuel_type || price.fuelType || '').toUpperCase(),
           price_per_litre: Number(price.price_per_litre || price.price || 0)
@@ -107,5 +118,5 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
       missingFuelTypes,
       pricesArray
     };
-  }, [stationId, pricesByStation, pumpsResponse, fuelPricesData]);
+  }, [stationId, pricesByStation, pumpsResponse, fuelPricesQuery.data]);
 }
