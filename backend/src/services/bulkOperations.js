@@ -7,7 +7,7 @@
  */
 
 const { NozzleReading, Nozzle, sequelize } = require('../models');
-const readingValidationEnhanced = require('./readingValidationEnhancedService');
+const readingValidationService = require('./readingValidationService');
 
 /**
  * Bulk validate readings before import

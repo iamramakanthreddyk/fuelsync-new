@@ -24,8 +24,9 @@ const {
   AuthorizationError
 } = require('../utils/errors');
 const { logAudit } = require('../utils/auditLog');
+const { createContextLogger } = require('./loggerService');
+const logger = createContextLogger('ReadingCreation');
 const readingValidation = require('./readingValidationService');
-const readingValidationEnhancedService = require('./readingValidationEnhancedService');
 const readingCalculation = require('./readingCalculationService');
 const readingCache = require('./readingCacheService');
 
@@ -149,7 +150,7 @@ exports.createReading = async (entities, input) => {
   }
 
   // --- Step 7: Check for Duplicate Readings ---
-  const duplicateCheck = await readingValidationEnhancedService.checkDuplicateReading({
+  const duplicateCheck = await readingValidation.checkDuplicateReading({
     nozzleId: normalizedInput.nozzleId,
     readingDate: normalizedInput.readingDate,
     readingValue: normalizedInput.readingValue,
@@ -165,7 +166,7 @@ exports.createReading = async (entities, input) => {
   }
 
   // --- Step 8: Validate Reading Sequence ---
-  const sequenceValidation = await readingValidationEnhancedService.validateReadingSequence({
+  const sequenceValidation = await readingValidation.validateReadingSequence({
     nozzleId: normalizedInput.nozzleId,
     currentValue: normalizedInput.readingValue,
     readingDate: normalizedInput.readingDate,
@@ -180,7 +181,7 @@ exports.createReading = async (entities, input) => {
   }
 
   // --- Step 9: Check Meter Specifications ---
-  const meterValidation = await readingValidationEnhancedService.validateMeterSpecifications({
+  const meterValidation = await readingValidation.validateMeterSpecifications({
     nozzleId: normalizedInput.nozzleId,
     readingValue: normalizedInput.readingValue,
     fuelType: nozzle.fuelType
@@ -207,7 +208,7 @@ exports.createReading = async (entities, input) => {
     }
   } catch (err) {
     // Log but don't fail - proceed with default
-    console.warn('Backdate validation warning:', err?.message || err);
+    logger.warn('Backdate validation warning', err?.message || err);
   }
 
   // --- Step 11: Populate Calculations ---

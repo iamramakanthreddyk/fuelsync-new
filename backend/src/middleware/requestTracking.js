@@ -5,6 +5,8 @@
 
 const { v4: uuid } = require('uuid');
 const crypto = require('crypto');
+const { createContextLogger } = require('../services/loggerService');
+const logger = createContextLogger('RequestTracking');
 
 /**
  * Generate or retrieve request ID
@@ -56,7 +58,7 @@ const requestTracking = (req, res, next) => {
   res.locals.logData = logData;
 
   // Log start of request
-  console.log('[Request Start]', JSON.stringify(logData));
+  logger.debug('Request start', logData);
 
   // Override res.json to log response
   const originalJson = res.json.bind(res);
@@ -70,7 +72,7 @@ const requestTracking = (req, res, next) => {
       duration: `${Date.now() - (req.timestamp || 0)}ms`
     };
 
-    console.log('[Request End]', JSON.stringify(responseData));
+    logger.debug('Request end', responseData);
 
     return originalJson(data);
   };
@@ -89,21 +91,13 @@ const trackAsyncOperation = (operationName) => {
     const startTime = Date.now();
     const requestId = req.requestId;
 
-    console.log(`[Async Operation Start] ${operationName}`, {
-      requestId,
-      timestamp: new Date().toISOString()
-    });
+    logger.debug('Async operation start', { operationName, requestId });
 
     try {
       next();
     } catch (err) {
       const duration = Date.now() - startTime;
-      console.error(`[Async Operation Error] ${operationName}`, {
-        requestId,
-        error: err.message,
-        stack: err.stack,
-        duration: `${duration}ms`
-      });
+      logger.error('Async operation error', { operationName, requestId, error: err.message, duration });
       throw err;
     }
   };
@@ -115,23 +109,16 @@ const trackAsyncOperation = (operationName) => {
 const createLogger = (requestId) => {
   return {
     info: (message, data = {}) => {
-      console.log(message, JSON.stringify({ requestId, ...data }));
+      logger.info(message, { requestId, ...data });
     },
     error: (message, error, data = {}) => {
-      console.error(message, JSON.stringify({
-        requestId,
-        error: error?.message || error,
-        stack: error?.stack,
-        ...data
-      }));
+      logger.error(message, { requestId, error: error?.message || error, ...data });
     },
     warn: (message, data = {}) => {
-      console.warn(message, JSON.stringify({ requestId, ...data }));
+      logger.warn(message, { requestId, ...data });
     },
     debug: (message, data = {}) => {
-      if (process.env.DEBUG || process.env.NODE_ENV === 'development') {
-        console.log(`[DEBUG] ${message}`, JSON.stringify({ requestId, ...data }));
-      }
+      logger.debug(message, { requestId, ...data });
     }
   };
 };

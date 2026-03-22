@@ -3,6 +3,9 @@
  * Provides consistent error handling across the application
  */
 
+const { createContextLogger } = require('../services/loggerService');
+const logger = createContextLogger('ErrorUtils');
+
 // ============================================
 // BASE ERROR CLASS
 // ============================================
@@ -334,7 +337,7 @@ const errorHandler = (err, req, res, next) => {
   const appError = convertError(err);
 
   // Log error
-  console.error('[ERROR]', {
+  logger.error('Request error', {
     name: appError.name,
     code: appError.code,
     statusCode: appError.statusCode,
@@ -342,7 +345,7 @@ const errorHandler = (err, req, res, next) => {
     path: req.path,
     method: req.method,
     timestamp: appError.timestamp,
-    ...(isDevelopment && { stack: err.stack }),
+    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 
   // Send response

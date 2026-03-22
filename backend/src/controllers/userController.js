@@ -36,6 +36,8 @@ const { PERMISSIONS, ROLE_PERMISSIONS, PLAN_FEATURES } = require('../middleware/
 
 // ===== UTILITIES =====
 const { logAudit } = require('../utils/auditLog');
+const { getPaginationOptions, formatPaginatedResponse } = require('../utils/paginationHelper');
+const { buildDateRangeWhere } = require('../utils/dateRangeHelper');
 
 /**
  * Get users based on role permissions
@@ -60,7 +62,8 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
     const stationIds = ownerStations.map(s => s.id);
     
     if (stationIds.length === 0) {
-      return sendSuccess(res, [], { pagination: { total: 0 } });
+      const emptyPagination = formatPaginatedResponse([], 0, page, limit);
+      return sendSuccess(res, [], { pagination: emptyPagination.pagination });
     }
     
     where.stationId = { [Op.in]: stationIds };
@@ -73,9 +76,8 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
     where.stationId = currentUser.stationId;
     where.role = 'employee';
   } else {
-    return sendSuccess(res, [currentUser.toSafeObject()], { 
-      pagination: { total: 1, page: 1, limit: 1, pages: 1 } 
-    });
+    const singlePagination = formatPaginatedResponse([currentUser.toSafeObject()], 1, 1, 1);
+    return sendSuccess(res, singlePagination.data, { pagination: singlePagination.pagination });
   }
 
   if (isActive !== undefined) {
@@ -90,7 +92,8 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
     ];
   }
 
-  const offset = (parseInt(page) - 1) * parseInt(limit);
+  // Use pagination helper
+  const { offset, limit: parsedLimit } = getPaginationOptions(page, limit);
 
   const { count, rows: users } = await User.findAndCountAll({
     where,
@@ -100,16 +103,14 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
     ],
     attributes: { exclude: ['password'] },
     order: [['createdAt', 'DESC']],
-    limit: parseInt(limit),
+    limit: parsedLimit,
     offset
   });
 
-  return sendPaginated(res, users, {
-    page: parseInt(page),
-    limit: parseInt(limit),
-    total: count,
-    pages: Math.ceil(count / limit)
-  });
+  // Format response using pagination helper
+  const paginationData = formatPaginatedResponse(users, count, page, parsedLimit);
+
+  return sendSuccess(res, paginationData.data, { pagination: paginationData.pagination });
 });
 
 /**

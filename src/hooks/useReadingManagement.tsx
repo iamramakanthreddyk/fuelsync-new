@@ -1,172 +1,121 @@
 
-import { useState } from 'react';
-import { apiClient } from '@/lib/api-client';
-import { unwrapDataOrObject, unwrapDataOrArray } from '@/lib/api-utils';
-import type { NozzleReading } from '@/types/api';
+import { useMutation } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
+import { readingService } from '@/services/readingService';
+import type { ManualReadingData } from '@/services/readingService';
 
-export interface ManualReadingData {
-  station_id: number;
-  nozzle_id: number;
-  cumulative_vol: number;
-  reading_date: string;
-  reading_time: string;
-}
-
-export interface ReceiptUploadResult {
-  success: boolean;
-  data: {
-    readings_inserted: number;
-    parsed_preview: unknown;
-    readings: unknown[];
-  };
-}
-
-export interface ManualReadingResult {
-  success: boolean;
-  data: unknown;
-}
-
-export const useReadingManagement = () => {
-  const [isLoading, setIsLoading] = useState(false);
+/**
+ * Hook: Upload receipt for parsing
+ * Returns: useMutation with { mutateAsync, isPending, error }
+ */
+export function useUploadReceiptForParsing() {
   const { toast } = useToast();
   const { user } = useAuth();
 
-  const uploadReceiptForParsing = async (
-    file: File,
-    pumpSno?: string
-  ): Promise<ReceiptUploadResult | null> => {
-    try {
-      setIsLoading(true);
+  return useMutation({
+    mutationFn: async (data: { file: File; pumpSno: string }) => {
+      if (!user?.id) throw new Error('Authentication required');
 
-      // Check authentication using our custom auth system
-      if (!user || !user.id) {
-        throw new Error("Authentication required. Please log in again.");
-      }
+      // File validation
+      if (!data.file) throw new Error('No file provided');
+      if (!data.pumpSno) throw new Error('Pump serial number is required');
 
-      // Validate file
-      if (!file) {
-        throw new Error("No file provided");
-      }
-
-      if (!pumpSno) {
-        throw new Error("Pump serial number is required");
-      }
-
-      // Check file size (limit to 10MB)
       const maxSize = 10 * 1024 * 1024; // 10MB
-      if (file.size > maxSize) {
-        throw new Error("File size too large. Maximum size is 10MB.");
+      if (data.file.size > maxSize) {
+        throw new Error('File size too large. Maximum size is 10MB.');
       }
 
-      // Check file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
-      if (!allowedTypes.includes(file.type)) {
-        throw new Error("Invalid file type. Please upload an image (JPEG, PNG) or PDF.");
+      if (!allowedTypes.includes(data.file.type)) {
+        throw new Error('Invalid file type. Please upload an image (JPEG, PNG) or PDF.');
       }
 
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("pump_sno", pumpSno);
-      formData.append("user_id", user.id.toString());
-
-      const res = await apiClient.post<ReceiptUploadResult>('/readings/upload', formData);
-      const dataObj = unwrapDataOrObject(res, null) as any;
-
-      const inserted = dataObj?.readings_inserted ?? 0;
-      const parsed = dataObj?.parsed_preview ?? null;
-      const readings = unwrapDataOrArray(dataObj?.readings, []);
-
+      // Delegate to service
+      return await readingService.uploadReceiptForParsing(data.file, data.pumpSno, user.id);
+    },
+    onSuccess: (data) => {
       toast({
-        title: "Receipt Processing Complete",
-        description: `Successfully processed ${inserted} readings`,
+        title: 'Receipt Processing Complete',
+        description: `Successfully processed ${data.readings_inserted} readings`,
       });
-
-      return {
-        success: true,
-        data: {
-          readings_inserted: inserted,
-          parsed_preview: parsed,
-          readings,
-        },
-      };
-    } catch (error: unknown) {
-      console.error("💥 Receipt upload error:", error);
-      let errorMessage = "An unexpected error occurred";
-      if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = (error as { message?: string }).message || errorMessage;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
+    },
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : 'An unexpected error occurred';
       toast({
-        title: "Receipt Processing Failed",
-        description: errorMessage,
-        variant: "destructive",
+        title: 'Receipt Processing Failed',
+        description: message,
+        variant: 'destructive',
       });
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    },
+  });
+}
 
-  const submitManualReading = async (
-    readingData: ManualReadingData
-  ): Promise<ManualReadingResult | null> => {
-    try {
-      setIsLoading(true);
+/**
+ * Hook: Submit manual reading
+ * Returns: useMutation with { mutateAsync, isPending, error }
+ */
+export function useSubmitManualReading() {
+  const { toast } = useToast();
+  const { user } = useAuth();
 
-      // Check authentication using our custom auth system
-      if (!user || !user.id) {
-        console.error('❌ Authentication error: User not logged in');
-        throw new Error("Authentication required. Please log in again.");
-      }
+  return useMutation({
+    mutationFn: async (readingData: Omit<ManualReadingData, 'user_id'>) => {
+      if (!user?.id) throw new Error('Authentication required');
 
-      // Validate data
+      // Validation
       if (!readingData.station_id || !readingData.nozzle_id || !readingData.cumulative_vol) {
-        throw new Error("Missing required fields");
+        throw new Error('Missing required fields');
       }
 
       if (readingData.cumulative_vol <= 0) {
-        throw new Error("Cumulative volume must be greater than 0");
+        throw new Error('Cumulative volume must be greater than 0');
       }
 
-      const payload = {
+      // Delegate to service
+      return await readingService.submitManualReading({
         ...readingData,
-        user_id: user.id
-      };
+        user_id: user.id,
+      });
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Reading Saved',
+        description: 'Manual reading recorded successfully',
+      });
+    },
+    onError: (error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : 'An unexpected error occurred';
+      toast({
+        title: 'Failed to Save Reading',
+        description: message,
+        variant: 'destructive',
+      });
+    },
+  });
+}
 
-      const response = await apiClient.post<{ success: boolean; data: NozzleReading }>('/readings/manual', payload);
-      const saved = unwrapDataOrObject(response, null) as NozzleReading | null;
-      if (!saved) throw new Error('Failed to save reading');
-      const data = saved;
-      toast({
-        title: "Reading Saved",
-        description: "Manual reading recorded successfully",
-      });
-      return { success: true, data };
-    } catch (error: unknown) {
-      console.error("💥 Manual reading error:", error);
-      let errorMessage = "An unexpected error occurred";
-      if (error && typeof error === 'object' && 'message' in error) {
-        errorMessage = (error as { message?: string }).message || errorMessage;
-      } else if (typeof error === 'string') {
-        errorMessage = error;
-      }
-      toast({
-        title: "Manual Reading Failed",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
+/**
+ * Legacy hook for backward compatibility
+ * Use useUploadReceiptForParsing() or useSubmitManualReading() instead
+ * @deprecated
+ */
+export const useReadingManagement = () => {
+  const uploadMutation = useUploadReceiptForParsing();
+  const submitMutation = useSubmitManualReading();
 
   return {
-    isLoading,
-    uploadReceiptForParsing,
-    submitManualReading,
+    uploadReceiptForParsing: async (file: File, pumpSno?: string) => {
+      if (!pumpSno) throw new Error('Pump serial number is required');
+      const result = await uploadMutation.mutateAsync({ file, pumpSno });
+      return { success: true, data: result };
+    },
+    submitManualReading: async (readingData: Omit<ManualReadingData, 'user_id'>) => {
+      const result = await submitMutation.mutateAsync(readingData);
+      return { success: true, data: result };
+    },
+    isLoading: uploadMutation.isPending || submitMutation.isPending,
   };
 };

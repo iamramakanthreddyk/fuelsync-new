@@ -1,9 +1,10 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
-import { apiClient } from '@/lib/api-client';
+import { stationService } from '@/services/stationService';
 import { toNumber } from '@/utils/number';
 import { safeToFixed } from '@/lib/format-utils';
+import { apiClient } from '@/lib/api-client';
 
 import type { ReadingEntry, CreditAllocation, Creditor } from '@/types/finance';
 
@@ -29,6 +30,139 @@ interface QuickEntryState {
   assignedEmployeeId: string | null; // REQUIRED: Employee responsible for readings
 }
 
+/**
+ * Service: Fetch creditors for a station
+ * Delegates to apiClient (todo: move to creditorService)
+ */
+async function fetchCreditors(stationId: string): Promise<Creditor[]> {
+  try {
+    const response = await apiClient.get(`/stations/${stationId}/creditors`);
+    if (response && typeof response === 'object') {
+      if (Array.isArray(response)) return response;
+      if ('data' in response && Array.isArray(response.data)) return response.data;
+    }
+    return [];
+  } catch (error) {
+    console.error('Failed to fetch creditors:', error);
+    return [];
+  }
+}
+
+/**
+ * Service: Submit readings
+ * Delegates to readingService for individual reading calls
+ */
+async function submitReadings(data: {
+  stationId: string;
+  readings: ReadingEntry[] | ReadingData[];
+  pumps: any[];
+  fuelPrices: any[];
+  readingDate: string;
+  assignedEmployeeId: string;
+  mode: 'employee' | 'owner';
+}): Promise<string[]> {
+  const { stationId, readings, pumps, fuelPrices, readingDate, assignedEmployeeId, mode } = data;
+
+  if (!assignedEmployeeId) {
+    throw new Error('You must assign these readings to an employee before submission');
+  }
+
+  // Convert readings to ReadingEntry[] format
+  const readingEntries: ReadingEntry[] = [];
+
+  if (mode === 'employee') {
+    readingEntries.push(...(readings as ReadingEntry[]));
+  } else {
+    const readingDataArray = readings as ReadingData[];
+    readingDataArray.forEach(reading => {
+      if (reading.openingReading && reading.closingReading) {
+        readingEntries.push({
+          nozzleId: reading.nozzleId,
+          readingValue: reading.closingReading,
+          date: readingDate,
+          paymentType: ''
+        });
+      }
+    });
+  }
+
+  // Submit each reading via service
+  const promises = readingEntries.map(entry => {
+    const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
+    const enteredValue = toNumber(entry.readingValue || '0');
+    const lastReading = nozzle?.lastReading ? toNumber(String(nozzle.lastReading)) : null;
+    const initialReading = nozzle?.initialReading ? toNumber(String(nozzle.initialReading)) : null;
+    const compareValue = lastReading !== null && !isNaN(lastReading)
+      ? lastReading
+      : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
+
+    const litres = Math.max(0, enteredValue - (compareValue || 0));
+    const priceData = Array.isArray(fuelPrices)
+      ? fuelPrices.find(p => p.fuelType.toUpperCase() === (nozzle?.fuelType || '').toUpperCase())
+      : undefined;
+    const price = priceData ? toNumber(String(priceData.price)) : 0;
+    const totalAmount = litres * price;
+
+    const readingData = {
+      stationId,
+      nozzleId: entry.nozzleId,
+      readingValue: toNumber(entry.readingValue),
+      readingDate,
+      pricePerLitre: price,
+      totalAmount,
+      litresSold: litres,
+      assignedEmployeeId,
+      notes: `Reading entered via quick entry`
+    };
+
+    if (!readingData.stationId) throw new Error('Station ID is required');
+    if (!readingData.nozzleId) throw new Error('Nozzle ID is required');
+
+    // Use apiClient directly for now (todo: wrap in readingService)
+    return apiClient.post('/readings', readingData);
+  });
+
+  const results = await Promise.all(promises);
+  return results.map((r: any) => r.data?.id).filter(Boolean);
+}
+
+/**
+ * Service: Submit transaction
+ * Delegates to apiClient (todo: move to transactionService)
+ */
+async function submitTransaction(data: {
+  stationId: string;
+  transactionDate: string;
+  readingIds: string[];
+  paymentBreakdown: { cash: number; online: number; credit: number };
+  creditAllocations: CreditAllocation[];
+  saleSummary: any;
+}): Promise<any> {
+  const { stationId, transactionDate, readingIds, paymentBreakdown, creditAllocations, saleSummary } = data;
+  const totalPayment = paymentBreakdown.cash + paymentBreakdown.online + paymentBreakdown.credit;
+
+  if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
+    throw new Error(
+      `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
+    );
+  }
+
+  if (paymentBreakdown.credit > 0 && creditAllocations.length === 0) {
+    throw new Error('Please allocate credit to at least one creditor');
+  }
+
+  const transactionData = {
+    stationId,
+    transactionDate,
+    readingIds,
+    paymentBreakdown,
+    creditAllocations: creditAllocations.filter(c => toNumber(c.amount) > 0),
+    notes: `Transaction created via quick entry`
+  };
+
+  return apiClient.post('/transactions', transactionData);
+}
+
 export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptions) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -40,7 +174,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
     creditAllocations: [],
     step: 'readings',
     submittedReadingIds: [],
-    assignedEmployeeId: null // Will be set by user or auto-set for employee mode
+    assignedEmployeeId: null
   }));
 
   // Update reading date
@@ -52,7 +186,6 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
   const updateReading = (nozzleId: string, field: string, value: string) => {
     setState(prev => {
       if (mode === 'employee') {
-        // Employee mode: Record<string, ReadingEntry>
         if (field === 'readingValue') {
           return {
             ...prev,
@@ -62,18 +195,16 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
                 nozzleId,
                 readingValue: value,
                 date: prev.readingDate,
-                paymentType: '' // Not used for readings, required by type
+                paymentType: ''
               }
             }
           };
         }
       } else {
-        // Owner mode: ReadingData[]
         const readings = prev.readings as ReadingData[];
         const existingIndex = readings.findIndex(r => r.nozzleId === nozzleId);
         
         if (existingIndex >= 0) {
-          // Update existing reading
           const updatedReadings = [...readings];
           updatedReadings[existingIndex] = {
             ...updatedReadings[existingIndex],
@@ -81,7 +212,6 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
           };
           return { ...prev, readings: updatedReadings };
         } else {
-          // Add new reading with default values
           const newReading: ReadingData = {
             nozzleId,
             openingReading: field === 'openingReading' ? value : '',
@@ -126,18 +256,15 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
     setState(prev => ({ ...prev, assignedEmployeeId: employeeId }));
   };
 
-  // Fetch employees from station
+  // Fetch employees using stationService
   const { data: employees = [] } = useQuery({
     queryKey: ['employees', stationId],
     queryFn: async () => {
       if (!stationId) return [];
       try {
-        const response = await apiClient.get(`/stations/${stationId}/users?role=employee`);
-        if (response && typeof response === 'object') {
-          if (Array.isArray(response)) return response;
-          if ('data' in response && Array.isArray(response.data)) return response.data;
-        }
-        return [];
+        const staff = await stationService.getStaff(stationId);
+        // Filter to employees only if needed
+        return staff;
       } catch (error) {
         console.error('Failed to fetch employees:', error);
         return [];
@@ -149,26 +276,12 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
   // Fetch creditors
   const { data: creditors = [] } = useQuery<Creditor[]>({
     queryKey: ['creditors', stationId],
-    queryFn: async () => {
-      if (!stationId) return [];
-      try {
-        const response = await apiClient.get(`/stations/${stationId}/creditors`);
-        if (response && typeof response === 'object') {
-          if (Array.isArray(response)) return response;
-          if ('data' in response && Array.isArray(response.data)) return response.data;
-        }
-        return [];
-      } catch (error) {
-        console.error('Failed to fetch creditors:', error);
-        return [];
-      }
-    },
+    queryFn: () => fetchCreditors(stationId),
     enabled: !!stationId
   });
 
   // Calculate sale summary
   const saleSummary = useMemo(() => {
-    // This will be passed in from the component that has access to pumps and fuelPrices
     return { totalLiters: 0, totalSaleValue: 0, byFuelType: {} };
   }, []);
 
@@ -184,78 +297,18 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
         });
       }
     }
-  }, [saleSummary.totalSaleValue, state.paymentBreakdown, state.paymentBreakdown.online, state.paymentBreakdown.credit, state.paymentBreakdown.cash, state.step, mode]);
+  }, [saleSummary.totalSaleValue, state.paymentBreakdown, state.step, mode]);
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
-    mutationFn: async (data: { readings: ReadingEntry[] | ReadingData[], pumps: any[], fuelPrices: any[] }) => {
-      const { readings, pumps, fuelPrices } = data;
-      
-      // VALIDATION: Assigned employee is REQUIRED
-      if (!state.assignedEmployeeId) {
-        throw new Error('You must assign these readings to an employee before submission');
-      }
-      
-      // Convert readings to ReadingEntry[] format for API
-      const readingEntries: ReadingEntry[] = [];
-      
-      if (mode === 'employee') {
-        // Already in ReadingEntry format
-        readingEntries.push(...(readings as ReadingEntry[]));
-      } else {
-        // Convert ReadingData[] to ReadingEntry[]
-        const readingDataArray = readings as ReadingData[];
-        readingDataArray.forEach(reading => {
-          if (reading.openingReading && reading.closingReading) {
-            readingEntries.push({
-              nozzleId: reading.nozzleId,
-              readingValue: reading.closingReading, // Use closing reading as the main reading
-              date: state.readingDate,
-              paymentType: ''
-            });
-          }
-        });
-      }
-      
-      const promises: Promise<any>[] = [];
-
-      readingEntries.forEach(entry => {
-        const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
-        const enteredValue = toNumber(entry.readingValue || '0');
-        const lastReading = nozzle?.lastReading ? toNumber(String(nozzle.lastReading)) : null;
-        const initialReading = nozzle?.initialReading ? toNumber(String(nozzle.initialReading)) : null;
-        const compareValue = lastReading !== null && !isNaN(lastReading)
-          ? lastReading
-          : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
-
-        const litres = Math.max(0, enteredValue - (compareValue || 0));
-        const priceData = Array.isArray(fuelPrices)
-          ? fuelPrices.find(p => p.fuelType.toUpperCase() === (nozzle?.fuelType || '').toUpperCase())
-          : undefined;
-        const price = priceData ? toNumber(String(priceData.price)) : 0;
-        const totalAmount = litres * price;
-
-        const readingData = {
-          stationId,
-          nozzleId: entry.nozzleId,
-          readingValue: toNumber(entry.readingValue),
-          readingDate: entry.date,
-          pricePerLitre: price,
-          totalAmount: totalAmount,
-          litresSold: litres,
-          assignedEmployeeId: state.assignedEmployeeId, // REQUIRED: Who this reading belongs to
-          notes: `Reading entered via quick entry`
-        };
-
-        if (!readingData.stationId) throw new Error('Station ID is required');
-        if (!readingData.nozzleId) throw new Error('Nozzle ID is required');
-
-        promises.push(apiClient.post('/readings', readingData));
-      });
-
-      const results = await Promise.all(promises);
-      return results.map(r => r.data?.id).filter(Boolean);
-    },
+    mutationFn: (data: { readings: ReadingEntry[] | ReadingData[], pumps: any[], fuelPrices: any[] }) => 
+      submitReadings({
+        ...data,
+        stationId,
+        readingDate: state.readingDate,
+        assignedEmployeeId: state.assignedEmployeeId!,
+        mode
+      }),
     onSuccess: (readingIds) => {
       toast({
         title: 'Readings Saved ✓',
@@ -270,7 +323,6 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
       }));
 
       if (mode === 'owner') {
-        // For owner mode, proceed directly to transaction creation
         submitTransactionMutation.mutate({
           readingIds,
           paymentBreakdown: state.paymentBreakdown,
@@ -292,36 +344,16 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
 
   // Submit transaction mutation
   const submitTransactionMutation = useMutation({
-    mutationFn: async (data: {
+    mutationFn: (data: {
       readingIds: string[],
       paymentBreakdown: { cash: number; online: number; credit: number },
       creditAllocations: CreditAllocation[],
       saleSummary: any
-    }) => {
-      const { readingIds, paymentBreakdown, creditAllocations, saleSummary } = data;
-      const totalPayment = paymentBreakdown.cash + paymentBreakdown.online + paymentBreakdown.credit;
-
-      if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
-        throw new Error(
-          `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
-        );
-      }
-
-      if (paymentBreakdown.credit > 0 && creditAllocations.length === 0) {
-        throw new Error('Please allocate credit to at least one creditor');
-      }
-
-      const transactionData = {
-        stationId,
-        transactionDate: state.readingDate,
-        readingIds,
-        paymentBreakdown,
-        creditAllocations: creditAllocations.filter(c => toNumber(c.amount) > 0),
-        notes: `Transaction created via quick entry`
-      };
-
-      return apiClient.post('/transactions', transactionData);
-    },
+    }) => submitTransaction({
+      stationId,
+      transactionDate: state.readingDate,
+      ...data
+    }),
     onSuccess: () => {
       toast({
         title: 'Transaction Created ✓',

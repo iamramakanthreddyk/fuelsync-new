@@ -12,17 +12,19 @@
  * All steps have detailed logging for Railway debugging
  */
 
-console.log('🚀 [SERVER] Node process starting...\n');
+const { createContextLogger } = require('./services/loggerService');
+const logger = createContextLogger('Server');
+
+logger.info('Node process starting...');
 
 // Validate critical environment variables BEFORE loading app
-console.log('🔍 [SERVER] Validating environment variables...');
+logger.info('Validating environment variables...');
 const hasJwtSecret = !!process.env.JWT_SECRET;
 
 if (!hasJwtSecret) {
-  console.warn('\n⚠️  [SERVER] NOTE: JWT_SECRET not set - using hardcoded fallback');
-  console.warn('   For production, set JWT_SECRET environment variable.\n');
+  logger.warn('JWT_SECRET not set - using hardcoded fallback (for production, set JWT_SECRET env var)');
 } else {
-  console.log('✅ [SERVER] JWT_SECRET is configured\n');
+  logger.info('JWT_SECRET is configured');
 }
 
 const app = require('./app');
@@ -37,54 +39,36 @@ async function startServer() {
   let server = null;
   
   try {
-    console.log('🚀 [SERVER] Initializing database...\n');
+    logger.info('Initializing database...');
     
     // Step 1-5: Database initialization (with detailed logging)
     const db = await initializeDatabase();
     
     // Step 6: Start Express server AFTER database is ready
-    console.log('🌍 [SERVER] Starting Express server...\n');
+    logger.info('Starting Express server...');
     
     server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`
-╔════════════════════════════════════════════════════════════╗
-║                                                            ║
-║   🔥 FuelSync API Server STARTED                           ║
-║                                                            ║
-║   ✅ Database: Connected & Ready                           ║
-║   ✅ Schema: Verified & Up-to-date                         ║
-║   ✅ Migrations: Complete                                  ║
-║   ✅ Server: Listening on port ${PORT}                     ║
-║                                                            ║
-║   Time: ${new Date().toISOString()}                        ║
-║                                                            ║
-╚════════════════════════════════════════════════════════════╝
-
-📋 Ready to accept requests!
-Test health: GET http://localhost:${PORT}/health
-API docs: GET http://localhost:${PORT}/api/v1
-      `);
-      
+      logger.info('FuelSync API Server STARTED', { port: PORT, database: 'Connected', schema: 'Verified', migrations: 'Complete' });
+      logger.info('Ready to accept requests', { healthCheck: `/health`, apiDocs: `/api/v1` });
       process.env.SERVER_STARTED = 'true';
     });
     
     // Error handling
     server.on('error', (error) => {
-      console.error('❌ [SERVER] Server error:', error.message);
+      logger.error('Server error', error.message);
       if (error.code === 'EADDRINUSE') {
-        console.error(`   → Port ${PORT} is already in use`);
-        console.error(`   → Try: netstat -ano | findstr :${PORT} (Windows)`);
-        console.error(`   → Or: lsof -i :${PORT} (Mac/Linux)`);
+      logger.warn('Port already in use', { port: PORT });
+      logger.info('Diagnostic commands', { windows: `netstat -ano | findstr :${PORT}`, unix: `lsof -i :${PORT}` });
       }
     });
     
     // Graceful shutdown
     const shutdownHandler = (signal) => {
-      console.log(`\n⏹️  [SERVER] ${signal} received, shutting down gracefully...`);
+      logger.info('Shutdown signal received', { signal });
       
       if (server) {
         server.close(() => {
-          console.log('✅ [SERVER] Server closed');
+          logger.info('Server closed successfully');
           process.exit(0);
         });
       } else {
@@ -93,7 +77,7 @@ API docs: GET http://localhost:${PORT}/api/v1
       
       // Force exit after 10 seconds
       setTimeout(() => {
-        console.error('❌ [SERVER] Forced shutdown after 10s');
+        logger.error('Forced shutdown after 10s');
         process.exit(1);
       }, 10000);
     };
@@ -104,23 +88,19 @@ API docs: GET http://localhost:${PORT}/api/v1
     // Periodic heartbeat (proves process is alive)
     setInterval(() => {
       if (process.env.SERVER_STARTED) {
-        console.log(`📍 [HEARTBEAT] ${new Date().toISOString()}`);
+        logger.debug('Heartbeat', { timestamp: new Date().toISOString() });
       }
     }, 60000);
     
   } catch (error) {
-    console.error('\n❌ [SERVER] Startup failed!');
-    console.error(`Error: ${error.message}\n`);
-    
-    // Exit with failure code
+    logger.error('Startup failed', { message: error.message });
     process.exit(1);
   }
 }
 
 // Handle uncaught errors
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('❌ [SERVER] Unhandled Rejection at:', promise);
-  console.error('Reason:', reason);
+  logger.error('Unhandled Rejection', { promise: String(promise), reason });
   
   if (!process.env.SERVER_STARTED) {
     process.exit(1);
@@ -128,7 +108,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 process.on('uncaughtException', (error) => {
-  console.error('❌ [SERVER] Uncaught Exception:', error);
+  logger.error('Uncaught Exception', { message: error.message });
   
   if (!process.env.SERVER_STARTED) {
     process.exit(1);
@@ -137,6 +117,6 @@ process.on('uncaughtException', (error) => {
 
 // Start server
 startServer().catch((error) => {
-  console.error('❌ [SERVER] Failed to start:', error.message);
+  logger.error('Failed to start server', { message: error.message });
   process.exit(1);
 });

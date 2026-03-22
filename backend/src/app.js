@@ -4,14 +4,16 @@
  * Features: Sales tracking, Credit management, Expense tracking, Analytics
  */
 
-console.log('📝 [APP] Initializing Express application...');
-
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const { createContextLogger } = require('./services/loggerService');
 require('dotenv').config();
+
+// Create logger for app module
+const logger = createContextLogger('App');
 
 // Import routes
 const authRoutes = require('./routes/auth');
@@ -71,11 +73,11 @@ if (!isDevelopment) {
   corsOrigins = envOrigins.length > 0 ? envOrigins : ['https://fuelsync-new.vercel.app', 'https://fuelsync-new.vercel.app/', 'https://www.kisaancenter.com'];
 }
 
-console.log('🔓 CORS Enabled for:', isDevelopment ? 'ALL (development)' : corsOrigins);
+logger.info('CORS setup', { development: isDevelopment, allowedOrigins: isDevelopment ? 'all' : corsOrigins.length });
 
 // CORS origin validation function
 const corsOriginValidator = (origin, callback) => {
-  console.log('🔍 CORS Check - Origin:', origin, 'Development:', isDevelopment);
+  logger.debug('CORS Check', { origin, development: isDevelopment });
   
   if (isDevelopment) {
     // Allow all origins in development
@@ -90,14 +92,14 @@ const corsOriginValidator = (origin, callback) => {
       ? corsOrigins.map(o => o.replace(/\/$/, ''))
       : corsOrigins;
     
-    console.log('🔍 CORS Check - Normalized Origin:', normalizedOrigin, 'Allowed:', normalizedCorsOrigins);
+    logger.debug('CORS Check - Normalized', { origin: normalizedOrigin, allowed: Array.isArray(normalizedCorsOrigins) ? normalizedCorsOrigins.length : 'allow-all' });
     
     if (Array.isArray(normalizedCorsOrigins) && normalizedCorsOrigins.includes(normalizedOrigin)) {
       callback(null, true);
     } else if (normalizedCorsOrigins === true) {
       callback(null, true);
     } else {
-      console.log('❌ CORS Rejected - Origin not allowed:', normalizedOrigin);
+      logger.warn('CORS Rejected - origin not allowed', { origin: normalizedOrigin });
       callback(new Error('Not allowed by CORS'));
     }
   }
@@ -141,7 +143,7 @@ if (rateLimitEnabled) {
   });
   app.use('/api/', limiter);
 } else {
-  console.log('⚠️ Rate limiting disabled via RATE_LIMIT=false');
+  logger.warn('Rate limiting disabled via RATE_LIMIT=false');
 }
 
 // Request logging
@@ -152,7 +154,7 @@ if (process.env.NODE_ENV !== 'test') {
 // Debug logging for all requests (development only)
 if (isDevelopment) {
   app.use((req, res, next) => {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
+    logger.debug('Request received', { method: req.method, path: req.path });
     next();
   });
 }
@@ -175,7 +177,7 @@ app.get('/health', async (req, res) => {
     const statusCode = health.status === 'ok' ? 200 : 503;
     res.status(statusCode).json(health);
   } catch (error) {
-    console.error('[ERROR] Health check failed:', error);
+    logger.error('Health check failed', error.message);
     res.status(503).json({
       status: 'error',
       message: 'Health check failed',

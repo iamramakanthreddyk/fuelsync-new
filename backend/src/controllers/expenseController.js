@@ -24,6 +24,8 @@ const { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, EXPENSE_APPROVAL_STATUS, EX
 
 // ===== UTILITIES =====
 const { logAudit } = require('../utils/auditLog');
+const { getPaginationOptions, formatPaginatedResponse } = require('../utils/paginationHelper');
+const { buildDateRangeWhere } = require('../utils/dateRangeHelper');
 const expenseCategorization = require('../services/expenseCategorization');
 
 /**
@@ -72,11 +74,14 @@ const getExpenses = asyncHandler(async (req, res, next) => {
   if (month) where.expenseMonth = month;
   if (frequency) where.frequency = frequency;
   if (approvalStatus) where.approvalStatus = approvalStatus;
+  
+  // Use date range helper for date filtering
   if (startDate && endDate) {
-    where.expenseDate = { [Op.between]: [startDate, endDate] };
+    Object.assign(where, buildDateRangeWhere(startDate, endDate, 'expenseDate', 30));
   }
   
-  const offset = (page - 1) * limit;
+  // Use pagination helper
+  const { offset, limit: parsedLimit } = getPaginationOptions(page, limit);
   
   const { count, rows: expenses } = await Expense.findAndCountAll({
     where,
@@ -85,7 +90,7 @@ const getExpenses = asyncHandler(async (req, res, next) => {
       { model: User, as: 'approvedByUser', attributes: ['id', 'name', 'role'], required: false }
     ],
     order: [['expenseDate', 'DESC'], ['createdAt', 'DESC']],
-    limit: parseInt(limit),
+    limit: parsedLimit,
     offset
   });
   
@@ -118,11 +123,11 @@ const getExpenses = asyncHandler(async (req, res, next) => {
     raw: true
   });
   
-  return sendPaginated(res, expenses, {
-    page: parseInt(page, 10),
-    limit: parseInt(limit, 10),
-    total: count,
-    pages: Math.ceil(count / limit),
+  // Format response using pagination helper
+  const paginationData = formatPaginatedResponse(expenses, count, page, parsedLimit);
+  
+  return sendSuccess(res, paginationData.data, {
+    pagination: paginationData.pagination,
     summary: {
       approvedTotal: approvedTotal || 0,
       pendingTotal: pendingTotal || 0,

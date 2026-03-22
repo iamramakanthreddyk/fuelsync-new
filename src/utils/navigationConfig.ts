@@ -6,11 +6,8 @@
 
 import {
   Zap,
-  Scale3d,
-  TrendingUp,
   Clock,
   Building2,
-  Upload,
   Calculator,
   BarChart3,
   Fuel,

@@ -4,6 +4,8 @@
  */
 
 const { User, Station, Pump, Nozzle, Plan } = require('../models');
+const { createContextLogger } = require('../services/loggerService');
+const logger = createContextLogger('PlanLimits');
 
 /**
  * Check if user exceeds plan limits (for existing resources)
@@ -18,7 +20,7 @@ const checkPlanCompliance = async (req, res, next) => {
 
     if (!user || !user.plan) {
       // No plan assigned - allow but log warning
-      console.warn(`User ${userId} has no plan assigned`);
+      logger.warn('User has no plan assigned', { userId });
       req.planWarnings = ['No plan assigned - using unlimited access'];
       return next();
     }
@@ -83,7 +85,7 @@ const checkPlanCompliance = async (req, res, next) => {
 
     next();
   } catch (error) {
-    console.error('Plan compliance check error:', error);
+    logger.error('Plan compliance check error', error.message);
     // Don't block on error - just log and continue
     next();
   }
@@ -96,7 +98,7 @@ const checkPlanCompliance = async (req, res, next) => {
 const enforcePlanLimit = (resourceType) => {
   return async (req, res, next) => {
     try {
-      console.log(`[PLANCHECK-MW ENTER] resource=${resourceType} path=${req.path} method=${req.method} userId=${req.userId}`);
+      logger.debug('Plan limit check', { resourceType, path: req.path, method: req.method, userId: req.userId });
       const userId = req.userId;
       const user = await User.findByPk(userId, {
         include: [{ model: Plan, as: 'plan' }]
@@ -142,13 +144,13 @@ const enforcePlanLimit = (resourceType) => {
 
       // Diagnostic logging for tests
       try {
-        console.log(`[PLANCHECK-MW] resource=${resourceType} ownerId=${ownerId} ownerPlan=${owner?.plan?.name} maxStations=${owner?.plan?.maxStations} maxPumpsPerStation=${owner?.plan?.maxPumpsPerStation} maxNozzlesPerPump=${owner?.plan?.maxNozzlesPerPump}`);
+        logger.debug('Plan check details', { resourceType, ownerId, plan: owner?.plan?.name, maxStations: owner?.plan?.maxStations, maxPumpsPerStation: owner?.plan?.maxPumpsPerStation, maxNozzlesPerPump: owner?.plan?.maxNozzlesPerPump });
       } catch (e) {
         // ignore
       }
 
       if (!owner || !owner.plan) {
-        console.warn(`Owner ${ownerId} has no plan - allowing creation`);
+        logger.warn('Owner has no plan - allowing creation', { ownerId });
         return next();
       }
 
@@ -158,7 +160,7 @@ const enforcePlanLimit = (resourceType) => {
       switch (resourceType) {
         case 'station': {
           const stationCount = await Station.count({ where: { ownerId } });
-          console.log(`[PLANCHECK-MW] stationCount=${stationCount} limit=${plan.maxStations}`);
+          logger.debug('Station count check', { stationCount, limit: plan.maxStations });
 
           if (plan.maxStations && stationCount >= plan.maxStations) {
             return res.status(402).json({
@@ -188,7 +190,7 @@ const enforcePlanLimit = (resourceType) => {
           }
 
           const pumpCount = await Pump.count({ where: { stationId } });
-          console.log(`[PLANCHECK-MW] pumpCount=${pumpCount} stationId=${stationId} limit=${plan.maxPumpsPerStation}`);
+          logger.debug('Pump count check', { pumpCount, stationId, limit: plan.maxPumpsPerStation });
 
           if (plan.maxPumpsPerStation && pumpCount >= plan.maxPumpsPerStation) {
             return res.status(402).json({
@@ -218,7 +220,7 @@ const enforcePlanLimit = (resourceType) => {
           }
 
           const nozzleCount = await Nozzle.count({ where: { pumpId } });
-          console.log(`[PLANCHECK-MW] nozzleCount=${nozzleCount} pumpId=${pumpId} limit=${plan.maxNozzlesPerPump}`);
+          logger.debug('Nozzle count check', { nozzleCount, pumpId, limit: plan.maxNozzlesPerPump });
 
           if (plan.maxNozzlesPerPump && nozzleCount >= plan.maxNozzlesPerPump) {
             return res.status(402).json({
@@ -263,7 +265,8 @@ const enforcePlanLimit = (resourceType) => {
         }
 
         default:
-          console.warn(`Unknown resource type for plan limit: ${resourceType}`);
+          logger.warn('Unknown resource type for plan limit', { resourceType });
+
       }
 
       // Attach plan info to request for controllers to use
@@ -280,7 +283,7 @@ const enforcePlanLimit = (resourceType) => {
 
       next();
     } catch (error) {
-      console.error('Plan limit enforcement error:', error);
+      logger.error('Plan limit enforcement error', error.message);
       return res.status(500).json({
         success: false,
         error: 'Failed to verify plan limits'
@@ -377,7 +380,7 @@ const getPlanUsage = async (ownerId) => {
       }
     };
   } catch (error) {
-    console.error('Error getting plan usage:', error);
+    logger.error('Error getting plan usage', error.message);
     return null;
   }
 };

@@ -9,6 +9,8 @@
  */
 
 const { Station, User } = require('../models');
+const { createContextLogger } = require('../services/loggerService');
+const logger = createContextLogger('StationAccess');
 
 /**
  * Verify user can access a station
@@ -63,7 +65,7 @@ const verifyStationAccess = async (req, res, next) => {
 
     return res.status(403).json({ success: false, error: 'Access denied' });
   } catch (error) {
-    console.error('Station access check error:', error);
+    logger.error('Station access check failed', error.message);
     return res.status(500).json({ success: false, error: 'Access check failed' });
   }
 };
@@ -98,7 +100,7 @@ const attachAccessibleStations = async (req, res, next) => {
     req.accessibleStationIds = stationIds;
     next();
   } catch (error) {
-    console.error('Attach accessible stations error:', error);
+    logger.error('Failed to attach accessible stations', error.message);
     next(error);
   }
 };

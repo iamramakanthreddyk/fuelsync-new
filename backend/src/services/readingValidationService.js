@@ -1,9 +1,11 @@
 /**
- * Reading Validation Service
- * Centralized validation logic for nozzle readings
+ * CONSOLIDATED Reading Validation Service
+ * All reading validation logic in one place (merged from readingValidationService + readingValidationEnhancedService)
  */
 
 const { VALIDATION_ERRORS: READING_ERRORS } = require('../config/transactionConstants');
+const { NozzleReading, Nozzle } = require('../models');
+const { Op } = require('sequelize');
 
 /**
  * Normalize reading input (handle both camelCase and snake_case)
@@ -142,6 +144,94 @@ exports.validateNozzleActive = (nozzle) => {
     return {
       isValid: false,
       error: `Nozzle is ${nozzle.status}. Cannot enter reading.`
+    };
+  }
+
+  return { isValid: true };
+};
+
+/**
+ * Check for duplicate readings
+ * Returns { isDuplicate: false } or { isDuplicate: true, existingReading: {...} }
+ * [MOVED FROM readingValidationEnhancedService]
+ */
+exports.checkDuplicateReading = async ({ nozzleId, readingDate, readingValue, tolerance = 0.01 }) => {
+  const value = parseFloat(readingValue);
+
+  const existing = await NozzleReading.findOne({
+    where: {
+      nozzleId,
+      readingDate,
+      readingValue: {
+        [Op.between]: [value - tolerance, value + tolerance]
+      }
+    },
+    order: [['createdAt', 'DESC']]
+  });
+
+  if (!existing) return { isDuplicate: false };
+
+  return {
+    isDuplicate: true,
+    existingReading: existing.toJSON()
+  };
+};
+
+/**
+ * Validate reading sequence - detects backward readings and unusual jumps
+ * [MOVED FROM readingValidationEnhancedService]
+ */
+exports.validateReadingSequence = async ({ nozzleId, currentValue, readingDate, previousValue }) => {
+  const current = parseFloat(currentValue);
+  const prev = parseFloat(previousValue) || 0;
+  const delta = current - prev;
+
+  // Basic check: meter cannot go backwards (unless it reset to 0)
+  if (delta < 0) {
+    // Allow a full meter reset (e.g., meter replaced)
+    if (current < 100) {
+      return {
+        isValid: true,
+        warnings: ['Meter reset detected - new meter starts from low value']
+      };
+    }
+    return {
+      isValid: false,
+      error: 'Reading value is less than previous reading. Meter readings cannot go backwards.',
+      details: { previousValue: prev, currentValue: current, delta }
+    };
+  }
+
+  // Warn for very large daily consumption (>10,000 litres is unusual)
+  const warnings = [];
+  if (delta > 10000) {
+    warnings.push(`Unusually large meter delta: ${delta.toFixed(2)} litres. Please verify.`);
+  }
+
+  return { isValid: true, warnings };
+};
+
+/**
+ * Validate reading is within meter limits
+ * [MOVED FROM readingValidationEnhancedService]
+ */
+exports.validateMeterSpecifications = async ({ nozzleId, readingValue, fuelType }) => {
+  const value = parseFloat(readingValue);
+  const MAX_METER_VALUE = 999999.99;
+
+  if (value < 0) {
+    return {
+      isValid: false,
+      error: 'Meter reading cannot be negative.',
+      details: { readingValue: value }
+    };
+  }
+
+  if (value > MAX_METER_VALUE) {
+    return {
+      isValid: false,
+      error: `Meter reading ${value} exceeds maximum allowed value (${MAX_METER_VALUE}).`,
+      details: { readingValue: value, maxAllowed: MAX_METER_VALUE }
     };
   }
 

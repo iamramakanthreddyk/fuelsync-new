@@ -8,13 +8,13 @@
 const readingCreationService = require('./readingCreationService');
 const readingCalculationService = require('./readingCalculationService');
 const readingValidationService = require('./readingValidationService');
-const readingValidationEnhancedService = require('./readingValidationEnhancedService');
+// const readingValidationEnhancedService = require('./readingValidationEnhancedService'); // TODO: Create this service
 const readingCacheService = require('./readingCacheService');
 
 // ===== TRANSACTION DOMAIN =====
 const paymentBreakdownService = require('./paymentBreakdownService');
 const transactionValidationService = require('./transactionValidationService');
-const transactionValidationEnhancedService = require('./transactionValidationEnhancedService');
+// const transactionValidationEnhancedService = require('./transactionValidationEnhancedService'); // TODO: Create this service
 
 // ===== FINANCIAL DOMAIN =====
 const creditAllocationService = require('./creditAllocationService');
@@ -38,15 +38,13 @@ module.exports = {
     create: readingCreationService,
     calculate: readingCalculationService,
     validate: readingValidationService,
-    validateEnhanced: readingValidationEnhancedService,
     cache: readingCacheService
   },
 
   // Transaction Services
   transaction: {
     paymentBreakdown: paymentBreakdownService,
-    validate: transactionValidationService,
-    validateEnhanced: transactionValidationEnhancedService
+    validate: transactionValidationService
   },
 
   // Financial Services
@@ -68,7 +66,7 @@ module.exports = {
   aggregation: aggregationService,
   bulkOperations: bulkOperationsService,
 
-  // Legacy direct access (for backwards compatibility)
+  // Legacy direct access
   readingCreationService,
   readingCalculationService,
   paymentBreakdownService,

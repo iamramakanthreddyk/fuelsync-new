@@ -1,10 +1,9 @@
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode, useMemo } from 'react';
-import { apiClient, getToken, setToken, removeToken, getStoredUser, setStoredUser, ApiError } from '@/lib/api-client';
+import { getToken, setToken, removeToken, getStoredUser, setStoredUser, ApiError } from '@/lib/api-client';
 import { getErrorMessage } from '@/lib/errorUtils';
 import { authService } from '@/services/authService';
 import type { User, UserRole } from '@/types/api';
 
-// Re-export types for convenience
 export type { User, UserRole };
 
 // ============================================
@@ -29,18 +28,6 @@ interface AuthContextType {
 }
 
 // ============================================
-// ROLE HIERARCHY
-// ============================================
-
-const ROLE_HIERARCHY: Record<string, number> = {
-  super_admin: 100,
-  superadmin: 100,
-  owner: 75,
-  manager: 50,
-  employee: 25,
-};
-
-// ============================================
 // CONTEXT
 // ============================================
 
@@ -57,21 +44,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const token = getToken();
   const session = useMemo(() => {
     return token ? { access_token: token } : null;
-  }, [user]); // re-derive when user changes (login/logout)
+  }, [token]); // Changed dependency: use token directly
   const isLoggedIn = !!user && !!token;
 
-  // Verify token with backend
+  // Verify token with backend - delegate to authService
   const verifyToken = useCallback(async () => {
     try {
-      const response = await apiClient.get<User>('/auth/me');
-      // response is ApiResponse<User> so data is nested
-      const userData = (response as any).data || response;
-      const userWithStations = {
-        ...userData,
-        stations: userData.stations || [],
-      };
-      setUser(userWithStations);
-      setStoredUser(userWithStations);
+      const userData = await authService.getCurrentUser();
+      if (userData) {
+        const userWithStations = {
+          ...userData,
+          stations: userData.stations || [],
+        } as User;
+        setUser(userWithStations);
+        setStoredUser(userWithStations);
+      }
     } catch (error: unknown) {
       // If API returned an ApiError with 401, clear auth
       if (error instanceof ApiError && error.statusCode === 401) {
@@ -105,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     initAuth();
+    
     // Listen for global auth expiry events (dispatched by api-client)
     const onAuthExpired = () => {
       removeToken();
@@ -127,13 +115,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [verifyToken]);
 
+  // Delegate login to authService
   const login = useCallback(async (email: string, password: string) => {
     setLoading(true);
     try {
-      const response = await apiClient.post<{ token: string; user: User }>('/auth/login', { email, password });
-      
-      // response is ApiResponse<{ token: string; user: User }> so data is nested
-      const { token: authToken, user: authUser } = (response as any).data || response;
+      const { token: authToken, user: authUser } = await authService.login(email, password);
       
       if (!authToken || !authUser) {
         throw new Error('Invalid login response: missing token or user');
@@ -144,7 +130,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const userData = {
         ...authUser,
         stations: authUser.stations || [],
-      };
+      } as User;
       setStoredUser(userData);
       setUser(userData);
 
@@ -160,10 +146,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  // Delegate logout to authService
   const logout = useCallback(async () => {
     try {
-      // Call logout endpoint (fire and forget)
-      apiClient.post('/auth/logout').catch(() => {});
+      await authService.logout();
     } finally {
       // Clear local state
       removeToken();
@@ -176,12 +162,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setStoredUser(updatedUser);
   }, []);
 
+  // Delegate profile update to authService
   const updateProfile = useCallback(async (data: Partial<User>) => {
     if (!user) throw new Error('Not authenticated');
 
     try {
-      const response = await apiClient.put<{ success: boolean; data: User }>(`/users/${user.id}`, data);
-      const updated = (response as any).data || response;
+      const updated = await authService.updateProfile(user.id, data);
       const userWithStations = { ...updated, stations: updated.stations || [] } as User;
       setUser(userWithStations);
       setStoredUser(userWithStations);
@@ -193,6 +179,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
+  // Delegate password change to authService
   const changePassword = useCallback(async (currentPassword: string, newPassword: string) => {
     try {
       await authService.changePassword(currentPassword, newPassword);

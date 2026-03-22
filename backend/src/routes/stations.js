@@ -5,10 +5,19 @@
 
 const express = require('express');
 const router = express.Router();
-const stationController = require('../controllers/stationController');
+
+// ===== DOMAIN CONTROLLERS =====
+const stationManagementController = require('../controllers/stationManagementController');
+const deviceController = require('../controllers/deviceController');
+const fuelPricingController = require('../controllers/fuelPricingController');
+const stationReportingController = require('../controllers/stationReportingController');
+
+// ===== OTHER CONTROLLERS =====
 const userController = require('../controllers/userController');
 const tankController = require('../controllers/tankController');
 const shiftController = require('../controllers/shiftController');
+
+// ===== MIDDLEWARE =====
 const { authenticate, requireRole, requireMinRole } = require('../middleware/auth');
 const { validate, stationValidators, pumpValidators, tankValidators } = require('../validators');
 const { enforcePlanLimit } = require('../middleware/planLimits');
@@ -19,27 +28,27 @@ router.use(authenticate);
 // ============================================
 // STATIONS
 // ============================================
-router.get('/', stationController.getStations);
+router.get('/', stationManagementController.getStations);
 router.post('/', 
   requireRole(['owner', 'super_admin']),
   enforcePlanLimit('station'), // Check plan limits before creation
   validate(stationValidators.create),
-  stationController.createStation
+  stationManagementController.createStation
 );
-router.get('/:id', stationController.getStation);
+router.get('/:id', stationManagementController.getStation);
 router.put('/:id', 
   requireRole(['owner', 'super_admin']), 
   validate(stationValidators.update),
-  stationController.updateStation
+  stationManagementController.updateStation
 );
 
 // ============================================
 // STATION SETTINGS
 // ============================================
-router.get('/:id/settings', stationController.getStationSettings);
+router.get('/:id/settings', stationManagementController.getStationSettings);
 router.put('/:id/settings', 
   requireRole(['owner', 'super_admin']), 
-  stationController.updateStationSettings
+  stationManagementController.updateStationSettings
 );
 
 // ============================================
@@ -50,33 +59,35 @@ router.get('/:stationId/staff', userController.getStationStaff);
 // ============================================
 // PUMPS (nested under stations)
 // ============================================
-router.get('/:stationId/pumps', stationController.getPumps);
-router.get('/:stationId/pumps/debug/diagnostics', stationController.getStationDiagnostics);
+router.get('/:stationId/pumps', deviceController.getPumps);
 router.post('/:stationId/pumps', 
   requireRole(['owner', 'super_admin']),
   validate(pumpValidators.create), // Validate pump creation
   enforcePlanLimit('pump'), // Check plan limits before creation
-  stationController.createPump
+  deviceController.createPump
 );
-router.put('/pumps/:id', requireRole(['owner', 'super_admin']), stationController.updatePump);
+router.put('/pumps/:id', requireRole(['owner', 'super_admin']), deviceController.updatePump);
+router.delete('/pumps/:id', requireRole(['owner', 'super_admin']), deviceController.deletePump);
 
 // ============================================
 // NOZZLES (nested under pumps)
 // ============================================
-router.get('/pumps/:pumpId/nozzles', stationController.getNozzles);
+router.get('/pumps/:pumpId/nozzles', deviceController.getNozzles);
+router.get('/nozzles/:id', deviceController.getNozzle);
 router.post('/pumps/:pumpId/nozzles', 
   requireRole(['owner', 'super_admin']),
   enforcePlanLimit('nozzle'), // Check plan limits before creation
-  stationController.createNozzle
+  deviceController.createNozzle
 );
-router.put('/nozzles/:id', requireRole(['owner', 'super_admin']), stationController.updateNozzle);
+router.put('/nozzles/:id', requireRole(['owner', 'super_admin']), deviceController.updateNozzle);
+router.delete('/nozzles/:id', requireRole(['owner', 'super_admin']), deviceController.deleteNozzle);
 
 // ============================================
 // FUEL PRICES
 // ============================================
-router.get('/:stationId/prices', stationController.getFuelPrices);
-router.get('/:stationId/prices/check', stationController.checkPriceSet);
-router.post('/:stationId/prices', requireMinRole('manager'), stationController.setFuelPrice);
+router.get('/:stationId/prices', fuelPricingController.getFuelPrices);
+router.get('/:stationId/prices/check', fuelPricingController.checkPriceSet);
+router.post('/:stationId/prices', requireMinRole('manager'), fuelPricingController.setFuelPrice);
 
 // ============================================
 // TANKS (nested under stations)
@@ -103,16 +114,8 @@ router.get('/:stationId/shifts/discrepancies', requireMinRole('manager'), shiftC
 // ============================================
 // DAILY SALES & SETTLEMENTS
 // ============================================
-router.get('/:stationId/daily-sales', stationController.getDailySales);
-router.get('/:stationId/readings', requireMinRole('manager'), stationController.getStationReadings);
-router.get('/:stationId/readings-for-settlement', requireMinRole('manager'), stationController.getReadingsForSettlement);
-router.post('/:stationId/settlements', requireMinRole('manager'), stationController.recordSettlement);
-router.get('/:stationId/settlements', requireMinRole('manager'), stationController.getSettlements);
-router.get('/:stationId/variance-summary', requireMinRole('manager'), stationController.getVarianceSummary);
-router.get('/:stationId/settlement-vs-sales', requireMinRole('manager'), stationController.getSettlementVsSales);
-router.get('/:stationId/employee-shortfalls', requireMinRole('manager'), stationController.getEmployeeShortfalls);
-// Explicit routes for /all/ must come BEFORE parameterized routes
-router.get('/all/employee-sales', requireMinRole('manager'), stationController.getEmployeeSalesBreakdown);
-router.get('/:stationId/employee-sales', requireMinRole('manager'), stationController.getEmployeeSalesBreakdown);
+router.get('/:stationId/readings', requireMinRole('manager'), stationManagementController.getStationReadings);
+router.get('/:stationId/daily-sales', stationReportingController.getDailySales);
+router.get('/:stationId/readings-for-settlement', requireMinRole('manager'), stationReportingController.getReadingsForSettlement);
 
 module.exports = router;

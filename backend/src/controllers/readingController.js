@@ -44,6 +44,8 @@ const { canAccessStation } = require('../middleware/accessControl');
 
 // ===== UTILITIES =====
 const { logAudit } = require('../utils/auditLog');
+const { getPaginationOptions, formatPaginatedResponse } = require('../utils/paginationHelper');
+const { buildDateRangeWhere } = require('../utils/dateRangeHelper');
 
 /**
  * Create a nozzle reading
@@ -156,7 +158,9 @@ exports.getReadings = asyncHandler(async (req, res, next) => {
     accessibleStationIds = [user.stationId];
   }
 
-  const offset = (page - 1) * limit;
+  // Use pagination helper to get offset and limit
+  const { offset, limit: parsedLimit } = getPaginationOptions(page, limit);
+
   const { count, rows } = await readingRepository.getReadingsWithFilters({
     stationId,
     pumpId,
@@ -164,7 +168,7 @@ exports.getReadings = asyncHandler(async (req, res, next) => {
     startDate,
     endDate,
     offset,
-    limit,
+    limit: parsedLimit,
     accessibleStationIds,
     employeeId: employeeId || null,
   });
@@ -184,6 +188,9 @@ exports.getReadings = asyncHandler(async (req, res, next) => {
   const linkedReadings = readingsWithSaleValue.filter(r => r.settlementId);
   const { unlinkedReadings, totals } = readingRepository.getUnlinkedReadingsWithTotals(readingsWithSaleValue);
 
+  // Use pagination helper to format response
+  const paginationData = formatPaginatedResponse(readingsWithSaleValue, count, page, parsedLimit);
+
   return sendSuccess(res, {
     linked: {
       count: linkedReadings.length,
@@ -196,12 +203,7 @@ exports.getReadings = asyncHandler(async (req, res, next) => {
     },
     allReadingsCount: readingsWithSaleValue.length,
     readings: readingsWithSaleValue,
-    pagination: {
-      page: parseInt(page),
-      limit: parseInt(limit),
-      total: count,
-      totalPages: Math.ceil(count / limit)
-    }
+    pagination: paginationData.pagination
   });
 });
 

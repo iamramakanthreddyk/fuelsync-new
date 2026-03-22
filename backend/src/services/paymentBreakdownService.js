@@ -4,6 +4,8 @@
  */
 
 const { DailyTransaction } = require('../models');
+const { createContextLogger } = require('./loggerService');
+const logger = createContextLogger('PaymentBreakdown');
 
 /**
  * Aggregate payment breakdown from DailyTransaction records
@@ -38,7 +40,7 @@ async function getPaymentBreakdownAggregates(where) {
 
     return totals;
   } catch (error) {
-    console.error('Error aggregating payment breakdowns:', error);
+    logger.error('Failed to aggregate payment breakdowns', error.message);
     throw error;
   }
 }

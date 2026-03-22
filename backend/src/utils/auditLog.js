@@ -5,6 +5,8 @@
  */
 
 const { AuditLog } = require('../models');
+const { createContextLogger } = require('../services/loggerService');
+const logger = createContextLogger('AuditLog');
 
 /**
  * Log an audit event
@@ -46,7 +48,7 @@ async function logAudit({
 }) {
   try {
     if (!action || !entityType) {
-      console.warn('⚠️ [AUDIT] Missing required fields: action and entityType');
+      logger.warn('AUDIT: Missing required fields', { action, entityType });
       return;
     }
 
@@ -70,7 +72,7 @@ async function logAudit({
     });
   } catch (err) {
     // Don't block main flow on audit log failure
-    console.error('❌ [AUDIT LOG] Error logging event:', err.message);
+    logger.error('AUDIT LOG: Failed to log event', err.message);
   }
 }
 
@@ -95,7 +97,7 @@ async function getActiveSessionCount(userId, maxHours = 24) {
     
     return count;
   } catch (err) {
-    console.error('❌ [SESSION] Error counting active sessions:', err.message);
+    logger.error('SESSION: Failed to count active sessions', err.message);
     return 0;
   }
 }
@@ -122,7 +124,7 @@ async function getLoginHistory(userId, limit = 10) {
     
     return history;
   } catch (err) {
-    console.error('❌ [SESSION] Error fetching login history:', err.message);
+    logger.error('SESSION: Failed to fetch login history', err.message);
     return [];
   }
 }
@@ -150,7 +152,7 @@ async function checkConcurrentLoginLimit(userId, maxConcurrentLogins = 3, timeWi
     
     return recentLogins >= maxConcurrentLogins;
   } catch (err) {
-    console.error('❌ [SESSION] Error checking login limit:', err.message);
+    logger.error('SESSION: Failed to check login limit', err.message);
     return false;
   }
 }

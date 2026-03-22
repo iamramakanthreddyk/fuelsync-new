@@ -4,6 +4,8 @@
  */
 
 const { sequelize } = require('../models');
+const { createContextLogger } = require('../services/loggerService');
+const logger = createContextLogger('HealthCheck');
 
 /**
  * Check database connection
@@ -16,7 +18,7 @@ exports.checkDatabase = async () => {
       message: 'Database connected'
     };
   } catch (err) {
-    console.error('[Health Check] Database error:', err.message);
+    logger.error('Database health check failed', err.message);
     return {
       status: 'unhealthy',
       error: err.message

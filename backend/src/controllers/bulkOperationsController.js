@@ -11,7 +11,7 @@
 // ===== MODELS & DATABASE =====
 const { NozzleReading, Station, User, sequelize } = require('../models');
 const bulkOperations = require('../services/bulkOperations');
-const readingValidationEnhancedService = require('../services/readingValidationEnhancedService');
+const readingValidationService = require('../services/readingValidationService');
 
 // ===== ERROR & RESPONSE HANDLING =====
 const { asyncHandler, NotFoundError, ValidationError } = require('../utils/errors');

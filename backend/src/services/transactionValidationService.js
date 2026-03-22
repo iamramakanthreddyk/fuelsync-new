@@ -173,3 +173,60 @@ exports.normalizeCreditAllocations = (allocations = []) => {
     amount: parseFloat(c.amount || 0)
   })).filter(c => c.creditorId && c.amount > 0);
 };
+
+/**
+ * Run ALL validation checks for complete transaction submission
+ * Consolidated from transactionValidationEnhancedService
+ * @param {Object} opts - Validation options
+ * @returns {Object} - { isValid, error?, normalizedBreakdown, issues? }
+ */
+exports.validateTransactionComplete = async (opts) => {
+  const {
+    stationId,
+    transactionDate,
+    readingIds,
+    readings,
+    paymentBreakdown = {},
+    creditAllocations = [],
+    totalSaleValue
+  } = opts;
+  
+  const issues = [];
+
+  // Auto-balance payment breakdown (adjust cash for minor rounding)
+  const balanceResult = exports.autoBalancePayment(paymentBreakdown, totalSaleValue);
+  if (!balanceResult.isValid) {
+    return {
+      isValid: false,
+      error: balanceResult.error,
+      details: balanceResult.details,
+      issues: [balanceResult.error]
+    };
+  }
+
+  const normalizedBreakdown = balanceResult.normalizedBreakdown;
+
+  // Validate credit allocations match credit amount
+  const creditAmount = parseFloat(normalizedBreakdown.credit || 0);
+  const creditValidation = exports.validateCreditAllocations(
+    creditAllocations,
+    creditAmount
+  );
+  if (!creditValidation.isValid) {
+    return {
+      isValid: false,
+      error: creditValidation.error,
+      issues: [creditValidation.error]
+    };
+  }
+
+  if (balanceResult.autoBalanced) {
+    issues.push('Payment was auto-balanced to match sale total');
+  }
+
+  return {
+    isValid: true,
+    normalizedBreakdown,
+    issues
+  };
+};

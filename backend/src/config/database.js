@@ -8,6 +8,8 @@
 
 const { Sequelize } = require('sequelize');
 const path = require('path');
+const { createContextLogger } = require('../services/loggerService');
+const logger = createContextLogger('DatabaseConfig');
 
 // Determine dialect from environment
 const getDialect = () => process.env.DB_DIALECT || 'sqlite';
@@ -104,7 +106,7 @@ if (dbConfig.dialect === 'sqlite') {
     logging: dbConfig.logging,
     define: dbConfig.define,
   });
-  console.log(`📁 Using SQLite: ${dbConfig.storage}`);
+  logger.info('Database configured', { type: 'SQLite', path: dbConfig.storage });
 } else {
   sequelize = new Sequelize(dbConfig.url, {
     dialect: dbConfig.dialect,
@@ -113,7 +115,8 @@ if (dbConfig.dialect === 'sqlite') {
     define: dbConfig.define,
     dialectOptions: dbConfig.dialectOptions || {}
   });
-  console.log(`🐘 Using PostgreSQL: ${dbConfig.url.replace(/:[^:@]+@/, ':***@')}`);
+  const maskedUrl = dbConfig.url.replace(/:[^:@]+@/, ':***@');
+  logger.info('Database configured', { type: 'PostgreSQL', host: maskedUrl });
 }
 
 module.exports = { sequelize, config };

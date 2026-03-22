@@ -11,6 +11,8 @@
 
 const { Settlement, NozzleReading, Nozzle, DailyTransaction, Creditor } = require('../models');
 const { Op } = require('sequelize');
+const { createContextLogger } = require('./loggerService');
+const logger = createContextLogger('SettlementVerification');
 
 /**
  * Verify all active nozzles have readings for a date
@@ -65,7 +67,7 @@ exports.verifyNozzleCoverage = async (stationId, date) => {
         : `No readings found for any nozzles on ${date}`
     };
   } catch (err) {
-    console.error('[settlementVerificationService] Nozzle coverage check error:', err);
+    logger.error('Nozzle coverage check error', err.message);
     throw err;
   }
 };
@@ -163,7 +165,7 @@ exports.verifyReadingAmounts = async (settlementId, transaction = null) => {
         : `Reading amount mismatch: expected ₹${expectedTotal.toFixed(2)}, got ₹${actualTotal.toFixed(2)}`
     };
   } catch (err) {
-    console.error('[settlementVerificationService] Reading amount check error:', err);
+    logger.error('Reading amount check error', err.message);
     throw err;
   }
 };
@@ -258,7 +260,7 @@ exports.verifyPaymentBreakdown = async (settlementId, transaction = null) => {
         : `Payment breakdown matches within tolerance (₹${variance.toFixed(2)} variance)`
     };
   } catch (err) {
-    console.error('[settlementVerificationService] Payment breakdown check error:', err);
+    logger.error('Payment breakdown check error', err.message);
     throw err;
   }
 };
@@ -347,7 +349,7 @@ exports.verifyCreditAllocations = async (settlementId, dbTransaction = null) => 
         : `${issues.length} allocation issues found`
     };
   } catch (err) {
-    console.error('[settlementVerificationService] Credit allocation check error:', err);
+    logger.error('Credit allocation check error', err.message);
     throw err;
   }
 };
@@ -397,7 +399,7 @@ exports.verifySettlementComplete = async (settlementId, stationId, date, transac
       ]
     };
   } catch (err) {
-    console.error('[settlementVerificationService] Complete verification error:', err);
+    logger.error('Complete verification error', err.message);
     throw err;
   }
 };

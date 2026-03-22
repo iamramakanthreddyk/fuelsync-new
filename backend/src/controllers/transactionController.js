@@ -13,7 +13,6 @@
 const { DailyTransaction, NozzleReading, Station, User, Creditor, CreditTransaction, sequelize, FuelPrice, Nozzle, Pump } = require('../models');
 const bulkOperations = require('../services/bulkOperations');
 const transactionValidation = require('../services/transactionValidationService');
-const transactionValidationEnhancedService = require('../services/transactionValidationEnhancedService');
 const creditAllocationService = require('../services/creditAllocationService');
 const { VALIDATION_ERRORS, TRANSACTION_STATUS } = require('../config/transactionConstants');
 const { Op } = require('sequelize');
@@ -137,7 +136,7 @@ exports.createTransaction = asyncHandler(async (req, res, next) => {
   }
 
   // Validate using enhanced service
-  const enhancedValidation = await transactionValidationEnhancedService.validateTransactionComplete({
+  const enhancedValidation = await transactionValidation.validateTransactionComplete({
     stationId,
     transactionDate,
     readingIds,

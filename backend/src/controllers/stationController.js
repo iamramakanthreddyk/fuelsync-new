@@ -25,6 +25,10 @@ const { Op, fn, col } = require('sequelize');
 const { logAudit } = require('../utils/auditLog');
 const { FUEL_TYPES } = require('../config/constants');
 const { calculateDeduplicatedTotals, formatReadingResponse, validateReadingSequence, calculateSaleValue, calculateLitresSold } = require('../utils/readingHelpers');
+const { createContextLogger } = require('../services/loggerService');
+
+// ===== LOGGER =====
+const logger = createContextLogger('StationController');
 
 // ===== CONSTANTS =====
 const EXCLUDE_SAMPLE_READINGS = { isSample: { [Op.ne]: true } };
@@ -247,7 +251,7 @@ exports.createStation = async (req, res, next) => {
       if (currentPlanId) {
         const ownerWithPlan = await User.findByPk(stationOwnerId, { include: [{ model: Plan, as: 'plan' }], transaction: t });
         if (ownerWithPlan?.planId !== currentPlanId) {
-          console.log('[PLANCHECK] Plan ID mismatch: owner has', ownerWithPlan?.planId, 'but client sent', currentPlanId);
+          logger.warn('Plan ID mismatch', { ownerPlanId: ownerWithPlan?.planId, clientPlanId: currentPlanId });
           await t.rollback();
           return res.status(400).json({
             success: false,
@@ -265,7 +269,7 @@ exports.createStation = async (req, res, next) => {
         stationCode = String(req.body.code).trim();
         const codeExists = await Station.findOne({ where: { code: stationCode }, transaction: t });
         if (codeExists) {
-          console.log('[PLANCHECK] createStation rejecting: client provided duplicate code=', stationCode);
+          logger.warn('Duplicate station code provided', { code: stationCode });
           await t.rollback();
           return res.status(403).json({
             success: false,
@@ -286,7 +290,7 @@ exports.createStation = async (req, res, next) => {
           if (!codeExists) {
             stationCode = testCode;
             codeFound = true;
-            console.log(`[PLANCHECK] createStation auto-generated code: ${stationCode}`);
+            logger.debug('Auto-generated station code', { code: stationCode });
             break;
           }
           codeNumber++;
@@ -299,9 +303,7 @@ exports.createStation = async (req, res, next) => {
         }
       }
 
-      console.log('✅ Using station code:', stationCode);
-
-      console.log('[PLANCHECK] createStation creating with code=', stationCode, 'ownerId=', stationOwnerId);
+      logger.info('Creating station', { code: stationCode, ownerId: stationOwnerId });
       const station = await Station.create({
         ownerId: stationOwnerId,
         name,
@@ -601,7 +603,7 @@ exports.getPumps = async (req, res, next) => {
     const { stationId } = req.params;
     const user = req.user;
 
-    console.log(`📋 GET PUMPS - Station: ${stationId}, User: ${user?.id}`);
+    logger.debug('GET PUMPS', { stationId, userId: user?.id });
 
     // Check station access
     if (!(await canAccessStation(user, stationId))) {
@@ -615,7 +617,7 @@ exports.getPumps = async (req, res, next) => {
       raw: false
     });
 
-    console.log(`📋 FOUND ${pumps.length} PUMPS in station ${stationId}`);
+    logger.debug('Fetched pumps', { stationId, count: pumps.length });
 
     // Now separately fetch nozzles for each pump
     const pumpsWithNozzles = await Promise.all(
@@ -652,11 +654,11 @@ exports.getPumps = async (req, res, next) => {
       })
     );
 
-    console.log(`✅ Returning ${pumpsWithNozzles.length} pumps with nozzles`);
+    logger.info('Returning pumps with nozzles', { stationId, pumpCount: pumpsWithNozzles.length });
     res.json({ success: true, data: pumpsWithNozzles });
 
   } catch (error) {
-    console.error('❌ getPumps error:', error.message);
+    logger.error('Failed to get pumps', error.message);
     next(error);
   }
 };
@@ -667,7 +669,7 @@ exports.createPump = async (req, res, next) => {
     const { name, notes, pumpNumber } = req.body;
     const user = req.user;
 
-    console.log(`🔧 CREATE PUMP - Station: ${stationId}, User: ${user?.id}, Body:`, JSON.stringify(req.body));
+    logger.debug('CREATE PUMP', { stationId, userId: user?.id, body: req.body });
 
     // Validate required parameters
     if (!stationId) {
@@ -726,7 +728,7 @@ exports.createPump = async (req, res, next) => {
 
           pumpCreated = true;
           finalPumpNumber = pumpNumberToTry;
-          console.log(`🔧 Auto-generated pump number: ${finalPumpNumber}`);
+          logger.debug('Auto-generated pump number', { pumpNumber: finalPumpNumber });
           break; // Exit the loop since we succeeded
         } catch (error) {
           if (error.name === 'SequelizeUniqueConstraintError') {
@@ -742,7 +744,7 @@ exports.createPump = async (req, res, next) => {
         return res.status(500).json({ success: false, error: 'Could not generate unique pump number' });
       }
     } else {
-      console.log(`🔧 Using provided pump number: ${finalPumpNumber}`);
+      logger.debug('Using provided pump number', { pumpNumber: finalPumpNumber });
       // Check if pump with this number already exists
       const existingPump = await Pump.findOne({ where: { stationId, pumpNumber: finalPumpNumber } });
 
@@ -768,17 +770,11 @@ exports.createPump = async (req, res, next) => {
       });
     }
 
-    console.log(`✅ PUMP CREATED - ID: ${pump.id}, Number: ${pump.pumpNumber}, Name: ${pump.name}`);
+    logger.info('Pump created', { pumpId: pump.id, pumpNumber: pump.pumpNumber, name: pump.name });
     res.status(201).json({ success: true, data: pump });
 
   } catch (error) {
-    console.error(`❌ CREATE PUMP ERROR - Station: ${req.params.stationId}`, {
-      message: error.message,
-      name: error.name,
-      stack: error.stack,
-      code: error.code,
-      sql: error.sql
-    });
+    logger.error('Failed to create pump', { stationId: req.params.stationId, message: error.message, errorName: error.name });
 
     // Handle specific error types
     if (error.name === 'SequelizeUniqueConstraintError') {
@@ -936,7 +932,7 @@ exports.createNozzle = async (req, res, next) => {
     const { pumpId } = req.params;
     const { fuelType, initialReading, notes, nozzleNumber } = req.body;
 
-    console.log(`🔍 Creating nozzle - pumpId: ${pumpId}, fuelType: ${fuelType}`);
+    logger.debug('CREATE NOZZLE', { pumpId, fuelType });
 
     const pump = await Pump.findByPk(pumpId);
     if (!pump) { return res.status(404).json({ success: false, error: 'Pump not found' }); }
@@ -968,7 +964,7 @@ exports.createNozzle = async (req, res, next) => {
 
           nozzleCreated = true;
           finalNozzleNumber = nozzleNumberToTry;
-          console.log(`🔍 Auto-generated nozzle number: ${finalNozzleNumber}`);
+          logger.debug('Auto-generated nozzle number', { nozzleNumber: finalNozzleNumber });
           break; // Exit the loop since we succeeded
         } catch (error) {
           if (error.name === 'SequelizeUniqueConstraintError') {
@@ -985,7 +981,7 @@ exports.createNozzle = async (req, res, next) => {
         return res.status(500).json({ success: false, error: 'Could not generate unique nozzle number' });
       }
     } else {
-      console.log(`🔍 Using provided nozzle number: ${finalNozzleNumber}`);
+      logger.debug('Using provided nozzle number', { nozzleNumber: finalNozzleNumber });
       // Create nozzle with provided number
       nozzle = await Nozzle.create({
         pumpId,
@@ -997,11 +993,11 @@ exports.createNozzle = async (req, res, next) => {
       });
     }
 
-    console.log(`✅ NOZZLE CREATED - ID: ${nozzle.id}, Number: ${nozzle.nozzleNumber}, Pump: ${pumpId}`);
+    logger.info('Nozzle created', { nozzleId: nozzle.id, nozzleNumber: nozzle.nozzleNumber, pumpId });
     res.status(201).json({ success: true, data: nozzle });
 
   } catch (error) {
-    console.error(`❌ createNozzle error:`, error.message, 'name:', error.name);
+    logger.error('Failed to create nozzle', { message: error.message, errorName: error.name });
     if (error.name === 'SequelizeUniqueConstraintError') {
       return res.status(409).json({ success: false, error: 'Nozzle with this number already exists for this pump' });
     }
@@ -1680,8 +1676,8 @@ exports.recordSettlement = async (req, res, next) => {
     const creditVariancePercent = employeeCredit > 0 ? Math.abs(varianceCredit) / employeeCredit * 100 : 0;
     
     // Log variances for debugging
-    console.log(`[SETTLEMENT VALIDATION] Online - Reported: ${employeeOnline}, Actual: ${parsedOnline}, Variance: ${varianceOnline} (${onlineVariancePercent.toFixed(2)}%)`);
-    console.log(`[SETTLEMENT VALIDATION] Credit - Reported: ${employeeCredit}, Actual: ${parsedCredit}, Variance: ${varianceCredit} (${creditVariancePercent.toFixed(2)}%)`);
+    logger.debug('Settlement validation - Online variance', { reportedOnline: employeeOnline, actualOnline: parsedOnline, variance: varianceOnline, variancePercent: onlineVariancePercent.toFixed(2) });
+    logger.debug('Settlement validation - Credit variance', { reportedCredit: employeeCredit, actualCredit: parsedCredit, variance: varianceCredit, variancePercent: creditVariancePercent.toFixed(2) });
     
     // Warn if variances exceed tolerance (but don't block)
     const warningMessages = [];
@@ -2364,7 +2360,7 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
       stationIds = userStations.map(s => s.id);
       
       if (stationIds.length === 0) {
-        console.log(`[EmployeeShortfalls] No stations found for user ${user.id} with role ${user.role}`);
+        logger.debug('No stations found for user', { userId: user.id, role: user.role });
         return res.json({
           success: true,
           data: [],
@@ -2386,7 +2382,7 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
     // Use the employee shortfalls service to calculate shortfalls
     const allShortfalls = [];
     
-    console.log(`[StationController-EmployeeShortfalls] Querying for stationIds:`, stationIds);
+    logger.debug('Querying employee shortfalls for stations', { stationIds });
     
     for (const sid of stationIds) {
       try {
@@ -2396,10 +2392,10 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
           endDate
         });
         
-        console.log(`[StationController-EmployeeShortfalls] Station ${sid}: Found ${shortfalls.length} employee shortfalls`);
+        logger.debug('Found employee shortfalls', { stationId: sid, count: shortfalls.length });
         allShortfalls.push(...shortfalls);
       } catch (error) {
-        console.warn(`[EmployeeShortfalls] Error for station ${sid}:`, error.message);
+        logger.warn('Error processing employee shortfalls for station', { stationId: sid, message: error.message });
         // Continue processing other stations
       }
     }
@@ -2451,7 +2447,7 @@ exports.getEmployeeShortfalls = async (req, res, next) => {
     // Sort by highest shortfall first
     result.sort((a, b) => b.totalShortfall - a.totalShortfall);
 
-    console.log(`[StationController-EmployeeShortfalls] Final result: ${result.length} employees with shortfalls`);
+    logger.info('Employee shortfalls report', { employeeCount: result.length, totalShortfall: result.reduce((sum, e) => sum + e.totalShortfall, 0) });
 
     res.json({
       success: true,
@@ -2513,17 +2509,17 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
       // Get stations accessible to this user based on role
       if (user.role === 'super_admin') {
         // Super admin can see all stations
-        console.log(`[EmployeeSalesBreakdown] Super admin - checking all stations`);
+        logger.debug('Super admin - checking all stations');
         // No additional filter
       } else if (user.role === 'owner') {
         // Owner can only see stations they own
         whereClause.ownerId = user.id;
-        console.log(`[EmployeeSalesBreakdown] Owner (ID: ${user.id}) - filtering by ownerId`);
+        logger.debug('Owner - filtering by ownerId', { userId: user.id });
       } else if (user.role === 'manager' || user.role === 'employee') {
         // Manager/Employee can only see their assigned station
-        console.log(`[EmployeeSalesBreakdown] ${user.role.toUpperCase()} requesting all - stationId=${user.stationId}`);
+        logger.debug('Staff requesting all - restricted to assigned station', { role: user.role, stationId: user.stationId });
         if (!user.stationId) {
-          console.warn(`[EmployeeSalesBreakdown] ${user.role} without stationId assignment - returning empty`);
+          logger.warn('Staff member without station assignment', { role: user.role, userId: user.id });
           return res.json({
             success: true,
             data: [],
@@ -2550,12 +2546,12 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
         raw: true
       });
 
-      console.log(`[EmployeeSalesBreakdown] Found ${userStations.length} accessible stations:`, userStations.map(s => `${s.id} (${s.name})`));
+      logger.info('Found accessible stations', { count: userStations.length, stations: userStations.map(s => `${s.id} (${s.name})`) });
       
       stationIds = userStations.map(s => s.id);
       
       if (stationIds.length === 0) {
-        console.log(`[EmployeeSalesBreakdown] No stations found for user ${user.id} with role ${user.role}`);
+        logger.debug('No stations found for user', { userId: user.id, role: user.role });
         return res.json({
           success: true,
           data: [],
@@ -2580,24 +2576,24 @@ exports.getEmployeeSalesBreakdown = async (req, res, next) => {
     // Fetch sales data for all stations
     const allSalesData = [];
     
-    console.log(`[EmployeeSalesBreakdown] Processing ${stationIds.length} station(s) for ${startDate}-${endDate}`);
+    logger.debug('Processing employee sales', { stationCount: stationIds.length, startDate, endDate });
     
     for (const sid of stationIds) {
       try {
-        console.log(`[EmployeeSalesBreakdown] Fetching data for station ${sid}...`);
+        logger.debug('Fetching sales data for station', { stationId: sid });
         const sales = await services.employeeSalesService.getEmployeeSalesBreakdown({
           stationId: sid,
           startDate,
           endDate
         });
         
-        console.log(`[EmployeeSalesBreakdown] Station ${sid} returned ${Array.isArray(sales) ? sales.length : 'invalid'} employee records`);
+        logger.debug('Retrieved sales records from station', { stationId: sid, recordCount: sales ? sales.length : 0 });
         if (sales && Array.isArray(sales) && sales.length > 0) {
-          console.log(`[EmployeeSalesBreakdown] Adding ${sales.length} records from station ${sid}`);
+          logger.debug('Adding sales records', { stationId: sid, count: sales.length });
           allSalesData.push(...sales);
         }
       } catch (error) {
-        console.error(`[EmployeeSalesBreakdown] Error fetching data for station ${sid}:`, error.message);
+        logger.error('Failed to fetch sales data for station', { stationId: sid, message: error.message });
       }
     }
 

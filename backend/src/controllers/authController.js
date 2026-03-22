@@ -231,91 +231,57 @@ exports.login = asyncHandler(async (req, res, next) => {
  * Get current user
  * GET /api/v1/auth/me
  */
-exports.getCurrentUser = async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const workspaceId = req.user?.workspaceId;
+exports.getCurrentUser = asyncHandler(async (req, res) => {
+  const userId = req.userId;
+  const workspaceId = req.user?.workspaceId;
 
-    const userData = await authService.getCurrentUser(userId, workspaceId);
+  const userData = await authService.getCurrentUser(userId, workspaceId);
 
-    res.json({
-      success: true,
-      data: userData
-    });
-  } catch (error) {
-    console.error('Get current user error:', error);
-    next(error);
-  }
-};
+  sendSuccess(res, userData);
+});
 
 /**
  * Register new user (owner signup or employee invite)
  * POST /api/v1/auth/register
  */
-exports.register = async (req, res, next) => {
-  try {
-    const { email, password, name, phone, role, stationId } = req.body;
+exports.register = asyncHandler(async (req, res) => {
+  const { email, password, name, phone, role, stationId } = req.body;
 
-    const result = await authService.register({
-      email,
-      password,
-      name,
-      phone,
-      role,
-      stationId
-    });
+  const result = await authService.register({
+    email,
+    password,
+    name,
+    phone,
+    role,
+    stationId
+  });
 
-    res.status(201).json({
-      success: true,
-      data: result,
-      message: 'Registration successful'
-    });
-  } catch (error) {
-    console.error('Register error:', error);
-    next(error);
-  }
-};
+  sendCreated(res, result, { message: 'Registration successful' });
+});
 
 /**
  * Change password for current user
  * POST /api/v1/auth/change-password
  */
-exports.changePassword = async (req, res, next) => {
-  try {
-    const userId = req.userId;
-    const { currentPassword, newPassword } = req.body;
+exports.changePassword = asyncHandler(async (req, res) => {
+  const userId = req.userId;
+  const { currentPassword, newPassword } = req.body;
 
-    await authService.changePassword(userId, currentPassword, newPassword);
+  await authService.changePassword(userId, currentPassword, newPassword);
 
-    res.json({ success: true, message: 'Password changed successfully' });
-  } catch (error) {
-    console.error('Change password error:', error);
-    next(error);
-  }
-};
+  sendSuccess(res, null, 200, { message: 'Password changed successfully' });
+});
 
 /**
  * Logout (client-side token removal, optionally blacklist)
  * POST /api/v1/auth/logout
  */
-exports.logout = async (req, res, next) => {
-  try {
-    const userId = req.user?.id;
-    const clientIp = getClientIp(req);
-    const userAgent = req.headers['user-agent'] || 'unknown';
+exports.logout = asyncHandler(async (req, res) => {
+  const userId = req.user?.id;
+  const clientIp = getClientIp(req);
+  const userAgent = req.headers['user-agent'] || 'unknown';
 
-    await authService.logout(userId, clientIp, userAgent);
+  await authService.logout(userId, clientIp, userAgent);
 
-    res.json({
-      success: true,
-      message: 'Logged out successfully'
-    });
-  } catch (error) {
-    console.error('Logout error:', error);
-    // Still return success - logout should not fail
-    res.json({
-      success: true,
-      message: 'Logged out'
-    });
-  }
-};
+  sendSuccess(res, null, 200, { message: 'Logged out successfully' });
+});

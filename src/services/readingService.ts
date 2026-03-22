@@ -22,6 +22,21 @@ export interface SubmitReadingRequest {
   notes?: string;
 }
 
+export interface ManualReadingData {
+  station_id: number;
+  nozzle_id: number;
+  cumulative_vol: number;
+  reading_date: string;
+  reading_time: string;
+  user_id?: number | string;
+}
+
+export interface ReceiptUploadResult {
+  readings_inserted: number;
+  parsed_preview: unknown;
+  readings: unknown[];
+}
+
 export interface ReadingFilters {
   stationId?: string;
   nozzleId?: string;
@@ -64,6 +79,23 @@ export const readingService = {
     const response = await apiClient.get<ApiResponse<NozzleReading[]>>(url);
     if (response.success && response.data) return response.data;
     return [];
+  },
+
+  async uploadReceiptForParsing(file: File, pumpSno: string, userId: string | number): Promise<ReceiptUploadResult> {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('pump_sno', pumpSno);
+    formData.append('user_id', userId.toString());
+
+    const response = await apiClient.post<ApiResponse<ReceiptUploadResult>>('/readings/upload', formData);
+    if (!response.success || !response.data) throw new Error('Failed to upload receipt');
+    return response.data;
+  },
+
+  async submitManualReading(data: ManualReadingData): Promise<NozzleReading> {
+    const response = await apiClient.post<ApiResponse<NozzleReading>>('/readings/manual', data);
+    if (!response.success || !response.data) throw new Error('Failed to submit manual reading');
+    return response.data;
   }
 };
 

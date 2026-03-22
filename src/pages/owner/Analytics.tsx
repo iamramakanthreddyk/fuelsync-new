@@ -17,13 +17,11 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { FuelBadge } from '@/components/FuelBadge';
 import { analyticsApi } from '@/api/analytics';
 import { useStations } from '@/hooks/api';
 import { useVarianceSummary } from '@/hooks/useVarianceSummary';
-import { getFuelChartColor } from '@/core/fuel/fuelConfig';
 import { safeToFixed, formatPercentage } from '@/lib/format-utils';
-import { formatCurrency, formatLitres, formatCurrencyAxis, formatNumber } from '@/utils/formatting';
+import { formatCurrency, formatLitres, formatCurrencyAxis } from '@/utils/formatting';
 import { CHART_COLORS } from '@/utils/chartConfig';
 import { Station } from '@/types/api';
 import {
@@ -38,10 +36,6 @@ import {
   AlertCircle
 } from 'lucide-react';
 import {
-  LineChart,
-  Line,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -55,56 +49,11 @@ import {
   ResponsiveContainer
 } from 'recharts';
 
-interface AnalyticsData {
-  overview: {
-    totalSales: number;
-    totalQuantity: number;
-    totalTransactions: number;
-    averageTransaction: number;
-    salesGrowth: number;
-    quantityGrowth: number;
-  };
-  salesByStation: {
-    stationId: string;
-    stationName: string;
-    sales: number;
-    percentage: number;
-  }[];
-  salesByFuelType: {
-    fuelType: string;
-    sales: number;
-    quantity: number;
-    percentage: number;
-  }[];
-  dailyTrend: {
-    date: string;
-    sales: number;
-    quantity: number;
-    transactions: number;
-  }[];
-  topPerformingStations: {
-    stationId: string;
-    stationName: string;
-    sales: number;
-    growth: number;
-  }[];
-  employeePerformance: {
-    employeeId: string;
-    employeeName: string;
-    shifts: number;
-    totalSales: number;
-    averageSales: number;
-  }[];
-}
-
 const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#ef4444'];
 
 export default function Analytics() {
   const today = new Date().toISOString().split('T')[0];
   const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split('T')[0];
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
     .toISOString()
     .split('T')[0];
 
@@ -593,7 +542,7 @@ export default function Analytics() {
                           fill="#8884d8"
                           dataKey="sales"
                         >
-                          {(analytics?.salesByStation ?? []).map((entry: { stationId: string; stationName: string; sales: number; percentage: number }, index: number) => (
+                          {(analytics?.salesByStation ?? []).map((_entry: { stationId: string; stationName: string; sales: number; percentage: number }, index: number) => (
                             <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                           ))}
                         </Pie>

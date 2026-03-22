@@ -22,7 +22,7 @@ import { toNumber } from '@/utils/number';
  */
 
 import { useState, useMemo, useEffect } from 'react';
-import { useQueryClient, useQuery, useMutation } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -35,18 +35,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ReadingInput } from '@/components/ui/ReadingInput';
 import { RoleBadge } from '@/components/ui/RoleBadge';
-import { Check } from 'lucide-react';
-import { getFuelBadgeClasses } from '@/lib/fuelColors';
-import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
-import { useStations, usePumps, useStationStaff } from '@/hooks/api';
+import { useStations, usePumps } from '@/hooks/api';
 import { useFuelPricesForStation } from '@/hooks/useFuelPricesForStation';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
+import { useQuickEntry } from '@/hooks/useQuickEntry';
 import { safeToFixed } from '@/lib/format-utils';
-import { PaymentMethodEnum, EquipmentStatusEnum } from '@/core/enums';
 import { useAuth } from '@/hooks/useAuth';
 import { useRoleAccess } from '@/hooks/useRoleAccess';
 import {
@@ -60,15 +56,15 @@ import { NozzleReadingRow } from '@/components/owner/NozzleReadingRow';
 
 import type {
   Station,
-  Pump,
-  Creditor,
-  User
+  Pump
 } from '@/types/api';
+import type { StationStaff } from '@/types/station';
 import type {
   ReadingEntry,
   CreditAllocation,
   PaymentAllocation,
-  PaymentSubBreakdown
+  PaymentSubBreakdown,
+  Creditor
 } from '@/types/finance';
 
 // Utility function to calculate litres and sale value for a nozzle
@@ -101,8 +97,6 @@ export default function QuickDataEntryEnhanced() {
   const { stations: userStations } = useRoleAccess();
   const [selectedStation, setSelectedStation] = useState<string>('');
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
-  const [readings, setReadings] = useState<Record<string, ReadingEntry>>({});
-  const [readingDate, setReadingDate] = useState(new Date().toISOString().split('T')[0]);
   const [paymentAllocation, setPaymentAllocation] = useState<PaymentAllocation>({
     cash: '0',
     online: '0',
@@ -112,6 +106,40 @@ export default function QuickDataEntryEnhanced() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  // ================================================================================
+  // HOOK: useQuickEntry - Delegates employees, creditors, mutations to hook
+  // ================================================================================
+  const quickEntry = useQuickEntry({
+    stationId: selectedStation,
+    mode: 'owner',
+    onSuccess: () => {
+      // Clear the form
+      setPaymentAllocation({ cash: '', online: '', onlineBreakdown: null, credits: [] });
+      // Invalidate and refetch pumps data
+      queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
+      queryClient.invalidateQueries({ queryKey: ['pumps-data', selectedStation] });
+      queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
+      queryClient.refetchQueries({ queryKey: ['pumps-data', selectedStation] });
+      // Invalidate dashboard data to refresh today's sales
+      queryClient.invalidateQueries({ queryKey: ['dashboard', selectedStation] });
+      // Invalidate sales report
+      queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
+      // Invalidate stations to update todaySales
+      queryClient.invalidateQueries({ queryKey: ['stations'] });
+    }
+  });
+
+  // Use hook state & actions for readings, dates, mutations, employees, creditors
+  const {
+    readings,
+    readingDate,
+    updateReading: hookUpdateReading,
+    setReadingDate: hookSetReadingDate,
+    employees: hookEmployees,
+    creditors: hookCreditors,
+    submitReadingsMutation
+  } = quickEntry;
 
   // Get fuel prices context
   const { setStationId } = useFuelPricesGlobal();
@@ -135,19 +163,16 @@ export default function QuickDataEntryEnhanced() {
   const isOwner = user?.role === 'owner';
   const isManager = user?.role === 'manager';
   
-  // Fetch employees for selected station (owners/managers can assign to employees)
-  const staffQuery = useStationStaff(selectedStation);
-  const staffResponse = staffQuery.data;
-  const employees: User[] = useMemo(() => {
-    if (!staffResponse) return [];
-    // Handle backend response structure: { success, data: { staff, summary } }
-    if (isApiSuccess<any>(staffResponse) && staffResponse.data?.staff && Array.isArray(staffResponse.data.staff)) {
-      return staffResponse.data.staff;
-    }
-    if (Array.isArray(staffResponse)) return staffResponse as User[];
-    return [];
-  }, [staffResponse]);
-  const employeesToAssign = employees.filter((emp: User) => emp.role === 'employee');
+  // Map hook employees to component state
+  const employees: StationStaff[] = useMemo(() => {
+    return (hookEmployees || []) as StationStaff[];
+  }, [hookEmployees]);
+  const employeesToAssign = employees.filter((emp: StationStaff) => emp.role === 'employee');
+
+  // Map hook creditors to component state
+  const creditors: Creditor[] = useMemo(() => {
+    return hookCreditors || [];
+  }, [hookCreditors]);
 
   // Auto-select station based on role
   useEffect(() => {
@@ -180,6 +205,11 @@ export default function QuickDataEntryEnhanced() {
       setStationId(selectedStation);
     }
   }, [selectedStation, setStationId]);
+
+  // Sync hook readingDate with local state when station changes
+  useEffect(() => {
+    hookSetReadingDate(readingDate);
+  }, [readingDate, hookSetReadingDate]);
 
   // Fetch pumps for selected station
   const pumpsQuery = usePumps(selectedStation);
@@ -218,38 +248,6 @@ export default function QuickDataEntryEnhanced() {
     enabled: !!selectedStation && !!pumps && nozzleIds.length > 0
   });
 
-  // Fetch creditors for selected station
-  const creditorsQuery = useQuery<Creditor[]>({
-    queryKey: ['creditors', selectedStation],
-    queryFn: async () => {
-      if (!selectedStation) return [];
-      try {
-        const response = await apiClient.get(`/stations/${selectedStation}/creditors`);
-        // Handle response format: { success, data: [...], pagination }
-        if (response && typeof response === 'object') {
-          if (Array.isArray(response)) {
-            return response;
-          }
-          if ('data' in response && Array.isArray((response as any).data)) {
-            return (response as any).data;
-          }
-        }
-        return [];
-      } catch (error) {
-        return [];
-      }
-    },
-    enabled: !!selectedStation
-  });
-
-  const creditorsResp = creditorsQuery.data;
-  const creditors: Creditor[] = useMemo(() => {
-    if (!creditorsResp) return [];
-    if (isApiSuccess<Creditor[]>(creditorsResp) && Array.isArray(creditorsResp.data)) return creditorsResp.data;
-    if (Array.isArray(creditorsResp)) return creditorsResp as Creditor[];
-    return [];
-  }, [creditorsResp]);
-
   // Helper: Calculate online breakdown total
   const calculateOnlineBreakdownTotal = (breakdown: PaymentSubBreakdown | null | undefined): number => {
     if (!breakdown) return 0;
@@ -280,7 +278,8 @@ export default function QuickDataEntryEnhanced() {
         pumpsArray.flatMap((pump: any) => (pump.nozzles ? pump.nozzles.map((nz: any) => nz.id) : []))
       );
       // Only process readings for valid, unique nozzle IDs
-      Object.entries(readings).forEach(([nozzleId, reading]: [string, ReadingEntry]) => {
+      const readingsToProcess = ((readings as Record<string, ReadingEntry>) || {});
+      Object.entries(readingsToProcess).forEach(([nozzleId, reading]: [string, ReadingEntry]) => {
         if (!validNozzleIds.has(nozzleId)) return;
         if (!reading || !reading.readingValue) return;
         // Skip sample readings - they don't contribute to sale value
@@ -372,200 +371,17 @@ export default function QuickDataEntryEnhanced() {
     }
   }, [saleSummary.totalSaleValue, paymentAllocation]);
 
-  // Submit readings mutation
-  const submitReadingsMutation = useMutation({
-    mutationFn: async (data: ReadingEntry[]) => {
-      // Separate sample and non-sample readings
-      const nonSampleReadings = data.filter(r => !r.is_sample);
-
-      // Validate payment allocation for all users when there are non-sample readings
-      if (nonSampleReadings.length > 0) {
-        const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
-        const totalPayment = toNumber(paymentAllocation.cash) + toNumber(paymentAllocation.online) + totalCredit;
-
-        if (totalPayment === 0) {
-          throw new Error(
-            `Payment required: At least one payment method (cash, online, or credit) must be greater than 0 for sale value ₹${safeToFixed(saleSummary.totalSaleValue, 2)}`
-          );
-        }
-
-        if (totalPayment > saleSummary.totalSaleValue) {
-          throw new Error(
-            `Total payment (₹${safeToFixed(totalPayment, 2)}) cannot exceed sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
-          );
-        }
-        if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
-          throw new Error(
-            `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
-          );
-        }
-      }
-
-      // Build per-entry sale values so we can distribute payments proportionally
-      // Note: Sample readings don't contribute to payment allocation but are still submitted
-      const entriesWithSale = data.map(entry => {
-        const nozzle = pumps?.flatMap((p: any) => p.nozzles || []).find((n: any) => n.id === entry.nozzleId);
-        // Use lastReading from nozzle object first, then from allLastReadings query
-        const trueLastReading = nozzle?.lastReading !== null && nozzle?.lastReading !== undefined
-          ? nozzle.lastReading
-          : (allLastReadings ? allLastReadings[entry.nozzleId] : undefined);
-        const lastReading = (trueLastReading !== undefined && trueLastReading !== null)
-          ? trueLastReading
-          : (nozzle?.initialReading || 0);
-        const { saleValue } = calculateNozzleSale(nozzle, entry.readingValue, lastReading, fuelPrices);
-        // Sample readings don't count toward sale value for payment allocation
-        const finalSaleValue = entry.is_sample ? 0 : saleValue;
-        return { entry, saleValue: finalSaleValue, actualSaleValue: saleValue };
-      });
-
-      const totalSale = entriesWithSale.reduce((s: number, e: any) => s + e.saleValue, 0);
-      const round2 = (v: number) => Math.round((v + Number.EPSILON) * 100) / 100;
-
-      const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
-      const cashRatio = totalSale > 0 ? (toNumber(paymentAllocation.cash) / totalSale) : 0;
-      const onlineRatio = totalSale > 0 ? (toNumber(paymentAllocation.online) / totalSale) : 0;
-      // For credit, distribute proportionally if multiple creditors
-      // We'll use the first credit allocation for each reading for now (can be improved for per-reading split)
-
-      let allocatedCash = 0, allocatedOnline = 0;
-      const readingsPayload: Array<{ nozzleId: string; readingValue: number; readingDate: string; isSample: boolean; notes: string }> = [];
-
-      entriesWithSale.forEach((item: any, idx: number) => {
-        const isLast = idx === entriesWithSale.length - 1;
-        let cashAmt = round2(item.saleValue * cashRatio);
-        let onlineAmt = round2(item.saleValue * onlineRatio);
-        const creditAmts: CreditAllocation[] = [];
-
-        if (isLast) {
-          cashAmt = round2(toNumber(paymentAllocation.cash) - allocatedCash);
-          onlineAmt = round2(toNumber(paymentAllocation.online) - allocatedOnline);
-        }
-
-        allocatedCash = round2(allocatedCash + cashAmt);
-        allocatedOnline = round2(allocatedOnline + onlineAmt);
-
-        // Distribute credit among creditors proportionally for each reading
-        let creditTotal = 0;
-        if (totalCredit > 0) {
-          paymentAllocation.credits.forEach((creditAlloc: CreditAllocation, cidx: number) => {
-            const allocAmount = toNumber(creditAlloc.amount);
-            let amt = round2(item.saleValue * (allocAmount / totalCredit));
-            if (isLast && cidx === paymentAllocation.credits.length - 1) {
-              amt = round2(allocAmount - creditTotal);
-            }
-            creditTotal += amt;
-            if (amt > 0) {
-              creditAmts.push({ creditorId: creditAlloc.creditorId, amount: amt.toString() });
-            }
-          });
-        }
-
-        // Build readings payload for quick-entry endpoint
-        readingsPayload.push({
-          nozzleId: item.entry.nozzleId,
-          readingValue: parseFloat(item.entry.readingValue),
-          readingDate: item.entry.date,
-          isSample: item.entry.is_sample || false,
-          notes: ''
-        });
-      });
-      // Build combined quick-entry payload
-      const totalCreditTxn = nonSampleReadings.length > 0 ? paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0) : 0;
-      const stationPrices = Array.isArray(fuelPrices) ? fuelPrices.map(p => ({ fuelType: p.fuel_type, price: p.price_per_litre })) : [];
-      
-      // Determine who to associate the entry with
-      // For owners/managers: use selected employee; for employees: use current user
-      const entryAssigneeId = (isOwner || isManager) ? selectedEmployeeId : user?.id;
-      
-      const quickEntryPayload: any = {
-        stationId: selectedStation,
-        transactionDate: readingDate,
-        readings: readingsPayload,
-        paymentBreakdown: nonSampleReadings.length > 0 ? {
-          cash: toNumber(paymentAllocation.cash),
-          online: toNumber(paymentAllocation.online),
-          credit: totalCreditTxn
-        } : {
-          cash: 0,
-          online: 0,
-          credit: 0
-        },
-        creditAllocations: nonSampleReadings.length > 0 && totalCreditTxn > 0 ? paymentAllocation.credits.map(c => ({ creditorId: c.creditorId, amount: toNumber(c.amount) })) : [],
-        stationPrices,
-        // Associate entry to selected employee (for owners) or current user (for employees)
-        ...(entryAssigneeId ? { assignedEmployeeId: entryAssigneeId } : {}),
-        ...(paymentAllocation.onlineBreakdown ? { paymentSubBreakdown: paymentAllocation.onlineBreakdown } : {})
-      };
-
-      const response = await apiClient.post('/transactions/quick-entry', quickEntryPayload);
-      return response;
-    },
-    onSuccess: () => {
-      toast({
-        title: 'Success ✓',
-        description: `${Object.keys(readings).length} reading(s) saved with transaction. Sale value: ₹${safeToFixed(saleSummary.totalSaleValue, 2)}`,
-        variant: 'success'
-      });
-      // Clear the form
-      setReadings({});
-      setPaymentAllocation({ cash: '', online: '', onlineBreakdown: null, credits: [] });
-      // Invalidate and refetch pumps data
-      queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
-      queryClient.invalidateQueries({ queryKey: ['pumps-data', selectedStation] });
-      queryClient.refetchQueries({ queryKey: ['pumps', selectedStation] });
-      queryClient.refetchQueries({ queryKey: ['pumps-data', selectedStation] });
-      // Invalidate dashboard data to refresh today's sales
-      queryClient.invalidateQueries({ queryKey: ['dashboard', selectedStation] });
-      // Invalidate sales report
-      queryClient.invalidateQueries({ queryKey: ['daily-sales'] });
-      // Invalidate stations to update todaySales
-      queryClient.invalidateQueries({ queryKey: ['stations'] });
-    },
-    onError: (error: unknown) => {
-      const title = 'Error';
-      let description = 'Failed to save readings';
-      // Try to extract backend response details
-      const anyErr = error as any;
-      const backendError = anyErr?.response?.data;
-      if (backendError) {
-        if (backendError.error) description = String(backendError.error);
-        if (backendError.details) {
-          try {
-            description += `\nDetails: ${JSON.stringify(backendError.details)}`;
-          } catch (_) {
-            // Ignore JSON stringify errors
-          }
-        }
-      } else if (error instanceof Error) {
-        description = error.message;
-      } else if (typeof error === 'object' && error && 'message' in (error as any)) {
-        description = String((error as { message?: string }).message);
-      }
-      toast({ title, description, variant: 'destructive' });
-    }
-  });
+  // NOTE: Mutation is provided by useQuickEntry hook (submitReadingsMutation)
+  // The hook handles all the complex logic for payment allocation, transaction creation, etc.
 
   const handleReadingChange = (nozzleId: string, value: string) => {
-    setReadings(prev => ({
-      ...prev,
-      [nozzleId]: {
-        ...prev[nozzleId],
-        nozzleId,
-        readingValue: value,
-        date: readingDate,
-        paymentType: PaymentMethodEnum.CASH
-      }
-    }));
+    // Use hook's updateReading method - params: (nozzleId, field, value)
+    hookUpdateReading(nozzleId, 'readingValue', value);
   };
 
   const handleSampleChange = (nozzleId: string, isSample: boolean) => {
-    setReadings(prev => ({
-      ...prev,
-      [nozzleId]: {
-        ...prev[nozzleId],
-        is_sample: isSample
-      }
-    }));
+    // Use hook's updateReading method with is_sample flag
+    hookUpdateReading(nozzleId, 'is_sample', isSample ? '1' : '0');
   };
 
   const hasPriceForFuelType = (fuelType: string): boolean => {
@@ -576,7 +392,8 @@ export default function QuickDataEntryEnhanced() {
   };
 
   const handleSubmit = () => {
-    const entries = Object.values(readings).filter(r => r.readingValue && parseFloat(r.readingValue) > 0);
+    const readingsArray = Array.isArray(readings) ? readings : Object.values(readings);
+    const entries = readingsArray.filter((r: any) => r && (r.readingValue || r.closingReading) && parseFloat(r.readingValue || r.closingReading || '0') > 0);
     if (entries.length === 0) {
       toast({
         title: 'No readings entered',
@@ -587,7 +404,7 @@ export default function QuickDataEntryEnhanced() {
     }
 
     // Separate sample and non-sample readings
-    const nonSampleEntries = entries.filter(e => !e.is_sample);
+    const nonSampleEntries = entries.filter((e: any) => !e.is_sample);
 
     // Validate online breakdown reconciliation
     const breakdownTotal = calculateOnlineBreakdownTotal(paymentAllocation.onlineBreakdown);
@@ -654,7 +471,14 @@ export default function QuickDataEntryEnhanced() {
       return;
     }
 
-    submitReadingsMutation.mutate(entries);
+    // Call the hook's mutation with context needed for payment processing
+    submitReadingsMutation.mutate({
+      entries,
+      paymentAllocation,
+      selectedEmployeeId,
+      isOwner,
+      isManager
+    } as any);
   };
 
   const pendingCount = Object.keys(readings).length;
@@ -738,9 +562,9 @@ export default function QuickDataEntryEnhanced() {
                         <SelectValue placeholder="Select an employee" />
                       </SelectTrigger>
                       <SelectContent>
-                        {employeesToAssign.map((employee: User) => (
+                        {employeesToAssign.map((employee: StationStaff) => (
                           <SelectItem key={employee.id} value={employee.id}>
-                            <span>{employee.name || employee.email}</span>
+                            <span>{employee.name}</span>
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -758,7 +582,7 @@ export default function QuickDataEntryEnhanced() {
                       id="reading-date"
                       type="date"
                       value={readingDate}
-                      onChange={(e) => setReadingDate(e.target.value)}
+                      onChange={(e) => hookSetReadingDate(e.target.value)}
                       className="w-full"
                     />
                   </div>
@@ -795,7 +619,7 @@ export default function QuickDataEntryEnhanced() {
                     id="reading-date"
                     type="date"
                     value={readingDate}
-                    onChange={(e) => setReadingDate(e.target.value)}
+                    onChange={(e) => hookSetReadingDate(e.target.value)}
                     className="w-full"
                   />
                 </div>
@@ -851,7 +675,8 @@ export default function QuickDataEntryEnhanced() {
                   <CardContent className="space-y-4">
                     {pump.nozzles?.map((nozzle: any) => {
                       // Calculate litres and sale value for this nozzle
-                      const reading = readings[nozzle.id];
+                      const readingsRecord = (readings as Record<string, ReadingEntry>);
+                      const reading = readingsRecord[nozzle.id];
                       const { litres, saleValue } = calculateNozzleSale(
                         nozzle,
                         reading?.readingValue || '',
@@ -865,7 +690,7 @@ export default function QuickDataEntryEnhanced() {
                         <NozzleReadingRow
                           key={nozzle.id}
                           nozzle={nozzle}
-                          readings={readings}
+                          readings={readingsRecord}
                           handleReadingChange={handleReadingChange}
                           handleSampleChange={handleSampleChange}
                           hasPriceForFuelType={hasPriceForFuelType}

@@ -130,5 +130,19 @@ export const authService = {
     if (!response.success) {
       throw new Error('Failed to send reset email');
     }
+  },
+
+  /**
+   * Update user profile
+   * PUT /api/v1/users/:id
+   */
+  async updateProfile(userId: string, data: Partial<AuthUser>): Promise<AuthUser> {
+    const response = await apiClient.put<ApiResponse<AuthUser>>(`/users/${userId}`, data);
+
+    if (!response.success || !response.data) {
+      throw new Error('Failed to update profile');
+    }
+
+    return response.data;
   }
 };

@@ -4,6 +4,8 @@
  */
 
 const { convertError } = require('../utils/errors');
+const { createContextLogger } = require('../services/loggerService');
+const logger = createContextLogger('ErrorHandler');
 
 /**
  * Error handler middleware
@@ -38,12 +40,11 @@ function errorHandler(err, req, res, next) {
 
   // Log at different levels based on status code
   if (appError.statusCode >= 500) {
-    console.error('[ERROR]', JSON.stringify(logContext));
-    if (process.env.NODE_ENV !== 'production') {
-      console.error('[STACK]', appError.stack);
-    }
+    logger.error('Server error', { ...logContext, stack: appError.stack });
   } else if (appError.statusCode >= 400) {
-    console.warn('[WARN]', JSON.stringify(logContext));
+    logger.warn('Client error', logContext);
+  } else {
+    logger.debug('Response', logContext);
   }
 
   // Build response object

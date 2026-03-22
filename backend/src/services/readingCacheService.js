@@ -4,6 +4,8 @@
  */
 
 const { Nozzle, sequelize } = require('../models');
+const { createContextLogger } = require('./loggerService');
+const logger = createContextLogger('ReadingCache');
 
 /**
  * Update nozzle's lastReading cache after a reading operation
@@ -55,7 +57,7 @@ exports.refreshNozzleCache = async (nozzleId) => {
       return { lastReading: null, lastReadingDate: null };
     }
   } catch (err) {
-    console.warn(`[WARN] Failed to refresh nozzle cache for ${nozzleId}:`, err?.message || err);
+    logger.warn('Failed to refresh nozzle cache', { nozzleId, error: err?.message || err });
     return null;
   }
 };
@@ -98,7 +100,7 @@ exports.updateNozzleCacheDirect = async (nozzleId, readingValue, readingDate) =>
       lastReadingDate: readingDate
     };
   } catch (err) {
-    console.warn(`[WARN] Failed to update nozzle cache for ${nozzleId}:`, err?.message || err);
+    logger.warn('Failed to update nozzle cache', { nozzleId, error: err?.message || err });
     return null;
   }
 };
