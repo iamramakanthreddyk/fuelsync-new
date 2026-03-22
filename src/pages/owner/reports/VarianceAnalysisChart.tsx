@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -8,10 +8,13 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  Area,
+  BarChart,
+  Bar,
+  Cell,
   ComposedChart,
-  Bar
+  ReferenceLine
 } from 'recharts';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { Settlement } from '@/hooks/useReportData';
 import { formatCurrency as globalFormatCurrency, formatNumber } from '@/lib/format-utils';
 
@@ -26,6 +29,8 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
   isLoading,
   className = '',
 }) => {
+  const [activeTab, setActiveTab] = useState('comparison');
+
   const formatCurencyDisplay = (v: number) => {
     if (!Number.isFinite(v)) return '—';
     return globalFormatCurrency(v, 0);
@@ -95,6 +100,7 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
         actual: Number(item.actual || 0),
         variance: Number(item.variance || 0),
         varianceAbs: Math.abs(Number(item.variance || 0)),
+        variancePercent: item.expected > 0 ? ((Number(item.variance || 0) / item.expected) * 100) : 0,
         stationCount: item.count,
         stations: item.stations,
       }));
@@ -161,106 +167,155 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
         </div>
       </div>
 
-      {/* Chart */}
-      <div className="h-80">
-        <ResponsiveContainer width="100%" height="100%">
-          <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis
-              dataKey="date"
-              stroke="#666"
-              fontSize={12}
-              tick={{ fill: '#666' }}
-            />
-            <YAxis
-              stroke="#666"
-              fontSize={12}
-              tick={{ fill: '#666' }}
-              tickFormatter={formatAxisTick}
-            />
-            <Tooltip
-              content={({ active, payload }) => {
-                if (active && payload && payload.length) {
-                  const data = payload[0].payload;
-                  return (
-                    <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg max-w-xs">
-                      <p className="font-medium text-gray-900">{data.fullDate}</p>
-                      <div className="space-y-2 text-sm mt-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 bg-blue-500 rounded" />
-                          <span>Expected: {formatCurencyDisplay(Number(data.expected || 0))}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-3 h-3 bg-green-500 rounded" />
-                          <span>Actual: {formatCurencyDisplay(Number(data.actual || 0))}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-3 h-3 rounded ${data.variance >= 0 ? 'bg-green-500' : 'bg-red-500'}`} />
-                          <span>Variance: {data.variance >= 0 ? '+' : ''}{formatCurencyDisplay(Number(data.variance || 0))}</span>
-                        </div>
+      {/* Chart View Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="comparison">Side-by-Side Comparison</TabsTrigger>
+          <TabsTrigger value="trend">Variance Trend</TabsTrigger>
+        </TabsList>
 
-                        {data.stationCount > 0 && (
-                          <div className="text-xs text-gray-500 mt-2 pt-2 border-t">
-                            <div className="font-medium mb-1">Stations ({data.stationCount}):</div>
-                            <div className="max-h-40 overflow-auto pr-2">
-                              {data.stations.map((station: any, idx: number) => (
-                                <div key={`${station.name}-${idx}`} className="text-xs flex justify-between">
-                                  <span className="truncate pr-2">{station.name}</span>
-                                  <span className={`font-medium ${station.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                    {station.variance >= 0 ? '+' : ''}{formatCurencyDisplay(Number(station.variance || 0))}
-                                  </span>
-                                </div>
-                              ))}
+        {/* View 1: Bar Chart Comparison (Expected vs Actual Side-by-Side) */}
+        <TabsContent value="comparison" className="mt-4">
+          <div className="h-96">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#666"
+                  fontSize={12}
+                  tick={{ fill: '#666' }}
+                />
+                <YAxis
+                  stroke="#666"
+                  fontSize={12}
+                  tick={{ fill: '#666' }}
+                  tickFormatter={formatAxisTick}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                          <p className="font-medium text-gray-900">{data.fullDate}</p>
+                          <div className="space-y-2 text-sm mt-2">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-blue-500 rounded" />
+                              <span>Expected: {formatCurencyDisplay(Number(data.expected))}</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 bg-green-500 rounded" />
+                              <span>Actual: {formatCurencyDisplay(Number(data.actual))}</span>
+                            </div>
+                            <div className="border-t pt-2 mt-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`w-3 h-3 rounded ${data.variance >= 0 ? 'bg-green-600' : 'bg-red-600'}`} />
+                                <span className={`font-medium ${data.variance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                  Gap: {data.variance >= 0 ? '+' : ''}{formatCurencyDisplay(Number(data.variance))} ({data.variancePercent?.toFixed(1)}%)
+                                </span>
+                              </div>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                }
-                return null;
-              }}
-            />
-            <Legend />
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend 
+                  wrapperStyle={{ paddingTop: '20px' }}
+                  iconType="square"
+                />
+                <Bar dataKey="expected" fill="#3b82f6" name="Expected (Reported)" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="actual" fill="#10b981" name="Actual (Received)" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </TabsContent>
 
-            {/* Expected Line */}
-            <Line
-              type="monotone"
-              dataKey="expected"
-              stroke="#3b82f6"
-              strokeWidth={3}
-              name="Expected (Reported)"
-              dot={{ fill: '#3b82f6', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: '#3b82f6', strokeWidth: 2 }}
-            />
-
-            {/* Actual Line */}
-            <Line
-              type="monotone"
-              dataKey="actual"
-              stroke="#10b981"
-              strokeWidth={3}
-              name="Actual (Received)"
-              dot={{ fill: '#10b981', strokeWidth: 2, r: 4 }}
-              activeDot={{ r: 6, stroke: '#10b981', strokeWidth: 2 }}
-            />
-
-            {/* Variance Area */}
-            <Area
-              type="monotone"
-              dataKey="variance"
-              stroke="#f59e0b"
-              fill="#fef3c7"
-              strokeWidth={2}
-              name="Variance"
-              fillOpacity={0.6}
-            />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
+        {/* View 2: Variance Trend Line with Color-Coded Bars */}
+        <TabsContent value="trend" className="mt-4">
+          <div className="h-96">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                <XAxis
+                  dataKey="date"
+                  stroke="#666"
+                  fontSize={12}
+                  tick={{ fill: '#666' }}
+                />
+                <YAxis
+                  stroke="#666"
+                  fontSize={12}
+                  tick={{ fill: '#666' }}
+                  tickFormatter={formatAxisTick}
+                />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (active && payload && payload.length) {
+                      const data = payload[0].payload;
+                      return (
+                        <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+                          <p className="font-medium text-gray-900">{data.fullDate}</p>
+                          <div className="space-y-2 text-sm mt-2">
+                            <div className="flex items-center gap-2">
+                              <div className={`w-3 h-3 rounded ${data.variance >= 0 ? 'bg-green-500' : 'bg-red-500'}`} />
+                              <span className={`font-medium ${data.variance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                Variance: {data.variance >= 0 ? '+' : ''}{formatCurencyDisplay(Number(data.variance))}
+                              </span>
+                            </div>
+                            <div className="text-xs text-gray-600">
+                              {data.variancePercent?.toFixed(1)}% of expected
+                            </div>
+                            {data.stationCount > 0 && (
+                              <div className="text-xs text-gray-500 mt-2 pt-2 border-t">
+                                <div className="font-medium mb-1">Stations ({data.stationCount}):</div>
+                                <div className="max-h-32 overflow-auto">
+                                  {data.stations.map((station: any, idx: number) => (
+                                    <div key={`${station.name}-${idx}`} className="flex justify-between">
+                                      <span className="truncate pr-2">{station.name}</span>
+                                      <span className={`font-medium whitespace-nowrap ${station.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                        {station.variance >= 0 ? '+' : ''}{formatCurencyDisplay(Number(station.variance))}
+                                      </span>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
+                <Legend />
+                <Bar dataKey="variance" fillOpacity={0.8} radius={[4, 4, 0, 0]}>
+                  {chartData.map((entry, index) => (
+                    <Cell key={`bar-${index}`} fill={entry.variance >= 0 ? '#10b981' : '#ef4444'} />
+                  ))}
+                </Bar>
+                <Line
+                  type="monotone"
+                  dataKey="variance"
+                  stroke="#f59e0b"
+                  strokeWidth={3}
+                  dot={{ fill: '#f59e0b', strokeWidth: 2, r: 5 }}
+                  activeDot={{ r: 7, stroke: '#f59e0b', strokeWidth: 2 }}
+                  name="Variance Trend"
+                  isAnimationActive={true}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </TabsContent>
+      </Tabs>
 
       {/* Insights */}
-      <div className="mt-4 p-3 bg-gray-50 rounded-lg">
+      <div className="mt-6 p-3 bg-gray-50 rounded-lg">
         <h4 className="text-sm font-medium text-gray-900 mb-2">Key Insights</h4>
         <div className="grid grid-cols-2 gap-4 text-xs">
           <div>
@@ -270,15 +325,27 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
             </span>
           </div>
           <div>
-            <span className="text-gray-600">Best Day:</span>
-            <span className="ml-1 font-medium text-green-600">
-              {chartData.reduce((best, current) =>
-                Math.abs(current.variance) < Math.abs(best.variance) ? current : best
+            <span className="text-gray-600">Highest Variance:</span>
+            <span className="ml-1 font-medium text-blue-600">
+              {chartData.reduce((max, current) =>
+                Math.abs(current.variance) > Math.abs(max.variance) ? current : max
               ).date}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Collection Efficiency:</span>
+            <span className="ml-1 font-medium text-blue-600">
+              {totalExpected > 0 ? `${((totalActual / totalExpected) * 100).toFixed(1)}%` : '—'}
+            </span>
+          </div>
+          <div>
+            <span className="text-gray-600">Days with Variance:</span>
+            <span className="ml-1 font-medium text-blue-600">
+              {chartData.filter(d => d.variance !== 0).length} / {chartData.length}
             </span>
           </div>
         </div>
       </div>
     </div>
   );
-};
+}

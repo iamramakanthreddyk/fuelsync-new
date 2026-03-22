@@ -15,12 +15,13 @@ const paymentService = require('./paymentBreakdownService');
  * @param {Object} txnReadingTotals - Map of transactionId -> summed totalAmount
  * @param {Object} [options]
  * @param {string} [options.dimensionLabel] - Label for the dimension field in output (defaults to dimensionKey)
+ * @param {string[]} [options.preserveFields] - Additional fields to preserve from first reading (e.g. ['nozzleNumber', 'fuelType', 'pumpName'])
  * @returns {Object[]} Sorted array of aggregated dimension records
  */
 function aggregateByDimension(readings, dimensionKey, txnCache, txnReadingTotals, options = {}) {
   if (!Array.isArray(readings) || readings.length === 0) return [];
 
-  const { dimensionLabel = dimensionKey } = options;
+  const { dimensionLabel = dimensionKey, preserveFields = [] } = options;
   const groups = {};
 
   readings.forEach(reading => {
@@ -28,8 +29,17 @@ function aggregateByDimension(readings, dimensionKey, txnCache, txnReadingTotals
     if (dimValue === undefined || dimValue === null) return;
 
     if (!groups[dimValue]) {
+      // Initialize group with dimension label and any preserved fields from first reading
+      const preserved = {};
+      preserveFields.forEach(field => {
+        if (reading[field] !== undefined && reading[field] !== null) {
+          preserved[field] = reading[field];
+        }
+      });
+
       groups[dimValue] = {
         [dimensionLabel]: dimValue,
+        ...preserved,
         litresSold: 0,
         totalAmount: 0,
         cash: 0,

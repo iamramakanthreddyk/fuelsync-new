@@ -92,6 +92,7 @@ async function calculateNozzleBreakdown(stationFilter, startDate, endDate, pumpI
     pumpId: r.nozzle?.pump?.id,
     pumpName: r.nozzle?.pump?.name,
     pumpNumber: r.nozzle?.pump?.pumpNumber,
+    stationName: r.station?.name,
     litresSold: r.litresSold,
     totalAmount: r.totalAmount,
     transactionId: r.transactionId
@@ -100,11 +101,13 @@ async function calculateNozzleBreakdown(stationFilter, startDate, endDate, pumpI
   const { txnCache, txnReadingTotals } = await paymentService.allocatePaymentBreakdownsProportionally(flattenedReadings);
 
   // REFACTORED: Single aggregation call replaces 44-line manual aggregation loop
+  // Preserve nozzle metadata (nozzleNumber, fuelType, pumpName) in aggregated result
   return AggregationService.aggregateByDimension(
     flattenedReadings,
     'nozzleId',
     txnCache,
-    txnReadingTotals
+    txnReadingTotals,
+    { preserveFields: ['nozzleNumber', 'fuelType', 'pumpName', 'stationName'] }
   );
 }
 

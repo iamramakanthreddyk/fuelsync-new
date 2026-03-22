@@ -315,21 +315,27 @@ export function useNozzleBreakdown({ dateRange, selectedStation }: ReportQueryPa
         }
       }
 
-      // Map backend shape to UI shape
+      // Map backend shape to UI shape (support both old and new API formats)
       const mapped: NozzleBreakdown[] = (
         Array.isArray(backendNozzles) ? backendNozzles : []
-      ).map((n: any) => ({
-        nozzleId: n.nozzleId,
-        nozzleNumber: n.nozzleNumber,
-        fuelType: n.fuelType || n.fuelLabel || 'unknown',
-        pumpName: n.pump?.name || '',
-        stationName: '',
-        totalSales: n.amount ?? 0,
-        totalQuantity: n.litres ?? 0,
-        transactions: n.count ?? n.readings ?? 0,
-        avgTransactionValue:
-          (n.count ?? n.readings ?? 0) > 0 ? (n.amount ?? 0) / (n.count ?? n.readings ?? 1) : 0,
-      }));
+      ).map((n: any) => {
+        // Support both field name variants
+        const sales = n.amount ?? n.totalAmount ?? 0;
+        const quantity = n.litres ?? n.litresSold ?? 0;
+        const transactionCount = n.count ?? n.readings ?? n.readingCount ?? 0;
+        
+        return {
+          nozzleId: n.nozzleId,
+          nozzleNumber: n.nozzleNumber || 0,  // Will be 0 only if truly missing
+          fuelType: n.fuelType || n.fuelLabel || 'UNKNOWN',  // Uppercase UNKNOWN for consistency
+          pumpName: n.pump?.name || n.pumpName || '',
+          stationName: n.stationName || '',
+          totalSales: sales,
+          totalQuantity: quantity,
+          transactions: transactionCount,
+          avgTransactionValue: transactionCount > 0 ? sales / transactionCount : 0,
+        };
+      });
 
       return mapped;
     },
