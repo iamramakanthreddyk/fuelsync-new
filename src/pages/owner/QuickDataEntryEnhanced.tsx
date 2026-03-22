@@ -232,8 +232,13 @@ export default function QuickDataEntryEnhanced() {
     return pumps?.flatMap((p: any) => p.nozzles || []).map((n: any) => n.id) || [];
   }, [pumps]);
 
+  // Create a stable string key for nozzle IDs to avoid array reference issues in queryKey
+  const nozzleIdsKey = useMemo(() => {
+    return nozzleIds.sort().join(',');
+  }, [nozzleIds]);
+
   const { data: allLastReadings, isLoading: allLastReadingsLoading } = useQuery({
-    queryKey: ['allNozzleLastReadings', selectedStation, nozzleIds],
+    queryKey: ['allNozzleLastReadings', selectedStation, nozzleIdsKey],
     queryFn: async () => {
       if (!selectedStation || !pumps || nozzleIds.length === 0) return {};
       try {
