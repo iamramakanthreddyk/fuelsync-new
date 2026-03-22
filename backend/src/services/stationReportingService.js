@@ -47,20 +47,14 @@ async function getDailySales(stationId, date) {
     throw new Error('Station not found');
   }
 
-  // Parse date
-  const reportDate = typeof date === 'string' ? new Date(date) : date;
-  const startOfDay = new Date(reportDate);
-  startOfDay.setHours(0, 0, 0, 0);
-  const endOfDay = new Date(reportDate);
-  endOfDay.setHours(23, 59, 59, 999);
+  // Parse date to YYYY-MM-DD string for DATEONLY column
+  const queryDateStr = typeof date === 'string' ? date.split('T')[0] : new Date(date).toISOString().split('T')[0];
 
   // Fetch readings for the day
   const readings = await NozzleReading.findAll({
     where: {
       stationId,
-      readingDate: {
-        [Op.between]: [startOfDay, endOfDay]
-      },
+      readingDate: queryDateStr,
       ...EXCLUDE_SAMPLE_READINGS
     },
     include: [
@@ -82,10 +76,10 @@ async function getDailySales(stationId, date) {
   });
 
   if (readings.length === 0) {
-    logger.debug('No readings found for station on date', { stationId, date: reportDate });
+    logger.debug('No readings found for station on date', { stationId, date: queryDateStr });
     return {
       stationId,
-      date: reportDate,
+      date: queryDateStr,
       totalVolume: 0,
       totalValue: 0,
       byFuelType: [],
@@ -105,8 +99,8 @@ async function getDailySales(stationId, date) {
 
   readings.forEach(reading => {
     const fuelType = reading.nozzle?.fuelType || 'unknown';
-    const volume = reading.volume || 0;
-    const value = reading.value || 0;
+    const volume = parseFloat(reading.litresSold) || 0;
+    const value = parseFloat(reading.totalAmount) || 0;
 
     totalVolume += volume;
     totalValue += value;
@@ -145,7 +139,7 @@ async function getDailySales(stationId, date) {
 
   logger.info('Daily sales calculated', { 
     stationId, 
-    date: reportDate,
+    date: queryDateStr,
     totalReadings: readings.length,
     settled: settled.length,
     pending: pending.length 
@@ -153,7 +147,7 @@ async function getDailySales(stationId, date) {
 
   return {
     stationId,
-    date: reportDate,
+    date: queryDateStr,
     totalVolume: parseFloat(totalVolume.toFixed(2)),
     totalValue: parseFloat(totalValue.toFixed(2)),
     byFuelType: Object.values(fuelTypeMap).map(ft => ({
@@ -169,13 +163,13 @@ async function getDailySales(stationId, date) {
     settlementCategories: {
       settled: {
         count: settled.length,
-        volume: parseFloat(settled.reduce((sum, r) => sum + (r.volume || 0), 0).toFixed(2)),
-        value: parseFloat(settled.reduce((sum, r) => sum + (r.value || 0), 0).toFixed(2))
+        volume: parseFloat(settled.reduce((sum, r) => sum + (parseFloat(r.litresSold) || 0), 0).toFixed(2)),
+        value: parseFloat(settled.reduce((sum, r) => sum + (parseFloat(r.totalAmount) || 0), 0).toFixed(2))
       },
       pending: {
         count: pending.length,
-        volume: parseFloat(pending.reduce((sum, r) => sum + (r.volume || 0), 0).toFixed(2)),
-        value: parseFloat(pending.reduce((sum, r) => sum + (r.value || 0), 0).toFixed(2))
+        volume: parseFloat(pending.reduce((sum, r) => sum + (parseFloat(r.litresSold) || 0), 0).toFixed(2)),
+        value: parseFloat(pending.reduce((sum, r) => sum + (parseFloat(r.totalAmount) || 0), 0).toFixed(2))
       }
     }
   };
