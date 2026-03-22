@@ -34,7 +34,11 @@ export const NozzleReadingRow: React.FC<NozzleReadingRowProps> = ({
   saleValue = 0,
 }) => {
   const initialReading = nozzle.initialReading ? parseFloat(String(nozzle.initialReading)) : null;
-  const parsedLastReading = (lastReading !== null && lastReading !== undefined) ? parseFloat(String(lastReading)) : null;
+  // Priority: use passed-in lastReading prop first, then nozzle's lastReading, then fallback to initialReading
+  const effectiveLastReading = (lastReading !== null && lastReading !== undefined) 
+    ? lastReading
+    : (nozzle.lastReading !== null && nozzle.lastReading !== undefined ? nozzle.lastReading : null);
+  const parsedLastReading = (effectiveLastReading !== null && effectiveLastReading !== undefined) ? parseFloat(String(effectiveLastReading)) : null;
   const compareValue = (parsedLastReading !== null && !isNaN(parsedLastReading))
     ? parsedLastReading
     : (initialReading !== null && !isNaN(initialReading) ? initialReading : 0);
