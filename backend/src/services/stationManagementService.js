@@ -181,7 +181,7 @@ async function getStation(stationId) {
       {
         model: User,
         as: 'owner',
-        attributes: ['id', 'fullName', 'email'],
+        attributes: ['id', 'name', 'email'],
         include: [
           {
             model: Plan,
