@@ -240,11 +240,15 @@ module.exports = (sequelize) => {
 
   /**
    * Get refill history for a tank
+   * Note: Excludes calibration/adjustment entries (which are level corrections, not actual refills)
    */
   TankRefill.getHistory = async function(tankId, options = {}) {
     const { startDate, endDate, page = 1, limit = 20 } = options;
     
-    const where = { tankId };
+    const where = { 
+      tankId,
+      entryType: { [Op.notIn]: ['calibration', 'adjustment'] }  // Only show actual refills
+    };
     
     if (startDate && endDate) {
       where.refillDate = { [Op.between]: [startDate, endDate] };
