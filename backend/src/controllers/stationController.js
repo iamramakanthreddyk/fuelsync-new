@@ -1371,7 +1371,7 @@ exports.getDailySales = async (req, res, next) => {
     });
 
     // Use shared helper to compute deduplicated payment totals
-    const paymentTotals = calcDeduplicatedTotals(readings);
+    const paymentTotals = calculateDeduplicatedTotals(readings);
     totalCash = paymentTotals.cash;
     totalOnline = paymentTotals.online;
     totalCredit = paymentTotals.credit;
@@ -1546,10 +1546,10 @@ exports.getReadingsForSettlement = async (req, res, next) => {
     
     
     // Calculate totals for unlinked readings
-    const unlinkedTotals = calcDeduplicatedTotals(unlinkedReadings);
+    const unlinkedTotals = calculateDeduplicatedTotals(unlinkedReadings);
 
     // Calculate totals for linked readings
-    const linkedTotals = calcDeduplicatedTotals(linkedReadings);
+    const linkedTotals = calculateDeduplicatedTotals(linkedReadings);
 
     res.json({
       success: true,

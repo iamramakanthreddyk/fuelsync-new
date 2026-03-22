@@ -599,7 +599,7 @@ exports.deleteTank = asyncHandler(async (req, res, next) => {
 
   await tank.destroy();
 
-  return sendSuccess(res, null, { message: 'Tank deleted successfully' });
+  return sendSuccess(res, null, 200, { message: 'Tank deleted successfully' });
 });
 
 /**
@@ -628,5 +628,5 @@ exports.deleteRefill = asyncHandler(async (req, res, next) => {
     await refill.destroy({ transaction });
   });
   
-  return sendSuccess(res, null, { message: 'Refill deleted and tank level adjusted' });
+  return sendSuccess(res, null, 200, { message: 'Refill deleted and tank level adjusted' });
 });

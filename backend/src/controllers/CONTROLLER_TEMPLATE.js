@@ -126,7 +126,7 @@ exports.update = asyncHandler(async (req, res, next) => {
   });
 
   // Send response
-  return sendSuccess(res, updated, { message: 'Resource updated successfully' });
+  return sendSuccess(res, updated, 200, { message: 'Resource updated successfully' });
 });
 
 /**
@@ -147,7 +147,7 @@ exports.delete = asyncHandler(async (req, res, next) => {
   await services.resourceService.delete(id, { deletedBy: user.id });
 
   // Send response
-  return sendSuccess(res, { id }, { message: 'Resource deleted successfully' });
+  return sendSuccess(res, { id }, 200, { message: 'Resource deleted successfully' });
 });
 
 /**
@@ -169,7 +169,7 @@ exports.performAction = asyncHandler(async (req, res, next) => {
   const result = await services.resourceService.performAction(resource, actionType, amount, user);
 
   // Send response
-  return sendSuccess(res, result, { message: `${actionType} completed successfully` });
+  return sendSuccess(res, result, 200, { message: `${actionType} completed successfully` });
 });
 
 // ============================================

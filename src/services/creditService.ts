@@ -43,8 +43,10 @@ export const creditService = {
     if (showAll) params.set('showAll', 'true');
     const queryString = params.toString();
     const url = queryString ? `/creditors/ledger?${queryString}` : '/creditors/ledger';
-    const response = await apiClient.get<Creditor[]>(url);
-    return Array.isArray(response) ? response : [];
+    const response = await apiClient.get<{ success: boolean; data: Creditor[] } | Creditor[]>(url);
+    // Handle both envelope { success, data } and raw array responses
+    const list = (response as any)?.data ?? response;
+    return Array.isArray(list) ? list : [];
   },
 
   /**
@@ -55,6 +57,7 @@ export const creditService = {
     const response = await apiClient.get<{ success: boolean; data: CreditTransaction[] }>(
       `/stations/${stationId}/credit-transactions?creditorId=${creditorId}`
     );
-    return response.success ? response.data : [];
+    const list = (response as any)?.data ?? response;
+    return Array.isArray(list) ? list : [];
   },
 };

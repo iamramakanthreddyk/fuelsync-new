@@ -23,7 +23,7 @@
  */
 
 // ===== MODELS & DATABASE =====
-const { User, Station, Plan } = require('../models');
+const { User, Station, Plan, NozzleReading, Shift } = require('../models');
 const { Op } = require('sequelize');
 
 // ===== ERROR & RESPONSE HANDLING =====
@@ -312,13 +312,51 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
   }
 
   if (stationId && stationId !== user.stationId) {
-    if (currentUser.role === 'owner') {
-      const station = await Station.findByPk(stationId);
-      if (!station || station.ownerId !== currentUser.id) {
-        throw new AuthorizationError('You can only move staff to your own stations');
+    // Only super_admin can reassign a user to a different station.
+    // Owners must not do this — the employee may have unsettled readings or open
+    // shifts at their current station which would become inaccessible after the move.
+    if (currentUser.role !== 'super_admin') {
+      return sendError(
+        res,
+        'FORBIDDEN',
+        'Station reassignment must be performed by a super admin. The employee may have unsettled readings or open shifts at their current station.',
+        403
+      );
+    }
+
+    // Even for super_admin: block if there are unsettled readings at the current station
+    if (user.stationId) {
+      const unsettledReadings = NozzleReading
+        ? await NozzleReading.count({
+            where: { enteredBy: user.id, stationId: user.stationId, status: 'unsettled' }
+          })
+        : 0;
+
+      if (unsettledReadings > 0) {
+        return sendError(
+          res,
+          'REASSIGNMENT_BLOCKED',
+          `Cannot reassign station: employee has ${unsettledReadings} unsettled reading(s) at their current station. Settle or transfer these readings first.`,
+          409,
+          { unsettledReadings }
+        );
       }
-    } else if (currentUser.role !== 'super_admin') {
-      throw new AuthorizationError('Only owner can change staff station');
+
+      const openShifts = Shift
+        ? await Shift.count({
+            where: { employeeId: user.id, stationId: user.stationId, status: 'open' }
+          })
+        : 0;
+
+      if (openShifts > 0) {
+        return sendError(
+          res,
+          'REASSIGNMENT_BLOCKED',
+          `Cannot reassign station: employee has ${openShifts} open shift(s) at their current station. Close these shifts first.`,
+          409,
+          { openShifts }
+        );
+      }
     }
   }
 
@@ -356,7 +394,7 @@ exports.updateUser = asyncHandler(async (req, res, next) => {
     description: `Updated user: ${user.name} (${user.email})`
   });
 
-  return sendSuccess(res, user.toSafeObject(), {
+  return sendSuccess(res, user.toSafeObject(), 200, {
     message: 'User updated'
   });
 });

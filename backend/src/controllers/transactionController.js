@@ -252,7 +252,7 @@ exports.createTransaction = asyncHandler(async (req, res, next) => {
  * POST /api/v1/transactions/quick-entry
  */
 exports.createQuickEntry = asyncHandler(async (req, res, next) => {
-  const { stationId, transactionDate, readings = [], paymentBreakdown, creditAllocations = [], notes = '' } = req.body;
+  const { stationId, transactionDate, readings = [], paymentBreakdown, paymentSubBreakdown = null, creditAllocations = [], notes = '' } = req.body;
   const assignedEmployeeId = req.body.assignedEmployeeId || req.body.associatedEmployeeId || null;
   const userId = req.user.id;
 
@@ -343,6 +343,7 @@ exports.createQuickEntry = asyncHandler(async (req, res, next) => {
       totalLiters,
       totalSaleValue,
       paymentBreakdown: paymentBalance.normalizedBreakdown,
+      paymentSubBreakdown: paymentSubBreakdown || null,
       creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
       readingIds,
       createdBy: userId,
@@ -400,7 +401,10 @@ exports.createQuickEntry = asyncHandler(async (req, res, next) => {
       ]
     });
 
-    return sendCreated(res, { ...result.dataValues, createdReadings, creditTransactions: createdCreditTxns, autoBalanced: paymentBalance.autoBalanced }, { message: 'Quick entry created' });
+    // Re-fetch readings so transactionId is reflected in the response
+    const freshReadings = await NozzleReading.findAll({ where: { id: readingIds } });
+
+    return sendCreated(res, { ...result.dataValues, createdReadings: freshReadings, creditTransactions: createdCreditTxns, autoBalanced: paymentBalance.autoBalanced }, { message: 'Quick entry created' });
   } catch (err) {
     await t.rollback();
     throw err;
@@ -566,7 +570,7 @@ exports.updateTransaction = asyncHandler(async (req, res, next) => {
     ]
   });
 
-  return sendSuccess(res, result, { message: 'Transaction updated' });
+  return sendSuccess(res, result, 200, { message: 'Transaction updated' });
 });
 
 /**
@@ -586,5 +590,5 @@ exports.deleteTransaction = asyncHandler(async (req, res, next) => {
 
   await transaction.destroy();
 
-  return sendSuccess(res, null, { message: 'Transaction deleted' });
+  return sendSuccess(res, null, 200, { message: 'Transaction deleted' });
 });
