@@ -459,7 +459,7 @@ exports.deactivateUser = asyncHandler(async (req, res, next) => {
     description: `Deactivated user: ${user.name} (${user.email})`
   });
 
-  return sendSuccess(res, null, {
+  return sendSuccess(res, null, 200, {
     message: `User ${user.name} deactivated`
   });
 });
@@ -507,7 +507,7 @@ exports.resetPassword = asyncHandler(async (req, res, next) => {
     description: `Password reset for user: ${user.name} (${user.email})`
   });
 
-  return sendSuccess(res, null, {
+  return sendSuccess(res, null, 200, {
     message: 'Password reset successfully'
   });
 });
