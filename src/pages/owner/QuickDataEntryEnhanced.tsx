@@ -56,6 +56,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { PaymentAllocationForm } from '@/components/features/payment/PaymentAllocationForm';
+import { NozzleReadingRow } from '@/components/owner/NozzleReadingRow';
 
 import type {
   Station,
@@ -842,94 +843,18 @@ export default function QuickDataEntryEnhanced() {
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-4">
-                    {pump.nozzles?.map((nozzle: any) => {
-                      const nozzleId = nozzle.id;
-                      const reading = readings[nozzleId];
-                      // Use lastReading from nozzle object first, then from allLastReadings query, fallback to initialReading
-                      const lastReading = nozzle.lastReading !== null && nozzle.lastReading !== undefined
-                        ? nozzle.lastReading
-                        : (allLastReadings ? allLastReadings[nozzleId] : undefined);
-                      const compareValue = (lastReading !== null && lastReading !== undefined)
-                        ? lastReading
-                        : (nozzle.initialReading || 0);
-                      const { litres, saleValue } = calculateNozzleSale(nozzle, reading?.readingValue, compareValue, fuelPrices);
-
-                      return (
-                        <div key={nozzleId} className="border rounded-lg p-2 sm:p-4 bg-white hover:bg-brand-50 transition-colors border-brand-200">
-                          {/* Header */}
-                          <div className="flex flex-col gap-2 mb-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-1 flex-wrap">
-                                <Badge variant="outline" className="text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 border-brand-300 whitespace-nowrap">
-                                  #{nozzle.nozzleNumber}
-                                </Badge>
-                                <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 whitespace-nowrap`}>
-                                  {nozzle.fuelType}
-                                </Badge>
-                                {!hasPriceForFuelType(nozzle.fuelType) && (
-                                  <span className="text-red-600 text-xs font-bold bg-red-50 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded whitespace-nowrap">⚠ No price</span>
-                                )}
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Label htmlFor={`sample-${nozzleId}`} className="text-xs text-brand-600 font-medium">
-                                  Sample
-                                </Label>
-                                <Switch
-                                  id={`sample-${nozzleId}`}
-                                  checked={reading?.is_sample || false}
-                                  onCheckedChange={(checked) => handleSampleChange(nozzleId, checked)}
-                                />
-                              </div>
-                            </div>
-                            <div className="text-left">
-                              <div className="text-xs text-brand-500 font-medium">Previous</div>
-                              <div className="text-base sm:text-lg font-bold text-brand-900 break-words">{safeToFixed(compareValue, 1)} L</div>
-                            </div>
-                          </div>
-                          {/* Input Section */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                              <div className="relative">
-                                <ReadingInput
-                                  value={reading?.readingValue !== undefined && reading?.readingValue !== null ? reading.readingValue : ''}
-                                  onChange={(val: string) => handleReadingChange(nozzleId, val)}
-                                  disabled={nozzle.status !== EquipmentStatusEnum.ACTIVE || !hasPriceForFuelType(nozzle.fuelType)}
-                                  placeholder="Current reading"
-                                  className={`text-base sm:text-sm h-10 sm:h-9 font-semibold w-full break-words overflow-hidden ${!hasPriceForFuelType(nozzle.fuelType) ? 'border-red-300 bg-red-50 text-red-900' : 'border-brand-300 text-brand-900'}`}
-                                />
-                                {(() => {
-                                  const enteredValue = reading?.readingValue !== undefined && reading?.readingValue !== '' ? parseFloat(reading.readingValue) : undefined;
-                                  return reading?.readingValue && enteredValue !== undefined && (
-                                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                                      {enteredValue > compareValue ? (
-                                        <Check className="w-5 h-5 text-emerald-600 font-bold" />
-                                      ) : (
-                                        <span className="text-xs text-red-700 font-bold">Invalid</span>
-                                      )}
-                                    </div>
-                                  );
-                                })()}
-                              </div>
-                            </div>
-                            {/* Sale Calculation */}
-                            <div className="text-right">
-                              {reading?.readingValue && parseFloat(reading.readingValue) > compareValue ? (
-                                <div>
-                                  <p className="text-sm text-gray-600">
-                                    {safeToFixed(litres, 2)} L
-                                  </p>
-                                  <p className="font-semibold text-green-600">
-                                    ₹{safeToFixed(saleValue, 2)}
-                                  </p>
-                                </div>
-                              ) : (
-                                <p className="text-sm text-gray-500">No sale</p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
+                    {pump.nozzles?.map((nozzle: any) => (
+                      <NozzleReadingRow
+                        key={nozzle.id}
+                        nozzle={nozzle}
+                        readings={readings}
+                        handleReadingChange={handleReadingChange}
+                        handleSampleChange={handleSampleChange}
+                        hasPriceForFuelType={hasPriceForFuelType}
+                        lastReading={allLastReadings?.[nozzle.id]}
+                        lastReadingLoading={false}
+                      />
+                    ))}
                   </CardContent>
                 </Card>
               ))}
