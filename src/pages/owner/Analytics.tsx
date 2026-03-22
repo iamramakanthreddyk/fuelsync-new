@@ -23,6 +23,8 @@ import { useStations } from '@/hooks/api';
 import { useVarianceSummary } from '@/hooks/useVarianceSummary';
 import { getFuelChartColor } from '@/core/fuel/fuelConfig';
 import { safeToFixed, formatPercentage } from '@/lib/format-utils';
+import { formatCurrency, formatLitres, formatCurrencyAxis, formatNumber } from '@/utils/formatting';
+import { CHART_COLORS } from '@/utils/chartConfig';
 import { Station } from '@/types/api';
 import {
   TrendingUp,
@@ -148,9 +150,6 @@ export default function Analytics() {
     }
   });
 
-
-  const formatCurrency = (amount: number) => `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-  const formatLitres = (litres: number) => `${safeToFixed(litres, 0)} L`;
 
   // Custom tooltip for charts
   interface TooltipPayloadEntry {
@@ -465,9 +464,9 @@ export default function Analytics() {
                 </div>
                 <CardDescription className="text-xs sm:text-sm">
                   {varianceSummary.totalVariance > 0 
-                    ? `Missing: ₹${Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% shortfall)`
+                    ? `Missing: ${formatCurrency(Math.abs(varianceSummary.totalVariance))} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% shortfall)`
                     : varianceSummary.totalVariance < 0
-                    ? `Extra: ₹${Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% overage)`
+                    ? `Extra: ${formatCurrency(Math.abs(varianceSummary.totalVariance))} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% overage)`
                     : 'Perfect match - no variance'
                   }
                 </CardDescription>
@@ -510,13 +509,13 @@ export default function Analytics() {
                       varianceSummary.totalVariance < 0 ? 'text-yellow-700' :
                       'text-green-700'
                     }`}>
-                      ₹{Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      {formatCurrency(Math.abs(varianceSummary.totalVariance))}
                     </div>
                   </div>
                   <div className="p-2 sm:p-3 rounded border-2 border-purple-200 bg-purple-50">
                     <div className="text-xs text-muted-foreground font-bold">AVG/DAY</div>
                     <div className="text-sm sm:text-lg font-bold text-purple-700">
-                      ₹{Math.abs(varianceSummary.avgDailyVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                      {formatCurrency(Math.abs(varianceSummary.avgDailyVariance))}
                     </div>
                   </div>
                   <div className="p-2 sm:p-3 rounded border-2 border-blue-200 bg-blue-50">
@@ -546,16 +545,16 @@ export default function Analytics() {
                     />
                     <YAxis 
                       tick={{ fontSize: 11 }}
-                      tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`}
+                      tickFormatter={(value) => formatCurrencyAxis(value * 1000)}
                     />
                     <Tooltip 
-                      formatter={(value: number) => `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`}
+                      formatter={(value: number) => formatCurrency(value)}
                       contentStyle={{ fontSize: '12px' }}
                     />
                     <Area 
                       type="monotone" 
                       dataKey="variance" 
-                      stroke="#dc2626" 
+                      stroke={CHART_COLORS.danger} 
                       strokeWidth={2}
                       fillOpacity={1}
                       fill="url(#colorVariance)"

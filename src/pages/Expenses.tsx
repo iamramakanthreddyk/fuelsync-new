@@ -20,6 +20,7 @@ import { useGlobalFilter } from '@/context/GlobalFilterContext';
 import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { formatCurrency } from '@/utils/formatting';
 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -103,9 +104,6 @@ const APPROVAL_ICON: Record<string, JSX.Element> = {
 };
 
 // ── Helper ────────────────────────────────────────────────────────────────────
-
-const fmt = (n: number) =>
-  `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 // ── Components ────────────────────────────────────────────────────────────────
 
@@ -291,7 +289,7 @@ function PendingApprovalRow({ expense, onApprove, approving }: PendingRowProps) 
       <TableCell className="text-xs">{expense.expenseDate}</TableCell>
       <TableCell className="text-xs">{EXPENSE_CATEGORIES[expense.category] ?? expense.category}</TableCell>
       <TableCell className="text-xs max-w-[160px] truncate">{expense.description}</TableCell>
-      <TableCell className="text-xs font-semibold">{fmt(parseFloat(String(expense.amount)))}</TableCell>
+      <TableCell className="text-xs font-semibold">{formatCurrency(parseFloat(String(expense.amount)))}</TableCell>
       <TableCell className="text-xs text-muted-foreground">{(expense.enteredByUser as any)?.name ?? '—'}</TableCell>
       <TableCell>
         <div className="flex gap-1">
@@ -508,7 +506,7 @@ export default function ExpensesPage() {
               </div>
               <div>
                 <div className="text-xs text-muted-foreground">Period Total</div>
-                <div className="text-xl font-bold">{fmt(allExpenses.reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0))}</div>
+                <div className="text-xl font-bold">{formatCurrency(allExpenses.reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0))}</div>
                 <div className="text-xs text-muted-foreground">{globalStartDate} to {globalEndDate}</div>
               </div>
             </div>
@@ -606,14 +604,14 @@ export default function ExpensesPage() {
           <Card>
             <CardContent className="pt-4 pb-3">
               <p className="text-xs text-muted-foreground">Total Expenses</p>
-              <p className="text-xl font-bold text-blue-600">{fmt(allExpenses.reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0))}</p>
+              <p className="text-xl font-bold text-blue-600">{formatCurrency(allExpenses.reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0))}</p>
             </CardContent>
           </Card>
           {pending.length > 0 && (
             <Card className="border-yellow-200">
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">⏳ Awaiting Review</p>
-                <p className="text-xl font-bold text-yellow-600">{fmt(pending.reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0))}</p>
+                <p className="text-xl font-bold text-yellow-600">{formatCurrency(pending.reduce((sum, e) => sum + (parseFloat(String(e.amount)) || 0), 0))}</p>
                 <p className="text-xs text-yellow-600">{pending.length} pending</p>
                 <p className="text-xs text-muted-foreground mt-1">Entered by staff • Not counted yet</p>
               </CardContent>
@@ -643,7 +641,7 @@ export default function ExpensesPage() {
                   <p className="text-sm font-medium">{EXPENSE_CATEGORIES[c.category] ?? c.category}</p>
                   <p className="text-xs text-muted-foreground">{c.count} entries</p>
                 </div>
-                <p className="font-semibold text-red-600">{fmt(c.total)}</p>
+                <p className="font-semibold text-red-600">{formatCurrency(c.total)}</p>
               </div>
             ))}
           </div>
@@ -701,7 +699,7 @@ function ExpenseTable({ expenses, loading }: { expenses: Expense[]; loading: boo
                   <TableCell className="text-xs text-muted-foreground">
                     {FREQUENCY_LABELS[(exp.frequency as ExpenseFrequency) ?? 'one_time']}
                   </TableCell>
-                  <TableCell className="text-xs font-semibold">{fmt(exp.amount)}</TableCell>
+                  <TableCell className="text-xs font-semibold">{formatCurrency(exp.amount)}</TableCell>
                   <TableCell>
                     <Badge className={`text-xs gap-1 ${APPROVAL_COLOR[status] ?? ''}`}>
                       {APPROVAL_ICON[status]}

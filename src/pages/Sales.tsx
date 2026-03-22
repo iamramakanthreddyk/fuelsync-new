@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { formatCurrency, formatNumber, formatPricePerLitre } from '@/utils/formatting';
 import {
   Select,
   SelectContent,
@@ -115,7 +116,7 @@ export default function Sales() {
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-xl lg:text-2xl font-bold break-words">
-              ₹{salesArray?.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}
+              {formatCurrency(salesArray?.reduce((sum, sale) => sum + (sale.totalAmount || 0), 0) || 0, 2)}
             </div>
           </CardContent>
         </Card>
@@ -127,7 +128,7 @@ export default function Sales() {
           </CardHeader>
           <CardContent>
             <div className="text-lg sm:text-xl lg:text-2xl font-bold break-words">
-              {salesArray?.reduce((sum, sale) => sum + (sale.deltaVolumeL || 0), 0).toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) || '0.0'} L
+              {formatNumber(salesArray?.reduce((sum, sale) => sum + (sale.deltaVolumeL || 0), 0) || 0, 1)} L
             </div>
           </CardContent>
         </Card>
@@ -278,10 +279,10 @@ export default function Sales() {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-medium">₹{(sale.totalAmount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                      <div className="font-medium">{formatCurrency(sale.totalAmount || 0, 2)}</div>
                       <div className="text-sm text-muted-foreground">{(sale.deltaVolumeL || 0).toFixed(1)} L</div>
                       {unitPrice != null && (
-                        <div className="text-sm text-muted-foreground">₹{Number(unitPrice).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} / L</div>
+                        <div className="text-sm text-muted-foreground">{formatPricePerLitre(Number(unitPrice))}</div>
                       )}
                     </div>
                   </div>

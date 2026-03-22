@@ -15,6 +15,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { apiClient } from '@/lib/api-client';
 import { useStations } from '@/hooks/api';
+import { formatCurrency } from '@/utils/formatting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingDown, AlertCircle } from 'lucide-react';
 import { DateRangeFilterToolbar } from '@/components/DateRangeFilterToolbar';
@@ -43,9 +44,6 @@ interface ManagerStats {
     }>;
   }>;
 }
-
-const fmt = (n: number) =>
-  `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 export default function ManagerDashboard() {
   const { user } = useAuth();
@@ -117,7 +115,7 @@ export default function ManagerDashboard() {
                 <div className="flex flex-col items-center">
                   <div className="text-xs text-muted-foreground">Sales</div>
                   <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                    {fmt(stats.today.amount)}
+                    {formatCurrency(stats.today.amount)}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">{stats.today.litres}L</div>
                 </div>
@@ -126,9 +124,9 @@ export default function ManagerDashboard() {
                 <div className="flex flex-col items-center">
                   <div className="text-xs text-muted-foreground">Cash</div>
                   <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                    {fmt(stats.today.cash)}
+                    {formatCurrency(stats.today.cash)}
                   </div>
-                  <div className="text-xs text-muted-foreground mt-1">{fmt(stats.today.online)} online</div>
+                  <div className="text-xs text-muted-foreground mt-1">{formatCurrency(stats.today.online)} online</div>
                 </div>
 
                 {/* Readings */}
@@ -144,7 +142,7 @@ export default function ManagerDashboard() {
                 <div className="flex flex-col items-center">
                   <div className="text-xs text-muted-foreground">Credit</div>
                   <div className={`text-2xl font-bold ${stats.creditOutstanding > 0 ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}`}>
-                    {fmt(stats.creditOutstanding)}
+                    {formatCurrency(stats.creditOutstanding)}
                   </div>
                   <div className="text-xs text-muted-foreground mt-1">Outstanding</div>
                 </div>

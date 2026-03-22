@@ -16,6 +16,7 @@ import type { Expense } from '@/api/expenses';
 import { useStations } from '@/hooks/api';
 import { useGlobalFilter } from '@/context/GlobalFilterContext';
 import { useSettlements } from '@/hooks/useReportData';
+import { formatCurrency } from '@/utils/formatting';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -39,8 +40,6 @@ interface PumpPerformance {
   todayLitres: number;
   nozzleCount: number;
 }
-
-const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
 
 export default function ManagerReports() {
   const { startDate, endDate } = useGlobalFilter();
@@ -265,7 +264,7 @@ export default function ManagerReports() {
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
-                  <div className="text-lg sm:text-2xl font-bold text-blue-600 truncate">{fmt(totals.amount)}</div>
+                  <div className="text-lg sm:text-2xl font-bold text-blue-600 truncate">{formatCurrency(totals.amount)}</div>
                   <p className="text-xs text-muted-foreground mt-0.5">{totals.litres}L dispensed</p>
                 </CardContent>
               </Card>
@@ -281,11 +280,11 @@ export default function ManagerReports() {
                 <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
                   <div className="space-y-0.5">
                     <div className="text-xs">
-                      <span className="font-semibold text-green-600 text-sm sm:text-base">{fmt(totals.cash)}</span>
+                      <span className="font-semibold text-green-600 text-sm sm:text-base">{formatCurrency(totals.cash)}</span>
                       <span className="text-muted-foreground ml-1">cash</span>
                     </div>
                     <div className="text-xs">
-                      <span className="font-semibold text-blue-600 text-sm sm:text-base">{fmt(totals.online)}</span>
+                      <span className="font-semibold text-blue-600 text-sm sm:text-base">{formatCurrency(totals.online)}</span>
                       <span className="text-muted-foreground ml-1">online</span>
                     </div>
                   </div>
@@ -316,7 +315,7 @@ export default function ManagerReports() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
-                    <div className="text-lg sm:text-2xl font-bold text-red-600 truncate">{fmt(totals.expenses ?? 0)}</div>
+                    <div className="text-lg sm:text-2xl font-bold text-red-600 truncate">{formatCurrency(totals.expenses ?? 0)}</div>
                     <p className="text-xs text-muted-foreground mt-0.5">Total recorded</p>
                   </CardContent>
                 </Card>
@@ -332,7 +331,7 @@ export default function ManagerReports() {
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="px-3 pb-3 sm:px-6 sm:pb-4">
-                    <div className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{fmt(shortfallInfo.totalShortfall)}</div>
+                    <div className="text-lg sm:text-2xl font-bold text-orange-600 truncate">{formatCurrency(shortfallInfo.totalShortfall)}</div>
                     <p className="text-xs text-muted-foreground mt-0.5">{shortfallInfo.settlementCount} settlement{shortfallInfo.settlementCount !== 1 ? 's' : ''}</p>
                   </CardContent>
                 </Card>
@@ -351,13 +350,13 @@ export default function ManagerReports() {
                     <p className="text-xs text-muted-foreground mt-0.5">Active</p>
                   </div>
                   <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-2 sm:p-3">
-                    <div className="text-base sm:text-2xl font-bold text-blue-600 truncate">{fmt(totalPumpSales)}</div>
+                    <div className="text-base sm:text-2xl font-bold text-blue-600 truncate">{formatCurrency(totalPumpSales)}</div>
                     <p className="text-xs text-muted-foreground mt-0.5">Total sales</p>
                   </div>
                   <div className="bg-gray-50 dark:bg-gray-900/20 rounded-lg p-2 sm:p-3">
                     <div className="text-base sm:text-xl font-semibold text-gray-700 dark:text-gray-300 truncate">
                       {activePumps > 0 
-                        ? fmt(Math.round(totalPumpSales / activePumps))
+                        ? formatCurrency(Math.round(totalPumpSales / activePumps))
                         : '—'}
                     </div>
                     <p className="text-xs text-muted-foreground mt-0.5">Avg/pump</p>
@@ -376,14 +375,14 @@ export default function ManagerReports() {
                   {/* Revenue */}
                   <div className="flex justify-between py-2 border-b">
                     <span className="font-semibold text-sm sm:text-base">Total Revenue</span>
-                    <span className="font-bold text-sm sm:text-base whitespace-nowrap ml-2">{fmt(totals.amount)}</span>
+                    <span className="font-bold text-sm sm:text-base whitespace-nowrap ml-2">{formatCurrency(totals.amount)}</span>
                   </div>
 
                   {/* Shortfall */}
                   {shortfallInfo.totalShortfall > 0 && (
                     <div className="flex justify-between py-2 text-muted-foreground">
                       <span className="text-xs sm:text-sm sm:pl-4">Less: Shortfall</span>
-                      <span className="text-red-600 font-semibold text-xs sm:text-sm whitespace-nowrap ml-2">- {fmt(shortfallInfo.totalShortfall)}</span>
+                      <span className="text-red-600 font-semibold text-xs sm:text-sm whitespace-nowrap ml-2">- {formatCurrency(shortfallInfo.totalShortfall)}</span>
                     </div>
                   )}
 
@@ -391,7 +390,7 @@ export default function ManagerReports() {
                   {totals.expenses > 0 && (
                     <div className="flex justify-between py-2 text-muted-foreground">
                       <span className="text-xs sm:text-sm sm:pl-4">Less: Operating Expenses</span>
-                      <span className="text-red-600 font-semibold text-xs sm:text-sm whitespace-nowrap ml-2">- {fmt(totals.expenses)}</span>
+                      <span className="text-red-600 font-semibold text-xs sm:text-sm whitespace-nowrap ml-2">- {formatCurrency(totals.expenses)}</span>
                     </div>
                   )}
 
@@ -399,7 +398,7 @@ export default function ManagerReports() {
                   <div className="flex justify-between py-2 border-t border-b font-bold">
                     <span className="text-sm sm:text-base">Net Amount</span>
                     <span className={`text-sm sm:text-base whitespace-nowrap ml-2 ${totals.amount - shortfallInfo.totalShortfall - totals.expenses >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {fmt(Math.max(0, totals.amount - shortfallInfo.totalShortfall - totals.expenses))}
+                      {formatCurrency(Math.max(0, totals.amount - shortfallInfo.totalShortfall - totals.expenses))}
                     </span>
                   </div>
 
@@ -429,8 +428,8 @@ export default function ManagerReports() {
                           <p className="text-xs text-muted-foreground">{day.litres}L • {day.readings} rdgs</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-sm font-bold">{fmt(day.amount)}</p>
-                          <p className="text-xs text-muted-foreground">{fmt(day.cash)} cash</p>
+                          <p className="text-sm font-bold">{formatCurrency(day.amount)}</p>
+                          <p className="text-xs text-muted-foreground">{formatCurrency(day.cash)} cash</p>
                         </div>
                       </div>
                     ))
@@ -463,7 +462,7 @@ export default function ManagerReports() {
                           <p className="text-xs text-muted-foreground mt-0.5">{pump.nozzleCount} nozzles</p>
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-sm font-bold">{fmt(pump.todaySales)}</p>
+                          <p className="text-sm font-bold">{formatCurrency(pump.todaySales)}</p>
                           <p className="text-xs text-muted-foreground">{pump.todayLitres}L</p>
                         </div>
                       </div>
@@ -491,7 +490,7 @@ export default function ManagerReports() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold text-green-600">{expenseStats.approved}</div>
-                      <p className="text-xs text-muted-foreground mt-1">{fmt(expenseStats.approvedTotal)}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{formatCurrency(expenseStats.approvedTotal)}</p>
                     </CardContent>
                   </Card>
 
@@ -505,7 +504,7 @@ export default function ManagerReports() {
                       </CardHeader>
                       <CardContent>
                         <div className="text-2xl font-bold text-yellow-600">{expenseStats.pending}</div>
-                        <p className="text-xs text-muted-foreground mt-1">{fmt(expenseStats.pendingTotal)}</p>
+                        <p className="text-xs text-muted-foreground mt-1">{formatCurrency(expenseStats.pendingTotal)}</p>
                       </CardContent>
                     </Card>
                   )}
@@ -518,7 +517,7 @@ export default function ManagerReports() {
                       </CardTitle>
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold text-red-600">{fmt(expenseStats.totalAmount)}</div>
+                      <div className="text-2xl font-bold text-red-600">{formatCurrency(expenseStats.totalAmount)}</div>
                       <p className="text-xs text-muted-foreground mt-1">{expenseStats.total} items</p>
                     </CardContent>
                   </Card>
@@ -538,7 +537,7 @@ export default function ManagerReports() {
                             <p className="text-xs text-muted-foreground mt-1">{data.items.length} item{data.items.length !== 1 ? 's' : ''}</p>
                           </div>
                           <div className="text-right">
-                            <p className="text-sm font-bold">{fmt(data.total)}</p>
+                            <p className="text-sm font-bold">{formatCurrency(data.total)}</p>
                           </div>
                         </div>
                       ))}
@@ -568,7 +567,7 @@ export default function ManagerReports() {
                               {expense.notes && <p className="text-xs text-muted-foreground italic mt-1 line-clamp-2">{expense.notes}</p>}
                             </div>
                             <div className="text-right shrink-0">
-                              <p className="text-sm font-bold">{fmt(amount)}</p>
+                              <p className="text-sm font-bold">{formatCurrency(amount)}</p>
                               <Badge 
                                 variant="secondary" 
                                 className={`text-xs mt-1 ${expense.approvalStatus === 'approved' || expense.approvalStatus === 'auto_approved' ? 'bg-green-100 text-green-700 dark:bg-green-900/30' : 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30'}`}

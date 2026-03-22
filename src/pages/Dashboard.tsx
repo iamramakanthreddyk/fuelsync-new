@@ -1,13 +1,13 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useAuth } from "@/hooks/useAuth";
-import { IndianRupee, TrendingUp, Clock, AlertTriangle, Lock, Plus, BarChart3, Box, TrendingDown } from "lucide-react";
+import { IndianRupee, TrendingUp, Clock, Lock, BarChart3, Box, TrendingDown } from "lucide-react";
 import { TrendsChart } from "@/components/dashboard/TrendsChart";
-import { FuelPriceCard } from "@/components/dashboard/FuelPriceCard";
 import { AlertBadges } from "@/components/dashboard/AlertBadges";
 import { useDashboardSummary, useFuelPrices } from "@/hooks/api";
 import { unwrapDataOrObject, unwrapDataOrArray } from '@/lib/api-utils';
 import { normalizeFuelType } from "@/core/fuel/fuelConfig";
 import { UpgradeModal } from "@/components/dashboard/UpgradeModal";
+import { formatCurrency } from "@/utils/formatting";
 import { useState, useEffect } from "react";
 import { getBasePath } from '@/lib/roleUtils';
 import { useActivityLogger } from "@/hooks/useActivityLogger";
@@ -17,9 +17,8 @@ import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { useSetupChecklist } from "@/hooks/useSetupChecklist";
 import { SetupChecklist } from "@/components/dashboard/SetupChecklist";
 import { QuickActions } from "@/components/dashboard/QuickActions";
-import { ReadingSummary } from "@/components/dashboard/ReadingSummary";
 import { safeToFixed } from '@/lib/format-utils';
-import { DashboardHeader, MetricCard, DashboardGrid, COMMON_METRICS } from "@/components/dashboard/shared";
+import { DashboardGrid, COMMON_METRICS } from "@/components/dashboard/shared";
 import { RoleBadge } from "@/components/ui/RoleBadge";
 import { useNavigate } from "react-router-dom";
 
@@ -34,16 +33,16 @@ export default function Dashboard() {
   const isLoading = dashboardQuery.isLoading;
   
   // Provide default data structure to prevent crashes
-  const dashboardData = dashboardPayload ? {
-    todaySales: dashboardPayload.today?.amount ?? 0,
-    todayPayments: (dashboardPayload.today?.cash ?? 0) + (dashboardPayload.today?.online ?? 0) + (dashboardPayload.today?.credit ?? 0),
-    totalReadings: dashboardPayload.today?.readings ?? 0,
+  const dashboardData = dashboardPayload && typeof dashboardPayload === 'object' ? {
+    todaySales: (dashboardPayload as any).today?.amount ?? 0,
+    todayPayments: ((dashboardPayload as any).today?.cash ?? 0) + ((dashboardPayload as any).today?.online ?? 0) + ((dashboardPayload as any).today?.credit ?? 0),
+    totalReadings: (dashboardPayload as any).today?.readings ?? 0,
     pendingClosures: 0,
     trendsData: [],
     fuelPrices: {},
     alerts: [],
     lastReading: null,
-    today: dashboardPayload.today
+    today: (dashboardPayload as any).today
   } : {
     todaySales: 0,
     todayPayments: 0,
@@ -67,7 +66,6 @@ export default function Dashboard() {
 
   const fuelPricesQuery = useFuelPrices(currentStation?.id || '');
   const fuelPricesList = unwrapDataOrArray(fuelPricesQuery.data, []);
-  const isPricesLoading = fuelPricesQuery.isLoading;
 
   const { setStationId } = useFuelPricesGlobal();
 
@@ -88,7 +86,7 @@ export default function Dashboard() {
   const hasDashboardFuelPrices = dashboardData.fuelPrices && Object.keys(dashboardData.fuelPrices).length > 0;
   if (hasDashboardFuelPrices) {
     Object.entries(dashboardData.fuelPrices).forEach(([key, value]) => {
-      if (value !== undefined) {
+      if (value !== undefined && value !== null && typeof value === 'number') {
         const normalizedKey = normalizeFuelType(key);
         if (normalizedKey) {
           fuelPricesObj[normalizedKey] = value;
@@ -96,10 +94,10 @@ export default function Dashboard() {
       }
     });
   } else if (Array.isArray(fuelPricesList)) {
-    fuelPricesList.forEach((cur) => {
+    fuelPricesList.forEach((cur: any) => {
       // Get fuel type from any available field and normalize using enum helper
-      const fuelType = cur.fuelType;
-      const pricePerLitre = cur.price;
+      const fuelType = cur?.fuelType;
+      const pricePerLitre = cur?.price;
       if (fuelType && pricePerLitre !== undefined) {
         const normalizedKey = normalizeFuelType(fuelType);
         if (normalizedKey) {
@@ -112,9 +110,6 @@ export default function Dashboard() {
   // --- Lock overlay click handler
   const onLockUpgradeClick = () => setShowUpgrade(true);
 
-  // Employees cannot set fuel prices - only manager and above can
-  const canSetPrices = user?.role && ['manager', 'owner', 'super_admin'].includes(user.role);
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
@@ -124,7 +119,7 @@ export default function Dashboard() {
   }
 
   // Check if user has no stations assigned
-  const hasNoStationsAlert = dashboardData.alerts?.some(alert => alert.id === 'no_stations');
+  const hasNoStationsAlert = dashboardData.alerts?.some((alert: any) => alert?.id === 'no_stations');
   if (hasNoStationsAlert) {
     return (
       <div className="container mx-auto p-6 space-y-6">
@@ -272,14 +267,13 @@ export default function Dashboard() {
   // Minimal manager dashboard - single station focus
   function ManagerDashboard() {
     const d: any = dashboardData as any;
-    const fmt = (n: number) => `₹${n.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
     
     const metrics = [
       {
         title: "Sales",
         icon: <IndianRupee className="h-4 w-4 sm:h-5 sm:w-5" />,
         color: 'blue' as const,
-        value: fmt(d.todaySales ?? 0),
+        value: formatCurrency(d.todaySales ?? 0),
         description: "Today's total"
       },
       {
@@ -299,8 +293,8 @@ export default function Dashboard() {
       {
         title: "Outstanding",
         icon: <TrendingDown className="h-4 w-4 sm:h-5 sm:w-5" />,
-        color: d.creditOutstanding > 0 ? 'danger' : 'success',
-        value: fmt(d.creditOutstanding ?? 0),
+        color: d.creditOutstanding > 0 ? ('red' as const) : ('green' as const),
+        value: formatCurrency(d.creditOutstanding ?? 0),
         description: "Credit pending"
       }
     ];

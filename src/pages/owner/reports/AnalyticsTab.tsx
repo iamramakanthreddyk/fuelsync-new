@@ -1,9 +1,16 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useVarianceSummary } from '@/hooks/useVarianceSummary';
 import { safeToFixed, formatPercentage } from '@/lib/format-utils';
+import {
+  formatCurrency,
+  formatLitres,
+  formatCurrencyAxis,
+  formatNumber
+} from '@/utils/formatting';
+import { CHART_COLORS } from '@/utils/chartConfig';
 import {
   TrendingUp,
   TrendingDown,
@@ -69,20 +76,24 @@ interface AnalyticsTabProps {
   selectedStation: string;
 }
 
-const COLORS = ['#3b82f6', '#8b5cf6', '#ec4899', '#f59e0b', '#10b981', '#06b6d4', '#ef4444'];
-
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
       <div className="bg-background border rounded-lg shadow-lg p-3">
         <p className="font-medium mb-2">{label}</p>
-        {payload.map((entry: any, index: number) => (
-          <p key={index} className="text-sm" style={{ color: entry.color }}>
-            {entry.name}: {typeof entry.value === 'number' && String(entry.name || '').includes('Sales')
-              ? `₹${entry.value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
-              : entry.value}
-          </p>
-        ))}
+        {payload.map((entry: any, index: number) => {
+          let formattedValue = entry.value;
+          if (String(entry.name || '').includes('Sales')) {
+            formattedValue = formatCurrency(entry.value);
+          } else if (String(entry.name || '').includes('Transaction')) {
+            formattedValue = `${entry.value}`;
+          }
+          return (
+            <p key={index} className="text-sm" style={{ color: entry.color }}>
+              {entry.name}: {formattedValue}
+            </p>
+          );
+        })}
       </div>
     );
   }
@@ -95,10 +106,6 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
   dateRange,
   selectedStation,
 }) => {
-  const formatCurrency = (amount: number) =>
-    `₹${amount.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`;
-  const formatLitres = (litres: number) => `${safeToFixed(litres, 0)} L`;
-
   // Fetch variance summary - only when a specific station is selected
   const { data: varianceSummary } = useVarianceSummary(
     selectedStation !== 'all' ? selectedStation : undefined,
@@ -233,16 +240,19 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
           <CardDescription className="text-xs sm:text-sm">Daily performance over time</CardDescription>
         </CardHeader>
         <CardContent className="px-2 sm:px-6 pb-4">
+          <div className="mb-3 text-xs text-slate-600">
+            <p>Sales vs Transaction Volume - Higher simultaneous sales and transactions indicate strong demand</p>
+          </div>
           <ResponsiveContainer width="100%" height={350}>
             <AreaChart data={analyticsData?.dailyTrend ?? []}>
               <defs>
                 <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#3b82f6" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#3b82f6" stopOpacity={0.05} />
+                  <stop offset="5%" stopColor={CHART_COLORS.primary} stopOpacity={0.4} />
+                  <stop offset="95%" stopColor={CHART_COLORS.primary} stopOpacity={0.05} />
                 </linearGradient>
-                <linearGradient id="colorQuantity" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.05} />
+                <linearGradient id="colorTransactions" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor={CHART_COLORS.warning} stopOpacity={0.4} />
+                  <stop offset="95%" stopColor={CHART_COLORS.warning} stopOpacity={0.05} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -256,13 +266,15 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               <YAxis
                 yAxisId="left"
                 tick={{ fontSize: 11 }}
-                tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`}
+                label={{ value: 'Sales (₹)', angle: -90, position: 'insideLeft', offset: -5 }}
+                tickFormatter={(value) => formatCurrencyAxis(value * 1000)}
               />
               <YAxis
                 yAxisId="right"
                 orientation="right"
                 tick={{ fontSize: 11 }}
-                tickFormatter={(value) => `${safeToFixed(value / 1000, 0)}K L`}
+                label={{ value: 'Transactions', angle: 90, position: 'insideRight', offset: -5 }}
+                tickFormatter={(value) => formatNumber(value, 0)}
               />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} iconType="circle" />
@@ -270,21 +282,21 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                 yAxisId="left"
                 type="monotone"
                 dataKey="sales"
-                stroke="#3b82f6"
+                stroke={CHART_COLORS.primary}
                 strokeWidth={2}
                 fillOpacity={1}
                 fill="url(#colorSales)"
-                name="Sales (₹)"
+                name="Total Sales (₹)"
               />
               <Area
                 yAxisId="right"
                 type="monotone"
-                dataKey="quantity"
-                stroke="#10b981"
+                dataKey="transactions"
+                stroke={CHART_COLORS.warning}
                 strokeWidth={2}
                 fillOpacity={1}
-                fill="url(#colorQuantity)"
-                name="Quantity (L)"
+                fill="url(#colorTransactions)"
+                name="Transaction Count"
               />
             </AreaChart>
           </ResponsiveContainer>
@@ -326,9 +338,9 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
             </div>
             <CardDescription className="text-xs sm:text-sm">
               {varianceSummary.totalVariance > 0
-                ? `Missing: ₹${Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% shortfall)`
+                ? `Missing: ${formatCurrency(Math.abs(varianceSummary.totalVariance))} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% shortfall)`
                 : varianceSummary.totalVariance < 0
-                  ? `Extra: ₹${Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% overage)`
+                  ? `Extra: ${formatCurrency(Math.abs(varianceSummary.totalVariance))} (${safeToFixed(Math.abs(varianceSummary.variancePercentage), 2)}% overage)`
                   : 'Perfect match - no variance'}
             </CardDescription>
           </CardHeader>
@@ -352,10 +364,10 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               </div>
               <div className="text-xs">
                 {varianceSummary.totalVariance > 0
-                  ? `Expected ₹${safeToFixed(varianceSummary.totalExpectedCash, 0)} from readings but received only ₹${safeToFixed(varianceSummary.totalExpectedCash - varianceSummary.totalVariance, 0)}`
+                  ? `Expected ${formatCurrency(varianceSummary.totalExpectedCash)} from readings but received only ${formatCurrency(varianceSummary.totalExpectedCash - varianceSummary.totalVariance)}`
                   : varianceSummary.totalVariance < 0
-                    ? `Expected ₹${safeToFixed(varianceSummary.totalExpectedCash, 0)} from readings but received ₹${safeToFixed(varianceSummary.totalExpectedCash - varianceSummary.totalVariance, 0)}`
-                    : `Received exactly ₹${safeToFixed(varianceSummary.totalExpectedCash, 0)} as expected`}
+                    ? `Expected ${formatCurrency(varianceSummary.totalExpectedCash)} from readings but received ${formatCurrency(varianceSummary.totalExpectedCash - varianceSummary.totalVariance)}`
+                    : `Received exactly ${formatCurrency(varianceSummary.totalExpectedCash)} as expected`}
               </div>
             </div>
 
@@ -380,13 +392,13 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                         : 'text-green-700'
                   }`}
                 >
-                  ₹{Math.abs(varianceSummary.totalVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  {formatCurrency(Math.abs(varianceSummary.totalVariance))}
                 </div>
               </div>
               <div className="p-2 sm:p-3 rounded border-2 border-purple-200 bg-purple-50">
                 <div className="text-xs text-muted-foreground font-bold">AVG/DAY</div>
                 <div className="text-sm sm:text-lg font-bold text-purple-700">
-                  ₹{Math.abs(varianceSummary.avgDailyVariance).toLocaleString('en-IN', { maximumFractionDigits: 0 })}
+                  {formatCurrency(Math.abs(varianceSummary.avgDailyVariance))}
                 </div>
               </div>
               <div className="p-2 sm:p-3 rounded border-2 border-blue-200 bg-blue-50">
@@ -402,23 +414,21 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
               <AreaChart data={varianceSummary.byDay}>
                 <defs>
                   <linearGradient id="colorVariance" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#ef4444" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#ef4444" stopOpacity={0.05} />
+                    <stop offset="5%" stopColor={CHART_COLORS.danger} stopOpacity={0.4} />
+                    <stop offset="95%" stopColor={CHART_COLORS.danger} stopOpacity={0.05} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} angle={-45} textAnchor="end" height={60} />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={(value) => `₹${safeToFixed(value / 1000, 0)}K`} />
+                <YAxis tick={{ fontSize: 11 }} tickFormatter={(value) => formatCurrencyAxis(value * 1000)} />
                 <Tooltip
-                  formatter={(value: number) =>
-                    `₹${value.toLocaleString('en-IN', { maximumFractionDigits: 0 })}`
-                  }
+                  formatter={(value: number) => formatCurrency(value)}
                   contentStyle={{ fontSize: '12px' }}
                 />
                 <Area
                   type="monotone"
                   dataKey="variance"
-                  stroke="#dc2626"
+                  stroke={CHART_COLORS.danger}
                   strokeWidth={2}
                   fillOpacity={1}
                   fill="url(#colorVariance)"
@@ -459,8 +469,8 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                     fill="#8884d8"
                     dataKey="sales"
                   >
-                    {(analyticsData?.salesByStation ?? []).map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    {(analyticsData?.salesByStation ?? []).map((_, index: number) => (
+                      <Cell key={`cell-${index}`} fill={Object.values(CHART_COLORS)[index % Object.keys(CHART_COLORS).length]} />
                     ))}
                   </Pie>
                   <Tooltip content={<CustomTooltip />} />
@@ -471,7 +481,7 @@ export const AnalyticsTab: React.FC<AnalyticsTabProps> = ({
                   <div key={idx} className="flex items-center gap-2">
                     <div
                       className="w-3 h-3 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: COLORS[idx % COLORS.length] }}
+                      style={{ backgroundColor: Object.values(CHART_COLORS)[idx % Object.keys(CHART_COLORS).length] }}
                     />
                     <span className="truncate">{station.stationName}</span>
                   </div>
