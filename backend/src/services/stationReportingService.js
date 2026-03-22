@@ -9,7 +9,7 @@
  * - Complex aggregation queries
  */
 
-const { NozzleReading, Pump, Nozzle, Station, sequelize } = require('./modelAccess');
+const { NozzleReading, Pump, Nozzle, Station, User, DailyTransaction, sequelize } = require('./modelAccess');
 const { Op, fn, col, literal } = require('sequelize');
 const { logAudit } = require('../utils/auditLog');
 const { createContextLogger } = require('./loggerService');
@@ -192,8 +192,18 @@ async function getDailySales(stationId, date) {
  * @param {number} options.limit - Max records to return
  * @returns {Promise<Object>} Categorized readings
  */
-async function getReadingsForSettlement(stationId, options = {}) {
-  const { status, limit = 1000 } = options;
+async function getReadingsForSettlement(stationId, dateOrOptions = {}) {
+  // Support both date string (new) and options object (legacy) as second argument
+  let date, status, limit;
+  if (typeof dateOrOptions === 'string') {
+    date = dateOrOptions;
+    status = undefined;
+    limit = 1000;
+  } else {
+    date = dateOrOptions.date;
+    status = dateOrOptions.status;
+    limit = dateOrOptions.limit || 1000;
+  }
 
   // Verify station exists
   const station = await Station.findByPk(stationId);
@@ -207,13 +217,19 @@ async function getReadingsForSettlement(stationId, options = {}) {
     ...EXCLUDE_SAMPLE_READINGS
   };
 
+  // Filter by date
+  if (date) {
+    const dateStr = typeof date === 'string' ? date.split('T')[0] : new Date(date).toISOString().split('T')[0];
+    whereClause.readingDate = dateStr;
+  }
+
   if (status === 'linked') {
     whereClause.settlementId = { [Op.ne]: null };
   } else if (status === 'unlinked') {
     whereClause.settlementId = null;
   }
 
-  // Fetch readings
+  // Fetch readings with all associations needed by the settlement UI
   const readings = await NozzleReading.findAll({
     where: whereClause,
     include: [
@@ -228,20 +244,38 @@ async function getReadingsForSettlement(stationId, options = {}) {
             attributes: ['pumpNumber']
           }
         ]
+      },
+      {
+        model: User,
+        as: 'enteredByUser',
+        attributes: ['id', 'name']
+      },
+      {
+        model: User,
+        as: 'assignedEmployee',
+        attributes: ['id', 'name'],
+        required: false
+      },
+      {
+        model: DailyTransaction,
+        as: 'transaction',
+        attributes: ['id', 'transactionDate', 'status', 'createdBy', 'paymentBreakdown', 'paymentSubBreakdown'],
+        required: false
       }
     ],
-    order: [['readingDate', 'DESC']],
+    order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
     limit,
     raw: false
   });
 
   if (readings.length === 0) {
-    logger.debug('No readings found for settlement', { stationId, status });
+    logger.debug('No readings found for settlement', { stationId, date, status });
     return {
       stationId,
-      status,
-      count: 0,
-      readings: []
+      date,
+      unlinked: { count: 0, readings: [], totals: { cash: 0, online: 0, credit: 0, litres: 0, value: 0 } },
+      linked: { count: 0, readings: [] },
+      allReadingsCount: 0
     };
   }
 
@@ -249,23 +283,62 @@ async function getReadingsForSettlement(stationId, options = {}) {
   const linked = readings.filter(r => r.settlementId);
   const unlinked = readings.filter(r => !r.settlementId);
 
-  const formatted = readings.map(r => ({
+  const formatReading = r => ({
     id: r.id,
     stationId: r.stationId,
     nozzleId: r.nozzle?.id,
     pumpNumber: r.nozzle?.pump?.pumpNumber,
     nozzleNumber: r.nozzle?.nozzleNumber,
     fuelType: r.nozzle?.fuelType,
-    volume: r.volume,
-    value: r.value,
+    openingReading: parseFloat(r.previousReading) || 0,
+    closingReading: parseFloat(r.readingValue) || 0,
+    litresSold: parseFloat(r.litresSold) || 0,
+    saleValue: parseFloat(r.totalAmount) || 0,
+    cashAmount: parseFloat(r.cashAmount) || 0,
+    onlineAmount: parseFloat(r.onlineAmount) || 0,
+    creditAmount: parseFloat(r.creditAmount) || 0,
     readingDate: r.readingDate,
-    settlementId: r.settlementId,
-    settlementStatus: r.settlementId ? 'linked' : 'unlinked'
-  }));
+    recordedAt: r.createdAt,
+    assignedEmployeeId: r.assignedEmployeeId || null,
+    assignedEmployee: r.assignedEmployee ? { id: r.assignedEmployee.id, name: r.assignedEmployee.name } : null,
+    recordedBy: r.enteredByUser ? { id: r.enteredByUser.id, name: r.enteredByUser.name } : null,
+    settlementId: r.settlementId || null,
+    linkedSettlement: null,
+    transaction: r.transaction ? {
+      id: r.transaction.id,
+      transactionDate: r.transaction.transactionDate,
+      status: r.transaction.status,
+      createdBy: r.transaction.createdBy,
+      paymentBreakdown: r.transaction.paymentBreakdown || { cash: 0, online: 0, credit: 0 },
+      paymentSubBreakdown: r.transaction.paymentSubBreakdown || null
+    } : null
+  });
+
+  const formattedUnlinked = unlinked.map(formatReading);
+  const formattedLinked = linked.map(formatReading);
+
+  // Compute totals for unlinked readings
+  const unlinkedTotals = formattedUnlinked.reduce(
+    (acc, r) => {
+      if (r.transaction?.paymentBreakdown) {
+        acc.cash += r.transaction.paymentBreakdown.cash || 0;
+        acc.online += r.transaction.paymentBreakdown.online || 0;
+        acc.credit += r.transaction.paymentBreakdown.credit || 0;
+      } else {
+        acc.cash += r.cashAmount;
+        acc.online += r.onlineAmount;
+        acc.credit += r.creditAmount;
+      }
+      acc.litres += r.litresSold;
+      acc.value += r.saleValue;
+      return acc;
+    },
+    { cash: 0, online: 0, credit: 0, litres: 0, value: 0 }
+  );
 
   logger.info('Readings prepared for settlement', { 
     stationId,
-    status,
+    date,
     total: readings.length,
     linked: linked.length,
     unlinked: unlinked.length
@@ -273,15 +346,17 @@ async function getReadingsForSettlement(stationId, options = {}) {
 
   return {
     stationId,
-    total: readings.length,
-    linked: {
-      count: linked.length,
-      readings: formatted.filter(r => r.settlementId)
-    },
+    date,
     unlinked: {
       count: unlinked.length,
-      readings: formatted.filter(r => !r.settlementId)
-    }
+      readings: formattedUnlinked,
+      totals: unlinkedTotals
+    },
+    linked: {
+      count: linked.length,
+      readings: formattedLinked
+    },
+    allReadingsCount: readings.length
   };
 }
 

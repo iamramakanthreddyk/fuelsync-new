@@ -30,12 +30,15 @@ import { useStationStaff } from '@/hooks/api';
 interface DailySalesData {
   date: string;
   stationId: string;
-  stationName: string;
-  totalSaleValue: number;
-  totalLiters: number;
-  expectedCash: number;
-  paymentSplit: { cash: number; online: number; credit: number };
-  readings: { id: string; fuelType: string; liters: number; saleValue: number }[];
+  stationName?: string;
+  totalValue: number;      // total ₹ value
+  totalVolume: number;     // total litres
+  byFuelType: { fuelType: string; volume: number; value: number; count: number }[];
+  nozzleDetails: { nozzleId: string; pumpNumber: string; nozzleNumber: number; fuelType: string; volume: number; value: number; count: number }[];
+  settlementCategories: {
+    settled: { count: number; volume: number; value: number };
+    pending: { count: number; volume: number; value: number };
+  };
 }
 
 interface ReadingForSettlement {
@@ -401,9 +404,6 @@ export default function DailySettlement() {
         </Button>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold truncate">Daily Settlement</h1>
-          {dailySales?.stationName && (
-            <p className="text-sm text-muted-foreground truncate">{dailySales.stationName}</p>
-          )}
         </div>
         <div className="flex items-center gap-2">
           <Input
@@ -442,17 +442,17 @@ export default function DailySettlement() {
             <Card>
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">Total Sales</p>
-                <p className="text-2xl font-bold text-green-600">{fmt(dailySales.totalSaleValue)}</p>
+                <p className="text-2xl font-bold text-green-600">{fmt(dailySales.totalValue)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {safeToFixed(dailySales.totalLiters, 0)} L
+                  {safeToFixed(dailySales.totalVolume, 0)} L
                 </p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">Cash Expected</p>
-                <p className="text-2xl font-bold text-orange-600">{fmt(dailySales.expectedCash)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">from employee entries</p>
+                <p className="text-2xl font-bold text-orange-600">{fmt(dailySales.settlementCategories?.pending?.value ?? 0)}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">pending settlement</p>
               </CardContent>
             </Card>
           </div>
