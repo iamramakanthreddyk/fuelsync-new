@@ -72,8 +72,8 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
 
             // Transform prices to match the expected format
             const transformed = currentPrices.map((price: any) => ({
-              fuel_type: (price.fuelType || '').toString().toUpperCase(),
-              price_per_litre: price.price,
+              fuel_type: (price.fuel_type || price.fuelType || '').toString().toUpperCase(),
+              price_per_litre: Number(price.price_per_litre || price.price || 0),
             }));
 
             allPrices[station.id] = transformed;
@@ -108,10 +108,12 @@ export function FuelPricesProvider({ children }: { children: React.ReactNode }) 
         // Normalize the prices format from array
         const normalized: PriceRecord = {};
         stationPrices.forEach((priceData: any) => {
-          if (priceData && typeof priceData === 'object' && 'fuel_type' in priceData && 'price_per_litre' in priceData) {
-            const fuelTypeUpper = (priceData.fuel_type || '').toString().toUpperCase();
-            const price = Number(priceData.price_per_litre);
-            if (!Number.isNaN(price) && fuelTypeUpper) {
+          if (priceData && typeof priceData === 'object') {
+            // Handle both snake_case (fuel_type) and camelCase (fuelType)
+            const fuelTypeUpper = (priceData.fuel_type || priceData.fuelType || '').toString().toUpperCase();
+            // Handle both price_per_litre and price
+            const price = Number(priceData.price_per_litre || priceData.price || 0);
+            if (!Number.isNaN(price) && price > 0 && fuelTypeUpper) {
               normalized[fuelTypeUpper] = price;
             }
           }
