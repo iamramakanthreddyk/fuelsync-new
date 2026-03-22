@@ -62,26 +62,21 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
       }
 
       // API returns DECIMAL fields as strings; coerce to numbers safely
-      const empCash = Number(parseFloat(String(settlement.employeeCash || 0)) || 0);
-      const empOnline = Number(parseFloat(String(settlement.employeeOnline || 0)) || 0);
-      const empCredit = Number(parseFloat(String(settlement.employeeCredit || 0)) || 0);
+      // Use the backend-calculated expectedCash (from live transactions) and actualCash
+      const expectedCash = Number(parseFloat(String(settlement.expectedCash || 0)) || 0);
+      const actualCash = Number(parseFloat(String(settlement.actualCash || 0)) || 0);
+      
+      // Variance is expected - actual (positive = shortfall, negative = overage)
+      const variance = Number(parseFloat(String(settlement.variance || 0)) || 0);
 
-      const ownerActualCash = Number(parseFloat(String(settlement.actualCash || 0)) || 0);
-      const ownerOnline = Number(parseFloat(String(settlement.online || 0)) || 0);
-      const ownerCredit = Number(parseFloat(String(settlement.credit || 0)) || 0);
-
-      const expectedTotal = empCash + empOnline + empCredit;
-      const actualTotal = ownerActualCash + ownerOnline + ownerCredit;
-      const variance = Number((actualTotal - expectedTotal) || 0);
-
-      acc[dateKey].expected += expectedTotal;
-      acc[dateKey].actual += actualTotal;
+      acc[dateKey].expected += expectedCash;
+      acc[dateKey].actual += actualCash;
       acc[dateKey].variance += variance;
       acc[dateKey].count += 1;
       acc[dateKey].stations.push({
         name: settlement.stationName || 'Unknown Station',
-        expected: expectedTotal,
-        actual: actualTotal,
+        expected: expectedCash,
+        actual: actualCash,
         variance: variance,
       });
 
@@ -141,8 +136,8 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
         </div>
         <div className="text-right text-sm">
           <div className="text-gray-600">Total Variance</div>
-          <div className={`font-bold ${totalVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {Number.isFinite(totalVariance) ? `${totalVariance >= 0 ? '+' : ''}₹${Math.abs(totalVariance).toLocaleString('en-IN')}` : '—'}
+          <div className={`font-bold ${totalVariance > 0 ? 'text-red-600' : totalVariance < 0 ? 'text-green-600' : 'text-gray-600'}`}>
+            {Number.isFinite(totalVariance) ? (totalVariance > 0 ? '−' : '+') + '₹' + Math.abs(totalVariance).toLocaleString('en-IN') : '—'}
           </div>
         </div>
       </div>
@@ -157,12 +152,12 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
           <div className="text-xs text-green-600 font-medium">Actual</div>
           <div className="text-lg font-bold text-green-700">{Number.isFinite(totalActual) ? globalFormatCurrency(totalActual, 0) : '—'}</div>
         </div>
-        <div className={`p-3 rounded-lg ${totalVariance >= 0 ? 'bg-green-50' : 'bg-red-50'}`}>
-          <div className={`text-xs font-medium ${totalVariance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+        <div className={`p-3 rounded-lg ${totalVariance > 0 ? 'bg-red-50' : totalVariance < 0 ? 'bg-green-50' : 'bg-gray-50'}`}>
+          <div className={`text-xs font-medium ${totalVariance > 0 ? 'text-red-600' : totalVariance < 0 ? 'text-green-600' : 'text-gray-600'}`}>
             Variance
           </div>
-          <div className={`text-lg font-bold ${totalVariance >= 0 ? 'text-green-700' : 'text-red-600'}`}>
-            {Number.isFinite(totalVariance) ? `${totalVariance >= 0 ? '+' : ''}₹${Math.abs(totalVariance).toLocaleString('en-IN')}` : '—'}
+          <div className={`text-lg font-bold ${totalVariance > 0 ? 'text-red-700' : totalVariance < 0 ? 'text-green-700' : 'text-gray-700'}`}>
+            {Number.isFinite(totalVariance) ? (totalVariance > 0 ? '−₹' : totalVariance < 0 ? '+₹' : '₹') + Math.abs(totalVariance).toLocaleString('en-IN') : '—'}
           </div>
         </div>
       </div>
@@ -210,9 +205,9 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
                             </div>
                             <div className="border-t pt-2 mt-2">
                               <div className="flex items-center gap-2">
-                                <div className={`w-3 h-3 rounded ${data.variance >= 0 ? 'bg-green-600' : 'bg-red-600'}`} />
-                                <span className={`font-medium ${data.variance >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                                  Gap: {data.variance >= 0 ? '+' : ''}{formatCurencyDisplay(Number(data.variance))} ({data.variancePercent?.toFixed(1)}%)
+                              <div className={`w-3 h-3 rounded ${data.variance > 0 ? 'bg-red-500' : data.variance < 0 ? 'bg-green-500' : 'bg-gray-500'}`} />
+                              <span className={`font-medium ${data.variance > 0 ? 'text-red-700' : data.variance < 0 ? 'text-green-700' : 'text-gray-700'}`}>
+                                {data.variance > 0 ? '⚠️ SHORTFALL: −₹' : data.variance < 0 ? '✓ OVERAGE: +₹' : 'BALANCED: ₹'}{formatCurencyDisplay(Math.abs(Number(data.variance)))} ({Math.abs(data.variancePercent).toFixed(1)}% of expected)
                                 </span>
                               </div>
                             </div>
@@ -276,8 +271,8 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
                                   {data.stations.map((station: any, idx: number) => (
                                     <div key={`${station.name}-${idx}`} className="flex justify-between">
                                       <span className="truncate pr-2">{station.name}</span>
-                                      <span className={`font-medium whitespace-nowrap ${station.variance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                        {station.variance >= 0 ? '+' : ''}{formatCurencyDisplay(Number(station.variance))}
+                                      <span className={`font-medium whitespace-nowrap ${station.variance > 0 ? 'text-red-600' : station.variance < 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                                        {station.variance > 0 ? '−₹' : station.variance < 0 ? '+₹' : '₹'}{formatCurencyDisplay(Math.abs(Number(station.variance)))}
                                       </span>
                                     </div>
                                   ))}
@@ -295,7 +290,7 @@ export const VarianceAnalysisChart: React.FC<VarianceAnalysisChartProps> = ({
                 <Legend />
                 <Bar dataKey="variance" fillOpacity={0.8} radius={[4, 4, 0, 0]}>
                   {chartData.map((entry, index) => (
-                    <Cell key={`bar-${index}`} fill={entry.variance >= 0 ? '#10b981' : '#ef4444'} />
+                    <Cell key={`bar-${index}`} fill={entry.variance > 0 ? '#ef4444' : entry.variance < 0 ? '#10b981' : '#6b7280'} />
                   ))}
                 </Bar>
                 <Line
