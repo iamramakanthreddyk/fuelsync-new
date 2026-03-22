@@ -178,8 +178,18 @@ async function createStation(dto, userId, user) {
 async function getStation(stationId) {
   const station = await Station.findByPk(stationId, {
     include: [
-      { model: User, as: 'owner', attributes: ['id', 'fullName', 'email'] },
-      { model: Plan, as: 'plan', attributes: ['id', 'name', 'maxStations'] }
+      {
+        model: User,
+        as: 'owner',
+        attributes: ['id', 'fullName', 'email'],
+        include: [
+          {
+            model: Plan,
+            as: 'plan',
+            attributes: ['id', 'name', 'maxStations', 'maxPumpsPerStation', 'maxNozzlesPerPump', 'maxEmployees']
+          }
+        ]
+      }
     ]
   });
 
