@@ -125,7 +125,8 @@ exports.getReadingsForDate = async (stationId, date, accessibleStationIds) => {
 
 /**
  * Get latest reading for each nozzle in the given set of IDs
- * Returns a map: { [nozzleId]: readingObject }
+ * Returns a map: { [nozzleId]: readingValue }
+ * This is used by Quick Data Entry to display previous readings
  */
 exports.getLatestReadingsForNozzles = async (nozzleIds) => {
   if (!nozzleIds || !nozzleIds.length) return {};
@@ -135,11 +136,12 @@ exports.getLatestReadingsForNozzles = async (nozzleIds) => {
     order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
   });
 
-  // Keep only the latest per nozzle
+  // Keep only the latest per nozzle, extract just the reading value
   const result = {};
   for (const r of readings) {
     if (!result[r.nozzleId]) {
-      result[r.nozzleId] = r.toJSON();
+      // Return only the readingValue, not the full object
+      result[r.nozzleId] = parseFloat(r.readingValue || 0);
     }
   }
   return result;
