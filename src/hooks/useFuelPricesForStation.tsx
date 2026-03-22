@@ -27,11 +27,14 @@ export interface StationFuelPricesStatus {
  */
 export function useFuelPricesForStation(stationId?: string): StationFuelPricesStatus {
   const { pricesByStation } = useFuelPricesGlobal();
-  const pumpsQuery = usePumps(stationId || '');
-  const pumpsResponse = pumpsQuery.data;
+  
+  // Always fetch prices directly for this station
   const fuelPricesQuery = useFuelPrices(stationId || '');
   // API returns object with { stationId, current: [...], history: [...] }
-  const fuelPricesData = unwrapDataOrObject(fuelPricesQuery.data, null);
+  const fuelPricesData = unwrapDataOrObject(fuelPricesQuery.data, null) as any;
+  
+  const pumpsQuery = usePumps(stationId || '');
+  const pumpsResponse = pumpsQuery.data;
 
   return useMemo(() => {
     if (!stationId) {
@@ -43,58 +46,49 @@ export function useFuelPricesForStation(stationId?: string): StationFuelPricesSt
       };
     }
 
-    // Get prices from global context, ensure it's an object
-    const stationPrices = (pricesByStation && typeof pricesByStation === 'object' && pricesByStation[stationId]) || {};
-    let hasPrices = Object.keys(stationPrices).length > 0;
+    let stationPrices: Record<string, number> = {};
     let pricesArray: Array<{ fuel_type: string; price_per_litre: number }> = [];
+    let hasPrices = false;
 
-    // Safely create pricesArray
-    if (stationPrices && typeof stationPrices === 'object') {
-      pricesArray = Object.entries(stationPrices).map(([fuel_type, price_per_litre]) => ({
-        fuel_type,
-        price_per_litre: Number(price_per_litre) || 0
-      }));
-    }
-
-    // If global context doesn't have prices, use the direct data as fallback
-    // API returns nested structure: { stationId, current: [...], history: [...] }
-    if (!hasPrices && fuelPricesData) {
-      let pricesListToProcess = [];
-      
-      // Handle nested structure: { current: [...], history: [...] }
-      if (fuelPricesData.current && Array.isArray(fuelPricesData.current) && fuelPricesData.current.length > 0) {
-        pricesListToProcess = fuelPricesData.current;
-      }
-      // Handle flat array fallback
-      else if (Array.isArray(fuelPricesData) && fuelPricesData.length > 0) {
-        pricesListToProcess = fuelPricesData;
-      }
-      
-      if (pricesListToProcess.length > 0) {
+    // Priority 1: Try direct API response first (most up-to-date)
+    if (fuelPricesData && typeof fuelPricesData === 'object' && 'current' in fuelPricesData) {
+      const currentPrices = fuelPricesData.current;
+      if (Array.isArray(currentPrices) && currentPrices.length > 0) {
         hasPrices = true;
-        pricesArray = pricesListToProcess.map(price => ({
-          // Handle both camelCase (fuelType) and snake_case (fuel_type)
+        pricesArray = currentPrices.map((price: any) => ({
           fuel_type: (price.fuel_type || price.fuelType || '').toUpperCase(),
-          // Handle both "price" and "price_per_litre"
           price_per_litre: Number(price.price_per_litre || price.price || 0)
         }));
-        // Convert to prices object
-        pricesListToProcess.forEach(price => {
+        // Build prices object
+        currentPrices.forEach((price: any) => {
           const fuelType = (price.fuel_type || price.fuelType || '').toUpperCase();
           const priceValue = Number(price.price_per_litre || price.price || 0);
-          if (fuelType) {
+          if (fuelType && priceValue > 0) {
             stationPrices[fuelType] = priceValue;
           }
         });
       }
     }
 
+    // Priority 2: Fallback to context if API didn't return data
+    if (!hasPrices && pricesByStation && typeof pricesByStation === 'object') {
+      const contextPrices = pricesByStation[stationId];
+      if (contextPrices && typeof contextPrices === 'object' && Object.keys(contextPrices).length > 0) {
+        hasPrices = true;
+        stationPrices = contextPrices;
+        pricesArray = Object.entries(contextPrices).map(([fuel_type, price_per_litre]) => ({
+          fuel_type,
+          price_per_litre: Number(price_per_litre)
+        }));
+      }
+    }
+
     // Get fuel types from active nozzles
     const activeFuelTypes = new Set<string>();
-    const pumpsArray = unwrapDataOrArray(pumpsResponse, []);
-    pumpsArray.forEach(pump => {
+    const pumpsArray = unwrapDataOrArray(pumpsResponse, []) as any[];
+    pumpsArray.forEach((pump: any) => {
         if (pump.nozzles && Array.isArray(pump.nozzles)) {
-          pump.nozzles.forEach(nozzle => {
+          pump.nozzles.forEach((nozzle: any) => {
             if (nozzle.status === 'active') {
               activeFuelTypes.add(nozzle.fuelType?.toUpperCase() || '');
             }
