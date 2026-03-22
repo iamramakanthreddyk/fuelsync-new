@@ -162,7 +162,7 @@ async function getPumps(stationId) {
   // Fetch latest reading per nozzle
   const pumpIds = pumps.map(p => p.id);
   const latestReadings = await NozzleReading.findAll({
-    attributes: ['nozzleId', 'value', 'readingDate'],
+    attributes: ['nozzleId', 'readingValue', 'readingDate'],
     where: {
       nozzleId: {
         [Op.in]: pumpIds.flatMap(pumpId => {
