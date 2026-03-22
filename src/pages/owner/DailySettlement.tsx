@@ -221,17 +221,18 @@ export default function DailySettlement() {
   // Auto-select all unsettled readings and pre-fill owner inputs from employee totals
   useEffect(() => {
     if (readingsData?.unlinked?.readings) {
-      setSelectedIds(readingsData.unlinked.readings.map((r) => r.id));
-      // Pre-populate owner's confirmation inputs with employee-reported totals
-      const t = readingsData.unlinked.totals;
-      if (t) {
-        setActualCash(t.cash || 0);
-        setActualOnline(t.online || 0);
-        setActualCredit(t.credit || 0);
-      }
+      const unlinkedReadings = readingsData.unlinked.readings;
+      setSelectedIds(unlinkedReadings.map((r) => r.id));
+
+      // Pre-populate owner confirmation inputs using deduplicatePayments
+      // (reads from r.transaction.paymentBreakdown — the authoritative source)
+      const totals = deduplicatePayments(unlinkedReadings);
+      setActualCash(totals.cash);
+      setActualOnline(totals.online);
+      setActualCredit(totals.credit);
       
       // Pre-select assigned employee if all readings have the same assigned employee
-      const associatedEmployees = readingsData.unlinked.readings
+      const associatedEmployees = unlinkedReadings
         .map(r => r.assignedEmployeeId)
         .filter((id): id is string => !!id)
         .filter((id, index, arr) => arr.indexOf(id) === index); // unique
