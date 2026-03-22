@@ -227,7 +227,7 @@ async function getFinancialData(stationFilter, startDate, endDate) {
       raw: true
     }),
     Expense.sum('amount', { where: expWhere }),
-    CostOfGoods.sum('amount', { where: cogWhere }),
+    CostOfGoods.sum('totalCost', { where: cogWhere }),
     Settlement.sum('expectedAmount', { where: settWhere }),
     CreditTransaction.sum('amount', { where: { status: 'pending', ...stationFilter } })
   ]);
