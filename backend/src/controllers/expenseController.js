@@ -126,7 +126,7 @@ const getExpenses = asyncHandler(async (req, res, next) => {
   // Format response using pagination helper
   const paginationData = formatPaginatedResponse(expenses, count, page, parsedLimit);
   
-  return sendSuccess(res, paginationData.data, {
+  return sendSuccess(res, paginationData.data, 200, {
     pagination: paginationData.pagination,
     summary: {
       approvedTotal: approvedTotal || 0,
