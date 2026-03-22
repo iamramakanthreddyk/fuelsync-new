@@ -75,6 +75,7 @@ router.delete('/pumps/:id', requireRole(['owner', 'super_admin']), deviceControl
 // NOZZLES (nested under pumps)
 // ============================================
 router.get('/pumps/:pumpId/nozzles', deviceController.getNozzles);
+router.get('/:stationId/nozzles', deviceController.getNozzles);  // Alias for station-level query
 router.get('/nozzles/:id', deviceController.getNozzle);
 router.post('/pumps/:pumpId/nozzles', 
   requireRole(['owner', 'super_admin']),
