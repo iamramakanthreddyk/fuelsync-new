@@ -64,7 +64,7 @@ exports.validateBulkReadings = asyncHandler(async (req, res, next) => {
     allValid: validationResult.allValid,
     results: validationResult.results,
     message: `Validation complete: ${validationResult.validCount} valid, ${validationResult.invalidCount} invalid`
-  }, { statusCode });
+  }, statusCode);
 });
 
 /**
@@ -307,7 +307,7 @@ exports.bulkUpdateReadings = asyncHandler(async (req, res, next) => {
       updatedCount: updateResult.updatedCount,
       skippedCount: updateResult.skippedCount,
       details: updateResult.details
-    }, { message: `Successfully updated ${updateResult.updatedCount} readings` });
+    }, 200, { message: `Successfully updated ${updateResult.updatedCount} readings` });
   } catch (error) {
     await t.rollback();
     throw error;
