@@ -8,8 +8,9 @@
  */
 
 import { useMemo } from 'react';
-import { useFuelPrices } from './api';
-import { unwrapDataOrArray } from '@/lib/api-utils';
+import { useQuery } from '@tanstack/react-query';
+import { useFuelPrices, useStations } from './api';
+import { unwrapDataOrObject } from '@/lib/api-utils';
 import { useRoleAccess } from './useRoleAccess';
 import { useFuelPricesGlobal } from '@/context/FuelPricesContext';
 import { FuelTypeEnum } from '@/core/enums';
@@ -30,20 +31,42 @@ export interface FuelPricesStatus {
  * @param stationId - Optional: Specific station ID to check. If not provided, uses currentStation
  */
 export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
-  const fuelPricesQuery = useFuelPrices(stationId || '');
-  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
-  const isLoading = fuelPricesQuery.isLoading;
   const { currentStation } = useRoleAccess();
+  const { data: stationsResponse } = useStations();
+  const stations = (stationsResponse && 'data' in stationsResponse && Array.isArray(stationsResponse.data))
+    ? stationsResponse.data
+    : [];
+  const stationsKey = stations?.map((s: any) => s.id).sort().join(',');
   
-  const { prices: globalPrices, stationId: ctxStationId } = useFuelPricesGlobal();
+  // Subscribe to the global pre-fetched prices cache from AppContent
+  const { data: allCachedPrices } = useQuery({
+    queryKey: ['all-fuel-prices', stationsKey],
+    queryFn: () => {
+      // This should be pre-populated by AppContent - we're just subscribing
+      // If somehow not in cache, return empty to trigger fallback below
+      return {};
+    },
+    enabled: !!stationsKey,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+  });
+  
+  // Also fetch directly for the specific station as a backup
+  const fuelPricesQuery = useFuelPrices(stationId || '');
+  const fuelPricesData = unwrapDataOrObject(fuelPricesQuery.data, null);
+  const directPrices = (fuelPricesData && fuelPricesData.current && Array.isArray(fuelPricesData.current))
+    ? fuelPricesData.current
+    : [];
+  
+  const { prices: globalPrices, pricesByStation, stationId: ctxStationId } = useFuelPricesGlobal();
 
   const status = useMemo<FuelPricesStatus>(() => {
-    // Determine effectiveStation inside memo to avoid unstable object in deps
     const effectiveStation = stationId ? { id: stationId } : currentStation;
-    // If still loading, don't block entry - assume prices will load
-    if (isLoading) {
+    
+    // If still loading direct API call, assume prices will load
+    if (fuelPricesQuery.isLoading) {
       return {
-        hasPrices: true, // Assume true while loading to avoid false warnings
+        hasPrices: true,
         pricesCount: 0,
         missingFuelTypes: [],
         isLoading: true,
@@ -52,7 +75,6 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
       };
     }
 
-    // If no station, can't enter readings
     if (!effectiveStation) {
       return {
         hasPrices: false,
@@ -64,30 +86,51 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
       };
     }
 
-    // Count prices that are set
-    // Ensure fuelPrices is an array before accessing it
-    let pricesArray = Array.isArray(fuelPrices) ? fuelPrices : [];
+    let pricesArray: any[] = [];
 
-    // If react-query returned no prices yet but the global context already has prices
-    // for the same station, use the context as a fallback to avoid race conditions.
-    if ((pricesArray.length === 0 || !pricesArray) && globalPrices && Object.keys(globalPrices).length > 0) {
-      // If caller passed an explicit stationId, prefer the global context if it has prices
-      // Otherwise require context stationId to match effectiveStation.id to avoid cross-station leakage
+    // Priority 1: Direct API query (most specific, most recent)
+    if (Array.isArray(directPrices) && directPrices.length > 0) {
+      pricesArray = directPrices;
+    }
+    // Priority 2: Cached prices from AppContent pre-fetch
+    else if (allCachedPrices && typeof allCachedPrices === 'object') {
+      const cachedStationPrices = (allCachedPrices as any)[effectiveStation.id];
+      if (Array.isArray(cachedStationPrices) && cachedStationPrices.length > 0) {
+        pricesArray = cachedStationPrices;
+      }
+    }
+    // Priority 3: Context pricesByStation (pre-loaded on app init)
+    if (pricesArray.length === 0 && pricesByStation && effectiveStation) {
+      const stationPricesRecord = pricesByStation[effectiveStation.id];
+      if (stationPricesRecord && typeof stationPricesRecord === 'object' && Object.keys(stationPricesRecord).length > 0) {
+        pricesArray = Object.entries(stationPricesRecord).map(([fuel_type, price_per_litre]) => ({
+          fuel_type,
+          price_per_litre: Number(price_per_litre)
+        }));
+      }
+    }
+    // Priority 4: Global context prices (fallback for when nothing else available)
+    if (pricesArray.length === 0 && globalPrices && Object.keys(globalPrices).length > 0) {
       const useFallback = Boolean(stationId) || (ctxStationId && effectiveStation && ctxStationId === effectiveStation.id);
       if (useFallback) {
-        // Debug: log mismatch for investigation
-         
-        console.debug('[useFuelPricesStatus] falling back to globalPrices. react-query prices:', pricesArray, 'globalPrices:', globalPrices, 'effectiveStation:', effectiveStation, 'ctxStationId:', ctxStationId);
-        // Convert globalPrices (Record<string, number>) to a synthetic pricesArray shape
-        pricesArray = Object.entries(globalPrices).map(([fuel_type, price_per_litre]) => ({ fuel_type, price_per_litre }));
+        pricesArray = Object.entries(globalPrices).map(([fuel_type, price_per_litre]) => ({
+          fuel_type,
+          price_per_litre: Number(price_per_litre)
+        }));
       }
     }
 
     const pricesCount = pricesArray.length;
     const hasPrices = pricesCount > 0;
 
-    // Get fuel types from prices
-    const setFuelTypes = (pricesArray.map(p => (p.fuel_type ?? p.fuelType ?? '').toString().toUpperCase())) || [];
+    // Normalize fuel types from prices
+    const setFuelTypes = pricesArray
+      .map(p => {
+        const ft = (p.fuel_type || p.fuelType || '').toString().toUpperCase().trim();
+        return ft;
+      })
+      .filter(ft => ft.length > 0);
+    
     const commonFuelTypes = [FuelTypeEnum.PETROL.toUpperCase(), FuelTypeEnum.DIESEL.toUpperCase()];
     const missingFuelTypes = commonFuelTypes.filter(ft => !setFuelTypes.includes(ft));
 
@@ -95,11 +138,10 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
     let canEnterReadings = true;
 
     if (!hasPrices) {
-      warning = 'No fuel prices set for this station';
+      warning = 'Fuel prices not yet set for this station. Please configure prices before entering readings.';
       canEnterReadings = false;
     } else if (missingFuelTypes.length > 0) {
-      warning = `Missing prices for: ${missingFuelTypes.join(', ')}`;
-      // Can still enter readings with partial prices, but show warning
+      warning = `Warning: Missing prices for ${missingFuelTypes.join(', ')}. Readings can be entered but calculations may be incomplete.`;
       canEnterReadings = true;
     }
 
@@ -111,7 +153,16 @@ export function useFuelPricesStatus(stationId?: string): FuelPricesStatus {
       warning,
       canEnterReadings
     };
-  }, [fuelPrices, isLoading, stationId, currentStation, ctxStationId, globalPrices]);
+  }, [
+    directPrices,
+    allCachedPrices,
+    pricesByStation,
+    globalPrices,
+    fuelPricesQuery.isLoading,
+    stationId,
+    currentStation?.id,
+    ctxStationId
+  ]);
 
   return status;
 }

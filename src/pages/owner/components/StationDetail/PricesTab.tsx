@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { useFuelPrices } from '@/hooks/api';
-import { unwrapDataOrArray } from '@/lib/api-utils';
+import { unwrapDataOrObject } from '@/lib/api-utils';
 import { FuelType, FuelTypeEnum } from '@/core/enums';
 import { SetPriceDialog } from './dialogs';
 import { PriceCard } from './cards';
@@ -31,7 +31,11 @@ export default function PricesTab({ id }: PricesTabProps) {
   });
 
   const fuelPricesQuery = useFuelPrices(id);
-  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
+  // API returns object: { stationId, current: [...], history: [...] }
+  const fuelPricesData = unwrapDataOrObject(fuelPricesQuery.data, null);
+  const fuelPrices = (fuelPricesData && fuelPricesData.current && Array.isArray(fuelPricesData.current)) 
+    ? fuelPricesData.current 
+    : [];
   const fuelPricesLoading = fuelPricesQuery.isLoading;
   const refetch = fuelPricesQuery.refetch;
 

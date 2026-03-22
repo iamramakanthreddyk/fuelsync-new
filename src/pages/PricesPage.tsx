@@ -9,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useQueryClient } from "@tanstack/react-query";
 import { IndianRupee, Building2 } from "lucide-react";
 import { useFuelPrices } from "@/hooks/api";
-import { unwrapDataOrArray } from '@/lib/api-utils';
+import { unwrapDataOrArray, unwrapDataOrObject } from '@/lib/api-utils';
 import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { FuelPriceDialog } from "@/components/prices/FuelPriceDialog";
 import { FuelPricesGrid } from '@/components/prices/FuelPricesGrid';
@@ -59,7 +59,11 @@ export default function PricesPage() {
   
   // Fetch prices for the SELECTED station (not relying on currentStation)
   const fuelPricesQuery = useFuelPrices(defaultStationId);
-  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
+  // API returns object: { stationId, current: [...], history: [...] }
+  const fuelPricesData = unwrapDataOrObject(fuelPricesQuery.data, null);
+  const fuelPrices = (fuelPricesData && fuelPricesData.current && Array.isArray(fuelPricesData.current))
+    ? fuelPricesData.current
+    : [];
   const pricesError = fuelPricesQuery.error;
   
   // Get the currently selected station details

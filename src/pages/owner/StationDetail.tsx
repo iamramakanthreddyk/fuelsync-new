@@ -3,12 +3,12 @@
  * Comprehensive view of a single station with pumps, nozzles, fuel prices
  */
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { toFixedNumber } from '@/lib/numberFormat';
-import { formatDateISO, formatDateLocal } from '@/lib/dateFormat';
+import { formatDateISO } from '@/lib/dateFormat';
 import { Button } from '@/components/ui/button';
 import InlineSettleForm from '../credit/InlineSettleForm';
 import { Input } from '@/components/ui/input';
@@ -35,7 +35,7 @@ import { useToast } from '@/hooks/use-toast';
 import { debounce } from '@/lib/utils';
 import { apiClient } from '@/lib/api-client';
 import { extractApiArray } from '@/lib/api-response';
-import { getFuelBadgeClasses, getFuelColors } from '@/lib/fuelColors';
+import { getFuelColors } from '@/lib/fuelColors';
 import { FUEL_TYPE_LABELS } from '@/lib/constants';
 import { Station } from '@/types/api';
 import { StationSettingsForm } from '@/components/owner/StationSettingsForm';
@@ -52,7 +52,7 @@ import {
   RefreshCw
 } from 'lucide-react';
 import { useFuelPrices } from '@/hooks/api';
-import { unwrapDataOrArray } from '@/lib/api-utils';
+import { unwrapDataOrObject } from '@/lib/api-utils';
 import { PermissionGuard } from '@/hooks/usePermissions';
 
 // Import enums and types
@@ -551,7 +551,11 @@ export default function StationDetail() {
 
   // Fetch fuel prices using the API hook - MUST be called before ANY early returns
   const fuelPricesQuery = useFuelPrices(id || '');
-  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
+  // API returns object: { stationId, current: [...], history: [...] }
+  const fuelPricesData = unwrapDataOrObject(fuelPricesQuery.data, {}) as any;
+  const fuelPrices = (fuelPricesData && typeof fuelPricesData === 'object' && 'current' in fuelPricesData && Array.isArray(fuelPricesData.current))
+    ? fuelPricesData.current
+    : [];
   const fuelPricesLoading = fuelPricesQuery.isLoading;
 
   if (stationLoading) {
@@ -1083,7 +1087,7 @@ export default function StationDetail() {
             </div>
           ) : fuelPrices && fuelPrices.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {fuelPrices.map((price) => {
+              {fuelPrices.map((price: any) => {
                 const fuelColors = getFuelColors(String(price.fuelType || '').toLowerCase());
                 const isEffectiveToday = new Date(price.effectiveFrom) <= new Date();
                 // API may return snake_case (`cost_price`) or camelCase (`costPrice`).
@@ -1214,19 +1218,19 @@ export default function StationDetail() {
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
                     <div className="text-center">
                       <div className="font-semibold text-green-600">
-                        ₹{Math.min(...fuelPrices.map(p => Number(p.price))).toFixed(2)}
+                        ₹{Math.min(...fuelPrices.map((p: any) => Number(p.price))).toFixed(2)}
                       </div>
                       <div className="text-muted-foreground">Lowest Price</div>
                     </div>
                     <div className="text-center">
                       <div className="font-semibold text-blue-600">
-                        ₹{(fuelPrices.reduce((sum, p) => sum + Number(p.price), 0) / fuelPrices.length).toFixed(2)}
+                        ₹{(fuelPrices.reduce((sum: number, p: any) => sum + Number(p.price), 0) / fuelPrices.length).toFixed(2)}
                       </div>
                       <div className="text-muted-foreground">Average Price</div>
                     </div>
                     <div className="text-center">
                       <div className="font-semibold text-purple-600">
-                        ₹{Math.max(...fuelPrices.map(p => Number(p.price))).toFixed(2)}
+                        ₹{Math.max(...fuelPrices.map((p: any) => Number(p.price))).toFixed(2)}
                       </div>
                       <div className="text-muted-foreground">Highest Price</div>
                     </div>

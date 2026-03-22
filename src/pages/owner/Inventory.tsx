@@ -67,6 +67,7 @@ import {
 import { getFuelTypeOptionsLegacy, type FuelType } from '@/lib/constants';
 import { toNumber } from '@/utils/number';
 import { getFuelColors } from '@/lib/fuelColors';
+import { unwrapDataOrObject } from '@/lib/api-utils';
 
 interface TankData {
   id: string;
@@ -149,7 +150,19 @@ export default function Inventory() {
   
   // Fuel prices for cost validation
   const { data: pricesResponse } = useFuelPrices(selectedStationId);
-  const fuelPrices = (pricesResponse?.data || {}) as Record<string, string>;
+  // API returns: { stationId, current: [...], history: [...] }
+  const fuelPricesData = unwrapDataOrObject(pricesResponse?.data, {}) as any;
+  const fuelPrices: Record<string, string> = {};
+  
+  if (fuelPricesData && typeof fuelPricesData === 'object' && 'current' in fuelPricesData && Array.isArray(fuelPricesData.current)) {
+    fuelPricesData.current.forEach((price: any) => {
+      const fuelType = (price.fuel_type || price.fuelType || '').toUpperCase();
+      const priceValue = (price.price_per_litre || price.price || '0').toString();
+      if (fuelType) {
+        fuelPrices[fuelType] = priceValue;
+      }
+    });
+  }
   
   // Transform API Tank data to TankData with computed properties
   // Handle both camelCase and snake_case from API
@@ -1243,11 +1256,11 @@ export default function Inventory() {
                   await updateTankMutation.mutateAsync({
                     tankId: selectedTank.id,
                     data: {
-                      fuelType: fuelType || undefined,
+                      fuelType: fuelType ? (fuelType as FuelType) : undefined,
                       displayFuelName: displayName || undefined,
                       name: name || undefined,
                       capacity: capacity ? toNumber(capacity) : undefined,
-                    },
+                    } as any,
                   });
                   toast({ title: 'Success', description: 'Tank updated successfully' });
                   setShowEditDialog(false);

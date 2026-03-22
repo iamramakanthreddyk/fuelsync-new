@@ -1,7 +1,5 @@
 
-import React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useRoleAccess } from "@/hooks/useRoleAccess";
 import { getNavigationBySection } from "@/utils/navigationConfig";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -9,18 +7,19 @@ import { useAuth } from "@/hooks/useAuth";
 export function QuickActions() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const { isOwner, isAdmin, isManager, isEmployee } = useRoleAccess();
 
   // Get primary and admin navigation items based on role
-  const primaryItems = getNavigationBySection(user?.role, 'primary');
-  const adminItems = getNavigationBySection(user?.role, 'admin');
-  const secondaryItems = getNavigationBySection(user?.role, 'secondary');
+  // Map role to navigation role ('super_admin' becomes 'admin' for navigation)
+  const navRole = user?.role === 'super_admin' ? 'admin' : user?.role;
+  
+  const primaryItems = getNavigationBySection(navRole, 'primary');
+  const adminItems = getNavigationBySection(navRole, 'admin');
+  const secondaryItems = getNavigationBySection(navRole, 'secondary');
 
   // Combine primary + admin for grid display
   const mainItems = [...primaryItems, ...adminItems];
   
-  // Filter out Settings from secondary (it goes in footer)
-  const footerItems = secondaryItems.filter(item => item.id !== 'settings');
+  // Find Settings item from secondary
   const settingsItem = secondaryItems.find(item => item.id === 'settings');
 
   return (

@@ -7,7 +7,7 @@
 
 import { useMemo } from 'react';
 import { useFuelPrices } from './api';
-import { unwrapDataOrArray } from '@/lib/api-utils';
+import { unwrapDataOrObject } from '@/lib/api-utils';
 
 export interface FuelTypePriceStatus {
   hasPriceForType: boolean;
@@ -23,7 +23,11 @@ export interface FuelTypePriceStatus {
  */
 export function useFuelTypePrice(stationId?: string, fuelType?: string): FuelTypePriceStatus {
   const fuelPricesQuery = useFuelPrices(stationId || '');
-  const fuelPrices = unwrapDataOrArray(fuelPricesQuery.data, []);
+  // API returns object: { stationId, current: [...], history: [...] }
+  const fuelPricesData = unwrapDataOrObject(fuelPricesQuery.data, null);
+  const fuelPrices = (fuelPricesData && fuelPricesData.current && Array.isArray(fuelPricesData.current))
+    ? fuelPricesData.current
+    : [];
 
   const status = useMemo<FuelTypePriceStatus>(() => {
     if (!fuelType) {
@@ -39,12 +43,12 @@ export function useFuelTypePrice(stationId?: string, fuelType?: string): FuelTyp
     
     // Find price for this specific fuel type
     const priceForType = pricesArray.find(
-      p => fuelType && p.fuel_type.toUpperCase() === fuelType.toUpperCase()
+      p => fuelType && (p.fuel_type || p.fuelType || '').toUpperCase() === fuelType.toUpperCase()
     );
 
     return {
       hasPriceForType: !!priceForType,
-      price: priceForType?.price_per_litre || null,
+      price: (priceForType?.price_per_litre || priceForType?.price) ? Number(priceForType?.price_per_litre || priceForType?.price) : null,
       fuelType
     };
   }, [fuelPrices, fuelType]);

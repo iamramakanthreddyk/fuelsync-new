@@ -4,7 +4,7 @@ import { IndianRupee, TrendingUp, Clock, Lock, BarChart3, Box, TrendingDown } fr
 import { TrendsChart } from "@/components/dashboard/TrendsChart";
 import { AlertBadges } from "@/components/dashboard/AlertBadges";
 import { useDashboardSummary, useFuelPrices } from "@/hooks/api";
-import { unwrapDataOrObject, unwrapDataOrArray } from '@/lib/api-utils';
+import { unwrapDataOrObject } from '@/lib/api-utils';
 import { normalizeFuelType } from "@/core/fuel/fuelConfig";
 import { UpgradeModal } from "@/components/dashboard/UpgradeModal";
 import { formatCurrency } from "@/utils/formatting";
@@ -65,7 +65,11 @@ export default function Dashboard() {
   }, []);
 
   const fuelPricesQuery = useFuelPrices(currentStation?.id || '');
-  const fuelPricesList = unwrapDataOrArray(fuelPricesQuery.data, []);
+  // API returns object: { stationId, current: [...], history: [...] }
+  const fuelPricesData = unwrapDataOrObject(fuelPricesQuery.data, {});
+  const fuelPricesList = (fuelPricesData && typeof fuelPricesData === 'object' && 'current' in fuelPricesData && Array.isArray((fuelPricesData as any).current))
+    ? (fuelPricesData as any).current
+    : [];
 
   const { setStationId } = useFuelPricesGlobal();
 
