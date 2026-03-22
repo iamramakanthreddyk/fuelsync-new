@@ -197,12 +197,15 @@ export default function QuickDataEntryEnhanced() {
   const fuelPrices = useMemo(() => Array.isArray(pricesArray) ? pricesArray : [], [pricesArray]);
 
   // Fetch true last readings for all nozzles to use in payment allocation calculation
-  const { data: allLastReadings } = useQuery({
-    queryKey: ['allNozzleLastReadings', selectedStation],
+  // Include nozzle IDs in query key so it refetches when nozzles/pumps change
+  const nozzleIds = useMemo(() => {
+    return pumps?.flatMap((p: any) => p.nozzles || []).map((n: any) => n.id) || [];
+  }, [pumps]);
+
+  const { data: allLastReadings, isLoading: allLastReadingsLoading } = useQuery({
+    queryKey: ['allNozzleLastReadings', selectedStation, nozzleIds],
     queryFn: async () => {
-      if (!selectedStation || !pumps) return {};
-      const nozzleIds = pumps.flatMap((p: any) => p.nozzles || []).map((n: any) => n.id);
-      if (nozzleIds.length === 0) return {};
+      if (!selectedStation || !pumps || nozzleIds.length === 0) return {};
       try {
         const idsParam = nozzleIds.join(',');
         const res: any = await apiClient.get(`/readings/latest?ids=${encodeURIComponent(idsParam)}`);
@@ -212,7 +215,7 @@ export default function QuickDataEntryEnhanced() {
         return {};
       }
     },
-    enabled: !!selectedStation && !!pumps
+    enabled: !!selectedStation && !!pumps && nozzleIds.length > 0
   });
 
   // Fetch creditors for selected station
@@ -867,7 +870,7 @@ export default function QuickDataEntryEnhanced() {
                           handleSampleChange={handleSampleChange}
                           hasPriceForFuelType={hasPriceForFuelType}
                           lastReading={allLastReadings?.[nozzle.id]}
-                          lastReadingLoading={false}
+                          lastReadingLoading={allLastReadingsLoading}
                           showSaleCalculation={true}
                           litres={litres}
                           saleValue={saleValue}

@@ -78,7 +78,11 @@ export const NozzleReadingRow: React.FC<NozzleReadingRowProps> = ({
         </div>
         <div className="text-left">
           <div className="text-xs text-brand-500 font-medium">Previous</div>
-          <div className="text-base sm:text-lg font-bold text-brand-900 break-words">{safeToFixed(compareValue, 1)} L</div>
+          {lastReadingLoading ? (
+            <div className="animate-pulse h-7 w-20 bg-brand-200 rounded"></div>
+          ) : (
+            <div className="text-base sm:text-lg font-bold text-brand-900 break-words">{safeToFixed(compareValue, 1)} L</div>
+          )}
         </div>
       </div>
       {/* Input Section */}
