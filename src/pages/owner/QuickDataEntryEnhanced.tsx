@@ -934,11 +934,12 @@ export default function QuickDataEntryEnhanced() {
                     onClick={() => {
                       handleSubmit();
                     }}
-                    disabled={Object.keys(readings).length === 0 || onlineBreakdownMismatch}
+                    disabled={Object.keys(readings).length === 0 || onlineBreakdownMismatch || (canSelectStation && !selectedEmployeeId)}
                     className="px-8"
                     size="lg"
+                    title={canSelectStation && !selectedEmployeeId ? 'Please select an employee to assign these readings to' : ''}
                   >
-                    {submitReadingsMutation.isPending ? 'Saving...' : onlineBreakdownMismatch ? 'Fix breakdown mismatch' : 'Submit All Readings ✓'}
+                    {submitReadingsMutation.isPending ? 'Saving...' : canSelectStation && !selectedEmployeeId ? 'Select employee first' : onlineBreakdownMismatch ? 'Fix breakdown mismatch' : 'Submit All Readings ✓'}
                   </Button>
                 </div>
               </CardContent>

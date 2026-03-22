@@ -255,6 +255,7 @@ exports.createQuickEntry = asyncHandler(async (req, res, next) => {
   const { stationId, transactionDate, readings = [], paymentBreakdown, paymentSubBreakdown = null, creditAllocations = [], notes = '' } = req.body;
   const assignedEmployeeId = req.body.assignedEmployeeId || req.body.associatedEmployeeId || null;
   const userId = req.user.id;
+  const userRole = req.user?.role;
 
   if (!stationId) return sendError(res, 'MISSING_FIELD', VALIDATION_ERRORS.STATION_REQUIRED, 400);
   if (!transactionDate) return sendError(res, 'MISSING_FIELD', VALIDATION_ERRORS.DATE_REQUIRED, 400);
@@ -262,6 +263,55 @@ exports.createQuickEntry = asyncHandler(async (req, res, next) => {
 
   const station = await Station.findByPk(stationId);
   if (!station) throw new NotFoundError('Station', stationId);
+
+  // --- EMPLOYEE ASSIGNMENT VALIDATION (REQUIRED) ---
+  // RULE: Every reading MUST have an employee responsible for it
+  // - Employee: Can only assign to themselves
+  // - Manager/Owner: MUST explicitly assign to an employee
+  
+  let resolvedAssignedEmployeeId = assignedEmployeeId;
+
+  if (userRole === 'employee') {
+    // Employee must assign to themselves (or leave null = implicit self-assignment)
+    if (assignedEmployeeId && assignedEmployeeId !== userId) {
+      return sendError(res, 'UNAUTHORIZED', 'Employees can only enter readings for themselves', 403);
+    }
+    // For employee: use explicit assignment or null (which will be treated as self)
+    resolvedAssignedEmployeeId = assignedEmployeeId || null;
+  } else if (['manager', 'owner', 'super_admin'].includes(userRole)) {
+    // Manager/Owner MUST explicitly assign to an employee
+    if (!assignedEmployeeId) {
+      return sendError(
+        res,
+        'VALIDATION_ERROR',
+        'Managers and owners must assign readings to an employee',
+        400,
+        { field: 'assignedEmployeeId', message: 'Select which employee this reading belongs to' }
+      );
+    }
+
+    // Verify assigned employee exists and belongs to same station
+    const assignedEmployee = await User.findOne({
+      where: {
+        id: assignedEmployeeId,
+        stationId: station.id,
+        role: 'employee',
+        isActive: true
+      }
+    });
+
+    if (!assignedEmployee) {
+      return sendError(
+        res,
+        'NOT_FOUND',
+        'Assigned employee not found at this station or is not active',
+        404,
+        { employeeId: assignedEmployeeId }
+      );
+    }
+
+    resolvedAssignedEmployeeId = assignedEmployee.id;
+  }
 
   const t = await sequelize.transaction();
   try {
@@ -294,7 +344,7 @@ exports.createQuickEntry = asyncHandler(async (req, res, next) => {
         stationPricesMap,
         isSample: isSampleVal,
         forceNotInitial: true,
-        assignedEmployeeId
+        assignedEmployeeId: resolvedAssignedEmployeeId // Use validated employee ID
       });
       createdReadings.push(created);
     }
