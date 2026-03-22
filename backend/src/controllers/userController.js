@@ -63,7 +63,7 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
     
     if (stationIds.length === 0) {
       const emptyPagination = formatPaginatedResponse([], 0, page, limit);
-      return sendSuccess(res, [], { pagination: emptyPagination.pagination });
+      return sendSuccess(res, [], 200, { pagination: emptyPagination.pagination });
     }
     
     where.stationId = { [Op.in]: stationIds };
@@ -77,7 +77,7 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
     where.role = 'employee';
   } else {
     const singlePagination = formatPaginatedResponse([currentUser.toSafeObject()], 1, 1, 1);
-    return sendSuccess(res, singlePagination.data, { pagination: singlePagination.pagination });
+    return sendSuccess(res, singlePagination.data, 200, { pagination: singlePagination.pagination });
   }
 
   if (isActive !== undefined) {
@@ -110,7 +110,7 @@ exports.getUsers = asyncHandler(async (req, res, next) => {
   // Format response using pagination helper
   const paginationData = formatPaginatedResponse(users, count, page, parsedLimit);
 
-  return sendSuccess(res, paginationData.data, { pagination: paginationData.pagination });
+  return sendSuccess(res, paginationData.data, 200, { pagination: paginationData.pagination });
 });
 
 /**
