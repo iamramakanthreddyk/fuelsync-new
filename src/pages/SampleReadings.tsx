@@ -92,6 +92,13 @@ export default function SampleReadings() {
     }
   }, [stations, selectedStation]);
 
+  // Auto-fetch readings when component is ready
+  useEffect(() => {
+    if (selectedStation && startDate && endDate) {
+      fetchSampleReadings();
+    }
+  }, [selectedStation]);
+
   const fetchSampleReadings = async () => {
     if (!startDate || !endDate) {
       toast({ title: 'Error', description: 'Please select date range' });
