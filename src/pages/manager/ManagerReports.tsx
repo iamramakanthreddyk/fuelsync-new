@@ -94,14 +94,14 @@ export default function ManagerReports() {
     selectedStation: currentStation?.id || '',
   });
 
-  const sales: SalesData[] = Array.isArray(salesResponse?.data?.items) 
-    ? salesResponse.data.items.map((item: any) => ({
-        date: item.readingDate || item.date || '',
-        litres: item.litres || 0,
-        amount: item.amount || 0,
+  const sales: SalesData[] = Array.isArray(salesResponse?.data)
+    ? salesResponse.data.map((item: any) => ({
+        date: item.date || '',
+        litres: item.litresSold || 0,
+        amount: item.totalAmount || 0,
         cash: item.cash || 0,
         online: item.online || 0,
-        readings: item.count || 0
+        readings: item.readingCount || 0
       }))
     : [];
   const pumps: PumpPerformance[] = Array.isArray(pumpsResponse?.data?.pumps) 
