@@ -133,8 +133,10 @@ export default function QuickDataEntryEnhanced() {
     stationId: selectedStation,
     mode: 'owner',
     onSuccess: () => {
-      // Clear the form
-      setPaymentAllocation({ cash: '', online: '', onlineBreakdown: null, credits: [] });
+      // Clear the form AFTER both mutations complete (readings + transaction)
+      // Reset isSubmitting here so auto-correction effects run against cleared data
+      setIsSubmitting(false);
+      setPaymentAllocation({ cash: '0', online: '0', onlineBreakdown: null, credits: [] });
       // Invalidate and refetch pumps data
       queryClient.invalidateQueries({ queryKey: ['pumps', selectedStation] });
       queryClient.invalidateQueries({ queryKey: ['pumps-data', selectedStation] });
@@ -574,16 +576,15 @@ export default function QuickDataEntryEnhanced() {
         saleSummary
       } as any,
       {
-        onSettled: () => {
-          // Reset submission flag after mutation completes (success or error)
+        onError: () => {
+          // Reset submission flag if readings API itself fails (transaction never starts)
           setIsSubmitting(false);
         }
       }
     );
-    
-    // Clear form immediately after submission to prevent validation errors on re-render
-    // This prevents "Payment Not Allocated" error from appearing after successful API call
-    setPaymentAllocation({ cash: '0', online: '0', onlineBreakdown: null, credits: [] });
+    // Do NOT clear paymentAllocation here — clearing triggers auto-correction effects
+    // which snap payment back to totalSaleValue while readings are still in state.
+    // The onSuccess callback above handles cleanup once the full flow (readings + transaction) completes.
   };
 
   const pendingCount = Object.keys(readings).length;
