@@ -159,6 +159,7 @@ export default function DailySettlement() {
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [selectedEmployeeId, setSelectedEmployeeId] = useState<string>('');
+  const [expandedEmployees, setExpandedEmployees] = useState<Set<string>>(new Set());
 
   // Fetch station staff to resolve employee names from associatedEmployeeId
   const staffQuery = useStationStaff(stationId ?? '');
@@ -186,6 +187,26 @@ export default function DailySettlement() {
     }
     return r.recordedBy ?? null;
   };
+
+  // Helper: group readings by employee
+  const groupReadingsByEmployee = useMemo(() => {
+    const grouped: Record<string, { employee: { id: string; name: string } | null; readings: ReadingForSettlement[] }> = {};
+
+    (readingsData?.unlinked.readings ?? []).forEach(r => {
+      const emp = getResponsibleEmployee(r);
+      const empId = emp?.id || 'unassigned';
+      
+      if (!grouped[empId]) {
+        grouped[empId] = {
+          employee: emp,
+          readings: []
+        };
+      }
+      grouped[empId].readings.push(r);
+    });
+
+    return grouped;
+  }, [readingsData?.unlinked.readings, staffById, getResponsibleEmployee]);
 
   //  Fetch daily sales summary 
   const { data: dailySales, isLoading: salesLoading } = useQuery({
@@ -483,61 +504,116 @@ export default function DailySettlement() {
                 </p>
               )}
 
-              {/* Unsettled readings */}
-              {(readingsData?.unlinked.readings ?? []).map((r) => {
-                const checked = selectedIds.includes(r.id);
-                return (
-                  <div
-                    key={r.id}
-                    onClick={() => toggleReading(r.id)}
-                    className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                      checked
-                        ? 'bg-blue-50 border-blue-300'
-                        : 'bg-white border-gray-200 hover:bg-gray-50'
-                    }`}
-                  >
-                    <Checkbox
-                      checked={checked}
-                      onCheckedChange={() => toggleReading(r.id)}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium">
-                          {fuelLabel[r.fuelType] ?? r.fuelType} · Nozzle #{r.nozzleNumber}
-                        </span>
-                        {(() => {
-                          const responsible = getResponsibleEmployee(r);
-                          const isAssigned = !!r.assignedEmployeeId;
-                          return responsible ? (
-                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${
-                              isAssigned
-                                ? 'bg-blue-100 text-blue-700'
-                                : 'bg-gray-100 text-muted-foreground'
-                            }`}>
-                              {isAssigned ? '👤 ' : ''}{responsible.name}
-                            </span>
-                          ) : null;
-                        })()}
-                        {r.assignedEmployeeId && r.recordedBy && r.assignedEmployeeId !== r.recordedBy.id && (
-                          <span className="text-xs text-gray-400">
-                            (entered by {r.recordedBy.name})
-                          </span>
+              {/* Unsettled readings - grouped by employee */}
+              {Object.entries(groupReadingsByEmployee).length > 0 ? (
+                Object.entries(groupReadingsByEmployee)
+                  .sort(([, a], [, b]) => (a.employee?.name || 'Unassigned').localeCompare((b.employee?.name || 'Unassigned')))
+                  .map(([empId, group]) => {
+                    const allEmpReadingsSelected = group.readings.every(r => selectedIds.includes(r.id));
+                    const someEmpReadingsSelected = group.readings.some(r => selectedIds.includes(r.id));
+                    const isExpanded = expandedEmployees.has(empId);
+
+                    return (
+                      <div key={empId} className="rounded-lg border border-gray-200 overflow-hidden">
+                        {/* Employee header */}
+                        <div
+                          className="p-3 bg-gray-50 border-b border-gray-200 cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => {
+                            const newSet = new Set(expandedEmployees);
+                            if (newSet.has(empId)) {
+                              newSet.delete(empId);
+                            } else {
+                              newSet.add(empId);
+                            }
+                            setExpandedEmployees(newSet);
+                          }}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-3 flex-1 min-w-0">
+                              <ChevronDown className={`w-4 h-4 transition-transform flex-shrink-0 ${isExpanded ? '' : '-rotate-90'}`} />
+                              <div className="min-w-0">
+                                <p className="font-semibold text-sm text-gray-900">
+                                  {group.employee?.name || 'Unassigned'}
+                                </p>
+                                <p className="text-xs text-gray-500 mt-0.5">
+                                  {group.readings.length} reading{group.readings.length !== 1 ? 's' : ''} · {safeToFixed(group.readings.reduce((sum, r) => sum + r.litresSold, 0), 1)} L
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 flex-shrink-0">
+                              <input
+                                type="checkbox"
+                                checked={allEmpReadingsSelected}
+                                onChange={() => {
+                                  if (allEmpReadingsSelected) {
+                                    // Deselect all from this employee
+                                    setSelectedIds(selectedIds.filter(id => !group.readings.map(r => r.id).includes(id)));
+                                  } else {
+                                    // Select all from this employee
+                                    setSelectedIds([...new Set([...selectedIds, ...group.readings.map(r => r.id)])]);
+                                  }
+                                }}
+                                ref={(el) => {
+                                  if (el) {
+                                    el.indeterminate = someEmpReadingsSelected && !allEmpReadingsSelected;
+                                  }
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                className="w-4 h-4 accent-blue-600 cursor-pointer"
+                              />
+                              <span className="text-sm font-semibold text-green-700">
+                                {fmt(deduplicatePayments(group.readings).cash + deduplicatePayments(group.readings).online + deduplicatePayments(group.readings).credit)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Employee's readings - expandable */}
+                        {isExpanded && (
+                          <div className="space-y-1 p-2 bg-white">
+                            {group.readings.map((r) => {
+                              const checked = selectedIds.includes(r.id);
+                              return (
+                                <div
+                                  key={r.id}
+                                  onClick={() => toggleReading(r.id)}
+                                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors text-sm ${
+                                    checked
+                                      ? 'bg-blue-50 border-blue-300'
+                                      : 'bg-white border-gray-100 hover:bg-gray-50'
+                                  }`}
+                                >
+                                  <Checkbox
+                                    checked={checked}
+                                    onCheckedChange={() => toggleReading(r.id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-shrink-0"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium">
+                                        {fuelLabel[r.fuelType] ?? r.fuelType} · Nozzle #{r.nozzleNumber}
+                                      </span>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground mt-0.5">
+                                      {safeToFixed(r.litresSold, 1)} L
+                                      {(r.cashAmount ?? 0) > 0 && `  Cash ${fmt(r.cashAmount!)}`}
+                                      {(r.onlineAmount ?? 0) > 0 && `  Online ${fmt(r.onlineAmount!)}`}
+                                      {(r.creditAmount ?? 0) > 0 && `  Credit ${fmt(r.creditAmount!)}`}
+                                    </div>
+                                  </div>
+                                  <span className="text-sm font-semibold text-green-700 shrink-0">
+                                    {fmt(r.saleValue)}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
                         )}
                       </div>
-                      <div className="text-xs text-muted-foreground mt-0.5">
-                        {safeToFixed(r.litresSold, 1)} L
-                        {(r.cashAmount ?? 0) > 0 && `  Cash ${fmt(r.cashAmount!)}`}
-                        {(r.onlineAmount ?? 0) > 0 && `  Online ${fmt(r.onlineAmount!)}`}
-                        {(r.creditAmount ?? 0) > 0 && `  Credit ${fmt(r.creditAmount!)}`}
-                      </div>
-                    </div>
-                    <span className="text-sm font-semibold text-green-700 shrink-0">
-                      {fmt(r.saleValue)}
-                    </span>
-                  </div>
-                );
-              })}
+                    );
+                  })
+              ) : null}
 
               {/* Already settled (collapsed, read-only) */}
               {(readingsData?.linked.count ?? 0) > 0 && (
