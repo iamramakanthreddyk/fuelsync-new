@@ -362,12 +362,18 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
       transactionDate: state.readingDate,
       ...data
     }),
-    onSuccess: () => {
+    onSuccess: (response: any) => {
       toast({
         title: 'Transaction Created ✓',
         description: `Payment breakdown recorded successfully`,
         variant: 'success'
       });
+
+      // Cache the transaction response for auto-fill in Daily Settlement
+      // The component can retrieve this via queryClient.getQueryData(['lastTransaction', stationId])
+      if (response?.data?.id) {
+        queryClient.setQueryData(['lastTransaction', stationId], response.data);
+      }
 
       // Reset state
       setState({

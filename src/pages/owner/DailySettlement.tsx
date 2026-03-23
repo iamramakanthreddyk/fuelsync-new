@@ -286,6 +286,32 @@ export default function DailySettlement() {
     setSelectedEmployeeId('');
   }, [selectedDate]);
 
+  // Auto-fill payment breakdown from recently submitted transaction (if available)
+  useEffect(() => {
+    // Only auto-fill if breakdown is currently empty
+    if (onlineBreakdown || !stationId) return;
+
+    const lastTransaction = queryClient.getQueryData(['lastTransaction', stationId]) as any;
+    
+    if (lastTransaction?.paymentSubBreakdown) {
+      // Auto-fill online breakdown from the cached transaction
+      setOnlineBreakdown(lastTransaction.paymentSubBreakdown);
+      
+      // Also auto-fill the payment amounts if they match today's date
+      if (lastTransaction.transactionDate === selectedDate) {
+        setActualCash(lastTransaction.paymentBreakdown?.cash || 0);
+        setActualOnline(lastTransaction.paymentBreakdown?.online || 0);
+        setActualCredit(lastTransaction.paymentBreakdown?.credit || 0);
+        
+        toast({
+          title: 'Auto-filled Previous Transaction',
+          description: 'Payment breakdown has been populated from your last submission',
+          variant: 'success'
+        });
+      }
+    }
+  }, [stationId, selectedDate, queryClient, onlineBreakdown, toast]);
+
   //  Derived values 
   const allReadings = [
     ...(readingsData?.unlinked.readings ?? []),
