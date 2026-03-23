@@ -126,21 +126,23 @@ exports.createTransaction = asyncHandler(async (req, res, next) => {
 
   if (readings.length === 0) return sendError(res, 'NO_READINGS', VALIDATION_ERRORS.NO_READINGS_FOUND, 400);
 
-  // Calculate totals
-  const totalLiters = readings.reduce((sum, r) => sum + parseFloat(r.litresSold || 0), 0);
-  const totalSaleValue = readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
-
-  // Check if all readings are samples
-  if (transactionValidation.areAllReadingsSamples(readings)) {
+  // Filter out sample readings - samples should not be included in transaction calculations
+  const nonSampleReadings = readings.filter(r => !r.isSample);
+  
+  if (nonSampleReadings.length === 0) {
     return sendError(res, 'SAMPLE_ONLY', VALIDATION_ERRORS.SAMPLE_READINGS_ONLY, 400);
   }
+
+  // Calculate totals from NON-SAMPLE readings only
+  const totalLiters = nonSampleReadings.reduce((sum, r) => sum + parseFloat(r.litresSold || 0), 0);
+  const totalSaleValue = nonSampleReadings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0);
 
   // Validate using enhanced service
   const enhancedValidation = await transactionValidation.validateTransactionComplete({
     stationId,
     transactionDate,
-    readingIds,
-    readings,
+    readingIds: nonSampleReadings.map(r => r.id),
+    readings: nonSampleReadings,
     paymentBreakdown,
     creditAllocations,
     totalSaleValue
@@ -172,7 +174,7 @@ exports.createTransaction = asyncHandler(async (req, res, next) => {
       paymentBreakdown: effectiveBreakdown,
       paymentSubBreakdown: paymentSubBreakdown || null,
       creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
-      readingIds,
+      readingIds: nonSampleReadings.map(r => r.id),
       createdBy: userId,
       notes,
       status: TRANSACTION_STATUS.SUBMITTED
@@ -189,10 +191,10 @@ exports.createTransaction = asyncHandler(async (req, res, next) => {
       transaction: t
     });
 
-    // Link readings to transaction
+    // Link non-sample readings to transaction
     await NozzleReading.update(
       { transactionId: dailyTxn.id },
-      { where: { id: readingIds }, transaction: t }
+      { where: { id: nonSampleReadings.map(r => r.id) }, transaction: t }
     );
 
     // Audit log
@@ -348,24 +350,18 @@ exports.createQuickEntry = asyncHandler(async (req, res, next) => {
       createdReadings.push(created);
     }
 
-    // Build readingIds for billable readings
-    const billableReadings = createdReadings.filter(cr => !cr.isInitialReading);
+    // Build readingIds for billable readings (exclude samples AND initial readings)
+    const billableReadings = createdReadings.filter(cr => !cr.isInitialReading && !cr.isSample);
     const readingIds = billableReadings.map(cr => cr.id);
 
-    // Compute totals from created, billable readings only
+    // Compute totals from billable readings only (excluding samples)
     const totalLiters = billableReadings.reduce((s, r) => s + parseFloat(r.litresSold || 0), 0);
     const totalSaleValue = billableReadings.reduce((s, r) => s + parseFloat(r.totalAmount || 0), 0);
 
-    // Check if all readings are samples
-    if (transactionValidation.areAllReadingsSamples(createdReadings)) {
+    // Check if there are any billable readings (non-sample AND non-initial)
+    if (billableReadings.length === 0) {
       await t.commit();
-      return sendSuccess(res, { createdReadings }, 200, { message: 'Sample readings recorded. No transaction created.' });
-    }
-
-    // If no billable readings, commit and return
-    if (readingIds.length === 0) {
-      await t.commit();
-      return sendSuccess(res, { createdReadings }, 200, { message: 'Initial readings recorded. No transaction created.' });
+      return sendSuccess(res, { createdReadings }, 200, { message: 'Readings recorded (samples and/or initial readings only). No transaction created.' });
     }
 
     // Validate or auto-balance payment breakdown

@@ -1,5 +1,5 @@
 import { Button } from '@/components/ui/button';
-import { Building2, Users, Fuel, Settings } from 'lucide-react';
+import { Building2, Users, Fuel } from 'lucide-react';
 import { NavigateFunction } from 'react-router-dom';
 
 interface QuickActionsGridProps {
