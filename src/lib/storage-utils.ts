@@ -2,8 +2,9 @@
  * Storage utilities for localStorage management
  */
 
-const STORAGE_PREFIX = 'fuelsync_';
 import { getErrorMessage } from './errorUtils';
+
+const STORAGE_PREFIX = 'fuelsync_';
 
 /**
  * Get item from localStorage with type safety
