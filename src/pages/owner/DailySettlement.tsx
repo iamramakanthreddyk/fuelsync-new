@@ -249,6 +249,12 @@ export default function DailySettlement() {
     enabled: !!stationId,
   });
 
+  //  Derived values (declared early so useEffects can reference)
+  const allReadings = [
+    ...(readingsData?.unlinked.readings ?? []),
+    ...(readingsData?.linked.readings ?? []),
+  ];
+
   // Auto-select all unsettled readings and pre-fill owner inputs from employee totals
   useEffect(() => {
     if (readingsData?.unlinked?.readings) {
@@ -345,11 +351,7 @@ export default function DailySettlement() {
     }
   }, [stationId, selectedDate, queryClient, onlineBreakdown, toast]);
 
-  //  Derived values 
-  const allReadings = [
-    ...(readingsData?.unlinked.readings ?? []),
-    ...(readingsData?.linked.readings ?? []),
-  ];
+  //  Other derived values (allReadings is declared earlier)
   const selected = allReadings.filter((r) => selectedIds.includes(r.id));
   const expected = deduplicatePayments(selected);
   const expectedTotal = expected.cash + expected.online + expected.credit;
