@@ -90,9 +90,13 @@ async function submitReadings(data: {
 
     const litres = Math.max(0, enteredValue - (compareValue || 0));
     const priceData = Array.isArray(fuelPrices)
-      ? fuelPrices.find(p => (p.fuelType || '').toUpperCase() === (nozzle?.fuelType || '').toUpperCase())
+      ? fuelPrices.find(p => {
+          const priceType = (p.fuelType || p.fuel_type || '').toUpperCase();
+          const nozzleType = (nozzle?.fuelType || '').toUpperCase();
+          return priceType === nozzleType;
+        })
       : undefined;
-    const price = priceData ? toNumber(String(priceData.price)) : 0;
+    const price = priceData ? toNumber(String(priceData.price || priceData.price_per_litre)) : 0;
     const totalAmount = litres * price;
 
     const readingData = {
