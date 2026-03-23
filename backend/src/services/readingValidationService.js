@@ -49,19 +49,29 @@ exports.validateRequiredFields = (normalizedInput) => {
 /**
  * Validate reading value is greater than previous (unless initial)
  * @param {number} currentValue - Current reading value
- * @param {number} previousValue - Previous reading value
- * @param {boolean} isInitialReading - Whether this is the initial reading
+ * @param {number} previousValue - Previous reading value (either actual reading or initialReading)
+ * @param {boolean} isInitialReading - Whether this is the initial reading (no prior readings exist)
  * @returns {Object} - { isValid, error, previousReading }
  */
 exports.validateReadingValue = (currentValue, previousValue, isInitialReading) => {
   const current = parseFloat(currentValue);
   const prev = parseFloat(previousValue);
 
-  // Allow equal for initial readings (first entry uses initialReading)
+  // For initial readings (first entry), allow >= initialReading
+  // For subsequent readings, must be > previous reading
   if (!isInitialReading && current <= prev) {
     return {
       isValid: false,
       error: `Reading must be greater than previous reading (${prev}). Meter readings only go forward.`,
+      previousReading: prev
+    };
+  }
+
+  // For initial readings, allow >= initialReading (so first reading can equal initialReading)
+  if (isInitialReading && current < prev) {
+    return {
+      isValid: false,
+      error: `Reading must be greater than or equal to initial reading (${prev}).`,
       previousReading: prev
     };
   }

@@ -473,9 +473,13 @@ module.exports = (sequelize) => {
   /**
    * Get the latest reading for a nozzle (for showing previous reading)
    */
-  NozzleReading.getLatestReading = async function(nozzleId) {
+  NozzleReading.getLatestReading = async function(nozzleId, stationId) {
+    const where = { nozzleId };
+    if (stationId) {
+      where.stationId = stationId;
+    }
     const latest = await this.findOne({
-      where: { nozzleId },
+      where,
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
     });
     return latest;
@@ -484,12 +488,16 @@ module.exports = (sequelize) => {
   /**
    * Get the previous reading for a nozzle before a specific date
    */
-  NozzleReading.getPreviousReading = async function(nozzleId, beforeDate) {
+  NozzleReading.getPreviousReading = async function(nozzleId, beforeDate, stationId) {
+    const where = {
+      nozzleId,
+      readingDate: { [Op.lt]: beforeDate }
+    };
+    if (stationId) {
+      where.stationId = stationId;
+    }
     return this.findOne({
-      where: {
-        nozzleId,
-        readingDate: { [Op.lt]: beforeDate }
-      },
+      where,
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
     });
   };

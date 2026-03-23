@@ -14,9 +14,10 @@ const { NozzleReading, FuelPrice } = require('../models');
  * @param {string} readingDate - Reading date (YYYY-MM-DD)
  * @param {string} nozzleInitialReading - Nozzle's initialReading value
  * @param {number} providedPreviousReading - Client-provided value (if any)
+ * @param {string} stationId - Station ID (required for filtering)
  * @returns {Object} - { previousReading, previousReadingRecord }
  */
-exports.resolvePreviousReading = async (nozzleId, readingDate, nozzleInitialReading, providedPreviousReading) => {
+exports.resolvePreviousReading = async (nozzleId, readingDate, nozzleInitialReading, providedPreviousReading, stationId) => {
   // If client provided explicit previousReading, use it
   if (providedPreviousReading !== undefined) {
     return {
@@ -29,12 +30,12 @@ exports.resolvePreviousReading = async (nozzleId, readingDate, nozzleInitialRead
   const today = new Date().toISOString().split('T')[0];
   const isBackdated = new Date(readingDate + 'T00:00:00Z') < new Date(today + 'T00:00:00Z');
 
-  // Get previous reading from database
+  // Get previous reading from database (filtered by stationId)
   let previousReadingRecord;
   if (isBackdated) {
-    previousReadingRecord = await NozzleReading.getPreviousReading(nozzleId, readingDate);
+    previousReadingRecord = await NozzleReading.getPreviousReading(nozzleId, readingDate, stationId);
   } else {
-    previousReadingRecord = await NozzleReading.getLatestReading(nozzleId);
+    previousReadingRecord = await NozzleReading.getLatestReading(nozzleId, stationId);
   }
 
   // Determine value: found reading > initialReading > 0

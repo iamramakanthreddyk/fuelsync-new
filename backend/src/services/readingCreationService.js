@@ -128,7 +128,8 @@ exports.createReading = async (entities, input) => {
     normalizedInput.nozzleId,
     normalizedInput.readingDate,
     nozzle.initialReading,
-    normalizedInput.previousReading
+    normalizedInput.previousReading,
+    station.id
   );
 
   const isInitialReading = readingValidation.determineIsInitial(

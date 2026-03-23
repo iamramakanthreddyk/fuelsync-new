@@ -105,11 +105,12 @@ exports.getPreviousReading = asyncHandler(async (req, res, next) => {
 
   if (!nozzle) throw new NotFoundError('Nozzle', nozzleId);
 
-  const previousReading = date
-    ? await NozzleReading.getPreviousReading(nozzleId, date)
-    : await NozzleReading.getLatestReading(nozzleId);
-
   const stationId = nozzle.pump.stationId;
+  
+  const previousReading = date
+    ? await NozzleReading.getPreviousReading(nozzleId, date, stationId)
+    : await NozzleReading.getLatestReading(nozzleId, stationId);
+
   const priceDate = date || new Date().toISOString().split('T')[0];
   const currentPrice = await FuelPrice.getPriceForDate(stationId, nozzle.fuelType, priceDate);
 
@@ -254,7 +255,7 @@ exports.updateReading = asyncHandler(async (req, res, next) => {
 
   // Validate new reading value if provided
   if (readingValue !== undefined) {
-    const prevReading = await NozzleReading.getPreviousReading(reading.nozzleId, reading.readingDate);
+    const prevReading = await NozzleReading.getPreviousReading(reading.nozzleId, reading.readingDate, reading.stationId);
     const prevValue = prevReading ? parseFloat(prevReading.readingValue) : (reading.previousReading || 0);
     
     const validation = readingValidation.validateReadingValue(newReadingValue, prevValue, false);
@@ -286,7 +287,7 @@ exports.updateReading = asyncHandler(async (req, res, next) => {
     });
     
     // Get starting previous value
-    const prevReading = await NozzleReading.getPreviousReading(reading.nozzleId, reading.readingDate);
+    const prevReading = await NozzleReading.getPreviousReading(reading.nozzleId, reading.readingDate, reading.stationId);
     const startingPrevValue = prevReading ? parseFloat(prevReading.readingValue) : 0;
 
     // Batch recalculate
