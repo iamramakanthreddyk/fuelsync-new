@@ -128,11 +128,17 @@ exports.getReadingsForDate = async (stationId, date, accessibleStationIds) => {
  * Returns a map: { [nozzleId]: readingValue }
  * This is used by Quick Data Entry to display previous readings
  */
-exports.getLatestReadingsForNozzles = async (nozzleIds) => {
+exports.getLatestReadingsForNozzles = async (nozzleIds, stationId) => {
+  if (!stationId) {
+    throw new Error('stationId is required for getLatestReadingsForNozzles to prevent cross-station data mixing');
+  }
   if (!nozzleIds || !nozzleIds.length) return {};
 
   const readings = await NozzleReading.findAll({
-    where: { nozzleId: { [Op.in]: nozzleIds } },
+    where: { 
+      nozzleId: { [Op.in]: nozzleIds },
+      stationId
+    },
     order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
   });
 
@@ -182,9 +188,15 @@ exports.getDailySummary = async (stationId, date) => {
 /**
  * Get the most recent reading for a single nozzle
  */
-exports.getLatestReadingForNozzle = async (nozzleId) => {
+exports.getLatestReadingForNozzle = async (nozzleId, stationId) => {
+  if (!stationId) {
+    throw new Error('stationId is required for getLatestReadingForNozzle to prevent cross-station data mixing');
+  }
   const reading = await NozzleReading.findOne({
-    where: { nozzleId },
+    where: { 
+      nozzleId,
+      stationId
+    },
     order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
   });
   return reading ? reading.toJSON() : null;

@@ -474,12 +474,14 @@ module.exports = (sequelize) => {
    * Get the latest reading for a nozzle (for showing previous reading)
    */
   NozzleReading.getLatestReading = async function(nozzleId, stationId) {
-    const where = { nozzleId };
-    if (stationId) {
-      where.stationId = stationId;
+    if (!stationId) {
+      throw new Error('stationId is required for getLatestReading to prevent cross-station data mixing');
     }
     const latest = await this.findOne({
-      where,
+      where: {
+        nozzleId,
+        stationId
+      },
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
     });
     return latest;
@@ -489,15 +491,15 @@ module.exports = (sequelize) => {
    * Get the previous reading for a nozzle before a specific date
    */
   NozzleReading.getPreviousReading = async function(nozzleId, beforeDate, stationId) {
-    const where = {
-      nozzleId,
-      readingDate: { [Op.lt]: beforeDate }
-    };
-    if (stationId) {
-      where.stationId = stationId;
+    if (!stationId) {
+      throw new Error('stationId is required for getPreviousReading to prevent cross-station data mixing');
     }
     return this.findOne({
-      where,
+      where: {
+        nozzleId,
+        stationId,
+        readingDate: { [Op.lt]: beforeDate }
+      },
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']]
     });
   };

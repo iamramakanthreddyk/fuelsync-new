@@ -157,11 +157,14 @@ exports.getReadingsWithFilters = async ({
  * @param {Array<string>} nozzleIds - Nozzle IDs
  * @returns {Promise<Map>} Map of nozzleId -> reading
  */
-exports.getLatestReadingsForNozzles = async (nozzleIds, useCache = true) => {
+exports.getLatestReadingsForNozzles = async (nozzleIds, useCache = true, stationId) => {
+  if (!stationId) {
+    throw new Error('stationId is required for getLatestReadingsForNozzles to prevent cross-station data mixing');
+  }
   if (!nozzleIds || nozzleIds.length === 0) return new Map();
 
   const startTime = Date.now();
-  const cacheKey = `${CacheKeyGenerator.NAMESPACES.READING}:latest:${nozzleIds.sort().join(',')}`;
+  const cacheKey = `${CacheKeyGenerator.NAMESPACES.READING}:latest:${stationId}:${nozzleIds.sort().join(',')}`;
 
   // Check cache
   if (useCache) {
@@ -175,7 +178,10 @@ exports.getLatestReadingsForNozzles = async (nozzleIds, useCache = true) => {
   try {
     // Use raw SQL for better performance
     const readings = await NozzleReading.findAll({
-      where: { nozzleId: { [Op.in]: nozzleIds } },
+      where: { 
+        nozzleId: { [Op.in]: nozzleIds },
+        stationId
+      },
       order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
       attributes: ['id', 'nozzleId', 'readingValue', 'readingDate', 'litresSold', 'totalAmount'],
       raw: true

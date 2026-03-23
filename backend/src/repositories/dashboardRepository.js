@@ -210,7 +210,7 @@ async function getFinancialData(stationFilter, startDate, endDate) {
 
   const txnWhere = { ...stationFilter, transactionDate: { [Op.between]: [startDate, endDate] } };
   const expWhere = { ...stationFilter, expenseDate: { [Op.between]: [startDate, endDate] } };
-  const cogWhere = { ...stationFilter, date: { [Op.between]: [startDate, endDate] } };
+  const cogWhere = { ...stationFilter, createdAt: { [Op.between]: [startDate + 'T00:00:00Z', endDate + 'T23:59:59Z'] } };
   const settWhere = { ...stationFilter, settlementDate: { [Op.between]: [startDate, endDate] } };
 
   const [readingTotals, transactions, expenses, costOfGoods, settlements, outstandingAmt] = await Promise.all([

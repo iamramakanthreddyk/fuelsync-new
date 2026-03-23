@@ -372,10 +372,40 @@ exports.getTodayReadings = asyncHandler(async (req, res, next) => {
 
 exports.getLatestReadingsForNozzles = asyncHandler(async (req, res) => {
   const ids = req.query.ids ? req.query.ids.split(',') : [];
+  let { stationId } = req.query;
+  
   if (!ids.length) {
     return sendError(res, 'VALIDATION_ERROR', 'No nozzle IDs provided', 400);
   }
-  const resultsMap = await readingRepository.getLatestReadingsForNozzles(ids);
+  
+  // If stationId not provided, derive it from nozzles
+  if (!stationId) {
+    const nozzles = await Nozzle.findAll({
+      where: { id: { [Op.in]: ids } },
+      include: [{ model: Pump, as: 'pump', attributes: ['stationId'] }],
+      attributes: ['id', 'pumpId']
+    });
+
+    if (!nozzles.length) {
+      return sendSuccess(res, {});
+    }
+
+    // Verify all nozzles belong to the same station
+    const stationIds = [...new Set(nozzles.map(n => n.pump.stationId))];
+    if (stationIds.length > 1) {
+      return sendError(res, 'VALIDATION_ERROR', 'Nozzles must belong to the same station', 400);
+    }
+
+    stationId = stationIds[0];
+  }
+
+  // Verify authorization
+  const user = await User.findByPk(req.userId);
+  if (!(await canAccessStation(user, stationId))) {
+    throw new AuthorizationError('Not authorized to access this station');
+  }
+  
+  const resultsMap = await readingRepository.getLatestReadingsForNozzles(ids, stationId);
   
   // Convert Map to plain object (Maps don't serialize correctly to JSON)
   const results = {};
@@ -425,7 +455,7 @@ exports.getLastReading = asyncHandler(async (req, res, next) => {
     throw new AuthorizationError('Not authorized');
   }
 
-  const latest = await readingRepository.getLatestReadingForNozzle(nozzleId);
+  const latest = await readingRepository.getLatestReadingForNozzle(nozzleId, nozzle.pump.stationId);
   return sendSuccess(res, latest || null);
 });
 
