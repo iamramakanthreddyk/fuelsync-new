@@ -137,6 +137,13 @@ exports.createReading = async (entities, input) => {
     stationFull: station
   });
   
+  // ASSERTION: Verify station.id exists before passing
+  if (!station || !station.id) {
+    console.error('[ERROR] Station missing or has no ID:', { station });
+    throw new Error(`Station object invalid: ${JSON.stringify(station)}`);
+  }
+  console.log(`[DEBUG] Verified station.id = ${station.id} before passing to resolvePreviousReading`);
+  
   const { previousReading, previousReadingRecord } = await readingCalculation.resolvePreviousReading(
     normalizedInput.nozzleId,
     normalizedInput.readingDate,

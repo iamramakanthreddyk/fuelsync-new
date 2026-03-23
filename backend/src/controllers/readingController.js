@@ -458,12 +458,17 @@ exports.getLastReading = asyncHandler(async (req, res, next) => {
     throw new NotFoundError('Nozzle', nozzleId);
   }
 
+  const stationId = nozzle.pump?.stationId;
+  if (!stationId) {
+    throw new NotFoundError('Station', 'Nozzle is not assigned to a station');
+  }
+
   const user = await User.findByPk(req.userId);
-  if (!(await canAccessStation(user, nozzle.pump.stationId))) {
+  if (!(await canAccessStation(user, stationId))) {
     throw new AuthorizationError('Not authorized');
   }
 
-  const latest = await readingRepository.getLatestReadingForNozzle(nozzleId, nozzle.pump.stationId);
+  const latest = await readingRepository.getLatestReadingForNozzle(nozzleId, stationId);
   return sendSuccess(res, latest || null);
 });
 
