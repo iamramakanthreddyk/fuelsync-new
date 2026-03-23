@@ -557,12 +557,21 @@ export default function QuickDataEntryEnhanced() {
     setAssignedEmployee(selectedEmployeeId);
     
     // Call the hook's mutation with context needed for payment processing
+    // Include paymentBreakdown/creditAllocations/saleSummary as snapshot values so
+    // onSuccess uses captured data, not reactive state that gets cleared before API returns
     submitReadingsMutation.mutate(
       {
         readings: entries,
         pumps,
         fuelPrices,
-        lastReadings: allLastReadings
+        lastReadings: allLastReadings,
+        paymentBreakdown: {
+          cash: toNumber(paymentAllocation.cash),
+          online: toNumber(paymentAllocation.online),
+          credit: paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0)
+        },
+        creditAllocations: paymentAllocation.credits,
+        saleSummary
       } as any,
       {
         onSettled: () => {

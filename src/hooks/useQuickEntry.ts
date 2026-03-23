@@ -270,7 +270,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
-    mutationFn: (data: { readings: ReadingEntry[] | ReadingData[], pumps: any[], fuelPrices: any[], lastReadings?: Record<string, number> }) => 
+    mutationFn: (data: { readings: ReadingEntry[] | ReadingData[], pumps: any[], fuelPrices: any[], lastReadings?: Record<string, number>, paymentBreakdown?: { cash: number; online: number; credit: number }, creditAllocations?: CreditAllocation[], saleSummary?: any }) => 
       submitReadings({
         ...data,
         stationId,
@@ -278,7 +278,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
         assignedEmployeeId: state.assignedEmployeeId!,
         mode
       }),
-    onSuccess: (readingIds) => {
+    onSuccess: (readingIds, variables) => {
       toast({
         title: 'Readings Saved ✓',
         description: `${readingIds.length} reading(s) submitted successfully`,
@@ -292,11 +292,16 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
       }));
 
       if (mode === 'owner') {
+        // Use payment data captured at mutation time (variables), not reactive state
+        // which may have been cleared by the time onSuccess fires
+        const capturedPaymentBreakdown = variables.paymentBreakdown || state.paymentBreakdown;
+        const capturedCreditAllocations = variables.creditAllocations || state.creditAllocations;
+        const capturedSaleSummary = variables.saleSummary || saleSummary;
         submitTransactionMutation.mutate({
           readingIds,
-          paymentBreakdown: state.paymentBreakdown,
-          creditAllocations: state.creditAllocations,
-          saleSummary
+          paymentBreakdown: capturedPaymentBreakdown,
+          creditAllocations: capturedCreditAllocations,
+          saleSummary: capturedSaleSummary
         });
       }
     },
