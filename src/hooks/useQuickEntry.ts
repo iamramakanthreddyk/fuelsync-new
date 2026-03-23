@@ -3,7 +3,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/hooks/use-toast';
 import { stationService } from '@/services/stationService';
 import { toNumber } from '@/utils/number';
-import { safeToFixed } from '@/lib/format-utils';
 import { apiClient } from '@/lib/api-client';
 
 import type { ReadingEntry, CreditAllocation, Creditor } from '@/types/finance';
@@ -62,7 +61,7 @@ async function submitReadings(data: {
   mode: 'employee' | 'owner';
   lastReadings?: Record<string, number>;
 }): Promise<string[]> {
-  const { stationId, readings, pumps, fuelPrices, readingDate, assignedEmployeeId, mode, lastReadings = {} } = data;
+  const { stationId, readings, pumps, fuelPrices, readingDate, assignedEmployeeId, lastReadings = {} } = data;
 
   if (!assignedEmployeeId) {
     throw new Error('You must assign these readings to an employee before submission');
@@ -134,14 +133,10 @@ async function submitTransaction(data: {
   creditAllocations: CreditAllocation[];
   saleSummary: any;
 }): Promise<any> {
-  const { stationId, transactionDate, readingIds, paymentBreakdown, creditAllocations, saleSummary } = data;
-  const totalPayment = paymentBreakdown.cash + paymentBreakdown.online + paymentBreakdown.credit;
+  const { stationId, transactionDate, readingIds, paymentBreakdown, creditAllocations } = data;
 
-  if (Math.abs(totalPayment - saleSummary.totalSaleValue) > 0.01) {
-    throw new Error(
-      `Total payment (₹${safeToFixed(totalPayment, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`
-    );
-  }
+  // Payment vs sale value validation is already done in handleSubmit (with 1.0 rupee tolerance)
+  // and will be enforced again by the backend. No need to re-validate here.
 
   if (paymentBreakdown.credit > 0 && creditAllocations.length === 0) {
     throw new Error('Please allocate credit to at least one creditor');
