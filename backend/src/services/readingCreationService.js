@@ -44,6 +44,12 @@ const readingCache = require('./readingCacheService');
 exports.createReading = async (entities, input) => {
   const { user, nozzle, station } = entities;
 
+  console.log('[DEBUG] readingCreationService.createReading received:', { 
+    user: { id: user.id }, 
+    nozzle: { id: nozzle.id }, 
+    station: station ? { id: station.id, name: station.name } : null 
+  });
+
   // Normalize input
   const normalizedInput = readingValidation.normalizeReadingInput(input);
 
@@ -124,6 +130,13 @@ exports.createReading = async (entities, input) => {
   }
 
   // --- Step 5: Resolve Previous Reading ---
+  console.log('[DEBUG] About to call resolvePreviousReading with:', {
+    nozzleId: normalizedInput.nozzleId,
+    readingDate: normalizedInput.readingDate,
+    stationId: station?.id,
+    stationFull: station
+  });
+  
   const { previousReading, previousReadingRecord } = await readingCalculation.resolvePreviousReading(
     normalizedInput.nozzleId,
     normalizedInput.readingDate,
