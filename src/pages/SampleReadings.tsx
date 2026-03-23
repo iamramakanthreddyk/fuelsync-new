@@ -110,7 +110,36 @@ export default function SampleReadings() {
       // Unwrap possible axios response shapes: { data: { success, data: { details } } } or { data: { details } }
       const payload = (result as any)?.data ?? result;
       const details = payload?.data?.details ?? payload?.details ?? [];
-      setData(details);
+      
+      // Transform API response to component format
+      const grouped = details.reduce((acc: { [key: string]: SampleReading[] }, item: any) => {
+        const key = item.date;
+        if (!acc[key]) acc[key] = [];
+        
+        acc[key].push({
+          id: item.id,
+          date: item.date,
+          nozzleNumber: item.nozzle?.number || item.nozzleNumber || 0,
+          fuelType: item.nozzle?.fuelType || item.fuelType || 'unknown',
+          enteredBy: item.enteredBy,
+          readingValue: item.value || 0,
+          litresSold: item.litres || 0,
+          pumpName: item.pump?.name || item.pumpName || 'Unknown',
+          enteredAt: item.createdAt || item.enteredAt,
+          notes: item.notes
+        });
+        
+        return acc;
+      }, {});
+      
+      // Convert to SampleReadingGroup format
+      const groupedData: SampleReadingGroup[] = Object.entries(grouped).map(([date, readings]) => ({
+        date,
+        totalSamples: readings.length,
+        readings
+      }));
+      
+      setData(groupedData);
       setViewMode('readings');
       setPage(1);
 
