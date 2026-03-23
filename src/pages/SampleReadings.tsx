@@ -324,7 +324,7 @@ export default function SampleReadings() {
                         </tr>
                       </thead>
                       <tbody>
-                        {group.readings.map((reading, ridx) => (
+                        {group.readings?.map((reading, ridx) => (
                           <tr
                             key={ridx}
                             className="border-t hover:bg-muted/30 transition-colors cursor-pointer"
@@ -349,7 +349,7 @@ export default function SampleReadings() {
 
                   {/* Mobile: compact card list */}
                   <div className="md:hidden space-y-2">
-                    {group.readings.map((reading, ridx) => (
+                    {group.readings?.map((reading, ridx) => (
                       <div
                         key={ridx}
                         className="border rounded-lg p-3 bg-background hover:shadow-sm transition-shadow cursor-pointer"
@@ -397,7 +397,7 @@ export default function SampleReadings() {
                             </tr>
                           </thead>
                           <tbody>
-                            {(data as SampleStatistics).dailyTrend.map((day: any, idx: number) => (
+                            {(data as SampleStatistics).dailyTrend?.map((day: any, idx: number) => (
                               <tr key={idx} className="border-t hover:bg-muted/50">
                                 <td className="p-2">{formatDate(day.date)}</td>
                                 <td className="p-2">{day.sampleCount}</td>
@@ -425,7 +425,7 @@ export default function SampleReadings() {
                             </tr>
                           </thead>
                           <tbody>
-                            {(data as SampleStatistics).byNozzle.map((nozzle: any, idx: number) => (
+                            {(data as SampleStatistics).byNozzle?.map((nozzle: any, idx: number) => (
                               <tr key={idx} className="border-t hover:bg-muted/50">
                                 <td className="p-2 font-medium">{nozzle.nozzleNumber}</td>
                                 <td className="p-2">{nozzle.sampleCount}</td>
@@ -452,7 +452,7 @@ export default function SampleReadings() {
                             </tr>
                           </thead>
                           <tbody>
-                            {(data as SampleStatistics).byEmployee.map((emp: any, idx: number) => (
+                            {(data as SampleStatistics).byEmployee?.map((emp: any, idx: number) => (
                               <tr key={idx} className="border-t hover:bg-muted/50">
                                 <td className="p-2 font-medium">{emp.employeeName}</td>
                                 <td className="p-2">{emp.sampleCount}</td>
