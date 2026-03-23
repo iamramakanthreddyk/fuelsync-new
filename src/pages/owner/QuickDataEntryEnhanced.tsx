@@ -124,6 +124,7 @@ export default function QuickDataEntryEnhanced() {
 
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ================================================================================
   // HOOK: useQuickEntry - Delegates employees, creditors, mutations to hook
@@ -366,6 +367,9 @@ export default function QuickDataEntryEnhanced() {
 
   // Initial payment allocation setup (only when completely empty)
   useEffect(() => {
+    // Skip if submission is in progress to prevent interference
+    if (isSubmitting) return;
+
     const totalSaleValue = saleSummary.totalSaleValue;
     const currentTotal =
       toNumber(paymentAllocation.cash) +
@@ -376,11 +380,14 @@ export default function QuickDataEntryEnhanced() {
     if (totalSaleValue > 0 && currentTotal === 0 && paymentAllocation.cash === '0' && paymentAllocation.online === '0' && paymentAllocation.credits.length === 0) {
       setPaymentAllocation({ cash: totalSaleValue.toString(), online: '0', onlineBreakdown: null, credits: [] });
     }
-  }, [saleSummary.totalSaleValue, paymentAllocation]);
+  }, [isSubmitting, saleSummary.totalSaleValue, paymentAllocation]);
 
   // Auto-correct payment allocation: recalculate cash when sale value changes
   // This ensures payment allocation always reflects all entered readings
   useEffect(() => {
+    // Skip if submission is in progress to prevent interference
+    if (isSubmitting) return;
+
     const newTotalSaleValue = saleSummary.totalSaleValue;
     if (newTotalSaleValue <= 0) return;
 
@@ -398,7 +405,7 @@ export default function QuickDataEntryEnhanced() {
         cash: newCash.toString()
       }));
     }
-  }, [saleSummary.totalSaleValue, paymentAllocation]);
+  }, [isSubmitting, saleSummary.totalSaleValue, paymentAllocation]);
 
   // Sync payment allocation to hook's internal state whenever it changes
   useEffect(() => {
@@ -435,6 +442,11 @@ export default function QuickDataEntryEnhanced() {
   };
 
   const handleSubmit = () => {
+    // Skip if already submitting (prevents validation errors on re-render)
+    if (isSubmitting) {
+      return;
+    }
+
     const readingsArray = Array.isArray(readings) ? readings : Object.values(readings);
     const entries = readingsArray.filter((r: any) => r && (r.readingValue || r.closingReading) && parseFloat(r.readingValue || r.closingReading || '0') > 0);
     if (entries.length === 0) {
@@ -531,6 +543,9 @@ export default function QuickDataEntryEnhanced() {
       return;
     }
 
+    // Mark as submitting to prevent re-validation
+    setIsSubmitting(true);
+
     // Sync final state to hook before submission
     updatePaymentBreakdown({
       cash: toNumber(paymentAllocation.cash),
@@ -542,12 +557,20 @@ export default function QuickDataEntryEnhanced() {
     setAssignedEmployee(selectedEmployeeId);
     
     // Call the hook's mutation with context needed for payment processing
-    submitReadingsMutation.mutate({
-      readings: entries,
-      pumps,
-      fuelPrices,
-      lastReadings: allLastReadings
-    } as any);
+    submitReadingsMutation.mutate(
+      {
+        readings: entries,
+        pumps,
+        fuelPrices,
+        lastReadings: allLastReadings
+      } as any,
+      {
+        onSettled: () => {
+          // Reset submission flag after mutation completes (success or error)
+          setIsSubmitting(false);
+        }
+      }
+    );
     
     // Clear form immediately after submission to prevent validation errors on re-render
     // This prevents "Payment Not Allocated" error from appearing after successful API call
