@@ -29,13 +29,20 @@ const toCamelCaseObject = (obj) => {
 };
 
 /**
- * Express middleware to normalize request body
+ * Express middleware to normalize request body and query parameters
  * Converts snake_case keys to camelCase for validation and processing
  */
 const normalizeRequestBody = (req, res, next) => {
+  // Normalize request body
   if (req.body && typeof req.body === 'object') {
     req.body = toCamelCaseObject(req.body);
   }
+  
+  // Normalize query parameters
+  if (req.query && typeof req.query === 'object') {
+    req.query = toCamelCaseObject(req.query);
+  }
+  
   next();
 };
 

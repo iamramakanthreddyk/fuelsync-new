@@ -13,15 +13,16 @@ const { authenticate } = require('../middleware/auth');
  */
 router.post('/', authenticate, async (req, res) => {
   try {
-    const { user_id, station_id, activity_type, details } = req.body;
+    // Note: req.body is normalized by global normalizeRequestBody middleware
+    const { userId, stationId, activityType, details } = req.body;
     
     // For now, just log to console in development
     // In production, you could store this in a database
     if (process.env.NODE_ENV === 'development') {
       console.log('[Activity]', {
-        userId: user_id || req.user.id,
-        stationId: station_id,
-        activityType: activity_type,
+        userId: userId || req.user.id,
+        stationId: stationId,
+        activityType: activityType,
         details,
         timestamp: new Date().toISOString()
       });
