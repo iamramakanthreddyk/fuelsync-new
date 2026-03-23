@@ -257,15 +257,15 @@ export default function Settlements() {
                       <div className="grid grid-cols-2 gap-4">
                         <div>
                           <h5 className="font-medium mb-1">Employee Reported</h5>
-                          <p className="text-sm">Cash: ₹{settlement.employeeCash || 0}</p>
-                          <p className="text-sm">Online: ₹{settlement.employeeOnline || 0}</p>
-                          <p className="text-sm">Credit: ₹{settlement.employeeCredit || 0}</p>
+                          <p className="text-sm">Cash: ₹{parseFloat(settlement.employeeCash || 0).toFixed(2)}</p>
+                          <p className="text-sm">Online: ₹{parseFloat(settlement.employeeOnline || 0).toFixed(2)}</p>
+                          <p className="text-sm">Credit: ₹{parseFloat(settlement.employeeCredit || 0).toFixed(2)}</p>
                         </div>
                         <div>
                           <h5 className="font-medium mb-1">Owner Confirmed</h5>
-                          <p className="text-sm">Cash: ₹{settlement.actualCash}</p>
-                          <p className="text-sm">Online: ₹{settlement.online}</p>
-                          <p className="text-sm">Credit: ₹{settlement.credit}</p>
+                          <p className="text-sm">Cash: ₹{parseFloat(settlement.actualCash || 0).toFixed(2)}</p>
+                          <p className="text-sm">Online: ₹{parseFloat(settlement.online || 0).toFixed(2)}</p>
+                          <p className="text-sm">Credit: ₹{parseFloat(settlement.credit || 0).toFixed(2)}</p>
                         </div>
                       </div>
                       {(() => {
