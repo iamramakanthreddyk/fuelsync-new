@@ -22,7 +22,7 @@ import { useToast } from '@/hooks/use-toast';
 import { apiClient } from '@/lib/api-client';
 import { safeToFixed } from '@/lib/format-utils';
 import { ArrowLeft, CheckCircle2, AlertCircle, ChevronDown } from 'lucide-react';
-import type { PaymentSubBreakdown, UpiSubType, CardSubType, OilCompanySubType } from '@/types/finance';
+import type { PaymentSubBreakdown } from '@/types/finance';
 import { useStationStaff } from '@/hooks/api';
 
 //  Types 
@@ -188,6 +188,24 @@ export default function DailySettlement() {
     return r.recordedBy ?? null;
   };
 
+  //  Fetch unsettled / settled readings 
+  const { data: readingsData, isLoading: readingsLoading } = useQuery({
+    queryKey: ['readings-for-settlement', stationId, selectedDate],
+    queryFn: async () => {
+      if (!stationId) return null;
+      try {
+        const res = await apiClient.get<{ success: boolean; data: ReadingsForSettlementResponse }>(
+          `/stations/${stationId}/readings-for-settlement?date=${selectedDate}`
+        );
+        return res?.data || null;
+      } catch {
+        return null;
+      }
+    },
+    enabled: !!stationId,
+    retry: false,
+  });
+
   // Helper: group readings by employee
   const groupReadingsByEmployee = useMemo(() => {
     const grouped: Record<string, { employee: { id: string; name: string } | null; readings: ReadingForSettlement[] }> = {};
@@ -229,24 +247,6 @@ export default function DailySettlement() {
       return res?.data || null;
     },
     enabled: !!stationId,
-  });
-
-  //  Fetch unsettled / settled readings 
-  const { data: readingsData, isLoading: readingsLoading } = useQuery({
-    queryKey: ['readings-for-settlement', stationId, selectedDate],
-    queryFn: async () => {
-      if (!stationId) return null;
-      try {
-        const res = await apiClient.get<{ success: boolean; data: ReadingsForSettlementResponse }>(
-          `/stations/${stationId}/readings-for-settlement?date=${selectedDate}`
-        );
-        return res?.data || null;
-      } catch {
-        return null;
-      }
-    },
-    enabled: !!stationId,
-    retry: false,
   });
 
   // Auto-select all unsettled readings and pre-fill owner inputs from employee totals
