@@ -100,11 +100,12 @@ const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: num
   
   // Find price - check both snake_case and camelCase keys for compatibility
   const fuelTypeToFind = (nozzle?.fuelType || '').toUpperCase();
-  let priceData = pricesArray.find(p => 
-    (p.fuel_type || '').toUpperCase() === fuelTypeToFind
-  );
+  let priceData = pricesArray.find(p => {
+    const priceType = (p.fuel_type || p.fuelType || '').toUpperCase();
+    return priceType === fuelTypeToFind;
+  });
   
-  const price = toNumber(String(priceData?.price_per_litre || 0));
+  const price = toNumber(String(priceData?.price_per_litre || priceData?.price || 0));
   const saleValue = litres * price;
   return { litres, saleValue };
 }
@@ -334,8 +335,12 @@ export default function QuickDataEntryEnhanced() {
         const litres = Math.max(0, enteredValue - compareValue);
         // Safety check: ensure fuelPrices is an array before calling .find()
         const pricesArray = Array.isArray(fuelPrices) ? fuelPrices : [];
-        const priceData = pricesArray.find(p => (p.fuel_type || '').toUpperCase() === (nozzle?.fuelType || '').toUpperCase());
-        const price = toNumber(String(priceData?.price_per_litre || 0));
+        const priceData = pricesArray.find(p => {
+          const priceType = (p.fuel_type || p.fuelType || '').toUpperCase();
+          const nozzleType = (nozzle?.fuelType || '').toUpperCase();
+          return priceType === nozzleType;
+        });
+        const price = toNumber(String(priceData?.price_per_litre || priceData?.price || 0));
         const saleValue = litres * price;
         totalLiters += litres;
         totalSaleValue += saleValue;
@@ -423,7 +428,10 @@ export default function QuickDataEntryEnhanced() {
       return false;
     }
     const fuelTypeUpper = (fuelType || '').toUpperCase();
-    return fuelPrices.some(p => (p.fuel_type || '').toUpperCase() === fuelTypeUpper);
+    return fuelPrices.some(p => {
+      const priceType = (p.fuel_type || p.fuelType || '').toUpperCase();
+      return priceType === fuelTypeUpper;
+    });
   };
 
   const handleSubmit = () => {
