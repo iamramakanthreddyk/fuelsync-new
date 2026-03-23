@@ -483,7 +483,9 @@ export default function QuickDataEntryEnhanced() {
         return;
       }
 
-      if (Math.abs(allocated - saleSummary.totalSaleValue) > 0.05) {
+      // Allow up to ₹1 tolerance for floating-point rounding errors
+      // Backend will perform final validation
+      if (Math.abs(allocated - saleSummary.totalSaleValue) > 1.0) {
         toast({
           title: 'Payment Not Allocated',
           description: `Total payment (₹${safeToFixed(allocated, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`,
