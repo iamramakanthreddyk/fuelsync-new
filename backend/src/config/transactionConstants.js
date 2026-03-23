@@ -24,7 +24,6 @@ module.exports = {
     READINGS_REQUIRED: 'readingIds must be a non-empty array',
     STATION_NOT_FOUND: 'Station not found',
     NO_READINGS_FOUND: 'No valid readings found for specified IDs, station, and date',
-    SAMPLE_READINGS_ONLY: 'Sample readings cannot create transactions. Only use sample readings for testing/verification.',
     PAYMENT_REQUIRED: 'At least one payment method (cash, online, or credit) must be greater than 0',
     PAYMENT_MISMATCH: 'Payment total must match total sale value',
     CREDIT_ALLOCATIONS_REQUIRED: 'Credit allocations required when credit amount > 0',

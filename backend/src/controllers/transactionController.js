@@ -130,7 +130,13 @@ exports.createTransaction = asyncHandler(async (req, res, next) => {
   const nonSampleReadings = readings.filter(r => !r.isSample);
   
   if (nonSampleReadings.length === 0) {
-    return sendError(res, 'SAMPLE_ONLY', VALIDATION_ERRORS.SAMPLE_READINGS_ONLY, 400);
+    // All readings are samples - no transaction needed (silent success)
+    // Sample readings are used for testing/verification only, not for transactions
+    return res.json({
+      success: true,
+      data: null,
+      message: 'Sample readings submitted (no transaction created - samples are for QC only)'
+    });
   }
 
   // Calculate totals from NON-SAMPLE readings only
