@@ -1598,7 +1598,7 @@ exports.getReadingsForSettlement = async (req, res, next) => {
 exports.recordSettlement = async (req, res, next) => {
   try {
     const { stationId } = req.params;
-    const { date, actualCash, expectedCash, notes, online, credit, status, readingIds, employeeShortfalls } = req.body;
+    const { date, actualCash, expectedCash, notes, online, credit, status, readingIds } = req.body;
     const user = req.user;
 
     // Check station access
@@ -1710,7 +1710,7 @@ exports.recordSettlement = async (req, res, next) => {
         varianceOnline: parseFloat(varianceOnline.toFixed(2)),
         varianceCredit: parseFloat(varianceCredit.toFixed(2)),
         notes: notes || '',
-        employeeShortfalls: employeeShortfalls || null,
+        employeeShortfalls: null, // Backend calculates this - not accepted from frontend
         readingIds: readingIds || null,
         recordedBy: user.id,
         recordedAt: new Date(),
@@ -1767,6 +1767,17 @@ exports.recordSettlement = async (req, res, next) => {
           { readingIds: actualReadingIds },
           { where: { id: record.id }, transaction: t }
         );
+      }
+
+      // Calculate and store employee shortfalls based on variance and readings settled
+      // (backend calculates this, not frontend)
+      try {
+        const updatedSettlement = await services.employeeShortfallsService.updateSettlementShortfalls(record.id, t);
+        record.employeeShortfalls = updatedSettlement?.employeeShortfalls || null;
+      } catch (shortfallErr) {
+        console.error('[recordSettlement] Error calculating shortfalls:', shortfallErr);
+        // Don't fail settlement if shortfall calculation fails, log warning only
+        console.warn('[recordSettlement] Settlement created but shortfall calculation failed - may need manual review');
       }
 
       // Verify settlement integrity if finalizing
