@@ -530,7 +530,8 @@ export default function QuickDataEntryEnhanced() {
     submitReadingsMutation.mutate({
       readings: entries,
       pumps,
-      fuelPrices
+      fuelPrices,
+      lastReadings: allLastReadings
     } as any);
   };
 

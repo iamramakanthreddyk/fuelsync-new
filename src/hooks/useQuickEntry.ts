@@ -60,8 +60,9 @@ async function submitReadings(data: {
   readingDate: string;
   assignedEmployeeId: string;
   mode: 'employee' | 'owner';
+  lastReadings?: Record<string, number>;
 }): Promise<string[]> {
-  const { stationId, readings, pumps, fuelPrices, readingDate, assignedEmployeeId, mode } = data;
+  const { stationId, readings, pumps, fuelPrices, readingDate, assignedEmployeeId, mode, lastReadings = {} } = data;
 
   if (!assignedEmployeeId) {
     throw new Error('You must assign these readings to an employee before submission');
@@ -79,7 +80,9 @@ async function submitReadings(data: {
   const promises = readingEntries.map(entry => {
     const nozzle = pumps?.flatMap(p => p.nozzles || []).find(n => n.id === entry.nozzleId);
     const enteredValue = toNumber(entry.readingValue || '0');
-    const lastReading = nozzle?.lastReading ? toNumber(String(nozzle.lastReading)) : null;
+    // Use lastReadings from API first, then fallback to nozzle.lastReading, then initialReading
+    const lastReadingFromApi = lastReadings[entry.nozzleId] !== undefined ? toNumber(String(lastReadings[entry.nozzleId])) : null;
+    const lastReading = lastReadingFromApi !== null ? lastReadingFromApi : (nozzle?.lastReading ? toNumber(String(nozzle.lastReading)) : null);
     const initialReading = nozzle?.initialReading ? toNumber(String(nozzle.initialReading)) : null;
     const compareValue = lastReading !== null && !isNaN(lastReading)
       ? lastReading
@@ -263,7 +266,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
-    mutationFn: (data: { readings: ReadingEntry[] | ReadingData[], pumps: any[], fuelPrices: any[] }) => 
+    mutationFn: (data: { readings: ReadingEntry[] | ReadingData[], pumps: any[], fuelPrices: any[], lastReadings?: Record<string, number> }) => 
       submitReadings({
         ...data,
         stationId,
