@@ -126,7 +126,7 @@ export function AppSidebar() {
       label: "Reports & Analytics",
       items: [
         {
-          title: "Daily Reports",
+          title: "Today's reports",
           url: `${basePath}/daily-reports`,
           icon: LineChart,
           color: "text-purple-600",

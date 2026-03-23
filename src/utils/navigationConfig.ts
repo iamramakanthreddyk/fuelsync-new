@@ -54,7 +54,7 @@ export const OWNER_NAVIGATION: NavigationItem[] = [
   {
     id: 'reports',
     title: 'Reports',
-    description: 'Sales & analytics',
+    description: 'Sales & insights',
     href: '/reports',
     icon: BarChart3,
     color: 'bg-purple-500 hover:bg-purple-600',

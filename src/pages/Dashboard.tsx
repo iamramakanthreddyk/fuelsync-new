@@ -330,7 +330,7 @@ export default function Dashboard() {
               </div>
               <div>
                 <h3 className="font-semibold text-sm">Reports</h3>
-                <p className="text-xs text-muted-foreground">View analytics</p>
+                <p className="text-xs text-muted-foreground">Sales & insights</p>
               </div>
             </CardContent>
           </Card>
