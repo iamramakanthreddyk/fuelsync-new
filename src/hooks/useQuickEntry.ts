@@ -107,6 +107,7 @@ async function submitReadings(data: {
       totalAmount,
       litresSold: litres,
       assignedEmployeeId,
+      isSample: entry.is_sample === true,
       notes: `Reading entered via quick entry`
     };
 
