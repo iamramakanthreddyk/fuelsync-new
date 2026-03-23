@@ -730,6 +730,8 @@ export default function OwnerReports() {
               salesLoading={salesLoading}
               settlements={settlements}
               settlementsLoading={settlementsLoading}
+              dateRange={dateRange}
+              selectedStation={selectedStation}
               insights={insights}
             />
             <AnalyticsTab

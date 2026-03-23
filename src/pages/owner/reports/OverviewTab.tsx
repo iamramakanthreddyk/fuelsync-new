@@ -1,14 +1,17 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { TabsContent } from '@/components/ui/tabs';
 import { RevenueTrendChart } from './RevenueTrendChart';
 import { VarianceAnalysisChart } from './VarianceAnalysisChart';
 import type { SalesReport, Settlement } from '@/hooks/useReportData';
+import { useVarianceSummary } from '@/hooks/useVarianceSummary';
 
 interface OverviewTabProps {
   aggregatedSalesReports: SalesReport[] | undefined;
   salesLoading: boolean;
   settlements: Settlement[] | undefined;
   settlementsLoading: boolean;
+  dateRange?: { startDate: string; endDate: string };
+  selectedStation?: string;
   insights?: {
     avgTransactionValue: number;
     peakDay: SalesReport | null;
@@ -26,8 +29,38 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
   salesLoading,
   settlements,
   settlementsLoading,
+  dateRange,
+  selectedStation,
   insights,
 }) => {
+  // Fetch variance summary data using the dedicated endpoint
+  const { data: varianceSummaryData, isLoading: varianceSummaryLoading } = useVarianceSummary(
+    selectedStation && selectedStation !== 'all' ? selectedStation : undefined,
+    dateRange?.startDate || '',
+    dateRange?.endDate || ''
+  );
+
+  // Transform variance summary data into Settlement[] format for VarianceAnalysisChart
+  const varianceAsSettlements = useMemo((): Settlement[] => {
+    if (!varianceSummaryData?.byDay || varianceSummaryData.byDay.length === 0) {
+      return [];
+    }
+
+    return varianceSummaryData.byDay.map((day) => ({
+      id: `variance-${day.date}`,
+      date: day.date,
+      stationId: selectedStation || 'all',
+      expectedCash: day.expectedCash,
+      actualCash: day.expectedCash - day.variance, // variance = expected - actual
+      variance: day.variance,
+      online: 0,
+      credit: 0,
+      status: 'final' as const,
+      recordedBy: '',
+      recordedAt: new Date().toISOString(),
+    }));
+  }, [varianceSummaryData, selectedStation]);
+  
   // Consistent branded color map for fuel types (extend as needed)
   const fuelColorMap: Record<string, string> = {
     petrol: '#3b82f6',
@@ -68,10 +101,10 @@ export const OverviewTab: React.FC<OverviewTabProps> = ({
         )}
       </div>
 
-      {/* Variance Analysis Chart */}
+      {/* Variance Analysis Chart - Now using variance summary data */}
       <VarianceAnalysisChart
-        settlements={settlements}
-        isLoading={settlementsLoading}
+        settlements={varianceAsSettlements}
+        isLoading={varianceSummaryLoading}
         className="w-full"
       />
     </TabsContent>
