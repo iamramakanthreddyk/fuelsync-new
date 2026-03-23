@@ -1916,46 +1916,35 @@ exports.getSettlements = async (req, res, next) => {
       };
     });
     
-    // Recalculate expectedCash based on current transactions and add variance analysis
-    const enhancedSummary = await Promise.all(summary.map(async (entry) => {
-      // Fetch all transactions for this settlement date
-      const transactions = await DailyTransaction.findAll({
-        where: { stationId, transactionDate: entry.settlementDate },
-        raw: true
-      });
-
-      // Sum cash from all transactions for this date
-      let recalculatedExpectedCash = 0;
-      transactions.forEach(txn => {
-        const pb = txn.payment_breakdown || txn.paymentBreakdown || {};
-        recalculatedExpectedCash += parseFloat(pb.cash || 0);
-      });
-      recalculatedExpectedCash = parseFloat(recalculatedExpectedCash.toFixed(2));
-
-      // Use recalculated expectedCash, but keep the original in a separate field for audit
-      const actualCash = parseFloat(entry.actualCash || 0);
-      const recalculatedVariance = recalculatedExpectedCash - actualCash;
-      const variancePercentage = recalculatedExpectedCash > 0 ? (recalculatedVariance / recalculatedExpectedCash) * 100 : 0;
+    // Add variance analysis based on settlement's recorded values
+    const enhancedSummary = summary.map((entry) => {
+      const savedExpectedCash = parseFloat(entry.expectedCash || 0);
+      const savedActualCash = parseFloat(entry.actualCash || 0);
+      const savedVariance = parseFloat(entry.variance || 0);
+      
+      // Use saved variance, but calculate percentage
+      const variancePercentage = savedExpectedCash > 0 ? (savedVariance / savedExpectedCash) * 100 : 0;
 
       let varianceStatus = 'OK';
-      if (Math.abs(recalculatedVariance) > (recalculatedExpectedCash * 0.03)) {
+      if (Math.abs(savedVariance) > (savedExpectedCash * 0.03)) {
         varianceStatus = 'INVESTIGATE';
-      } else if (Math.abs(recalculatedVariance) > (recalculatedExpectedCash * 0.01)) {
+      } else if (Math.abs(savedVariance) > (savedExpectedCash * 0.01)) {
         varianceStatus = 'REVIEW';
       }
 
       return {
         ...entry,
-        expectedCash: recalculatedExpectedCash, // Update with recalculated value
-        originalExpectedCash: parseFloat(entry.expectedCash || 0), // Preserve original for audit
-        variance: parseFloat(recalculatedVariance.toFixed(2)), // Recalculate variance
+        // Keep original settlement values - they represent the actual settlement made
+        expectedCash: savedExpectedCash,
+        actualCash: savedActualCash,
+        variance: savedVariance,
         varianceAnalysis: {
           percentage: parseFloat(variancePercentage.toFixed(2)),
           status: varianceStatus,
-          interpretation: recalculatedVariance > 0 ? 'Shortfall' : recalculatedVariance < 0 ? 'Overage' : 'Perfect match'
+          interpretation: savedVariance > 0 ? 'Shortfall' : savedVariance < 0 ? 'Overage' : 'Perfect match'
         }
       };
-    }));
+    });
 
     // Return grouped summary with variance analysis (single response)
     res.json({
@@ -1966,7 +1955,7 @@ exports.getSettlements = async (req, res, next) => {
         persistenceInfo: 'All settlements persisted to database with ACID compliance',
         amountsPrecision: 'DECIMAL(12,2) - exact, no floating point errors',
         duplicatesFlagged: true,
-        expectedCashRecalculated: 'True - expectedCash recalculated from current transactions for accuracy after post-settlement entries'
+        expectedCashCalculation: 'Based on total settlement value (sale value) as recorded at settlement time. Use mainSettlement for historical accuracy.'
       }
     });
 
