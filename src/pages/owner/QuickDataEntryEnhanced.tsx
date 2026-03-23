@@ -336,11 +336,11 @@ export default function QuickDataEntryEnhanced() {
         // Safety check: ensure fuelPrices is an array before calling .find()
         const pricesArray = Array.isArray(fuelPrices) ? fuelPrices : [];
         const priceData = pricesArray.find(p => {
-          const priceType = (p.fuel_type || p.fuelType || '').toUpperCase();
+          const priceType = ((p as any).fuel_type || (p as any).fuelType || '').toUpperCase();
           const nozzleType = (nozzle?.fuelType || '').toUpperCase();
           return priceType === nozzleType;
         });
-        const price = toNumber(String(priceData?.price_per_litre || priceData?.price || 0));
+        const price = toNumber(String((priceData as any)?.price_per_litre || (priceData as any)?.price || 0));
         const saleValue = litres * price;
         totalLiters += litres;
         totalSaleValue += saleValue;
@@ -429,7 +429,7 @@ export default function QuickDataEntryEnhanced() {
     }
     const fuelTypeUpper = (fuelType || '').toUpperCase();
     return fuelPrices.some(p => {
-      const priceType = (p.fuel_type || p.fuelType || '').toUpperCase();
+      const priceType = ((p as any).fuel_type || (p as any).fuelType || '').toUpperCase();
       return priceType === fuelTypeUpper;
     });
   };
