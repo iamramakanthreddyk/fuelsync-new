@@ -54,11 +54,13 @@ module.exports = (sequelize) => {
     },
     updatedBy: {
       type: DataTypes.UUID,
+      allowNull: false,
       field: 'updated_by',
       references: {
         model: 'users',
         key: 'id'
-      }
+      },
+      comment: 'User who created or last updated this price record'
     }
   }, {
     tableName: 'fuel_prices',
