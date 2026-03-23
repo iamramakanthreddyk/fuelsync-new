@@ -21,9 +21,7 @@ import AdminUsers from '@/pages/AdminUsers';
 import AdminStations from '@/pages/AdminStations';
 import Staff from '@/pages/Staff';
 import QuickDataEntryEnhanced from '@/pages/owner/QuickDataEntryEnhanced';
-import EmployeeSalesView from '@/pages/EmployeeSalesView';
 import EmployeePumpsView from '@/pages/EmployeePumpsView';
-import Sales from '@/pages/Sales';
 import Settlements from '@/pages/Settlements';
 import Pumps from '@/pages/Pumps';
 import Prices from '@/pages/Prices';
@@ -200,18 +198,6 @@ function RoleBasedDataEntry() {
   // All users get the enhanced Quick Entry system (single-step)
   // Station selection is controlled by role within the component
   return <QuickDataEntryEnhanced />;
-}
-
-function RoleBasedSales() {
-  const { user } = useAuth();
-
-  // Employees get a read-only sales view
-  if (user?.role === 'employee') {
-    return <EmployeeSalesView />;
-  }
-
-  // Managers and owners get the full Sales management
-  return <Sales />;
 }
 
 function RoleBasedPumps() {
@@ -450,7 +436,7 @@ function AppContent() {
                     <Route path="/quick-entry" element={<QuickDataEntryEnhanced />} />
                     {/* Role-based data entry - employees get Quick Entry, managers/owners get full DataEntry */}
                     <Route path="/data-entry" element={<RoleBasedDataEntry />} />
-                    <Route path="/sales" element={<RoleBasedSales />} />
+
                     <Route path="/settlements" element={
                       <ManagerOrOwnerRoute>
                         <Settlements />

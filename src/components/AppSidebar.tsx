@@ -196,13 +196,6 @@ export function AppSidebar() {
           bgColor: "bg-amber-50",
         },
         {
-          title: "Sales",
-          url: "/sales",
-          icon: TrendingUp,
-          color: "text-yellow-600",
-          bgColor: "bg-yellow-50",
-        },
-        {
           title: "Pumps",
           url: "/pumps",
           icon: Fuel,

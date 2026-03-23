@@ -87,13 +87,6 @@ export function MobileBottomNav() {
       bgColor: "bg-amber-50",
     },
     {
-      title: "Sales",
-      url: "/sales",
-      icon: TrendingUp,
-      color: "text-yellow-600",
-      bgColor: "bg-yellow-50",
-    },
-    {
       title: "Pumps",
       url: "/pumps",
       icon: Fuel,
@@ -267,7 +260,6 @@ export function MobileBottomNav() {
     if (url === dashboardURL && location.pathname === dashboardURL) return true;
     if (url === '/quick-entry' && location.pathname === '/quick-entry') return true;
     if (url === `${basePath}/quick-entry` && location.pathname === `${basePath}/quick-entry`) return true;
-    if (url === '/sales' && location.pathname === '/sales') return true;
     if (url === '/pumps' && location.pathname === '/pumps') return true;
     if (url === '/reports' && location.pathname === '/reports') return true;
     if (url === `${basePath}/reports` && location.pathname === `${basePath}/reports`) return true;
