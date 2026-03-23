@@ -77,7 +77,7 @@ async function getDailyReadings(stationFilter, startDate, endDate) {
  */
 async function getCreditSummary(stationFilter) {
   const outstanding = await CreditTransaction.sum('amount', {
-    where: { ...stationFilter, status: 'pending' }
+    where: { ...stationFilter, transactionType: 'credit' }
   });
   return { totalOutstanding: parseFloat(outstanding || 0) };
 }
@@ -229,7 +229,7 @@ async function getFinancialData(stationFilter, startDate, endDate) {
     Expense.sum('amount', { where: expWhere }),
     CostOfGoods.sum('totalCost', { where: cogWhere }),
     Settlement.sum('expectedAmount', { where: settWhere }),
-    CreditTransaction.sum('amount', { where: { status: 'pending', ...stationFilter } })
+    CreditTransaction.sum('amount', { where: { transactionType: 'credit', ...stationFilter } })
   ]);
 
   // Aggregate payment breakdown from transactions
