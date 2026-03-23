@@ -69,15 +69,7 @@ exports.createReading = asyncHandler(async (req, res, next) => {
   }
 
   // Extract stationId from pump relationship (safest path)
-  console.log('[DEBUG] Nozzle loaded:', { 
-    id: nozzle.id, 
-    pumpId: nozzle.pumpId,
-    stationId: nozzle.stationId,
-    pump: nozzle.pump ? { id: nozzle.pump.id, stationId: nozzle.pump.stationId } : null 
-  });
-  
   const stationId = nozzle.pump?.stationId;
-  console.log('[DEBUG] Extracted stationId:', stationId);
   
   if (!stationId) {
     throw new NotFoundError('Station', 'Nozzle is not assigned to a station');
@@ -90,7 +82,7 @@ exports.createReading = asyncHandler(async (req, res, next) => {
 
   // Load station
   const station = await Station.findByPk(stationId);
-  console.log('[DEBUG] Station loaded:', { id: station?.id, name: station?.name });
+  console.log('[DEBUG] Controller - Station lookup:', { found: !!station, id: station?.id, name: station?.name });
   if (!station) throw new NotFoundError('Station', stationId);
 
   // Delegate all business logic to service

@@ -26,8 +26,6 @@ exports.resolvePreviousReading = async (nozzleId, readingDate, nozzleInitialRead
     };
   }
 
-  console.log('[DEBUG] resolvePreviousReading called with:', { nozzleId, readingDate, stationId });
-
   // Determine if backdated entry
   const today = new Date().toISOString().split('T')[0];
   const isBackdated = new Date(readingDate + 'T00:00:00Z') < new Date(today + 'T00:00:00Z');

@@ -44,12 +44,6 @@ const readingCache = require('./readingCacheService');
 exports.createReading = async (entities, input) => {
   const { user, nozzle, station } = entities;
 
-  console.log('[DEBUG] readingCreationService.createReading received:', { 
-    user: { id: user.id }, 
-    nozzle: { id: nozzle.id }, 
-    station: station ? { id: station.id, name: station.name } : null 
-  });
-
   // Normalize input
   const normalizedInput = readingValidation.normalizeReadingInput(input);
 
@@ -130,19 +124,17 @@ exports.createReading = async (entities, input) => {
   }
 
   // --- Step 5: Resolve Previous Reading ---
-  console.log('[DEBUG] About to call resolvePreviousReading with:', {
-    nozzleId: normalizedInput.nozzleId,
-    readingDate: normalizedInput.readingDate,
-    stationId: station?.id,
-    stationFull: station
+  console.log('[DEBUG] readingCreationService before resolving - station:', {
+    id: station?.id,
+    name: station?.name,
+    hasId: !!station?.id,
+    type: station?.constructor?.name
   });
   
   // ASSERTION: Verify station.id exists before passing
   if (!station || !station.id) {
-    console.error('[ERROR] Station missing or has no ID:', { station });
-    throw new Error(`Station object invalid: ${JSON.stringify(station)}`);
+    throw new Error(`Station validation failed: station=${station ? 'exists' : 'null'}, station.id=${station?.id}`);
   }
-  console.log(`[DEBUG] Verified station.id = ${station.id} before passing to resolvePreviousReading`);
   
   const { previousReading, previousReadingRecord } = await readingCalculation.resolvePreviousReading(
     normalizedInput.nozzleId,
