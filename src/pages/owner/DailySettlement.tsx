@@ -531,24 +531,35 @@ export default function DailySettlement() {
       ) : (
         <>
           {/*  2-number summary  */}
-          <div className="grid grid-cols-2 gap-3">
-            <Card>
-              <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground">Total Sales</p>
-                <p className="text-2xl font-bold text-green-600">{fmt(dailySales.totalValue)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {safeToFixed(dailySales.totalVolume, 0)} L
-                </p>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="pt-4 pb-3">
-                <p className="text-xs text-muted-foreground">Cash Expected</p>
-                <p className="text-2xl font-bold text-orange-600">{fmt(readingsData?.unlinked?.totals?.cash ?? 0)}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">pending settlement</p>
-              </CardContent>
-            </Card>
-          </div>
+          {(() => {
+            // Calculate deduplicated pending settlement total
+            const unlinkedReadings = readingsData?.unlinked?.readings ?? [];
+            const pendingTotals = deduplicatePayments(unlinkedReadings);
+            const pendingTotal = pendingTotals.cash + pendingTotals.online + pendingTotals.credit;
+            
+            return (
+              <div className="grid grid-cols-2 gap-3">
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <p className="text-xs text-muted-foreground">Total Sales</p>
+                    <p className="text-2xl font-bold text-green-600">{fmt(dailySales.totalValue)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {safeToFixed(dailySales.totalVolume, 0)} L
+                    </p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="pt-4 pb-3">
+                    <p className="text-xs text-muted-foreground">Pending Settlement</p>
+                    <p className="text-2xl font-bold text-orange-600">{fmt(pendingTotal)}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {unlinkedReadings.length > 0 ? `${pendingTotals.cash > 0 ? `cash ${fmt(pendingTotals.cash)}` : ''}${pendingTotals.cash > 0 && pendingTotals.online > 0 ? ' + ' : ''}${pendingTotals.online > 0 ? `online ${fmt(pendingTotals.online)}` : ''}` : 'no pending'}
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            );
+          })()}
 
           {/*  Employee readings  */}
           <Card>
