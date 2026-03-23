@@ -474,6 +474,7 @@ module.exports = (sequelize) => {
    * Get the latest reading for a nozzle (for showing previous reading)
    */
   NozzleReading.getLatestReading = async function(nozzleId, stationId) {
+    console.log('[DEBUG] NozzleReading.getLatestReading called with:', { nozzleId, stationId });
     if (!stationId) {
       throw new Error('stationId is required for getLatestReading to prevent cross-station data mixing');
     }
@@ -491,6 +492,7 @@ module.exports = (sequelize) => {
    * Get the previous reading for a nozzle before a specific date
    */
   NozzleReading.getPreviousReading = async function(nozzleId, beforeDate, stationId) {
+    console.log('[DEBUG] NozzleReading.getPreviousReading called with:', { nozzleId, beforeDate, stationId });
     if (!stationId) {
       throw new Error('stationId is required for getPreviousReading to prevent cross-station data mixing');
     }
