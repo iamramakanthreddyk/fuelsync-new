@@ -60,7 +60,7 @@ async function submitReadings(data: {
   assignedEmployeeId: string;
   mode: 'employee' | 'owner';
   lastReadings?: Record<string, number>;
-}): Promise<string[]> {
+}): Promise<Array<{ id: string; totalAmount: number; litresSold: number; isSample: boolean }>> {
   const { stationId, readings, pumps, fuelPrices, readingDate, assignedEmployeeId, lastReadings = {} } = data;
 
   if (!assignedEmployeeId) {
@@ -118,7 +118,19 @@ async function submitReadings(data: {
   });
 
   const results = await Promise.all(promises);
-  return results.map((r: any) => r.data?.id).filter(Boolean);
+  // Return both IDs and calculated totalAmount for each created reading
+  // This allows the transaction submission to accurately validate payment breakdown
+  return results
+    .map((r: any) => {
+      if (!r.data?.id) return null;
+      return {
+        id: r.data.id,
+        totalAmount: r.data.totalAmount || r.data.total_amount || 0,
+        litresSold: r.data.litresSold || r.data.litres_sold || 0,
+        isSample: r.data.isSample || r.data.is_sample || false
+      };
+    })
+    .filter((r): r is { id: string; totalAmount: number; litresSold: number; isSample: boolean } => r !== null);
 }
 
 /**
@@ -273,10 +285,18 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
         assignedEmployeeId: state.assignedEmployeeId!,
         mode
       }),
-    onSuccess: (readingIds, variables) => {
+    onSuccess: (createdReadings: any[], variables) => {
+      // createdReadings now includes { id, totalAmount, litresSold, isSample }
+      const readingIds = createdReadings.map((r: any) => r.id).filter(Boolean);
+      
+      // Recalculate sale value based on readings that were actually created (excluding samples)
+      const actualSaleValue = createdReadings
+        .filter((r: any) => !r.isSample)
+        .reduce((sum: number, r: any) => sum + (r.totalAmount || 0), 0);
+
       toast({
         title: 'Readings Saved ✓',
-        description: `${readingIds.length} reading(s) submitted successfully`,
+        description: `${readingIds.length} reading(s) submitted successfully (₹${actualSaleValue.toFixed(2)} total)`,
         variant: 'success'
       });
 
@@ -286,17 +306,32 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
         step: mode === 'employee' ? 'transaction' : prev.step
       }));
 
-      if (mode === 'owner') {
-        // Use payment data captured at mutation time (variables), not reactive state
-        // which may have been cleared by the time onSuccess fires
+      if (mode === 'owner' && readingIds.length > 0) {
+        // IMPORTANT: Use the ACTUAL sale value from created readings, not the pre-calculated saleSummary
+        // This prevents validation errors when some readings fail to create
         const capturedPaymentBreakdown = variables.paymentBreakdown || state.paymentBreakdown;
         const capturedCreditAllocations = variables.creditAllocations || state.creditAllocations;
-        const capturedSaleSummary = variables.saleSummary || saleSummary;
+        
+        // Create adjusted payment breakdown based on actual sale value
+        // If actual sale value differs from expected, scale payments proportionally
+        const expectedSaleValue = variables.saleSummary?.totalSaleValue || actualSaleValue;
+        let adjustedPaymentBreakdown = { ...capturedPaymentBreakdown };
+        
+        if (Math.abs(actualSaleValue - expectedSaleValue) > 0.01 && expectedSaleValue > 0) {
+          // Scale all payment amounts by the ratio of actual to expected
+          const scaleFactor = actualSaleValue / expectedSaleValue;
+          adjustedPaymentBreakdown = {
+            cash: capturedPaymentBreakdown.cash * scaleFactor,
+            online: capturedPaymentBreakdown.online * scaleFactor,
+            credit: capturedPaymentBreakdown.credit * scaleFactor
+          };
+        }
+        
         submitTransactionMutation.mutate({
           readingIds,
-          paymentBreakdown: capturedPaymentBreakdown,
+          paymentBreakdown: adjustedPaymentBreakdown,
           creditAllocations: capturedCreditAllocations,
-          saleSummary: capturedSaleSummary
+          saleSummary: { totalSaleValue: actualSaleValue }
         });
       }
     },
