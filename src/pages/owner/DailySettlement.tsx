@@ -193,7 +193,17 @@ export default function DailySettlement() {
     const grouped: Record<string, { employee: { id: string; name: string } | null; readings: ReadingForSettlement[] }> = {};
 
     (readingsData?.unlinked.readings ?? []).forEach(r => {
-      const emp = getResponsibleEmployee(r);
+      // Inline logic from getResponsibleEmployee to avoid circular dependency
+      let emp: { id: string; name: string } | null = null;
+      if (r.assignedEmployee) {
+        emp = r.assignedEmployee;
+      } else if (r.assignedEmployeeId) {
+        const name = staffById[r.assignedEmployeeId] || 'Unknown';
+        emp = { id: r.assignedEmployeeId, name };
+      } else {
+        emp = r.recordedBy ?? null;
+      }
+      
       const empId = emp?.id || 'unassigned';
       
       if (!grouped[empId]) {
@@ -206,7 +216,7 @@ export default function DailySettlement() {
     });
 
     return grouped;
-  }, [readingsData?.unlinked.readings, staffById, getResponsibleEmployee]);
+  }, [readingsData?.unlinked.readings, staffById]);
 
   //  Fetch daily sales summary 
   const { data: dailySales, isLoading: salesLoading } = useQuery({
