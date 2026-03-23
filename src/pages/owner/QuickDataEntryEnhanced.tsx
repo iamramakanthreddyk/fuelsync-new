@@ -548,6 +548,10 @@ export default function QuickDataEntryEnhanced() {
       fuelPrices,
       lastReadings: allLastReadings
     } as any);
+    
+    // Clear form immediately after submission to prevent validation errors on re-render
+    // This prevents "Payment Not Allocated" error from appearing after successful API call
+    setPaymentAllocation({ cash: '0', online: '0', onlineBreakdown: null, credits: [] });
   };
 
   const pendingCount = Object.keys(readings).length;
