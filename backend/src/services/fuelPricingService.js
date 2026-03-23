@@ -123,8 +123,23 @@ async function setFuelPrice(stationId, dto, userId) {
   if (price === undefined || price === null) {
     throw new Error('Price is required');
   }
-  if (typeof price !== 'number' || price <= 0) {
+
+  // Convert price to number and validate
+  const numericPrice = Number(price);
+  if (isNaN(numericPrice) || numericPrice <= 0) {
     throw new Error('Price must be a positive number');
+  }
+
+  // Convert and validate cost price if provided
+  let numericCostPrice = 0;
+  if (costPrice !== undefined && costPrice !== null && costPrice !== '') {
+    numericCostPrice = Number(costPrice);
+    if (isNaN(numericCostPrice) || numericCostPrice <= 0) {
+      throw new Error('Cost price must be a positive number');
+    }
+    if (numericCostPrice >= numericPrice) {
+      throw new Error('Cost price must be less than selling price');
+    }
   }
 
   // Verify station exists
@@ -137,8 +152,8 @@ async function setFuelPrice(stationId, dto, userId) {
   const fuelPrice = await FuelPrice.create({
     stationId,
     fuelType,
-    price,
-    costPrice: costPrice || 0,
+    price: numericPrice,
+    costPrice: numericCostPrice,
     effectiveFrom: new Date()
   });
 
