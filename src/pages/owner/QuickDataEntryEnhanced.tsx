@@ -738,9 +738,11 @@ export default function QuickDataEntryEnhanced() {
                       const { litres, saleValue } = calculateNozzleSale(
                         nozzle,
                         reading?.readingValue || '',
-                        nozzle.lastReading !== null && nozzle.lastReading !== undefined
-                          ? nozzle.lastReading
-                          : (allLastReadings ? allLastReadings[nozzle.id] : undefined),
+                        allLastReadings && allLastReadings[nozzle.id] !== undefined
+                          ? allLastReadings[nozzle.id]
+                          : (nozzle.lastReading !== null && nozzle.lastReading !== undefined
+                              ? nozzle.lastReading
+                              : undefined),
                         fuelPrices
                       );
 
