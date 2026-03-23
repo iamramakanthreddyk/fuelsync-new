@@ -96,7 +96,7 @@ async function getPumpsWithNozzles(stationFilter, userRole) {
     include: [{
       model: Nozzle,
       as: 'nozzles',
-      attributes: ['id', 'name', 'fuelType', 'status', 'nozzleNumber']
+      attributes: ['id', 'nozzleNumber', 'fuelType', 'label', 'status']
     }],
     attributes: ['id', 'name', 'pumpNumber', 'stationId', 'status'],
     order: [['pumpNumber', 'ASC']]
