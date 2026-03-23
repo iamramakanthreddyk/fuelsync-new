@@ -58,6 +58,8 @@ const readingSchemas = {
     }).optional(),
     creditorId: commonSchemas.id.optional(),
     paymentType: Joi.string().valid('cash', 'digital', 'online', 'credit').optional(),
+    assignedEmployeeId: commonSchemas.id.optional(),
+    isSample: Joi.boolean().optional(),
     notes: Joi.string().allow('').max(500).optional().messages({
       'string.max': 'Notes must be less than 500 characters'
     })
@@ -208,6 +210,8 @@ function normalizeKeys(obj) {
     'total_amount': 'totalAmount',
     'payment_breakdown': 'paymentBreakdown',
     'creditor_id': 'creditorId',
+    'assigned_employee_id': 'assignedEmployeeId',
+    'is_sample': 'isSample',
     'reference_number': 'referenceNumber'
   };
 

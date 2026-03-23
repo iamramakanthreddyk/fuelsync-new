@@ -111,7 +111,7 @@ export const NozzleReadingRow: React.FC<NozzleReadingRowProps> = ({
         {/* Sale Calculation Display (optional) */}
         {showSaleCalculation && (
           <div className="text-right">
-            {reading?.readingValue && enteredValue !== undefined && enteredValue > compareValue ? (
+            {reading?.readingValue && enteredValue !== undefined && enteredValue > compareValue && !reading?.is_sample ? (
               <div>
                 <p className="text-sm text-gray-600">
                   {safeToFixed(litres, 2)} L

@@ -216,7 +216,7 @@ export default function QuickDataEntryEnhanced() {
         setSelectedEmployeeId(employeesToAssign[0].id);
       }
     }
-  }, [employeesToAssign, selectedEmployeeId, isOwner, isManager]);
+  }, [employeesToAssign, isOwner, isManager]);
 
   // Update context when selected station changes (loads prices for that station)
   useEffect(() => {
@@ -605,7 +605,7 @@ export default function QuickDataEntryEnhanced() {
                 </div>
 
                 {/* Employee Assignment - Only for owners and managers */}
-                {selectedStation && (
+                {selectedStation && (isOwner || isManager) && (
                   <div className="flex flex-col space-y-2">
                     <Label htmlFor="employee-select" className="text-sm font-medium text-gray-700">
                       Assign Entry To
@@ -615,11 +615,15 @@ export default function QuickDataEntryEnhanced() {
                         <SelectValue placeholder="Select an employee" />
                       </SelectTrigger>
                       <SelectContent>
-                        {employeesToAssign.map((employee: StationStaff) => (
-                          <SelectItem key={employee.id} value={employee.id}>
-                            <span>{employee.name}</span>
-                          </SelectItem>
-                        ))}
+                        {employeesToAssign && employeesToAssign.length > 0 ? (
+                          employeesToAssign.map((employee: StationStaff) => (
+                            <SelectItem key={employee.id} value={employee.id}>
+                              <span>{employee.name}</span>
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <div className="p-2 text-sm text-gray-500">No employees available</div>
+                        )}
                       </SelectContent>
                     </Select>
                   </div>
