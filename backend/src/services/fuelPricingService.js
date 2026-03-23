@@ -148,13 +148,19 @@ async function setFuelPrice(stationId, dto, userId) {
     throw new Error('Station not found');
   }
 
+  // Verify user exists
+  if (!userId) {
+    throw new Error('User ID is required for audit trail');
+  }
+
   // Create new price record
   const fuelPrice = await FuelPrice.create({
     stationId,
     fuelType,
     price: numericPrice,
     costPrice: numericCostPrice,
-    effectiveFrom: new Date()
+    effectiveFrom: new Date(),
+    updatedBy: userId
   });
 
   logAudit({
