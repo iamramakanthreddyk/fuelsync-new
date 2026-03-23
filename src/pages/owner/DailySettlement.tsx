@@ -452,6 +452,16 @@ export default function DailySettlement() {
       });
       return;
     }
+
+    // Prevent payment amount from exceeding total sales value
+    if (actualTotal > expectedTotal) {
+      toast({
+        title: 'Payment Exceeds Sales',
+        description: `Total payments ₹${safeToFixed(actualTotal, 2)} cannot exceed total sales ₹${safeToFixed(expectedTotal, 2)}`,
+        variant: 'destructive'
+      });
+      return;
+    }
     
     setSubmitting(true);
     submitMutation.mutate(
