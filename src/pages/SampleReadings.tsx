@@ -1,11 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
-import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useStations } from '@/hooks/api';
 import { apiClient } from '@/lib/api-client';
@@ -75,11 +74,9 @@ export default function SampleReadings() {
   const [data, setData] = useState<SampleReadingGroup[] | SampleStatistics>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [viewMode, setViewMode] = useState<'readings' | 'statistics'>('readings');
-  const [page, setPage] = useState(1);
   const [selectedReading, setSelectedReading] = useState<SampleReading | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const { user } = useAuth();
   const { toast } = useToast();
   const { data: stationsResponse } = useStations();
   const { canAccessFeature } = usePermissions();
@@ -137,10 +134,10 @@ export default function SampleReadings() {
         });
         
         return acc;
-      }, {});
+      }, {} as { [key: string]: SampleReading[] });
       
       // Convert to SampleReadingGroup format
-      const groupedData: SampleReadingGroup[] = Object.entries(grouped).map(([date, readings]) => ({
+      const groupedData: SampleReadingGroup[] = Object.entries(grouped).map(([date, readings]: any) => ({
         date,
         totalSamples: readings.length,
         readings
@@ -148,7 +145,6 @@ export default function SampleReadings() {
       
       setData(groupedData);
       setViewMode('readings');
-      setPage(1);
 
       if (!details || details.length === 0) {
         toast({ title: 'Info', description: 'No sample readings found for this period' });
@@ -219,7 +215,6 @@ export default function SampleReadings() {
         };
         setData(mappedStats);
         setViewMode('statistics');
-        setPage(1);
       } else {
         setData(emptyStats);
       }
