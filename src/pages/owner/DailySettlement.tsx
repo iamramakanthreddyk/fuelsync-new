@@ -544,7 +544,7 @@ export default function DailySettlement() {
             <Card>
               <CardContent className="pt-4 pb-3">
                 <p className="text-xs text-muted-foreground">Cash Expected</p>
-                <p className="text-2xl font-bold text-orange-600">{fmt(dailySales.settlementCategories?.pending?.value ?? 0)}</p>
+                <p className="text-2xl font-bold text-orange-600">{fmt(readingsData?.unlinked?.totals?.cash ?? 0)}</p>
                 <p className="text-xs text-muted-foreground mt-0.5">pending settlement</p>
               </CardContent>
             </Card>
