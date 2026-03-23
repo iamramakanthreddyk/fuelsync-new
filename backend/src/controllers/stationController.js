@@ -632,7 +632,7 @@ exports.getPumps = async (req, res, next) => {
         // For each nozzle, fetch the latest reading from NozzleReading
         const nozzlesWithReading = await Promise.all(nozzles.map(async nozzle => {
           const lastReadingResult = await NozzleReading.findOne({
-            where: { nozzleId: nozzle.id },
+            where: { nozzleId: nozzle.id, stationId },
             order: [['readingDate', 'DESC'], ['createdAt', 'DESC']],
             attributes: ['id', 'readingValue', 'readingDate', 'createdAt'],
             raw: true
