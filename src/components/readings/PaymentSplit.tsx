@@ -56,7 +56,7 @@ const emptySubBreakdown = (): PaymentSubBreakdown => ({
   cash: 0,
   upi: {},
   card: {},
-  oil_company: {},
+  oilCompany: {},
   credit: 0,
 });
 
@@ -145,7 +145,7 @@ export function PaymentSplit({
   // Sub-breakdown allocated total (should ideally = online)
   const subAllocated = sumObject(subBreakdown.upi as Record<string, number>) +
     sumObject(subBreakdown.card as Record<string, number>) +
-    sumObject(subBreakdown.oil_company as Record<string, number>);
+    sumObject(subBreakdown.oilCompany as Record<string, number>);
   const subUnallocated = Math.max(0, online - subAllocated);
 
   const notifyChange = useCallback(() => {

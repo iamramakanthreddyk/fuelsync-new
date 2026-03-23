@@ -43,7 +43,7 @@ export interface PaymentSubBreakdown {
   cash: number;
   upi: Partial<Record<UpiSubType, number>>;
   card: Partial<Record<CardSubType, number>>;
-  oil_company: Partial<Record<OilCompanySubType, number>>;
+  oilCompany: Partial<Record<OilCompanySubType, number>>;
   credit: number;
 }
 

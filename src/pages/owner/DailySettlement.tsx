@@ -129,6 +129,17 @@ function deduplicatePayments(readings: ReadingForSettlement[]) {
   );
 }
 
+/** Calculate total of all payment methods in a breakdown */
+function calculateBreakdownTotal(breakdown: PaymentSubBreakdown | null): number {
+  if (!breakdown) return 0;
+  
+  const upiTotal = Object.values(breakdown.upi || {}).reduce((sum: number, v: any) => sum + (v || 0), 0);
+  const cardTotal = Object.values(breakdown.card || {}).reduce((sum: number, v: any) => sum + (v || 0), 0);
+  const oilCompanyTotal = Object.values(breakdown.oilCompany || {}).reduce((sum: number, v: any) => sum + (v || 0), 0);
+  
+  return upiTotal + cardTotal + oilCompanyTotal;
+}
+
 const fmt = (n: number) =>
   n >= 100000 ? `${safeToFixed(n / 100000, 1)}L` : `${safeToFixed(n, 0)}`;
 
@@ -359,10 +370,7 @@ export default function DailySettlement() {
   const totalVariance = expectedTotal - actualTotal;
   
   // Calculate online breakdown total
-  const onlineBreakdownTotal = onlineBreakdown ? 
-    (Object.values(onlineBreakdown.upi || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
-     Object.values(onlineBreakdown.card || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
-     Object.values(onlineBreakdown.oil_company || {}).reduce((sum: number, v: any) => sum + (v || 0), 0)) : 0;
+  const onlineBreakdownTotal = calculateBreakdownTotal(onlineBreakdown);
   
   // Validate online breakdown matches online amount
   const onlineBreakdownMismatch = onlineBreakdown ? Math.abs(onlineBreakdownTotal - actualOnline) > 0.01 : false;
@@ -494,6 +502,29 @@ export default function DailySettlement() {
       setSelectedIds((prev) => [...new Set([...prev, ...unlinkedIds])]);
     }
   };
+
+  // Helper: update a specific section of the breakdown (upi, card, oilCompany)
+  const updateBreakdownSection = (section: keyof PaymentSubBreakdown, key: string, value: number) => {
+    if (!onlineBreakdown || !(section in onlineBreakdown)) return;
+    
+    setOnlineBreakdown({
+      ...onlineBreakdown,
+      [section]: { ...(onlineBreakdown[section] as Record<string, number>), [key]: value }
+    });
+  };
+
+  // Computed values for breakdown validation UI
+  const breakdownValidationClass = onlineBreakdownMismatch
+    ? 'border-red-300 bg-red-50'
+    : 'border-green-300 bg-green-50';
+
+  const breakdownStatusText = onlineBreakdownMismatch
+    ? '❌ Breakdown Mismatch'
+    : '✓ Breakdown Matches';
+
+  const breakdownStatusClass = onlineBreakdownMismatch
+    ? 'text-red-700 font-semibold'
+    : 'text-green-700 font-semibold';
 
   if (!stationId) return null;
 
@@ -689,9 +720,13 @@ export default function DailySettlement() {
                                     </div>
                                     <div className="text-xs text-muted-foreground mt-0.5">
                                       {safeToFixed(r.litresSold, 1)} L
-                                      {(r.cashAmount ?? 0) > 0 && `  Cash ${fmt(r.cashAmount!)}`}
-                                      {(r.onlineAmount ?? 0) > 0 && `  Online ${fmt(r.onlineAmount!)}`}
-                                      {(r.creditAmount ?? 0) > 0 && `  Credit ${fmt(r.creditAmount!)}`}
+                                      {r.transaction?.paymentBreakdown && (
+                                        <>
+                                          {r.transaction.paymentBreakdown.cash > 0 && `  Cash ${fmt(r.transaction.paymentBreakdown.cash)}`}
+                                          {r.transaction.paymentBreakdown.online > 0 && `  Online ${fmt(r.transaction.paymentBreakdown.online)}`}
+                                          {r.transaction.paymentBreakdown.credit > 0 && `  Credit ${fmt(r.transaction.paymentBreakdown.credit)}`}
+                                        </>
+                                      )}
                                     </div>
                                   </div>
                                   <span className="text-sm font-semibold text-green-700 shrink-0">
@@ -802,7 +837,7 @@ export default function DailySettlement() {
                               <span className="font-medium">{fmtCurrency(value)}</span>
                             </div>
                           )}
-                          {Object.entries(subBreakdown.oil_company || {}).map(([key, value]) => 
+                          {Object.entries(subBreakdown.oilCompany || {}).map(([key, value]) => 
                             value > 0 && <div key={key} className="flex justify-between">
                               <span>Oil Co. ({key}):</span>
                               <span className="font-medium">{fmtCurrency(value)}</span>
@@ -869,7 +904,7 @@ export default function DailySettlement() {
                               cash: 0,
                               upi: {},
                               card: {},
-                              oil_company: {},
+                              oilCompany: {},
                               credit: 0
                             });
                           }
@@ -899,10 +934,7 @@ export default function DailySettlement() {
                                     value={onlineBreakdown.upi?.[upi] || ''}
                                     onChange={(e) => {
                                       const val = parseFloat(e.target.value) || 0;
-                                      setOnlineBreakdown({
-                                        ...onlineBreakdown,
-                                        upi: { ...onlineBreakdown.upi, [upi]: val }
-                                      });
+                                      updateBreakdownSection('upi', upi, val);
                                     }}
                                     className="pl-5 w-full h-6 text-xs border border-blue-300 rounded"
                                     placeholder="0.00"
@@ -929,10 +961,7 @@ export default function DailySettlement() {
                                     value={onlineBreakdown.card?.[card] || ''}
                                     onChange={(e) => {
                                       const val = parseFloat(e.target.value) || 0;
-                                      setOnlineBreakdown({
-                                        ...onlineBreakdown,
-                                        card: { ...onlineBreakdown.card, [card]: val }
-                                      });
+                                      updateBreakdownSection('card', card, val);
                                     }}
                                     className="pl-5 w-full h-6 text-xs border border-blue-300 rounded"
                                     placeholder="0.00"
@@ -956,13 +985,10 @@ export default function DailySettlement() {
                                     type="number"
                                     step="0.01"
                                     min="0"
-                                    value={onlineBreakdown.oil_company?.[oil] || ''}
+                                    value={onlineBreakdown.oilCompany?.[oil] || ''}
                                     onChange={(e) => {
                                       const val = parseFloat(e.target.value) || 0;
-                                      setOnlineBreakdown({
-                                        ...onlineBreakdown,
-                                        oil_company: { ...onlineBreakdown.oil_company, [oil]: val }
-                                      });
+                                      updateBreakdownSection('oilCompany', oil, val);
                                     }}
                                     className="pl-5 w-full h-6 text-xs border border-blue-300 rounded"
                                     placeholder="0.00"
@@ -978,16 +1004,12 @@ export default function DailySettlement() {
                   
                   {/* Online Breakdown Validation */}
                   {onlineBreakdown && actualOnline > 0 && (
-                    <div className={`p-2 rounded border-2 mt-2 ${
-                      onlineBreakdownMismatch
-                        ? 'border-red-300 bg-red-50'
-                        : 'border-green-300 bg-green-50'
-                    }`}>
+                    <div className={`p-2 rounded border-2 mt-2 ${breakdownValidationClass}`}>
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-medium">
-                          {onlineBreakdownMismatch ? '❌ Breakdown Mismatch' : '✓ Breakdown Matches'}
+                          {breakdownStatusText}
                         </span>
-                        <span className={onlineBreakdownMismatch ? 'text-red-700 font-semibold' : 'text-green-700 font-semibold'}>
+                        <span className={breakdownStatusClass}>
                           ₹{safeToFixed(onlineBreakdownTotal, 2)} / ₹{safeToFixed(actualOnline, 2)}
                         </span>
                       </div>

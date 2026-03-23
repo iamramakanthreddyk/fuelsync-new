@@ -53,7 +53,7 @@ export function PaymentAllocationForm({
     const breakdownTotal =
       Object.values(paymentAllocation.onlineBreakdown.upi || {}).reduce((sum, v) => sum + (v || 0), 0) +
       Object.values(paymentAllocation.onlineBreakdown.card || {}).reduce((sum, v) => sum + (v || 0), 0) +
-      Object.values(paymentAllocation.onlineBreakdown.oil_company || {}).reduce((sum, v) => sum + (v || 0), 0);
+      Object.values(paymentAllocation.onlineBreakdown.oilCompany || {}).reduce((sum, v) => sum + (v || 0), 0);
 
     if (breakdownMode === 'auto' && Math.abs(breakdownTotal - toNumber(paymentAllocation.online)) > 0.01) {
       setPaymentAllocation(prev => ({
@@ -68,7 +68,7 @@ export function PaymentAllocationForm({
   const breakdownTotal =
     Object.values(paymentAllocation.onlineBreakdown?.upi || {}).reduce((sum, v) => sum + (v || 0), 0) +
     Object.values(paymentAllocation.onlineBreakdown?.card || {}).reduce((sum, v) => sum + (v || 0), 0) +
-    Object.values(paymentAllocation.onlineBreakdown?.oil_company || {}).reduce((sum, v) => sum + (v || 0), 0);
+    Object.values(paymentAllocation.onlineBreakdown?.oilCompany || {}).reduce((sum, v) => sum + (v || 0), 0);
 
   const totalAllocated = toNumber(paymentAllocation.cash) + Math.max(toNumber(paymentAllocation.online), breakdownTotal) + totalCredit;
   const difference = totalAllocated - totalRequired;
@@ -404,9 +404,9 @@ export function PaymentAllocationForm({
                               type="number"
                               step="0.01"
                               min="0"
-                              value={paymentAllocation.onlineBreakdown?.oil_company?.[key as OilCompanySubType] || ''}
+                              value={paymentAllocation.onlineBreakdown?.oilCompany?.[key as OilCompanySubType] || ''}
                               onChange={(e) => {
-                                handleUpdateBreakdown(`oil_company.${key}`, e.target.value);
+                                handleUpdateBreakdown(`oilCompany.${key}`, e.target.value);
                                 setBreakdownMode('auto');
                               }}
                               placeholder="0.00"
@@ -561,7 +561,7 @@ function initializeBreakdown(): PaymentSubBreakdown {
     cash: 0,
     upi: {},
     card: {},
-    oil_company: {},
+    oilCompany: {},
     credit: 0
   };
 }
