@@ -294,7 +294,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
       // Recalculate sale value based on readings that were actually created (excluding samples)
       const actualSaleValue = createdReadings
         .filter((r: any) => !r.isSample)
-        .reduce((sum: number, r: any) => sum + (r.totalAmount || 0), 0);
+        .reduce((sum: number, r: any) => sum + (parseFloat(String(r.totalAmount || 0))), 0);
 
       toast({
         title: 'Readings Saved ✓',
