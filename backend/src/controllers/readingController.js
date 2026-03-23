@@ -405,15 +405,7 @@ exports.getLatestReadingsForNozzles = asyncHandler(async (req, res) => {
     throw new AuthorizationError('Not authorized to access this station');
   }
   
-  const resultsMap = await readingRepository.getLatestReadingsForNozzles(ids, stationId);
-  
-  // Convert Map to plain object (Maps don't serialize correctly to JSON)
-  const results = {};
-  if (resultsMap instanceof Map) {
-    resultsMap.forEach((reading, nozzleId) => {
-      results[nozzleId] = reading.readingValue;
-    });
-  }
+  const results = await readingRepository.getLatestReadingsForNozzles(ids, stationId);
   
   return sendSuccess(res, results);
 });
