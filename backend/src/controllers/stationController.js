@@ -1636,23 +1636,57 @@ exports.recordSettlement = async (req, res, next) => {
     // CALCULATE VARIANCE on backend (don't trust frontend value)
     const calculatedVariance = parsedExpectedCash - parsedActualCash;
 
-    // Fetch employee-reported totals exclusively from DailyTransaction (source-of-truth)
-
+    // FETCH EMPLOYEE-REPORTED TOTALS
+    // For past-date settlements, don't search by transactionDate - instead follow reading→transaction links
+    // This handles cases where readings from past dates are settled later
+    
     let transactions = [];
+    let linkedReadings = [];
+    
     if (readingIds && Array.isArray(readingIds) && readingIds.length > 0) {
-      // Fetch possible transactions for station/date and filter by readingIds overlap
-      const possibleTxns = await DailyTransaction.findAll({ where: { stationId, transactionDate: settlementDate }, raw: true });
-      const selectedSet = new Set(readingIds);
-      transactions = possibleTxns.filter(txn => {
-        const ids = Array.isArray(txn.reading_ids) ? txn.reading_ids : txn.readingIds || [];
-        return ids.some(id => selectedSet.has(id));
+      // Fetch the actual reading records with their transaction links
+      linkedReadings = await NozzleReading.findAll({
+        where: { id: { [Op.in]: readingIds } },
+        attributes: ['id', 'transactionId'],
+        raw: true
       });
+      
+      // Get unique transactionIds from the linked readings
+      const transactionIds = [...new Set(linkedReadings
+        .map(r => r.transactionId)
+        .filter(tid => tid !== null)
+      )];
+      
+      if (transactionIds.length > 0) {
+        // Fetch the transactions (regardless of their transactionDate)
+        transactions = await DailyTransaction.findAll({
+          where: { id: { [Op.in]: transactionIds } },
+          raw: true
+        });
+      }
     } else {
-      // Aggregate all transactions for the station/date
-      transactions = await DailyTransaction.findAll({ where: { stationId, transactionDate: settlementDate }, raw: true });
+      // No specific readings selected - fetch all transactions for this station + settlement date
+      // This handles the case where no readings were pre-selected in the form
+      linkedReadings = await NozzleReading.findAll({
+        where: {
+          stationId,
+          readingDate: settlementDate,
+          transactionId: { [Op.ne]: null }
+        },
+        attributes: ['id', 'transactionId'],
+        raw: true
+      });
+      
+      const transactionIds = [...new Set(linkedReadings.map(r => r.transactionId))];
+      if (transactionIds.length > 0) {
+        transactions = await DailyTransaction.findAll({
+          where: { id: { [Op.in]: transactionIds } },
+          raw: true
+        });
+      }
     }
 
-    // Sum paymentBreakdown across matched transactions (only source of tender entries from employees)
+    // Sum paymentBreakdown across matched transactions (reads employee-reported payment split)
     let employeeCash = 0, employeeOnline = 0, employeeCredit = 0;
     transactions.forEach(txn => {
       const pb = txn.payment_breakdown || txn.paymentBreakdown || {};
