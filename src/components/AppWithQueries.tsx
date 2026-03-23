@@ -369,7 +369,8 @@ function AppContent() {
                     <Route path="/manager/stations/:id/add-creditor" element={<AddCreditor />} />
                     <Route path="/manager/stations/:id/prices" element={<Prices />} />
                     <Route path="/manager/employees" element={<EmployeesManagement />} />
-                    <Route path="/manager/reports" element={<ManagerReports />} />                    <Route path="/manager/sample-readings" element={<SampleReadings />} />
+                    <Route path="/manager/reports" element={<ManagerReports />} />
+                    <Route path="/manager/sample-readings" element={<SampleReadings />} />
                     <Route path="/manager/profit-reports" element={<ProfitReports />} />
                     <Route path="/manager/expenses" element={<ExpensesPage />} />
                     <Route path="/manager/shifts" element={<ShiftManagement />} />
