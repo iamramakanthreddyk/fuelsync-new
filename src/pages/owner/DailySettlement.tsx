@@ -276,6 +276,39 @@ export default function DailySettlement() {
     }
   }, [readingsData]);
 
+  // Auto-sync selectedEmployeeId when selectedIds changes
+  // If user deselects an employee's readings, immediately clear selectedEmployeeId
+  // so the form doesn't reference a deselected employee
+  useEffect(() => {
+    if (selectedIds.length === 0) {
+      setSelectedEmployeeId('');
+      return;
+    }
+
+    // Get all employees whose readings are currently selected
+    const selectedReadings = allReadings.filter(r => selectedIds.includes(r.id));
+    const employeesInSelection = new Set<string>();
+    
+    selectedReadings.forEach(r => {
+      let empId: string | null = null;
+      if (r.assignedEmployeeId) {
+        empId = r.assignedEmployeeId;
+      } else if (r.recordedBy?.id) {
+        empId = r.recordedBy.id;
+      }
+      if (empId) employeesInSelection.add(empId);
+    });
+
+    // If currently selected employee is NOT in the selection, clear it
+    if (selectedEmployeeId && !employeesInSelection.has(selectedEmployeeId)) {
+      setSelectedEmployeeId('');
+    }
+    // If only ONE employee in selection and none is selected, auto-select that one
+    else if (!selectedEmployeeId && employeesInSelection.size === 1) {
+      setSelectedEmployeeId(Array.from(employeesInSelection)[0]);
+    }
+  }, [selectedIds, allReadings, selectedEmployeeId]);
+
   // Reset inputs when date changes
   useEffect(() => {
     setActualCash(0);
