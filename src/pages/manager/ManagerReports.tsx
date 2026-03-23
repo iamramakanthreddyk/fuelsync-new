@@ -130,27 +130,13 @@ export default function ManagerReports() {
 
   // Calculate totals from summary if available, fallback to calculated
   const totals = useMemo(() => {
-    // Use API summary if available, fallback to calculation
-    if (expensesResponse?.summary) {
-      const summary = expensesResponse.summary;
-      const salesSummary = salesResponse?.data?.summary;
-      
-      return {
-        litres: salesSummary?.totalLitres || 0,
-        amount: salesSummary?.totalAmount || 0,
-        cash: salesSummary?.breakdown?.cash || 0,
-        online: salesSummary?.breakdown?.online || 0,
-        readings: salesSummary?.itemCount || 0,
-        expenses: summary.pendingTotal + summary.approvedTotal
-      };
-    }
-    
     // Fallback: calculate from items
     let expenseTotal = 0;
     expensesList.forEach(exp => {
       expenseTotal += parseExpenseAmount(exp.amount);
     });
 
+    // Try to get sales summary from API
     const salesSummary = salesResponse?.data?.summary;
     if (salesSummary) {
       return {
@@ -164,19 +150,39 @@ export default function ManagerReports() {
       };
     }
 
-    // Final fallback: calculate from sales
-    const salesTotals = sales.reduce(
-      (acc, day) => ({
-        litres: acc.litres + (day.litres ?? 0),
-        amount: acc.amount + (day.amount ?? 0),
-        cash: acc.cash + (day.cash ?? 0),
-        online: acc.online + (day.online ?? 0),
-        readings: acc.readings + (day.readings ?? 0),
-      }),
-      { litres: 0, amount: 0, cash: 0, online: 0, readings: 0 }
-    );
-    return { ...salesTotals, expenses: expenseTotal, shortfall: shortfallInfo.totalShortfall };
-  }, [sales, salesResponse?.data?.summary, expensesList, expensesResponse?.summary, shortfallInfo.totalShortfall]);
+    // Fallback 1: calculate from daily sales array
+    if (sales.length > 0) {
+      const salesTotals = sales.reduce(
+        (acc, day) => ({
+          litres: acc.litres + (day.litres ?? 0),
+          amount: acc.amount + (day.amount ?? 0),
+          cash: acc.cash + (day.cash ?? 0),
+          online: acc.online + (day.online ?? 0),
+          readings: acc.readings + (day.readings ?? 0),
+        }),
+        { litres: 0, amount: 0, cash: 0, online: 0, readings: 0 }
+      );
+      return { ...salesTotals, expenses: expenseTotal, shortfall: shortfallInfo.totalShortfall };
+    }
+
+    // Fallback 2: calculate from pump data if daily sales is empty
+    if (pumps.length > 0) {
+      const pumpTotals = pumps.reduce(
+        (acc, pump) => ({
+          amount: acc.amount + (pump.todaySales ?? 0),
+          litres: acc.litres + (pump.todayLitres ?? 0),
+          readings: acc.readings + 1,
+          cash: acc.cash,
+          online: acc.online,
+        }),
+        { amount: 0, litres: 0, readings: 0, cash: 0, online: 0 }
+      );
+      return { ...pumpTotals, expenses: expenseTotal, shortfall: shortfallInfo.totalShortfall };
+    }
+
+    // Final fallback: all zeros
+    return { amount: 0, litres: 0, readings: 0, cash: 0, online: 0, expenses: expenseTotal, shortfall: shortfallInfo.totalShortfall };
+  }, [sales, pumps, salesResponse?.data?.summary, expensesList, shortfallInfo.totalShortfall]);
 
   const activePumps = pumps.filter(p => p.status === 'active').length;
   const totalPumpSales = pumps.reduce((sum, p) => sum + (p.todaySales ?? 0), 0);
