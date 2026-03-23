@@ -142,10 +142,11 @@ async function submitTransaction(data: {
   transactionDate: string;
   readingIds: string[];
   paymentBreakdown: { cash: number; online: number; credit: number };
+  paymentSubBreakdown?: any;
   creditAllocations: CreditAllocation[];
   saleSummary: any;
 }): Promise<any> {
-  const { stationId, transactionDate, readingIds, paymentBreakdown, creditAllocations } = data;
+  const { stationId, transactionDate, readingIds, paymentBreakdown, paymentSubBreakdown, creditAllocations } = data;
 
   // Payment vs sale value validation is already done in handleSubmit (with 1.0 rupee tolerance)
   // and will be enforced again by the backend. No need to re-validate here.
@@ -159,6 +160,7 @@ async function submitTransaction(data: {
     transactionDate,
     readingIds,
     paymentBreakdown,
+    ...(paymentSubBreakdown ? { paymentSubBreakdown } : {}),
     creditAllocations: creditAllocations.filter(c => toNumber(c.amount) > 0),
     notes: `Transaction created via quick entry`
   };
@@ -277,7 +279,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
 
   // Submit readings mutation
   const submitReadingsMutation = useMutation({
-    mutationFn: (data: { readings: ReadingEntry[] | ReadingData[], pumps: any[], fuelPrices: any[], lastReadings?: Record<string, number>, paymentBreakdown?: { cash: number; online: number; credit: number }, creditAllocations?: CreditAllocation[], saleSummary?: any }) => 
+    mutationFn: (data: { readings: ReadingEntry[] | ReadingData[], pumps: any[], fuelPrices: any[], lastReadings?: Record<string, number>, paymentBreakdown?: { cash: number; online: number; credit: number }, paymentSubBreakdown?: any, creditAllocations?: CreditAllocation[], saleSummary?: any }) => 
       submitReadings({
         ...data,
         stationId,
@@ -330,6 +332,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
         submitTransactionMutation.mutate({
           readingIds,
           paymentBreakdown: adjustedPaymentBreakdown,
+          paymentSubBreakdown: variables.paymentSubBreakdown,
           creditAllocations: capturedCreditAllocations,
           saleSummary: { totalSaleValue: actualSaleValue }
         });
@@ -351,6 +354,7 @@ export function useQuickEntry({ stationId, mode, onSuccess }: UseQuickEntryOptio
     mutationFn: (data: {
       readingIds: string[],
       paymentBreakdown: { cash: number; online: number; credit: number },
+      paymentSubBreakdown?: any,
       creditAllocations: CreditAllocation[],
       saleSummary: any
     }) => submitTransaction({

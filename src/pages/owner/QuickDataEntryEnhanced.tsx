@@ -572,6 +572,7 @@ export default function QuickDataEntryEnhanced() {
           online: toNumber(paymentAllocation.online),
           credit: paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0)
         },
+        paymentSubBreakdown: paymentAllocation.onlineBreakdown,
         creditAllocations: paymentAllocation.credits,
         saleSummary
       } as any,
