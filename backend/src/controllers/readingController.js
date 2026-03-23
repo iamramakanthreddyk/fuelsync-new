@@ -55,19 +55,8 @@ exports.createReading = asyncHandler(async (req, res, next) => {
   const user = req.user;
   if (!user) throw new NotFoundError('User not found');
 
-  // Normalize request body: convert snake_case to camelCase for backward compatibility
-  const normalizeKey = (obj, key) => {
-    if (key in obj) return obj[key];
-    const camelKey = key.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-    if (camelKey in obj) return obj[camelKey];
-    return undefined;
-  };
-
-  const nozzleId = normalizeKey(req.body, 'nozzle_id') || req.body.nozzleId;
-  const stationIdFromPayload = normalizeKey(req.body, 'station_id') || req.body.stationId;
-
-  // Load nozzle with relations
-  const nozzle = await Nozzle.findByPk(nozzleId, {
+  // Load nozzle with relations (req.body already normalized by global middleware)
+  const nozzle = await Nozzle.findByPk(req.body.nozzleId, {
     include: [{
       model: Pump,
       as: 'pump',
@@ -76,7 +65,7 @@ exports.createReading = asyncHandler(async (req, res, next) => {
   });
 
   if (!nozzle) {
-    throw new NotFoundError('Nozzle', nozzleId);
+    throw new NotFoundError('Nozzle', req.body.nozzleId);
   }
 
   const stationId = nozzle.pump.stationId;
@@ -90,19 +79,11 @@ exports.createReading = asyncHandler(async (req, res, next) => {
   const station = await Station.findByPk(stationId);
   if (!station) throw new NotFoundError('Station', stationId);
 
-  // Normalize entire request body: snake_case to camelCase
-  const normalizedBody = {};
-  const snakeToCamel = (str) => str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-  
-  for (const [key, value] of Object.entries(req.body)) {
-    const camelKey = snakeToCamel(key);
-    normalizedBody[camelKey] = value;
-  }
-
   // Delegate all business logic to service
+  // Note: req.body is already normalized by global normalizeRequestBody middleware
   const result = await readingCreationService.createReading(
     { user, nozzle, station },
-    normalizedBody
+    req.body
   );
 
   return sendCreated(res, result.reading, {
@@ -252,16 +233,8 @@ exports.getReadingById = asyncHandler(async (req, res, next) => {
  */
 exports.updateReading = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  
-  // Normalize request body: snake_case to camelCase
-  const snakeToCamel = (str) => str.replace(/_([a-z])/g, (_, letter) => letter.toUpperCase());
-  const normalizedBody = {};
-  for (const [key, value] of Object.entries(req.body)) {
-    const camelKey = snakeToCamel(key);
-    normalizedBody[camelKey] = value;
-  }
-  
-  const { readingValue, notes } = normalizedBody;
+  // Note: req.body is already normalized by global normalizeRequestBody middleware
+  const { readingValue, notes } = req.body;
 
   // Get reading with relations
   const reading = await readingRepository.getReadingWithRelations(id);
