@@ -46,8 +46,6 @@ const { canAccessStation } = require('../middleware/accessControl');
 const { logAudit } = require('../utils/auditLog');
 const { getPaginationOptions, formatPaginatedResponse } = require('../utils/paginationHelper');
 const { buildDateRangeWhere } = require('../utils/dateRangeHelper');
-const { createContextLogger } = require('../services/loggerService');
-const logger = createContextLogger('ReadingController');
 
 /**
  * Create a nozzle reading
@@ -56,13 +54,6 @@ const logger = createContextLogger('ReadingController');
 exports.createReading = asyncHandler(async (req, res, next) => {
   const user = req.user;
   if (!user) throw new NotFoundError('User not found');
-
-  // Debug: Log request body to verify normalization
-  const debug = {
-    requestBodyKeys: Object.keys(req.body),
-    nozzleIdFromBody: req.body.nozzleId,
-    stationIdFromBody: req.body.stationId
-  };
 
   // Load nozzle with relations (req.body already normalized by global middleware)
   const nozzle = await Nozzle.findByPk(req.body.nozzleId, {
@@ -77,17 +68,11 @@ exports.createReading = asyncHandler(async (req, res, next) => {
     throw new NotFoundError('Nozzle', req.body.nozzleId);
   }
 
-  const stationId = nozzle.pump.stationId;
+  // Use direct stationId from nozzle (Nozzle has both pumpId AND stationId fields)
+  const stationId = nozzle.stationId;
   
-  // Debug: Verify stationId was extracted correctly
   if (!stationId) {
-    logger.error('CRITICAL: stationId extraction failed', {
-      nozzleId: req.body.nozzleId,
-      hasNozzle: !!nozzle,
-      hasPump: !!nozzle.pump,
-      pumpData: nozzle.pump ? { stationId: nozzle.pump.stationId } : null
-    });
-    throw new Error('Unable to extract stationId from nozzle relationship');
+    throw new Error('Nozzle must have a stationId assigned');
   }
 
   // Authorization check
