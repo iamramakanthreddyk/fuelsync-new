@@ -68,11 +68,11 @@ exports.createReading = asyncHandler(async (req, res, next) => {
     throw new NotFoundError('Nozzle', req.body.nozzleId);
   }
 
-  // Use direct stationId from nozzle (Nozzle has both pumpId AND stationId fields)
-  const stationId = nozzle.stationId;
+  // Extract stationId from pump relationship (safest path)
+  const stationId = nozzle.pump?.stationId;
   
   if (!stationId) {
-    throw new Error('Nozzle must have a stationId assigned');
+    throw new NotFoundError('Station', 'Nozzle is not assigned to a station');
   }
 
   // Authorization check
