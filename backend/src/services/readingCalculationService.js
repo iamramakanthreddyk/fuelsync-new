@@ -111,7 +111,8 @@ exports.populateReadingCalculations = async (params) => {
     nozzle.id,
     readingDate,
     nozzle.initialReading,
-    normalizedInput.previousReading
+    normalizedInput.previousReading,
+    stationId
   );
 
   // Determine if initial
