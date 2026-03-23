@@ -463,6 +463,11 @@ export default function QuickDataEntryEnhanced() {
       return;
     }
 
+    // Prevent double submission while mutation is in flight
+    if (submitReadingsMutation.isPending) {
+      return;
+    }
+
     // Only validate payment allocation if there are non-sample readings
     if (nonSampleEntries.length > 0) {
       const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
@@ -478,7 +483,7 @@ export default function QuickDataEntryEnhanced() {
         return;
       }
 
-      if (Math.abs(allocated - saleSummary.totalSaleValue) > 0.01) {
+      if (Math.abs(allocated - saleSummary.totalSaleValue) > 0.05) {
         toast({
           title: 'Payment Not Allocated',
           description: `Total payment (₹${safeToFixed(allocated, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`,
