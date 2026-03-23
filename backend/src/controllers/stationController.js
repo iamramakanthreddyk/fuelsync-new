@@ -1643,6 +1643,8 @@ exports.recordSettlement = async (req, res, next) => {
     let transactions = [];
     let linkedReadings = [];
     
+    logger.info(`[recordSettlement] Fetching employee totals for date=${settlementDate}, stationId=${stationId}, readingCount=${readingIds?.length || 'all'}`);
+    
     if (readingIds && Array.isArray(readingIds) && readingIds.length > 0) {
       // Fetch the actual reading records with their transaction links
       linkedReadings = await NozzleReading.findAll({
@@ -1651,11 +1653,15 @@ exports.recordSettlement = async (req, res, next) => {
         raw: true
       });
       
+      logger.debug(`[recordSettlement] Found ${linkedReadings.length} linked readings from ${readingIds.length} selected IDs`);
+      
       // Get unique transactionIds from the linked readings
       const transactionIds = [...new Set(linkedReadings
         .map(r => r.transactionId)
         .filter(tid => tid !== null)
       )];
+      
+      logger.debug(`[recordSettlement] Extracted ${transactionIds.length} unique transaction IDs`);
       
       if (transactionIds.length > 0) {
         // Fetch the transactions (regardless of their transactionDate)
@@ -1663,6 +1669,7 @@ exports.recordSettlement = async (req, res, next) => {
           where: { id: { [Op.in]: transactionIds } },
           raw: true
         });
+        logger.debug(`[recordSettlement] Found ${transactions.length} transactions for these reading IDs`);
       }
     } else {
       // No specific readings selected - fetch all transactions for this station + settlement date
@@ -1677,12 +1684,15 @@ exports.recordSettlement = async (req, res, next) => {
         raw: true
       });
       
+      logger.debug(`[recordSettlement] Found ${linkedReadings.length} readings for ${settlementDate} with transactions`);
+      
       const transactionIds = [...new Set(linkedReadings.map(r => r.transactionId))];
       if (transactionIds.length > 0) {
         transactions = await DailyTransaction.findAll({
           where: { id: { [Op.in]: transactionIds } },
           raw: true
         });
+        logger.debug(`[recordSettlement] Found ${transactions.length} transactions`);
       }
     }
 
@@ -1699,6 +1709,8 @@ exports.recordSettlement = async (req, res, next) => {
     employeeOnline = parseFloat(employeeOnline.toFixed(2));
     employeeCredit = parseFloat(employeeCredit.toFixed(2));
     const calculatedTotalSaleValue = parseFloat((employeeCash + employeeOnline + employeeCredit).toFixed(2));
+    
+    logger.info(`[recordSettlement] Employee reported totals: cash=${employeeCash}, online=${employeeOnline}, credit=${employeeCredit}, total=${calculatedTotalSaleValue}`);
 
     // Calculate variance for all payment methods
     const varianceOnline = employeeOnline - parsedOnline;
@@ -1752,6 +1764,14 @@ exports.recordSettlement = async (req, res, next) => {
         isFinal: false,          // Always created as draft initially
         finalizedAt: null
       }, { transaction: t });
+      
+      logger.info(`[recordSettlement] Created settlement ${record.id} for ${settlementDate}:`, {
+        employeeReported: { cash: employeeCash, online: employeeOnline, credit: employeeCredit },
+        ownerConfirmed: { cash: parsedActualCash, online: parsedOnline, credit: parsedCredit },
+        variance: { cash: calculatedVariance, online: varianceOnline, credit: varianceCredit },
+        readingCount: readingIds?.length || 'auto',
+        status: settlementStatus
+      });
 
       // Link selected readings to this settlement and update their status
       let linkedReadingsCount = 0;
