@@ -87,7 +87,7 @@ async function submitReadings(data: {
 
     const litres = Math.max(0, enteredValue - (compareValue || 0));
     const priceData = Array.isArray(fuelPrices)
-      ? fuelPrices.find(p => p.fuelType.toUpperCase() === (nozzle?.fuelType || '').toUpperCase())
+      ? fuelPrices.find(p => (p.fuelType || '').toUpperCase() === (nozzle?.fuelType || '').toUpperCase())
       : undefined;
     const price = priceData ? toNumber(String(priceData.price)) : 0;
     const totalAmount = litres * price;

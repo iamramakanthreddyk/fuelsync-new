@@ -173,7 +173,7 @@ const StationFormContent = ({ formData, onChange, formErrors = {} }: StationForm
           id="phone"
           value={formData.phone}
           onChange={(e) => onChange({ ...formData, phone: e.target.value })}
-          placeholder="+91-9876543210"
+          placeholder="9876543210"
           autoComplete="off"
           className={formErrors.phone ? 'border-red-500' : ''}
         />

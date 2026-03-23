@@ -36,8 +36,9 @@ module.exports = (sequelize) => {
     
     name: {
       type: DataTypes.STRING(50),
-      allowNull: true, // Optional name like "Tank A", "Underground Tank 1"
-      comment: 'Optional display name for the tank'
+      allowNull: false, // Database requires a value; defaults to "[FuelType] Tank" if not provided
+      defaultValue: '', // Sequelize default (overridden in controller)
+      comment: 'Tank display name. Defaults to "[FuelType] Tank" if not provided'
     },
     
     // Custom fuel display name (owner-friendly: MSD, HSM, XP 95)

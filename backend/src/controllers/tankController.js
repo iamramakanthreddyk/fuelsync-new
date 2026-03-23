@@ -15,7 +15,7 @@ const { Tank, TankRefill, Station, User, sequelize } = require('../models');
 const { Op } = require('sequelize');
 
 // ===== ERROR & RESPONSE HANDLING =====
-const { asyncHandler, NotFoundError, AuthorizationError } = require('../utils/errors');
+const { asyncHandler, NotFoundError, AuthorizationError, AuthenticationError } = require('../utils/errors');
 const { sendSuccess, sendCreated, sendError, sendPaginated } = require('../utils/apiResponse');
 
 // ===== MIDDLEWARE & CONFIG =====
@@ -148,6 +148,11 @@ exports.getTank = asyncHandler(async (req, res, next) => {
  */
 exports.createTank = asyncHandler(async (req, res, next) => {
   const { stationId } = req.params;
+  
+  if (!stationId) {
+    return sendError(res, 'INVALID_REQUEST', 'Station ID is required', 400);
+  }
+  
   const { 
     fuelType, 
     name, 
@@ -164,6 +169,10 @@ exports.createTank = asyncHandler(async (req, res, next) => {
   
   const user = await User.findByPk(req.userId);
   
+  if (!user) {
+    throw new AuthenticationError('User session invalid');
+  }
+  
   if (!(await canAccessStation(user, stationId))) {
     throw new AuthorizationError('Not authorized to access this station');
   }
@@ -178,10 +187,13 @@ exports.createTank = asyncHandler(async (req, res, next) => {
   
   const initialLevel = parseFloat(currentLevel) || 0;
   
+  // Generate default tank name if not provided
+  const tankName = name || `${fuelType} Tank`;
+  
   const tank = await Tank.create({
     stationId,
     fuelType,
-    name,
+    name: tankName,
     displayFuelName: displayFuelName || null,
     capacity,
     currentLevel: initialLevel,

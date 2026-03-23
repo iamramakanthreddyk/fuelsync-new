@@ -229,12 +229,17 @@ export default function Inventory() {
     if (stations.length > 0 && !selectedStationId) {
       setSelectedStationId(stations[0].id);
     }
-  }, [stations, selectedStationId]);
+  }, [stations]);
 
   // Handle add tank
   const handleAddTank = async () => {
+    if (!selectedStationId) {
+      toast({ title: 'Error', description: 'Please select a station first', variant: 'destructive' });
+      return;
+    }
+
     if (!newTank.fuelType || !newTank.capacity) {
-      toast({ title: 'Error', description: 'Please fill in required fields', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Please fill in required fields (Fuel Type and Capacity)', variant: 'destructive' });
       return;
     }
 
@@ -254,7 +259,8 @@ export default function Inventory() {
       setNewTank({ fuelType: '', displayFuelName: '', name: '', capacity: '', currentLevel: '' });
       refetchTanks();
     } catch (error: any) {
-      toast({ title: 'Error', description: error.message || 'Failed to add tank', variant: 'destructive' });
+      const errorMessage = error?.response?.data?.error?.message || error.message || 'Failed to add tank';
+      toast({ title: 'Error', description: errorMessage, variant: 'destructive' });
     }
   };
 
