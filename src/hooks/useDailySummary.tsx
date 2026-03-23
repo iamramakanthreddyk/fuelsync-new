@@ -30,11 +30,14 @@ interface DailySummaryData {
 
 interface DashboardDailyResponse {
   date: string;
+  litresSold?: number;
   litres?: number;
+  totalAmount?: number;
   amount?: number;
   cash?: number;
   online?: number;
   credit?: number;
+  readingCount?: number;
   readings?: number;
   totalSales?: number; // Keep for backward compatibility
   totalVolume?: number;
@@ -74,7 +77,7 @@ export function useDailySummary(date: string) {
             : null;
 
           // Calculate totals from daily data only
-          const salesTotal = dailyData?.amount ?? dailyData?.totalSales ?? 0;
+          const salesTotal = dailyData?.totalAmount ?? dailyData?.amount ?? dailyData?.totalSales ?? 0;
           const cashAmount = dailyData?.cash ?? dailyData?.cashSales ?? 0;
           const onlineAmount = dailyData?.online ?? dailyData?.onlineSales ?? 0;
           const creditAmount = dailyData?.credit ?? dailyData?.creditSales ?? 0;
@@ -111,7 +114,7 @@ export function useDailySummary(date: string) {
           : null;
 
         // Calculate totals from available data
-        const salesTotal = dailyData?.amount ?? dailyData?.totalSales ?? financialData?.grossSales ?? 0;
+        const salesTotal = dailyData?.totalAmount ?? dailyData?.amount ?? dailyData?.totalSales ?? financialData?.grossSales ?? 0;
         const cashAmount = dailyData?.cash ?? dailyData?.cashSales ?? financialData?.cashOnHand ?? 0;
         const creditAmount = dailyData?.credit ?? dailyData?.creditSales ?? financialData?.creditOutstanding ?? 0;
         const onlineAmount = dailyData?.online ?? dailyData?.onlineSales ?? 0;
