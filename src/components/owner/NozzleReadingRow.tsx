@@ -55,26 +55,40 @@ export const NozzleReadingRow: React.FC<NozzleReadingRowProps> = ({
     <div className={`border rounded-lg p-2 sm:p-4 bg-white transition-colors ${
       isNozzleActive ? 'border-brand-200 hover:bg-brand-50' : 'border-orange-200 bg-orange-50/30'
     }`}>
-      {/* Header */}
+      {/* Header with Sample Reading Toggle */}
       <div className="flex flex-col gap-2 mb-3">
-        <div className="flex items-center gap-1 flex-wrap">
-          <Badge variant="outline" className="text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 border-brand-300 whitespace-nowrap">
-            #{nozzle.nozzleNumber}
-          </Badge>
-          <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 whitespace-nowrap`}>
-            {nozzle.fuelType}
-          </Badge>
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1 flex-wrap">
+            <Badge variant="outline" className="text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 border-brand-300 whitespace-nowrap">
+              #{nozzle.nozzleNumber}
+            </Badge>
+            <Badge className={`${getFuelBadgeClasses(nozzle.fuelType)} text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 whitespace-nowrap`}>
+              {nozzle.fuelType}
+            </Badge>
+            
+            {/* Nozzle Status Badge - Always show status */}
+            <Badge 
+              variant={isNozzleActive ? 'default' : isMaintenance ? 'secondary' : 'destructive'} 
+              className="text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 whitespace-nowrap">
+              {nozzleStatus ? nozzleStatus.charAt(0).toUpperCase() + nozzleStatus.slice(1).toLowerCase() : 'UNKNOWN'}
+            </Badge>
+            
+            {!hasFuelPrice && isNozzleActive && (
+              <span className="text-red-600 text-xs font-bold bg-red-50 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded whitespace-nowrap">⚠ No price</span>
+            )}
+          </div>
           
-          {/* Nozzle Status Badge - Always show status */}
-          <Badge 
-            variant={isNozzleActive ? 'default' : isMaintenance ? 'secondary' : 'destructive'} 
-            className="text-xs font-semibold px-1.5 py-0.5 sm:px-2 sm:py-1 whitespace-nowrap">
-            {nozzleStatus ? nozzleStatus.charAt(0).toUpperCase() + nozzleStatus.slice(1).toLowerCase() : 'UNKNOWN'}
-          </Badge>
-          
-          {!hasFuelPrice && isNozzleActive && (
-            <span className="text-red-600 text-xs font-bold bg-red-50 px-1.5 py-0.5 sm:px-2 sm:py-1 rounded whitespace-nowrap">⚠ No price</span>
-          )}
+          {/* Sample Reading Toggle - Top Right */}
+          <label className="flex items-center gap-2 cursor-pointer flex-shrink-0" title="Mark if fuel was tested and returned to tank">
+            <input
+              type="checkbox"
+              checked={reading?.is_sample || false}
+              onChange={(e) => handleSampleChange(nozzle.id, e.target.checked)}
+              className="w-4 h-4 accent-blue-600 cursor-pointer"
+              disabled={!isNozzleActive || !hasFuelPrice}
+            />
+            <span className="text-xs font-semibold text-brand-700">QC</span>
+          </label>
         </div>
         <div className="text-left">
           <div className="text-xs text-brand-500 font-medium">Previous</div>
@@ -125,23 +139,6 @@ export const NozzleReadingRow: React.FC<NozzleReadingRowProps> = ({
             )}
           </div>
         )}
-      </div>
-      
-      {/* Sample Reading Checkbox */}
-      <div className={`mt-3 p-3 rounded-lg border-2 ${isNozzleActive ? 'bg-brand-50 border-brand-200' : 'bg-gray-100 border-gray-300'}`}>
-        <label className="flex items-start gap-2 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={reading?.is_sample || false}
-            onChange={(e) => handleSampleChange(nozzle.id, e.target.checked)}
-            className="mt-0.5 w-4 h-4 accent-brand-600 cursor-pointer flex-shrink-0"
-            disabled={!isNozzleActive || !hasFuelPrice}
-          />
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-bold text-brand-900">Quality Check / Sample Reading</p>
-            <p className="text-xs text-brand-700 mt-0.5">Mark this if fuel was tested and returned to tank</p>
-          </div>
-        </label>
       </div>
       
       {/* Status Warning Messages - Always show if NOT active */}
