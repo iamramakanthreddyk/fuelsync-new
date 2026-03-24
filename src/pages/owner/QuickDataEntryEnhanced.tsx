@@ -282,7 +282,7 @@ export default function QuickDataEntryEnhanced() {
     return (
       Object.values(breakdown.upi || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
       Object.values(breakdown.card || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
-      Object.values(breakdown.oil_company || {}).reduce((sum: number, v: any) => sum + (v || 0), 0)
+      Object.values(breakdown.oilCompany || {}).reduce((sum: number, v: any) => sum + (v || 0), 0)
     );
   };
 
