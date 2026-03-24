@@ -163,12 +163,21 @@ exports.createTransaction = asyncHandler(async (req, res, next) => {
 
   const normalizedBreakdown = enhancedValidation.normalizedBreakdown;
 
-  // If paymentSubBreakdown provided, derive the legacy paymentBreakdown from it
+  // Prefer the explicitly-provided paymentBreakdown over a value derived from paymentSubBreakdown.
+  // paymentSubBreakdown may not include cash/credit (those are tracked separately), so collapsing it
+  // would produce wrong totals. Only derive when no explicit breakdown was given.
   const { collapsePaymentBreakdown } = require('../config/constants');
+  const hasExplicitBreakdown = paymentBreakdown && (paymentBreakdown.cash || paymentBreakdown.online || paymentBreakdown.credit);
   let effectiveBreakdown = normalizedBreakdown;
-  if (paymentSubBreakdown && typeof paymentSubBreakdown === 'object') {
+  if (!hasExplicitBreakdown && paymentSubBreakdown && typeof paymentSubBreakdown === 'object') {
     effectiveBreakdown = collapsePaymentBreakdown(paymentSubBreakdown);
   }
+
+  // Enrich stored paymentSubBreakdown with cash/credit from the authoritative breakdown,
+  // because the frontend only sends online sub-types in paymentSubBreakdown.
+  const enrichedSubBreakdown = paymentSubBreakdown
+    ? { ...paymentSubBreakdown, cash: effectiveBreakdown.cash, credit: effectiveBreakdown.credit }
+    : null;
 
   const t = await sequelize.transaction();
   try {
@@ -178,7 +187,7 @@ exports.createTransaction = asyncHandler(async (req, res, next) => {
       totalLiters,
       totalSaleValue,
       paymentBreakdown: effectiveBreakdown,
-      paymentSubBreakdown: paymentSubBreakdown || null,
+      paymentSubBreakdown: enrichedSubBreakdown,
       creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
       readingIds: nonSampleReadings.map(r => r.id),
       createdBy: userId,

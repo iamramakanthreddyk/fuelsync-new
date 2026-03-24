@@ -94,14 +94,25 @@ const corsOriginValidator = (origin, callback) => {
     
     logger.debug('CORS Check - Normalized', { origin: normalizedOrigin, allowed: Array.isArray(normalizedCorsOrigins) ? normalizedCorsOrigins.length : 'allow-all' });
     
+    // Check exact matches
     if (Array.isArray(normalizedCorsOrigins) && normalizedCorsOrigins.includes(normalizedOrigin)) {
       callback(null, true);
-    } else if (normalizedCorsOrigins === true) {
-      callback(null, true);
-    } else {
-      logger.warn('CORS Rejected - origin not allowed', { origin: normalizedOrigin });
-      callback(new Error('Not allowed by CORS'));
+      return;
     }
+    
+    // Allow all Vercel preview deployments (*.vercel.app)
+    if (normalizedOrigin.endsWith('.vercel.app') || normalizedOrigin.endsWith('.vercel.dev')) {
+      callback(null, true);
+      return;
+    }
+    
+    if (normalizedCorsOrigins === true) {
+      callback(null, true);
+      return;
+    }
+    
+    logger.warn('CORS Rejected - origin not allowed', { origin: normalizedOrigin });
+    callback(new Error('Not allowed by CORS'));
   }
 };
 

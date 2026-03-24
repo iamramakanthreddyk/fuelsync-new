@@ -150,7 +150,9 @@ module.exports = {
     if (!subBreakdown) return { cash: 0, online: 0, credit: 0 };
     const upiTotal = Object.values(subBreakdown.upi || {}).reduce((a, b) => a + (b || 0), 0);
     const cardTotal = Object.values(subBreakdown.card || {}).reduce((a, b) => a + (b || 0), 0);
-    const oilTotal = Object.values(subBreakdown.oil_company || {}).reduce((a, b) => a + (b || 0), 0);
+    // Handle both snake_case (oil_company) and camelCase (oilCompany) — middleware may convert keys
+    const oilCompanyData = subBreakdown.oil_company || subBreakdown.oilCompany || {};
+    const oilTotal = Object.values(oilCompanyData).reduce((a, b) => a + (b || 0), 0);
     return {
       cash: subBreakdown.cash || 0,
       online: upiTotal + cardTotal + oilTotal,
