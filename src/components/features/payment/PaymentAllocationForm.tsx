@@ -46,22 +46,22 @@ export function PaymentAllocationForm({
   const [isBreakdownOpen, setIsBreakdownOpen] = useState(false);
   const [breakdownMode, setBreakdownMode] = useState<'manual' | 'auto'>('auto');
 
-  // Auto-sync online field from breakdown
+  // Auto-sync online field from breakdown in 'auto' mode
   useEffect(() => {
-    if (!paymentAllocation.onlineBreakdown) return;
+    if (!paymentAllocation.onlineBreakdown || breakdownMode !== 'auto') return;
     
     const breakdownTotal =
       Object.values(paymentAllocation.onlineBreakdown.upi || {}).reduce((sum, v) => sum + (v || 0), 0) +
       Object.values(paymentAllocation.onlineBreakdown.card || {}).reduce((sum, v) => sum + (v || 0), 0) +
       Object.values(paymentAllocation.onlineBreakdown.oilCompany || {}).reduce((sum, v) => sum + (v || 0), 0);
 
-    if (breakdownMode === 'auto' && Math.abs(breakdownTotal - toNumber(paymentAllocation.online)) > 0.01) {
+    if (Math.abs(breakdownTotal - toNumber(paymentAllocation.online)) > 0.01) {
       setPaymentAllocation(prev => ({
         ...prev,
         online: breakdownTotal.toString()
       }));
     }
-  }, [paymentAllocation.onlineBreakdown, breakdownMode, paymentAllocation.online, setPaymentAllocation]);
+  }, [paymentAllocation.onlineBreakdown, paymentAllocation.online, breakdownMode, setPaymentAllocation]);
 
   // Calculate totals
   const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
@@ -138,16 +138,28 @@ export function PaymentAllocationForm({
     });
   }, [setPaymentAllocation]);
 
-  // Toggle breakdown
+  // Toggle breakdown - reset to auto mode for proper sync
   const handleToggleBreakdown = useCallback((open: boolean) => {
     setIsBreakdownOpen(open);
-    if (open && !paymentAllocation.onlineBreakdown) {
-      setPaymentAllocation(prev => ({
-        ...prev,
-        onlineBreakdown: initializeBreakdown()
-      }));
+    if (open) {
+      setBreakdownMode('auto');
+      if (!paymentAllocation.onlineBreakdown) {
+        const onlineAmount = toNumber(paymentAllocation.online);
+        // Initialize breakdown with proportional allocation if there's an online amount
+        const breakdown = initializeBreakdown();
+        if (onlineAmount > 0) {
+          // Default: 60% UPI (Google Pay), 30% Cards, 10% Oil Company
+          breakdown.upi = { gpay: Math.round(onlineAmount * 0.6 * 100) / 100 };
+          breakdown.card = { debit_card: Math.round(onlineAmount * 0.3 * 100) / 100 };
+          breakdown.oilCompany = { hp_pay: Math.round(onlineAmount * 0.1 * 100) / 100 };
+        }
+        setPaymentAllocation(prev => ({
+          ...prev,
+          onlineBreakdown: breakdown
+        }));
+      }
     }
-  }, [paymentAllocation.onlineBreakdown, setPaymentAllocation]);
+  }, [paymentAllocation.onlineBreakdown, paymentAllocation.online, setPaymentAllocation]);
 
   if (nonSampleReadingsCount === 0) return null;
 
@@ -307,8 +319,8 @@ export function PaymentAllocationForm({
             <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex gap-2">
               <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
               <div className="text-sm text-amber-900">
-                <p className="font-semibold">Breakdown Mode</p>
-                <p>The Online Payment field will auto-sync with your breakdown entries when enabled.</p>
+                <p className="font-semibold">Breakdown Mode Active</p>
+                <p>The Online Payment field auto-syncs with your breakdown entries (UPI + Cards + Oil Company). Edit the entries below and the total will update automatically.</p>
               </div>
             </div>
 
@@ -424,9 +436,18 @@ export function PaymentAllocationForm({
                         : 'border-red-300 bg-red-50'
                     }`}>
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold text-sm">
-                          {Math.abs(breakdownTotal - toNumber(paymentAllocation.online)) <= 0.01 ? '✓ Breakdown Matches' : '✗ Breakdown Mismatch'}
-                        </span>
+                        <div>
+                          <span className="font-semibold text-sm block">
+                            {Math.abs(breakdownTotal - toNumber(paymentAllocation.online)) <= 0.01 
+                              ? '✓ Breakdown Matches' 
+                              : '✗ Breakdown Mismatch'}
+                          </span>
+                          {Math.abs(breakdownTotal - toNumber(paymentAllocation.online)) > 0.01 && (
+                            <span className="text-xs text-red-700 block mt-1">
+                              Difference: ₹{safeToFixed(Math.abs(breakdownTotal - toNumber(paymentAllocation.online)), 2)}
+                            </span>
+                          )}
+                        </div>
                         <span className="font-bold">
                           ₹{safeToFixed(breakdownTotal, 2)} / ₹{safeToFixed(toNumber(paymentAllocation.online), 2)}
                         </span>
