@@ -22,25 +22,37 @@ const { sendSuccess, sendError } = require('../utils/apiResponse');
 const { logAudit } = require('../utils/auditLog');
 
 /**
- * Get profit summary for a month
+ * Get profit summary for a month or date range
  * GET /api/v1/stations/:stationId/profit-summary?month=2025-01
+ * GET /api/v1/stations/:stationId/profit-summary?startDate=2025-02-01&endDate=2025-03-31
  * Access: Owner only
  */
 exports.getProfitSummary = asyncHandler(async (req, res, next) => {
   const { stationId } = req.params;
-  const { month } = req.query;
+  const { month, startDate: queryStartDate, endDate: queryEndDate } = req.query;
   
   // Verify station exists
   const station = await Station.findByPk(stationId);
   if (!station) throw new NotFoundError('Station', stationId);
 
-  // Default to current month
-  const targetMonth = month || new Date().toISOString().slice(0, 7);
+  // Determine if this is a monthly or date-range query
+  let startDate, endDate, isMonthlyQuery, displayPeriod;
   
-  // Parse month to get date range
-  const [year, monthNum] = targetMonth.split('-').map(Number);
-  const startDate = new Date(year, monthNum - 1, 1);
-  const endDate = new Date(year, monthNum, 0);
+  if (queryStartDate && queryEndDate) {
+    // Date range query
+    startDate = new Date(queryStartDate);
+    endDate = new Date(queryEndDate);
+    isMonthlyQuery = false;
+    displayPeriod = `${queryStartDate} to ${queryEndDate}`;
+  } else {
+    // Monthly query (default to current month)
+    const targetMonth = month || new Date().toISOString().slice(0, 7);
+    const [year, monthNum] = targetMonth.split('-').map(Number);
+    startDate = new Date(year, monthNum - 1, 1);
+    endDate = new Date(year, monthNum, 0);
+    isMonthlyQuery = true;
+    displayPeriod = targetMonth;
+  }
   
   // Get all readings for the month
   const readings = await NozzleReading.findAll({
@@ -193,41 +205,38 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
   // Only count approved/auto-approved expenses in the P&L — pending ones are excluded
   const APPROVED_STATUSES = ['approved', 'auto_approved'];
 
+  // Build where clause for date range - use expenseMonth if monthly, date range if not
+  const expenseWhereClause = isMonthlyQuery 
+    ? { stationId, expenseMonth: displayPeriod, approvalStatus: { [Op.in]: APPROVED_STATUSES } }
+    : { stationId, expenseDate: { [Op.between]: [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]] }, approvalStatus: { [Op.in]: APPROVED_STATUSES } };
+  
+  const pendingExpenseWhereClause = isMonthlyQuery 
+    ? { stationId, expenseMonth: displayPeriod, approvalStatus: 'pending' }
+    : { stationId, expenseDate: { [Op.between]: [startDate.toISOString().split('T')[0], endDate.toISOString().split('T')[0]] }, approvalStatus: 'pending' };
+
   const [expensesResult, pendingExpensesResult, expensesByCategory, shortfallResult] = await Promise.all([
     Expense.sum('amount', {
-      where: {
-        stationId,
-        expenseMonth: targetMonth,
-        approvalStatus: { [Op.in]: APPROVED_STATUSES }
-      }
+      where: expenseWhereClause
     }),
     Expense.sum('amount', {
-      where: {
-        stationId,
-        expenseMonth: targetMonth,
-        approvalStatus: 'pending'
-      }
+      where: pendingExpenseWhereClause
     }),
     Expense.findAll({
       attributes: [
         'category',
         [fn('SUM', col('amount')), 'total']
       ],
-      where: {
-        stationId,
-        expenseMonth: targetMonth,
-        approvalStatus: { [Op.in]: APPROVED_STATUSES }
-      },
+      where: expenseWhereClause,
       group: ['category'],
       raw: true
     }),
-    // Fetch total shortfall (positive variance) for the month from settlements
+    // Fetch total shortfall (positive variance) for the period from settlements
     Settlement.sum('variance', {
       where: {
         stationId,
         date: {
-          [Op.gte]: new Date(`${targetMonth}-01`),
-          [Op.lte]: new Date(new Date(`${targetMonth}-01`).getFullYear(), new Date(`${targetMonth}-01`).getMonth() + 1, 0)
+          [Op.gte]: startDate.toISOString().split('T')[0],
+          [Op.lte]: endDate.toISOString().split('T')[0]
         }
       }
     })
@@ -258,11 +267,13 @@ exports.getProfitSummary = asyncHandler(async (req, res, next) => {
     entityId: stationId,
     category: 'analytics',
     severity: 'info',
-    description: `Viewed profit summary for ${targetMonth}`
+    description: `Viewed profit summary for ${displayPeriod}`
   });
   
   return sendSuccess(res, {
-    month: targetMonth,
+    ...(isMonthlyQuery 
+      ? { month: displayPeriod } 
+      : { dateRange: { startDate: queryStartDate, endDate: queryEndDate } }),
     summary: {
       totalRevenue: parseFloat(totalRevenue.toFixed(2)),
       totalCostOfGoods: parseFloat(totalCostOfGoods.toFixed(2)),
