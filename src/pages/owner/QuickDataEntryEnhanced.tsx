@@ -68,6 +68,16 @@ import type {
 } from '@/types/finance';
 
 // Utility function to calculate litres and sale value for a nozzle
+/** Sum all breakdown sub-fields into an online total */
+const calculateOnlineBreakdownTotal = (breakdown: PaymentSubBreakdown | null | undefined): number => {
+  if (!breakdown) return 0;
+  return (
+    Object.values(breakdown.upi || {}).reduce((s: number, v) => s + (v || 0), 0) +
+    Object.values(breakdown.card || {}).reduce((s: number, v) => s + (v || 0), 0) +
+    Object.values(breakdown.oilCompany || {}).reduce((s: number, v) => s + (v || 0), 0)
+  );
+};
+
 const calculateNozzleSale = (nozzle: any, readingValue: string, lastReading: number | null, fuelPrices: any[]) => {
   const enteredValue = toNumber(readingValue || '0');
   if (!enteredValue || isNaN(enteredValue) || enteredValue === 0) {
@@ -356,46 +366,47 @@ export default function QuickDataEntryEnhanced() {
   }, [readings]);
 
   // Initial payment allocation setup (only when completely empty)
+  // Uses functional update so paymentAllocation doesn't need to be a dep (avoids cascade loops)
   useEffect(() => {
-    // Skip if submission is in progress to prevent interference
     if (isSubmitting) return;
-
     const totalSaleValue = saleSummary.totalSaleValue;
-    const currentTotal =
-      toNumber(paymentAllocation.cash) +
-      toNumber(paymentAllocation.online) +
-      paymentAllocation.credits.reduce((s: number, c: CreditAllocation) => s + toNumber(c.amount), 0);
+    if (totalSaleValue <= 0) return;
 
-    // Only set initial allocation if everything is empty and we have sales
-    if (totalSaleValue > 0 && currentTotal === 0 && paymentAllocation.cash === '0' && paymentAllocation.online === '0' && paymentAllocation.credits.length === 0) {
-      setPaymentAllocation({ cash: totalSaleValue.toString(), online: '0', onlineBreakdown: null, credits: [] });
-    }
-  }, [isSubmitting, saleSummary.totalSaleValue, paymentAllocation]);
+    setPaymentAllocation(prev => {
+      const currentTotal =
+        toNumber(prev.cash) + toNumber(prev.online) +
+        prev.credits.reduce((s: number, c: CreditAllocation) => s + toNumber(c.amount), 0);
+      // Only auto-fill when everything is zero
+      if (currentTotal === 0 && prev.cash === '0' && prev.online === '0' && prev.credits.length === 0) {
+        return { cash: totalSaleValue.toString(), online: '0', onlineBreakdown: null, credits: [] };
+      }
+      return prev;
+    });
+  }, [isSubmitting, saleSummary.totalSaleValue]);
 
-  // Auto-correct payment allocation: recalculate cash when sale value changes
-  // This ensures payment allocation always reflects all entered readings
+  // Auto-correct cash when sale value changes (new readings added/removed).
+  // Uses functional update + breakdown-aware online total so the child's auto-adjust
+  // and manual user edits are NEVER overridden unless the required total itself changes.
   useEffect(() => {
-    // Skip if submission is in progress to prevent interference
     if (isSubmitting) return;
-
     const newTotalSaleValue = saleSummary.totalSaleValue;
     if (newTotalSaleValue <= 0) return;
 
-    const currentCash = toNumber(paymentAllocation.cash);
-    const currentOnline = toNumber(paymentAllocation.online);
-    const totalCredit = paymentAllocation.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
-    const totalAllocated = currentCash + currentOnline + totalCredit;
+    setPaymentAllocation(prev => {
+      // Use breakdown total when active, otherwise use the manual online field
+      const currentOnline = prev.onlineBreakdown
+        ? calculateOnlineBreakdownTotal(prev.onlineBreakdown)
+        : toNumber(prev.online);
+      const totalCredit = prev.credits.reduce((sum: number, c: CreditAllocation) => sum + toNumber(c.amount), 0);
+      const totalAllocated = toNumber(prev.cash) + currentOnline + totalCredit;
 
-    // If total allocated doesn't match sale value, update cash to fill the gap
-    // This handles cases where readings are adjusted and need the payment to be recalculated
-    if (Math.abs(totalAllocated - newTotalSaleValue) > 0.01) {
+      // Only update when there is an actual mismatch (reading was added/changed)
+      if (Math.abs(totalAllocated - newTotalSaleValue) <= 0.01) return prev;
+
       const newCash = Math.max(0, newTotalSaleValue - currentOnline - totalCredit);
-      setPaymentAllocation(prev => ({
-        ...prev,
-        cash: newCash.toString()
-      }));
-    }
-  }, [isSubmitting, saleSummary.totalSaleValue, paymentAllocation]);
+      return { ...prev, cash: newCash.toString() };
+    });
+  }, [isSubmitting, saleSummary.totalSaleValue]); // intentionally excludes paymentAllocation — only fires when required total changes
 
   // Sync payment allocation to hook's internal state whenever it changes
   useEffect(() => {
