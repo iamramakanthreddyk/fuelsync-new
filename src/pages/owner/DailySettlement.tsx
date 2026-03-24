@@ -362,6 +362,27 @@ export default function DailySettlement() {
     }
   }, [stationId, selectedDate, queryClient, onlineBreakdown, toast]);
 
+  // Auto-fill payment breakdown from selected readings' transactions
+  // When readings are selected for settlement, populate onlineBreakdown and totals from their transaction
+  useEffect(() => {
+    if (selectedIds.length === 0 || !readingsData || onlineBreakdown) return;
+    
+    const allReadingsLocal = [
+      ...(readingsData?.unlinked.readings ?? []),
+      ...(readingsData?.linked.readings ?? []),
+    ];
+    const selectedReadings = allReadingsLocal.filter(r => selectedIds.includes(r.id));
+    
+    // Try to extract paymentSubBreakdown from selected readings
+    // Use the first available transaction's breakdown (all should be the same after deduplication)
+    const firstTxnWithBreakdown = selectedReadings
+      .find(r => r.transaction?.paymentSubBreakdown);
+    
+    if (firstTxnWithBreakdown?.transaction?.paymentSubBreakdown) {
+      setOnlineBreakdown(firstTxnWithBreakdown.transaction.paymentSubBreakdown);
+    }
+  }, [selectedIds, readingsData, onlineBreakdown]);
+
   //  Other derived values (allReadings is declared earlier)
   const selected = allReadings.filter((r) => selectedIds.includes(r.id));
   const expected = deduplicatePayments(selected);
