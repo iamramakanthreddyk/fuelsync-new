@@ -9,7 +9,7 @@
  * - Easier to maintain and debug
  */
 
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -141,23 +141,32 @@ export function PaymentAllocationForm({
     }
   }, [totalRequired, setPaymentAllocation]);
 
-  // Update breakdown field - safe immutable update
+  // Update breakdown field — also auto-adjusts cash to keep total balanced
   const handleUpdateBreakdown = useCallback((section: 'upi' | 'card' | 'oilCompany', key: string, value: string) => {
     setPaymentAllocation(prev => {
       if (!prev.onlineBreakdown) return prev;
-      
-      return {
-        ...prev,
-        onlineBreakdown: {
-          ...prev.onlineBreakdown,
-          [section]: {
-            ...prev.onlineBreakdown[section],
-            [key]: toNumber(value)
-          }
+
+      const newBreakdown = {
+        ...prev.onlineBreakdown,
+        [section]: {
+          ...prev.onlineBreakdown[section],
+          [key]: toNumber(value)
         }
       };
+
+      // Auto-adjust cash: remainder after online breakdown + credits
+      const newOnlineTotal = calculateOnlineTotal(newBreakdown);
+      const creditTotal = prev.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
+      const newCash = Math.max(0, totalRequired - newOnlineTotal - creditTotal);
+
+      return {
+        ...prev,
+        cash: safeToFixed(newCash, 2),
+        online: safeToFixed(newOnlineTotal, 2),  // keep online field in sync with breakdown
+        onlineBreakdown: newBreakdown
+      };
     });
-  }, [setPaymentAllocation]);
+  }, [setPaymentAllocation, totalRequired]);
 
   // Toggle breakdown - initialize empty structure only
   const handleToggleBreakdown = useCallback((open: boolean) => {
@@ -297,7 +306,7 @@ export function PaymentAllocationForm({
                 type="number"
                 step="0.01"
                 min="0"
-                value={paymentAllocation.online}
+                value={paymentAllocation.onlineBreakdown ? safeToFixed(totals.online, 2) : paymentAllocation.online}
                 onChange={(e) => !paymentAllocation.onlineBreakdown && setPaymentAllocation(prev => ({ ...prev, online: e.target.value }))}
                 disabled={!!paymentAllocation.onlineBreakdown}
                 placeholder="0.00"
@@ -373,28 +382,10 @@ export function PaymentAllocationForm({
                     <span className="font-semibold">💡 Smart Breakdown:</span> Enter your online payment methods below. As you allocate, your online total will update.
                   </p>
 
-                  {/* Suggested Cash */}
-                  {!totals.isMatched && (
-                    <div className="bg-blue-50 border border-blue-200 p-3 rounded text-xs text-blue-900">
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <p className="font-semibold">💡 Suggestion:</p>
-                          <p>Set Cash to ₹{safeToFixed(totals.suggestedCash, 2)} to balance your allocation</p>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
-                          onClick={() => setPaymentAllocation(prev => ({
-                            ...prev,
-                            cash: totals.suggestedCash.toString()
-                          }))}
-                        >
-                          Apply
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                  {/* Auto-adjust indicator */}
+                  <div className="bg-blue-50 border border-blue-200 p-2 rounded text-xs text-blue-800">
+                    💡 <span className="font-semibold">Auto mode:</span> Cash adjusts automatically as you enter online amounts.
+                  </div>
 
                   {/* UPI Methods */}
                   <div className="space-y-2">
