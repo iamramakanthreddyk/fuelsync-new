@@ -172,11 +172,18 @@ export default function DailySalesReport() {
     return { totalExpenses: total, expensesByCategory: byCategory };
   }, [expenses]);
 
-  // Extract shortfall data
+  // Extract shortfall data - including all settlement attempts
   const shortfalls = settlementsData || [];
+  
+  // Flatten all settlements (including nested allSettlements)
+  // allSettlements contains all versions of each settlement for the day
+  const allSettlementVariances = shortfalls.flatMap((s: any) =>
+    s.allSettlements && Array.isArray(s.allSettlements) ? s.allSettlements : [s]
+  );
+
   const totalShortfall = useMemo(
-    () => shortfalls.reduce((sum: number, s: any) => sum + Math.max(0, s.variance || 0), 0),
-    [shortfalls]
+    () => allSettlementVariances.reduce((sum: number, s: any) => sum + Math.max(0, s.variance || 0), 0),
+    [allSettlementVariances]
   );
 
   // Memoize financial calculations
@@ -272,10 +279,10 @@ export default function DailySalesReport() {
     }
 
     // Shortfalls
-    if (shortfalls.length > 0) {
+    if (allSettlementVariances.length > 0) {
       section('--- SHORTFALLS & VARIANCE ---');
       line('Settlement Type', 'Date', 'Variance (Rs)');
-      shortfalls.forEach((s: any) => {
+      allSettlementVariances.forEach((s: any) => {
         line(
           s.settlementType || 'Settlement',
           s.settlementDate ? new Date(s.settlementDate).toLocaleDateString('en-IN') : '',
@@ -419,7 +426,7 @@ export default function DailySalesReport() {
             <div className={`text-2xl font-bold ${totalShortfall > 0 ? 'text-red-600' : 'text-green-600'}`}>
               ₹{safeToFixed(Math.abs(totalShortfall), 0)}
             </div>
-            <div className="text-xs text-muted-foreground mt-1">{shortfalls.length} settlements</div>
+            <div className="text-xs text-muted-foreground mt-1">{allSettlementVariances.length} settlements</div>
           </CardContent>
         </Card>
 
