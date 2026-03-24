@@ -177,6 +177,32 @@ async function runColumnMigrations() {
       column: 'total_sale_value',
       sql: `ALTER TABLE settlements ADD COLUMN IF NOT EXISTS total_sale_value DECIMAL(12,2) NOT NULL DEFAULT 0;`
     },
+    // audit_logs table columns for login/action tracking
+    {
+      table: 'audit_logs',
+      column: 'user_email',
+      sql: `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_email VARCHAR(255) DEFAULT NULL;`
+    },
+    {
+      table: 'audit_logs',
+      column: 'user_role',
+      sql: `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS user_role VARCHAR(50) DEFAULT NULL;`
+    },
+    {
+      table: 'audit_logs',
+      column: 'severity',
+      sql: `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS severity VARCHAR(20) NOT NULL DEFAULT 'info';`
+    },
+    {
+      table: 'audit_logs',
+      column: 'success',
+      sql: `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS success BOOLEAN NOT NULL DEFAULT true;`
+    },
+    {
+      table: 'audit_logs',
+      column: 'error_message',
+      sql: `ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS error_message TEXT DEFAULT NULL;`
+    },
     // expenses table columns added by 20260307-enhance-expenses-table migration
     {
       table: 'expenses',

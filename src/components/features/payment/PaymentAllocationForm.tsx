@@ -134,6 +134,9 @@ export function PaymentAllocationForm({
       const lastKey = keys[keys.length - 1];
       current[lastKey] = toNumber(value);
       
+      // User explicitly edited breakdown - switch to manual mode
+      setBreakdownMode('manual');
+      
       return { ...prev, onlineBreakdown: breakdown };
     });
   }, [setPaymentAllocation]);
@@ -216,11 +219,20 @@ export function PaymentAllocationForm({
         <Tabs defaultValue="simple" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="simple">Quick Entry</TabsTrigger>
-            <TabsTrigger value="detailed">Detailed Breakdown</TabsTrigger>
+            <TabsTrigger value="detailed">
+              <span>Detailed Breakdown</span>
+              <span className="ml-2 text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded">(Optional)</span>
+            </TabsTrigger>
           </TabsList>
 
           {/* Simple Tab */}
           <TabsContent value="simple" className="space-y-4">
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-3 mb-4">
+              <p className="text-sm text-blue-900">
+                <span className="font-semibold">✓ Quick Entry is all you need!</span> Just allocate your total across Cash, Online, and Credit. The detailed breakdown is optional for tracking payment methods.
+              </p>
+            </div>
+            
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {/* Cash Payment */}
               <div className="space-y-2">
