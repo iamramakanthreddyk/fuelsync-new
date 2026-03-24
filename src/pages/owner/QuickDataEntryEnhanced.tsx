@@ -51,7 +51,7 @@ import {
   Fuel,
   AlertTriangle
 } from 'lucide-react';
-import { PaymentAllocationForm } from '@/components/features/payment/PaymentAllocationForm';
+import { PaymentAllocationForm } from '@/components/features/payment/PaymentAllocationForm-Unified';
 import { NozzleReadingRow } from '@/components/owner/NozzleReadingRow';
 
 import type {
@@ -276,20 +276,8 @@ export default function QuickDataEntryEnhanced() {
     enabled: !!selectedStation && !!pumps && nozzleIds.length > 0
   });
 
-  // Helper: Calculate online breakdown total
-  const calculateOnlineBreakdownTotal = (breakdown: PaymentSubBreakdown | null | undefined): number => {
-    if (!breakdown) return 0;
-    return (
-      Object.values(breakdown.upi || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
-      Object.values(breakdown.card || {}).reduce((sum: number, v: any) => sum + (v || 0), 0) +
-      Object.values(breakdown.oilCompany || {}).reduce((sum: number, v: any) => sum + (v || 0), 0)
-    );
-  };
-
-  // Calculate online breakdown total and validate
-  const onlineBreakdownTotal = calculateOnlineBreakdownTotal(paymentAllocation.onlineBreakdown);
-  const onlineBreakdownMismatch = paymentAllocation.onlineBreakdown ? 
-    Math.abs(onlineBreakdownTotal - toNumber(paymentAllocation.online)) > 0.01 : false;
+  // Note: Breakdown validation is now handled entirely within the unified PaymentAllocationForm
+  // No need for duplicate calculateOnlineBreakdownTotal or onlineBreakdownMismatch state here
 
   // Calculate sale value summary for current entry (for validation only)
   const saleSummary = useMemo(() => {
