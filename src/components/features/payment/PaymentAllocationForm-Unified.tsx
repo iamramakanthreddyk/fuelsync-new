@@ -298,7 +298,8 @@ export function PaymentAllocationForm({
                 step="0.01"
                 min="0"
                 value={paymentAllocation.online}
-                onChange={(e) => setPaymentAllocation(prev => ({ ...prev, online: e.target.value }))}
+                onChange={(e) => !paymentAllocation.onlineBreakdown && setPaymentAllocation(prev => ({ ...prev, online: e.target.value }))}
+                disabled={!!paymentAllocation.onlineBreakdown}
                 placeholder="0.00"
                 className="w-full font-mono"
               />
@@ -374,9 +375,24 @@ export function PaymentAllocationForm({
 
                   {/* Suggested Cash */}
                   {!totals.isMatched && (
-                    <div className="bg-blue-50 border border-blue-200 p-2 rounded text-xs text-blue-900">
-                      <p className="font-semibold">💡 Suggestion:</p>
-                      <p>Set Cash to ₹{safeToFixed(totals.suggestedCash, 2)} to balance your allocation</p>
+                    <div className="bg-blue-50 border border-blue-200 p-3 rounded text-xs text-blue-900">
+                      <div className="flex items-center justify-between gap-2">
+                        <div>
+                          <p className="font-semibold">💡 Suggestion:</p>
+                          <p>Set Cash to ₹{safeToFixed(totals.suggestedCash, 2)} to balance your allocation</p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700 text-white whitespace-nowrap"
+                          onClick={() => setPaymentAllocation(prev => ({
+                            ...prev,
+                            cash: totals.suggestedCash.toString()
+                          }))}
+                        >
+                          Apply
+                        </Button>
+                      </div>
                     </div>
                   )}
 
