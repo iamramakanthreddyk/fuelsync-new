@@ -396,14 +396,28 @@ exports.createQuickEntry = asyncHandler(async (req, res, next) => {
       return sendError(res, 'CREDIT_INVALID', creditValidation.error, 400);
     }
 
+    // Enrich stored paymentSubBreakdown with cash/credit from the authoritative breakdown.
+    // The frontend only sends online sub-types in paymentSubBreakdown.
+    const { collapsePaymentBreakdown: collapseQt } = require('../config/constants');
+    let quickEntryEffectiveBreakdown = paymentBalance.normalizedBreakdown;
+    if (paymentSubBreakdown && typeof paymentSubBreakdown === 'object') {
+      const hasExplicitQt = quickEntryEffectiveBreakdown.cash || quickEntryEffectiveBreakdown.online || quickEntryEffectiveBreakdown.credit;
+      if (!hasExplicitQt) {
+        quickEntryEffectiveBreakdown = collapseQt(paymentSubBreakdown);
+      }
+    }
+    const quickEntryEnrichedSubBreakdown = paymentSubBreakdown
+      ? { ...paymentSubBreakdown, cash: quickEntryEffectiveBreakdown.cash, credit: quickEntryEffectiveBreakdown.credit }
+      : null;
+
     // Create DailyTransaction
     const dailyTxn = await DailyTransaction.create({
       stationId,
       transactionDate,
       totalLiters,
       totalSaleValue,
-      paymentBreakdown: paymentBalance.normalizedBreakdown,
-      paymentSubBreakdown: paymentSubBreakdown || null,
+      paymentBreakdown: quickEntryEffectiveBreakdown,
+      paymentSubBreakdown: quickEntryEnrichedSubBreakdown,
       creditAllocations: creditAllocationService.formatCreditAllocationsForStorage(creditAllocations),
       readingIds,
       createdBy: userId,
@@ -586,27 +600,54 @@ exports.getTransactionSummary = asyncHandler(async (req, res, next) => {
  */
 exports.updateTransaction = asyncHandler(async (req, res, next) => {
   const { id } = req.params;
-  const { paymentBreakdown, creditAllocations, status, notes } = req.body;
+  const { paymentBreakdown, paymentSubBreakdown, creditAllocations, status, notes } = req.body;
+  const { collapsePaymentBreakdown } = require('../config/constants');
 
   const transaction = await DailyTransaction.findByPk(id);
   if (!transaction) throw new NotFoundError('Transaction', id);
 
-  // Validate new payment breakdown if provided
-  if (paymentBreakdown) {
-    const newTotal = parseFloat(paymentBreakdown.cash || 0) +
-                    parseFloat(paymentBreakdown.online || 0) +
-                    parseFloat(paymentBreakdown.credit || 0);
-
-    const diff = Math.abs(newTotal - transaction.totalSaleValue);
-    if (diff > 0.01) {
-      return sendError(res, 'PAYMENT_MISMATCH', `Payment breakdown must match total sale value (₹${transaction.totalSaleValue.toFixed(2)})`, 400);
+  // Update payment breakdown — supports explicit paymentBreakdown, paymentSubBreakdown, or both.
+  // Priority: explicit paymentBreakdown > derived from paymentSubBreakdown
+  if (paymentBreakdown || paymentSubBreakdown) {
+    const hasExplicitBreakdown = paymentBreakdown &&
+      (paymentBreakdown.cash || paymentBreakdown.online || paymentBreakdown.credit);
+    
+    let resolvedBreakdown;
+    if (hasExplicitBreakdown) {
+      resolvedBreakdown = {
+        cash: parseFloat(paymentBreakdown.cash || 0),
+        online: parseFloat(paymentBreakdown.online || 0),
+        credit: parseFloat(paymentBreakdown.credit || 0)
+      };
+    } else if (paymentSubBreakdown && typeof paymentSubBreakdown === 'object') {
+      resolvedBreakdown = collapsePaymentBreakdown(paymentSubBreakdown);
     }
 
-    transaction.paymentBreakdown = {
-      cash: parseFloat(paymentBreakdown.cash || 0),
-      online: parseFloat(paymentBreakdown.online || 0),
-      credit: parseFloat(paymentBreakdown.credit || 0)
-    };
+    if (resolvedBreakdown) {
+      const newTotal = resolvedBreakdown.cash + resolvedBreakdown.online + resolvedBreakdown.credit;
+      const diff = Math.abs(newTotal - transaction.totalSaleValue);
+      if (diff > 0.01) {
+        return sendError(res, 'PAYMENT_MISMATCH', `Payment breakdown must match total sale value (₹${transaction.totalSaleValue.toFixed(2)})`, 400);
+      }
+      transaction.paymentBreakdown = resolvedBreakdown;
+
+      // Update paymentSubBreakdown: enrich with resolved cash/credit so the stored
+      // sub-breakdown stays consistent with the stored paymentBreakdown.
+      if (paymentSubBreakdown) {
+        transaction.paymentSubBreakdown = {
+          ...paymentSubBreakdown,
+          cash: resolvedBreakdown.cash,
+          credit: resolvedBreakdown.credit
+        };
+      } else if (transaction.paymentSubBreakdown) {
+        // No new sub-breakdown supplied — just sync cash/credit in the existing one.
+        transaction.paymentSubBreakdown = {
+          ...transaction.paymentSubBreakdown,
+          cash: resolvedBreakdown.cash,
+          credit: resolvedBreakdown.credit
+        };
+      }
+    }
   }
 
   if (creditAllocations) {

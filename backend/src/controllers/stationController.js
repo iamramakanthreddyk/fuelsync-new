@@ -2100,6 +2100,17 @@ exports.createSettlement = async (req, res, next) => {
     // Calculate variance
     const variance = expectedCash - actualCash;
 
+    // If paymentSubBreakdown is provided, derive online/credit from it when not explicitly given.
+    // normalizeRequestBody converts keys to camelCase, so collapsePaymentBreakdown handles both shapes.
+    const { collapsePaymentBreakdown } = require('../config/constants');
+    let resolvedOnline = parseFloat(online || 0);
+    let resolvedCredit = parseFloat(credit || 0);
+    if (paymentSubBreakdown && typeof paymentSubBreakdown === 'object') {
+      const derived = collapsePaymentBreakdown(paymentSubBreakdown);
+      if (resolvedOnline === 0 && derived.online > 0) resolvedOnline = derived.online;
+      if (resolvedCredit === 0 && derived.credit > 0) resolvedCredit = derived.credit;
+    }
+
     // Create settlement record
     const settlement = await Settlement.create({
       stationId,
@@ -2107,13 +2118,12 @@ exports.createSettlement = async (req, res, next) => {
       expectedCash: parseFloat(expectedCash),
       actualCash: parseFloat(actualCash),
       variance: parseFloat(variance.toFixed(2)),
-      online: parseFloat(online || 0),
-      credit: parseFloat(credit || 0),
+      online: resolvedOnline,
+      credit: resolvedCredit,
       totalSaleValue: readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0),
       notes,
       recordedBy: user.id,
       readingIds,
-      ...(paymentSubBreakdown ? { paymentSubBreakdown } : {}),
       isFinal: true
     });
 
