@@ -500,9 +500,14 @@ export default function QuickDataEntryEnhanced() {
       // Allow up to ₹1 tolerance for floating-point rounding errors
       // Backend will perform final validation
       if (Math.abs(allocated - saleSummary.totalSaleValue) > 1.0) {
+        const shortfall = saleSummary.totalSaleValue - allocated;
+        const advice = shortfall > 0 
+          ? `You're short by ₹${safeToFixed(shortfall, 2)}. Either manually allocate the remaining amount in the breakdown, or clear the breakdown to use Quick Entry.`
+          : `You've over-allocated by ₹${safeToFixed(Math.abs(shortfall), 2)}. Please adjust your payment entries.`;
+        
         toast({
-          title: 'Payment Not Allocated',
-          description: `Total payment (₹${safeToFixed(allocated, 2)}) must match sale value (₹${safeToFixed(saleSummary.totalSaleValue, 2)})`,
+          title: 'Payment Allocation Mismatch',
+          description: advice,
           variant: 'destructive'
         });
         return;

@@ -328,12 +328,29 @@ export function PaymentAllocationForm({
 
           {/* Detailed Breakdown Tab */}
           <TabsContent value="detailed" className="space-y-4">
-            <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex gap-2">
-              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
-              <div className="text-sm text-amber-900">
-                <p className="font-semibold">Breakdown Mode Active</p>
-                <p>The Online Payment field auto-syncs with your breakdown entries (UPI + Cards + Oil Company). Edit the entries below and the total will update automatically.</p>
+            <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg flex gap-2 justify-between items-start">
+              <div className="flex gap-2 flex-1">
+                <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+                <div className="text-sm text-amber-900">
+                  <p className="font-semibold">Breakdown Mode Active</p>
+                  <p>The Online Payment field auto-syncs with your breakdown entries (UPI + Cards + Oil Company). Edit the entries below and the total will update automatically.</p>
+                </div>
               </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setPaymentAllocation(prev => ({
+                    ...prev,
+                    onlineBreakdown: null
+                  }));
+                  setIsBreakdownOpen(false);
+                }}
+                className="text-xs text-amber-700 hover:bg-amber-100 whitespace-nowrap"
+              >
+                ✕ Clear Breakdown
+              </Button>
             </div>
 
             <Collapsible open={isBreakdownOpen} onOpenChange={handleToggleBreakdown}>
