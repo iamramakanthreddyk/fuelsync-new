@@ -9,7 +9,7 @@
  * - Easier to maintain and debug
  */
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -27,6 +27,51 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { safeToFixed } from '@/lib/format-utils';
 import { toNumber } from '@/utils/number';
 import type { PaymentAllocation, PaymentSubBreakdown, UpiSubType, CardSubType, OilCompanySubType, Creditor } from '@/types/finance';
+
+/**
+ * Pure calculation function - determines all financial totals
+ * No mutations, fully testable
+ */
+function calculateTotals(paymentAllocation: PaymentAllocation, totalRequired: number) {
+  const cash = toNumber(paymentAllocation.cash);
+  
+  // Single source of truth: if breakdown exists, use it; otherwise use manual online
+  const online = paymentAllocation.onlineBreakdown
+    ? calculateOnlineTotal(paymentAllocation.onlineBreakdown)
+    : toNumber(paymentAllocation.online);
+
+  const credit = paymentAllocation.credits.reduce(
+    (sum, c) => sum + toNumber(c.amount),
+    0
+  );
+
+  const totalAllocated = cash + online + credit;
+  const difference = totalAllocated - totalRequired;
+
+  return {
+    cash,
+    online,
+    credit,
+    totalAllocated,
+    difference,
+    isMatched: Math.abs(difference) <= 0.01,
+    isShort: difference < 0,
+    isOver: difference > 0,
+    suggestedCash: Math.max(0, totalRequired - online - credit)
+  };
+}
+
+/**
+ * Helper: calculate online breakdown total
+ */
+function calculateOnlineTotal(breakdown: PaymentSubBreakdown | null | undefined): number {
+  if (!breakdown) return 0;
+  return (
+    Object.values(breakdown.upi || {}).reduce((sum, v) => sum + (v || 0), 0) +
+    Object.values(breakdown.card || {}).reduce((sum, v) => sum + (v || 0), 0) +
+    Object.values(breakdown.oilCompany || {}).reduce((sum, v) => sum + (v || 0), 0)
+  );
+}
 
 interface PaymentAllocationFormProps {
   paymentAllocation: PaymentAllocation;
@@ -46,40 +91,13 @@ export function PaymentAllocationForm({
   // Single state: whether to show breakdown details
   const [showBreakdownDetails, setShowBreakdownDetails] = useState(false);
 
-  // Calculate totals - SINGLE SOURCE OF TRUTH
-  const calculateOnlineTotal = (breakdown: PaymentSubBreakdown | null | undefined): number => {
-    if (!breakdown) return 0;
-    return (
-      Object.values(breakdown.upi || {}).reduce((sum, v) => sum + (v || 0), 0) +
-      Object.values(breakdown.card || {}).reduce((sum, v) => sum + (v || 0), 0) +
-      Object.values(breakdown.oilCompany || {}).reduce((sum, v) => sum + (v || 0), 0)
-    );
-  };
+  // Calculate all totals (memoized, no mutations)
+  const totals = useMemo(
+    () => calculateTotals(paymentAllocation, totalRequired),
+    [paymentAllocation, totalRequired]
+  );
 
-  const totalCredit = paymentAllocation.credits.reduce((sum, c) => sum + toNumber(c.amount), 0);
-  const breakdownTotal = calculateOnlineTotal(paymentAllocation.onlineBreakdown);
-  
-  // Use the greater of online field or calculated breakdown total
-  const effectiveOnline = Math.max(toNumber(paymentAllocation.online), breakdownTotal);
-  const totalAllocated = toNumber(paymentAllocation.cash) + effectiveOnline + totalCredit;
-  const difference = totalAllocated - totalRequired;
-  const isMatched = Math.abs(difference) <= 0.01;
-  const isShort = difference < -0.01;
-
-  // Auto-sync online field from breakdown when in breakdown mode
-  useEffect(() => {
-    if (!paymentAllocation.onlineBreakdown || !showBreakdownDetails) return;
-    
-    const total = calculateOnlineTotal(paymentAllocation.onlineBreakdown);
-    if (Math.abs(total - toNumber(paymentAllocation.online)) > 0.01) {
-      setPaymentAllocation(prev => ({
-        ...prev,
-        online: total.toString()
-      }));
-    }
-  }, [paymentAllocation.onlineBreakdown, showBreakdownDetails, paymentAllocation.online, setPaymentAllocation]);
-
-  // Quick fill handlers
+  // Quick fill handlers - preserve existing credits
   const handleQuickFill = useCallback((method: 'all_cash' | 'equal' | '5050') => {
     if (totalRequired <= 0) return;
 
@@ -90,7 +108,7 @@ export function PaymentAllocationForm({
           cash: totalRequired.toString(),
           online: '0',
           onlineBreakdown: null,
-          credits: []
+          credits: prev.credits  // PRESERVE existing credits
         }));
         setShowBreakdownDetails(false);
         break;
@@ -102,7 +120,7 @@ export function PaymentAllocationForm({
           cash: (Math.round(half * 100) / 100).toString(),
           online: (Math.round(half * 100) / 100).toString(),
           onlineBreakdown: null,
-          credits: []
+          credits: prev.credits  // PRESERVE existing credits
         }));
         setShowBreakdownDetails(false);
         break;
@@ -115,7 +133,7 @@ export function PaymentAllocationForm({
           cash: (Math.round(third * 100) / 100).toString(),
           online: (Math.round(third * 100) / 100).toString(),
           onlineBreakdown: null,
-          credits: []
+          credits: prev.credits  // PRESERVE existing credits
         }));
         setShowBreakdownDetails(false);
         break;
@@ -123,33 +141,30 @@ export function PaymentAllocationForm({
     }
   }, [totalRequired, setPaymentAllocation]);
 
-  // Update breakdown field
-  const handleUpdateBreakdown = useCallback((path: string, value: string) => {
+  // Update breakdown field - safe immutable update
+  const handleUpdateBreakdown = useCallback((section: 'upi' | 'card' | 'oilCompany', key: string, value: string) => {
     setPaymentAllocation(prev => {
       if (!prev.onlineBreakdown) return prev;
       
-      const breakdown = { ...prev.onlineBreakdown };
-      const keys = path.split('.');
-      let current: any = breakdown;
-      
-      for (let i = 0; i < keys.length - 1; i++) {
-        if (!current[keys[i]]) current[keys[i]] = {};
-        current = current[keys[i]];
-      }
-      
-      const lastKey = keys[keys.length - 1];
-      current[lastKey] = toNumber(value);
-      
-      return { ...prev, onlineBreakdown: breakdown };
+      return {
+        ...prev,
+        onlineBreakdown: {
+          ...prev.onlineBreakdown,
+          [section]: {
+            ...prev.onlineBreakdown[section],
+            [key]: toNumber(value)
+          }
+        }
+      };
     });
   }, [setPaymentAllocation]);
 
-  // Toggle breakdown - auto-initialize if needed
+  // Toggle breakdown - initialize empty structure only
   const handleToggleBreakdown = useCallback((open: boolean) => {
     setShowBreakdownDetails(open);
     if (open && !paymentAllocation.onlineBreakdown) {
-      const onlineAmount = toNumber(paymentAllocation.online);
-      const breakdown = {
+      // Initialize breakdown structure with required fields
+      const breakdown: PaymentSubBreakdown = {
         cash: 0,
         upi: {} as Record<UpiSubType, number>,
         card: {} as Record<CardSubType, number>,
@@ -157,23 +172,12 @@ export function PaymentAllocationForm({
         credit: 0
       };
       
-      // Pre-fill with sensible defaults if there's an online amount
-      if (onlineAmount > 0) {
-        const upiAmount = Math.round(onlineAmount * 0.6 * 100) / 100;
-        const cardAmount = Math.round(onlineAmount * 0.3 * 100) / 100;
-        const oilAmount = Math.round(onlineAmount * 0.1 * 100) / 100;
-        
-        breakdown.upi = { gpay: upiAmount, phonepe: 0, paytm: 0, amazon_pay: 0, cred: 0, bhim: 0, other_upi: 0 };
-        breakdown.card = { debit_card: cardAmount, credit_card: 0 };
-        breakdown.oilCompany = { hp_pay: oilAmount, iocl_card: 0, bpcl_smartfleet: 0, essar_fleet: 0, reliance_fleet: 0, other_oil_company: 0 };
-      }
-      
       setPaymentAllocation(prev => ({
         ...prev,
         onlineBreakdown: breakdown
       }));
     }
-  }, [paymentAllocation.onlineBreakdown, paymentAllocation.online, setPaymentAllocation]);
+  }, [paymentAllocation.onlineBreakdown, setPaymentAllocation]);
 
   // Add credit allocation
   const addCredit = useCallback(() => {
@@ -210,21 +214,24 @@ export function PaymentAllocationForm({
           <h3 className="text-lg font-semibold text-gray-900">Payment Allocation</h3>
           <div className="flex items-center gap-2">
             <span className="text-sm text-gray-600">Status:</span>
-            <Badge variant={isMatched ? "default" : isShort ? "destructive" : "secondary"} className="px-3 py-1">
-              {isMatched ? (
+            <Badge 
+              variant={totals.isMatched ? "default" : totals.isShort ? "destructive" : "secondary"} 
+              className="px-3 py-1"
+            >
+              {totals.isMatched ? (
                 <>
                   <Check className="w-4 h-4 mr-1" />
                   Matched
                 </>
-              ) : isShort ? (
+              ) : totals.isShort ? (
                 <>
                   <AlertCircle className="w-4 h-4 mr-1" />
-                  Short by ₹{safeToFixed(Math.abs(difference), 2)}
+                  Short by ₹{safeToFixed(Math.abs(totals.difference), 2)}
                 </>
               ) : (
                 <>
                   <AlertCircle className="w-4 h-4 mr-1" />
-                  Over by ₹{safeToFixed(difference, 2)}
+                  Over by ₹{safeToFixed(totals.difference, 2)}
                 </>
               )}
             </Badge>
@@ -239,12 +246,12 @@ export function PaymentAllocationForm({
           </div>
           <div className="bg-white p-2 rounded border-l-4 border-green-500">
             <p className="text-gray-600">Allocated</p>
-            <p className="font-bold text-green-600">₹{safeToFixed(totalAllocated, 2)}</p>
+            <p className="font-bold text-green-600">₹{safeToFixed(totals.totalAllocated, 2)}</p>
           </div>
           <div className="bg-white p-2 rounded border-l-4 border-amber-500">
             <p className="text-gray-600">Difference</p>
-            <p className={`font-bold ${isMatched ? 'text-green-600' : 'text-red-600'}`}>
-              {isMatched ? '✓' : ''} ₹{safeToFixed(Math.abs(difference), 2)}
+            <p className={`font-bold ${totals.isMatched ? 'text-green-600' : 'text-red-600'}`}>
+              {totals.isMatched ? '✓' : ''} ₹{safeToFixed(Math.abs(totals.difference), 2)}
             </p>
           </div>
           <div className="bg-white p-2 rounded border-l-4 border-purple-500">
@@ -302,7 +309,7 @@ export function PaymentAllocationForm({
               <Label className="text-sm font-medium">📋 Credit Payment</Label>
               <Input
                 type="text"
-                value={`₹${safeToFixed(totalCredit, 2)}`}
+                value={`₹${safeToFixed(totals.credit, 2)}`}
                 disabled
                 className="w-full bg-gray-100"
               />
@@ -361,9 +368,17 @@ export function PaymentAllocationForm({
             <CollapsibleContent className="mt-4 space-y-4 p-4 bg-amber-50 rounded-lg border border-amber-200">
               {paymentAllocation.onlineBreakdown && (
                 <div className="space-y-4">
-                  <p className="text-sm text-amber-900">
-                    <span className="font-semibold">💡 Tip:</span> Break down your online payment (₹{safeToFixed(toNumber(paymentAllocation.online), 2)}) by method. The online field will auto-sync with your total.
+                    <p className="text-sm text-amber-900">
+                    <span className="font-semibold">💡 Smart Breakdown:</span> Enter your online payment methods below. As you allocate, your online total will update.
                   </p>
+
+                  {/* Suggested Cash */}
+                  {!totals.isMatched && (
+                    <div className="bg-blue-50 border border-blue-200 p-2 rounded text-xs text-blue-900">
+                      <p className="font-semibold">💡 Suggestion:</p>
+                      <p>Set Cash to ₹{safeToFixed(totals.suggestedCash, 2)} to balance your allocation</p>
+                    </div>
+                  )}
 
                   {/* UPI Methods */}
                   <div className="space-y-2">
@@ -383,7 +398,7 @@ export function PaymentAllocationForm({
                             step="0.01"
                             min="0"
                             value={paymentAllocation.onlineBreakdown?.upi?.[key as UpiSubType] || ''}
-                            onChange={(e) => handleUpdateBreakdown(`upi.${key}`, e.target.value)}
+                            onChange={(e) => handleUpdateBreakdown('upi', key, e.target.value)}
                             placeholder="0"
                             className="text-xs font-mono h-8"
                           />
@@ -408,7 +423,7 @@ export function PaymentAllocationForm({
                             step="0.01"
                             min="0"
                             value={paymentAllocation.onlineBreakdown?.card?.[key as CardSubType] || ''}
-                            onChange={(e) => handleUpdateBreakdown(`card.${key}`, e.target.value)}
+                            onChange={(e) => handleUpdateBreakdown('card', key, e.target.value)}
                             placeholder="0"
                             className="text-xs font-mono h-8"
                           />
@@ -434,7 +449,7 @@ export function PaymentAllocationForm({
                             step="0.01"
                             min="0"
                             value={paymentAllocation.onlineBreakdown?.oilCompany?.[key as OilCompanySubType] || ''}
-                            onChange={(e) => handleUpdateBreakdown(`oilCompany.${key}`, e.target.value)}
+                            onChange={(e) => handleUpdateBreakdown('oilCompany', key, e.target.value)}
                             placeholder="0"
                             className="text-xs font-mono h-8"
                           />
@@ -445,18 +460,18 @@ export function PaymentAllocationForm({
 
                   {/* Breakdown Summary */}
                   <div className={`p-3 rounded-lg border-2 ${
-                    Math.abs(breakdownTotal - toNumber(paymentAllocation.online)) <= 0.01
+                    Math.abs(calculateOnlineTotal(paymentAllocation.onlineBreakdown) - totals.online) <= 0.01
                       ? 'border-green-300 bg-green-50'
                       : 'border-red-300 bg-red-50'
                   }`}>
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-sm">
-                        {Math.abs(breakdownTotal - toNumber(paymentAllocation.online)) <= 0.01 
-                          ? '✓ Breakdown Matches' 
+                        {Math.abs(calculateOnlineTotal(paymentAllocation.onlineBreakdown) - totals.online) <= 0.01 
+                          ? '✓ Breakdown Synced' 
                           : '✗ Breakdown Mismatch'}
                       </span>
                       <span className="font-bold">
-                        ₹{safeToFixed(breakdownTotal, 2)} / ₹{safeToFixed(toNumber(paymentAllocation.online), 2)}
+                        ₹{safeToFixed(calculateOnlineTotal(paymentAllocation.onlineBreakdown), 2)}
                       </span>
                     </div>
                   </div>
@@ -473,9 +488,9 @@ export function PaymentAllocationForm({
                       }));
                       setShowBreakdownDetails(false);
                     }}
-                    className="w-full text-xs text-amber-700 hover:bg-amber-100"
+                    className="w-full text-amber-700 hover:bg-amber-100"
                   >
-                    ✕ Clear Breakdown Details
+                    ✕ Clear Breakdown
                   </Button>
                 </div>
               )}
