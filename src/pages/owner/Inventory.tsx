@@ -353,12 +353,25 @@ export default function Inventory() {
     return fuelPrices && fuelPrices[fuelType] ? toNumber(fuelPrices[fuelType]) : null;
   };
   
-  // Calculate refill stats
+  // Calculate refill stats - ensure proper number conversion
+  const totalRefillAmount = refills.reduce((sum, r: any) => sum + toNumber(r.litres || r.amount || 0), 0);
+  
+  // Format refill stats values for display
+  const formatRefillAmount = (amount: number): JSX.Element => {
+    if (!isFinite(amount) || amount === 0) {
+      return <>{amount.toFixed(0)}L</>;
+    }
+    if (amount >= 1000) {
+      return <>{(amount / 1000).toFixed(1)}kL</>;
+    }
+    return <>{toNumber(amount).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}L</>;
+  };
+  
   const refillStats = {
     totalRefills: refills.length,
-    totalAmount: refills.reduce((sum, r: any) => sum + (r.litres || r.amount || 0), 0),
-    averageAmount: refills.length > 0 ? Math.round(refills.reduce((sum, r: any) => sum + (r.litres || r.amount || 0), 0) / refills.length * 10) / 10 : 0,
-    lastRefillDate: refills.length > 0 ? new Date(refills[0]?.refillDate || refills[0]?.createdAt).toLocaleDateString() : 'N/A'
+    totalAmount: totalRefillAmount,
+    lastRefillDate: refills.length > 0 ? new Date(refills[0]?.refillDate || refills[0]?.createdAt).toLocaleDateString() : 'N/A',
+    lastCalibrationDate: selectedTank?.lastDipDate ? new Date(selectedTank.lastDipDate).toLocaleDateString() : 'Never'
   };
   const renderTankCard = (tank: TankData) => {
     const fuelColors = getFuelColors(tank.fuelType);
@@ -701,20 +714,12 @@ export default function Inventory() {
                   <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-teal-100 shadow-sm">
                     <p className="text-[9px] sm:text-xs text-slate-600 font-bold uppercase tracking-tight mb-2 line-clamp-2 h-8 sm:h-auto">Total Liters</p>
                     <p className="text-base sm:text-lg font-bold text-cyan-600 break-words">
-                      {refillStats.totalAmount >= 1000 
-                        ? (refillStats.totalAmount / 1000).toFixed(1) + 'k'
-                        : refillStats.totalAmount.toLocaleString()
-                      }<span className="text-xs sm:text-sm font-normal">L</span>
+                      {formatRefillAmount(refillStats.totalAmount)}
                     </p>
                   </div>
                   <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-teal-100 shadow-sm">
-                    <p className="text-[9px] sm:text-xs text-slate-600 font-bold uppercase tracking-tight mb-2 line-clamp-2 h-8 sm:h-auto">Avg/Refill</p>
-                    <p className="text-base sm:text-lg font-bold text-blue-600 break-words">
-                      {refillStats.averageAmount >= 1000 
-                        ? (refillStats.averageAmount / 1000).toFixed(1) + 'k'
-                        : refillStats.averageAmount.toLocaleString()
-                      }<span className="text-xs sm:text-sm font-normal">L</span>
-                    </p>
+                    <p className="text-[9px] sm:text-xs text-slate-600 font-bold uppercase tracking-tight mb-2 line-clamp-2 h-8 sm:h-auto">Calibration Done</p>
+                    <p className="text-xs sm:text-sm font-bold text-amber-600 break-words">{refillStats.lastCalibrationDate}</p>
                   </div>
                   <div className="bg-white rounded-lg sm:rounded-xl p-2.5 sm:p-4 border border-teal-100 shadow-sm">
                     <p className="text-[9px] sm:text-xs text-slate-600 font-bold uppercase tracking-tight mb-2 line-clamp-2 h-8 sm:h-auto">Last Refill</p>

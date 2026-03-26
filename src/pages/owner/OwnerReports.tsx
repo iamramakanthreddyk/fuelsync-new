@@ -485,11 +485,13 @@ export default function OwnerReports() {
       section('--- SETTLEMENTS & SHORTFALLS ---');
       line('Date', 'Type', 'Station', 'Amount (Rs)', 'Variance (Rs)', 'Status');
       settlements.forEach((s: any) => {
+        // Calculate total amount from actualCash + online + credit
+        const totalAmount = (Number(s.actualCash ?? 0) + Number(s.online ?? 0) + Number(s.credit ?? 0));
         line(
           s.settlementDate ?? s.date ?? '',
           s.settlementType ?? s.type ?? '',
           s.stationName ?? '',
-          Number(s.totalAmount ?? s.amount ?? 0).toFixed(2),
+          totalAmount.toFixed(2),
           Number(s.variance ?? 0).toFixed(2),
           s.status ?? ''
         );

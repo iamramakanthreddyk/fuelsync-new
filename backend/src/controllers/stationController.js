@@ -1963,26 +1963,84 @@ exports.getSettlements = async (req, res, next) => {
       settlementsByDate[d].push(s);
     });
 
+    // Batch-fetch DailyTransactions for all settlement dates
+    const dates = Object.keys(settlementsByDate);
+    let transactionMap = {};
+    if (dates.length > 0) {
+      const transactions = await DailyTransaction.findAll({
+        where: {
+          stationId,
+          transactionDate: { [Op.in]: dates }
+        },
+        raw: true
+      });
+      transactions.forEach(t => {
+        transactionMap[t.transactionDate] = t;
+      });
+    }
+
     const summary = Object.entries(settlementsByDate).map(([date, arr]) => {
       const finals = arr.filter(s => s.isFinal);
       const latestFinal = finals.length > 0 ? finals[finals.length - 1] : null;
       const main = latestFinal || arr[arr.length - 1];
 
+      // Populate employee-reported values from DailyTransaction or mark for transaction lookup
+      let settlementData = main.toJSON();
+      
+      // Try to get from DailyTransaction first
+      if (transactionMap[date]?.paymentBreakdown) {
+        settlementData.employeeCash = parseFloat(transactionMap[date].paymentBreakdown.cash || 0);
+        settlementData.employeeOnline = parseFloat(transactionMap[date].paymentBreakdown.online || 0);
+        settlementData.employeeCredit = parseFloat(transactionMap[date].paymentBreakdown.credit || 0);
+      }
+      // If DailyTransaction doesn't have it, mark for reading-based lookup
+      else if (settlementData.employeeCash === 0 && settlementData.readingIds?.length > 0) {
+        settlementData._needsTransactionLookup = true;
+      }
+
       // Provide clearer metadata while keeping legacy `duplicateCount` for compatibility
       return {
-        ...main.toJSON(),
+        ...settlementData,
         duplicateCount: arr.length,
         attempts: arr.length,
         latestFinalId: latestFinal ? latestFinal.id : null,
         latestRecordId: arr[arr.length - 1].id,
-        mainSettlement: main.toJSON(),
+        mainSettlement: settlementData,
         allSettlements: arr.map(s => s.toJSON()),
         settlementDate: date // Store date for later use
       };
     });
     
+    // Second pass: For settlements that need transaction data, fetch linked readings and aggregate
+    const summaryWithTransactions = await Promise.all(
+      summary.map(async (entry) => {
+        if (entry._needsTransactionLookup && entry.readingIds?.length > 0) {
+          try {
+            // Try to get transaction from the first reading
+            const readingWithTransaction = await NozzleReading.findOne({
+              where: { id: entry.readingIds[0] },
+              include: [{ model: DailyTransaction, as: 'transaction' }],
+              raw: false
+            });
+            
+            // Extract payment breakdown from the reading's transaction
+            if (readingWithTransaction?.transaction?.paymentBreakdown) {
+              const pb = readingWithTransaction.transaction.paymentBreakdown;
+              entry.employeeCash = parseFloat(pb.cash || 0);
+              entry.employeeOnline = parseFloat(pb.online || 0);
+              entry.employeeCredit = parseFloat(pb.credit || 0);
+            }
+          } catch (err) {
+            logger.warn('Failed to load transaction for settlement', { settlementId: entry.id, error: err.message });
+          }
+        }
+        delete entry._needsTransactionLookup;
+        return entry;
+      })
+    );
+    
     // Add variance analysis based on settlement's recorded values
-    const enhancedSummary = summary.map((entry) => {
+    const enhancedSummary = summaryWithTransactions.map((entry) => {
       const savedExpectedCash = parseFloat(entry.expectedCash || 0);
       const savedActualCash = parseFloat(entry.actualCash || 0);
       const savedVariance = parseFloat(entry.variance || 0);
@@ -2111,6 +2169,37 @@ exports.createSettlement = async (req, res, next) => {
       if (resolvedCredit === 0 && derived.credit > 0) resolvedCredit = derived.credit;
     }
 
+    // Get employee-reported payment breakdown from DailyTransaction
+    // This represents what employees recorded during the day
+    let employeeCash = 0;
+    let employeeOnline = 0;
+    let employeeCredit = 0;
+    
+    const transaction = await DailyTransaction.findOne({
+      where: { stationId, transactionDate: date },
+      raw: true
+    });
+    
+    if (transaction?.paymentBreakdown) {
+      employeeCash = parseFloat(transaction.paymentBreakdown.cash || 0);
+      employeeOnline = parseFloat(transaction.paymentBreakdown.online || 0);
+      employeeCredit = parseFloat(transaction.paymentBreakdown.credit || 0);
+    } else if (readingIds.length > 0) {
+      // Fallback: fetch from first reading's transaction if DailyTransaction doesn't have it
+      const readingWithTransaction = await NozzleReading.findOne({
+        where: { id: readingIds[0] },
+        include: [{ model: DailyTransaction, as: 'transaction' }],
+        raw: false
+      });
+      
+      if (readingWithTransaction?.transaction?.paymentBreakdown) {
+        const pb = readingWithTransaction.transaction.paymentBreakdown;
+        employeeCash = parseFloat(pb.cash || 0);
+        employeeOnline = parseFloat(pb.online || 0);
+        employeeCredit = parseFloat(pb.credit || 0);
+      }
+    }
+
     // Create settlement record
     const settlement = await Settlement.create({
       stationId,
@@ -2118,6 +2207,9 @@ exports.createSettlement = async (req, res, next) => {
       expectedCash: parseFloat(expectedCash),
       actualCash: parseFloat(actualCash),
       variance: parseFloat(variance.toFixed(2)),
+      employeeCash,
+      employeeOnline,
+      employeeCredit,
       online: resolvedOnline,
       credit: resolvedCredit,
       totalSaleValue: readings.reduce((sum, r) => sum + parseFloat(r.totalAmount || 0), 0),
