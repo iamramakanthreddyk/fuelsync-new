@@ -5,7 +5,8 @@
     "context": "."
   },
   "deploy": {
-    "numReplicas": 2,
+    "region": "ap-southeast",
+    "numReplicas": 1,
     "restartPolicyType": "on_failure",
     "restartPolicyMaxRetries": 3,
     "sleepApplication": false
